@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "707122344337",
+    "project_id": "arboreal-cat-511705-p6",
+    "storage_bucket": "arboreal-cat-511705-p6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:707122344337:android:79130f53c56e698109aa30",
+        "android_client_info": {
+          "package_name": "com.example.googlelogin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "707122344337-9njivb2dkgpu6q8bujir3f1fobdfgkvp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.googlelogin",
+            "certificate_hash": "cf33a9bf9e3cb105dc5b48192013936e8ebf02e2"
+          }
+        },
+        {
+          "client_id": "707122344337-53ur7hcvpdd0f6mm7li2cclc8agvpdrl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-Fu_WeY93DxtwieQ_psU2DSSwzdZ899o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "707122344337-53ur7hcvpdd0f6mm7li2cclc8agvpdrl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
