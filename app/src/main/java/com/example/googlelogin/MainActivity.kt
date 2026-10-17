@@ -91,7 +91,7 @@ fun AppRoot() {
     var user by remember { mutableStateOf(store.load()) }
     var loading by remember { mutableStateOf(false) }
 
-    fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+    fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
     fun signIn() {
         if (BuildConfig.GOOGLE_WEB_CLIENT_ID.startsWith("GANTI")) {
@@ -125,7 +125,7 @@ fun AppRoot() {
                 // User menutup dialog, abaikan.
             } catch (e: GetCredentialException) {
                 Log.e("GoogleLogin", "Login gagal", e)
-                toast("Login gagal: ${e.message}")
+                toast("Login gagal [${e.type}]: ${e.message}")
             } catch (e: GoogleIdTokenParsingException) {
                 Log.e("GoogleLogin", "Token tidak valid", e)
                 toast("Token Google tidak valid")
