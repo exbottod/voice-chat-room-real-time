@@ -66,8 +66,9 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
     LaunchedEffect(uid) { refresh() }
 
     fun share() {
-        val link = "$INVITE_BASE_URL?invite=$myUserId"
-        val text = "Ayo gabung di REZO CHAT VOICE! Pakai kode undangan saya: $myUserId\n$link"
+        val text = "Ayo gabung di REZO CHAT VOICE!\n" +
+            "Unduh aplikasi terbaru: $APK_DOWNLOAD_URL\n" +
+            "Kode undangan saya: $myUserId"
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, text)

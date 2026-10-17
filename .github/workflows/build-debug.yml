@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main, master ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,3 +32,16 @@ jobs:
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publikasikan APK terbaru ke Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk REZO-CHAT-VOICE.apk
+          NOTES="Build otomatis dari commit ${GITHUB_SHA::7}"
+          if gh release view terbaru >/dev/null 2>&1; then
+            gh release upload terbaru REZO-CHAT-VOICE.apk --clobber
+            gh release edit terbaru --notes "$NOTES" --latest
+          else
+            gh release create terbaru REZO-CHAT-VOICE.apk --title "REZO CHAT VOICE (terbaru)" --notes "$NOTES" --latest
+          fi
