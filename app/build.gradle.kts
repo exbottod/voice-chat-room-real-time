@@ -17,29 +17,6 @@ android {
         minSdk = 24
         targetSdk = 35
         versionCode = 1
-        versionN
-
-mkdir -p .github/workflows app/src/main/java/com/example/googlelogin app/src/main/res/values
-cat > app/build.gradle.kts <<'EOF'
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-}
-
-val googleWebClientId: String =
-    System.getenv("GOOGLE_WEB_CLIENT_ID")?.takeIf { it.isNotBlank() }
-        ?: (project.findProperty("googleWebClientId") as String? ?: "")
-
-android {
-    namespace = "com.example.googlelogin"
-    compileSdk = 35
-
-    defaultConfig {
-        applicationId = "com.example.googlelogin"
-        minSdk = 24
-        targetSdk = 35
-        versionCode = 1
         versionName = "1.0"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
     }
