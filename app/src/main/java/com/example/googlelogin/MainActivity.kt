@@ -157,6 +157,6 @@ fun AppRoot() {
             onSignUp = { toast("Pendaftaran belum tersedia") },
         )
     } else {
-        HomeScreen(user = current, onSignOutClick = ::signOut)
+        MainScreen(user = current, onSignOutClick = ::signOut)
     }
 }
