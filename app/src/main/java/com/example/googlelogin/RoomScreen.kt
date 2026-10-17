@@ -1,0 +1,661 @@
+package com.example.googlelogin
+
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+private const val P_NONE = 0
+private const val P_POWER = 1
+private const val P_TOOLS = 2
+private const val P_MODE = 3
+private const val P_SETTINGS = 4
+private const val P_LOCK = 5
+private val Teal = Color(0xFF2BD9C4)
+
+@Composable
+fun RoomScreen(
+    roomId: String,
+    myUid: String,
+    myName: String,
+    myAvatarB64: String?,
+    onExit: () -> Unit,
+    onMinimize: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var room by remember { mutableStateOf<RoomInfo?>(null) }
+    var seats by remember { mutableStateOf<Map<Int, Seat>>(emptyMap()) }
+    var messages by remember { mutableStateOf<List<RoomMsg>>(emptyList()) }
+    var panel by remember { mutableStateOf(P_NONE) }
+    var seatSheet by remember { mutableStateOf<Int?>(null) }
+    var roomMuted by remember { mutableStateOf(false) }
+    val toast = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
+
+    DisposableEffect(roomId) {
+        val a = RoomRepo.observeRoom(roomId) { room = it }
+        val b = RoomRepo.observeSeats(roomId) { seats = it }
+        val c = RoomRepo.observeMessages(roomId) { messages = it }
+        onDispose { a.remove(); b.remove(); c.remove() }
+    }
+    BackHandler {
+        when {
+            seatSheet != null -> seatSheet = null
+            panel != P_NONE -> panel = P_NONE
+            else -> onMinimize()
+        }
+    }
+
+    val r = room
+    Box(Modifier.fillMaxSize().blockTouches()) {
+        RoyalBackground()
+        if (r == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Gold) }
+            Text(
+                "Keluar", color = GoldLight,
+                modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(16.dp).clickable { onExit() },
+            )
+            return@Box
+        }
+        val bg = remember(r.backgroundB64) { ProfileRepo.decodeB64(r.backgroundB64) }
+        if (bg != null) {
+            Image(bitmap = bg, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Color(0x88000000)))
+        }
+        val isOwner = r.ownerUid == myUid
+        val mySeat = seats.values.firstOrNull { it.uid == myUid }
+        val roomBmp = remember(r.photoB64) { ProfileRepo.decodeB64(r.photoB64) }
+        val cols = micColumns(r.micCount)
+        val rows = (r.micCount + cols - 1) / cols
+        val seatSize = if (cols == 4) 64.dp else 54.dp
+        val listState = rememberLazyListState()
+        val total = messages.size + (if (r.announcement.isNotBlank()) 1 else 0)
+        LaunchedEffect(total) { if (total > 0) listState.animateScrollToItem(total - 1) }
+
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            // Header
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    Modifier.weight(1f, fill = false).clip(RoundedCornerShape(50)).background(Color(0x66000000)).padding(5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RmAvatar(roomBmp, r.name, 38.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(r.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("ID:${r.roomNo}", color = Color(0xFFBDBDBD), fontSize = 11.sp)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "👤 ${r.online}", color = Color.White, fontSize = 13.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x66000000)).padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).background(Color(0x66000000)).clickable { panel = P_POWER },
+                    contentAlignment = Alignment.Center,
+                ) { PowerIcon(Modifier.size(20.dp)) }
+            }
+
+            // Kursi mic
+            Column(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (row in 0 until rows) {
+                    Row(Modifier.fillMaxWidth()) {
+                        for (col in 0 until cols) {
+                            val i = row * cols + col
+                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                if (i < r.micCount) RmSeatView(i, seats[i], seatSize) { seatSheet = i }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Pengumuman dan notifikasi masuk
+            LazyColumn(
+                Modifier.weight(1f).fillMaxWidth(),
+                state = listState,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (r.announcement.isNotBlank()) {
+                    item { RmMsgBox("Pengumuman kamar: ${r.announcement}", Gold) }
+                }
+                items(messages, key = { it.id }) { m -> RmMsgBox(m.text, Color.White) }
+            }
+
+            // Bar bawah
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RmRoundBtn({ toast("Chat segera hadir") }) { Text("💬", fontSize = 20.sp) }
+                Spacer(Modifier.weight(1f))
+                RmRoundBtn({ toast("Hadiah segera hadir") }) { Text("🎁", fontSize = 20.sp) }
+                Spacer(Modifier.weight(1f))
+                if (mySeat != null) {
+                    RmRoundBtn({ scope.launch { RoomRepo.setSeatMuted(r.id, mySeat.index, !mySeat.muted) } }) {
+                        MicIcon(on = !mySeat.muted, modifier = Modifier.size(24.dp), color = if (mySeat.muted) Color(0xFF9A9A9A) else Gold)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                }
+                RmRoundBtn({ panel = P_TOOLS }) { GridIcon(Modifier.size(24.dp)) }
+            }
+        }
+
+        // Dialog seat mic
+        seatSheet?.let { idx ->
+            val s = seats[idx]
+            RmPanel(onDismiss = { seatSheet = null }) {
+                Text("Seat mic", color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(14.dp))
+                if (s == null) {
+                    Text(if (idx == 0) "Kursi MC masih kosong" else "Kursi No.${idx + 1} masih kosong", color = Color(0xFFBDBDBD))
+                    Spacer(Modifier.height(16.dp))
+                    GoldButton(if (mySeat == null) "Naik kursi mic" else "Pindah ke kursi ini") {
+                        seatSheet = null
+                        scope.launch { RoomRepo.takeSeat(r.id, idx, myUid, myName, myAvatarB64)?.let { toast(it) } }
+                    }
+                } else {
+                    RmSeatProfile(
+                        seat = s,
+                        isMe = s.uid == myUid,
+                        isOwner = isOwner,
+                        onLeave = { seatSheet = null; scope.launch { RoomRepo.leaveSeat(r.id, idx) } },
+                        onToggleMic = { scope.launch { RoomRepo.setSeatMuted(r.id, idx, !s.muted) } },
+                        onKick = { seatSheet = null; scope.launch { RoomRepo.leaveSeat(r.id, idx) } },
+                    )
+                }
+            }
+        }
+
+        // Tombol power: keluar / minimalkan
+        if (panel == P_POWER) {
+            Dialog(onDismissRequest = { panel = P_NONE }) {
+                DialogCard {
+                    Text("Keluar dari room?", color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(18.dp))
+                    GoldButton("Keluar") { panel = P_NONE; onExit() }
+                    Spacer(Modifier.height(10.dp))
+                    OutlineButton("Minimalkan") { panel = P_NONE; onMinimize() }
+                }
+            }
+        }
+
+        // Kotak 4: alat dasar
+        if (panel == P_TOOLS) {
+            RmPanel(onDismiss = { panel = P_NONE }) {
+                Text("Alat dasar", color = Color.White, fontSize = 22.sp)
+                Spacer(Modifier.height(16.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    RmTool(
+                        if (roomMuted) "Aktifkan suara" else "Matikan suara",
+                        onClick = {
+                            roomMuted = !roomMuted
+                            toast(if (roomMuted) "Suara room dimatikan" else "Suara room aktif")
+                            panel = P_NONE
+                        },
+                    ) { Text(if (roomMuted) "🔇" else "🔊", fontSize = 24.sp) }
+                    if (isOwner) {
+                        RmTool("Mode kamar", onClick = { panel = P_MODE }) { GridIcon(Modifier.size(26.dp)) }
+                        RmTool("Pengaturan", onClick = { panel = P_SETTINGS }) { Text("⚙️", fontSize = 24.sp) }
+                        RmTool(if (r.locked) "Kamar terkunci" else "Kamar umum", onClick = { panel = P_LOCK }) {
+                            Icon(Icons.Default.Lock, null, tint = GoldLight)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+        if (panel == P_MODE) RmPanel(onDismiss = { panel = P_NONE }) { RmMode(r) { panel = P_NONE } }
+        if (panel == P_SETTINGS) RmPanel(onDismiss = { panel = P_NONE }) { RmSettings(r) { panel = P_NONE } }
+        if (panel == P_LOCK) RmPanel(onDismiss = { panel = P_NONE }) { RmLock(r) { panel = P_NONE } }
+    }
+}
+
+@Composable
+private fun RmAvatar(bmp: ImageBitmap?, fallback: String, size: Dp) {
+    Box(Modifier.size(size).clip(CircleShape).background(Color(0xFF1E3A34)), contentAlignment = Alignment.Center) {
+        if (bmp != null) {
+            Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else {
+            Text(fallback.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = (size.value * 0.4f).sp)
+        }
+    }
+}
+
+@Composable
+private fun RmSeatView(index: Int, seat: Seat?, size: Dp, onClick: () -> Unit) {
+    val bmp = remember(seat?.avatarB64) { ProfileRepo.decodeB64(seat?.avatarB64) }
+    Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(size).clip(CircleShape).background(Color(0xFF0F3D33)).border(2.dp, Teal, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                seat != null && bmp != null ->
+                    Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                seat != null ->
+                    Text(seat.name.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                index == 0 -> MicIcon(true, Modifier.size(size * 0.5f), Gold)
+                else -> Text("💺", fontSize = (size.value * 0.42f).sp)
+            }
+            if (seat != null && seat.muted) {
+                Box(
+                    Modifier.align(Alignment.BottomEnd).size(20.dp).clip(CircleShape).background(Color(0xCC000000)),
+                    contentAlignment = Alignment.Center,
+                ) { MicIcon(false, Modifier.size(13.dp)) }
+            }
+        }
+        Text(
+            seat?.name ?: (if (index == 0) "MC" else "No.${index + 1}"),
+            color = Color(0xFFBDBDBD), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center, modifier = Modifier.width(size + 8.dp),
+        )
+        Text("💗 0", color = Color.White, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun RmMsgBox(text: String, color: Color) {
+    Box(Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x66000000)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Text(text, color = color, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun RmRoundBtn(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        Modifier.size(46.dp).clip(CircleShape).background(Color(0x66000000)).border(1.dp, Gold.copy(alpha = 0.4f), CircleShape).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
+
+@Composable
+private fun RmPanel(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    Box(
+        Modifier.fillMaxSize().background(Color(0x99000000)).clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = onDismiss,
+        ),
+    ) {
+        Column(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+                .background(Color(0xFF0B0B0B))
+                .blockTouches()
+                .navigationBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun RmTool(label: String, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    Column(Modifier.width(80.dp).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFF1C1C1C)), contentAlignment = Alignment.Center) { icon() }
+        Spacer(Modifier.height(6.dp))
+        Text(label, color = Color(0xFFD0D0D0), fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 2)
+    }
+}
+
+@Composable
+private fun RmAction(label: String, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(52.dp).clip(CircleShape).background(Color(0xFF1C1C1C)).border(1.dp, Gold.copy(alpha = 0.5f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) { icon() }
+        Spacer(Modifier.height(6.dp))
+        Text(label, color = Color(0xFFD0D0D0), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun RmStat(value: String, label: String, modifier: Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(label, color = Color(0xFF9A9A9A), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun RmSeatProfile(
+    seat: Seat,
+    isMe: Boolean,
+    isOwner: Boolean,
+    onLeave: () -> Unit,
+    onToggleMic: () -> Unit,
+    onKick: () -> Unit,
+) {
+    val bmp = remember(seat.avatarB64) { ProfileRepo.decodeB64(seat.avatarB64) }
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        RmAvatar(bmp, seat.name, 76.dp)
+        Spacer(Modifier.height(8.dp))
+        Text(seat.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth()) {
+            RmStat("0", "Followers", Modifier.weight(1f))
+            RmStat("0", "Follow", Modifier.weight(1f))
+            RmStat("0", "Level", Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(18.dp))
+        if (isMe) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                RmAction("Turun mic", onLeave) { Icon(Icons.Default.KeyboardArrowDown, null, tint = GoldLight) }
+                RmAction(if (seat.muted) "Buka mic" else "Matikan mic", onToggleMic) { MicIcon(!seat.muted) }
+            }
+        } else if (isOwner) {
+            GoldButton("Turunkan dari kursi", onClick = onKick)
+        }
+    }
+}
+
+@Composable
+private fun RmMiniSeats(count: Int, selected: Boolean, modifier: Modifier) {
+    val cols = micColumns(count)
+    val rows = (count + cols - 1) / cols
+    Canvas(modifier) {
+        val cw = size.width / cols
+        val ch = size.height / rows
+        val rad = minOf(cw, ch) * 0.3f
+        for (i in 0 until count) {
+            drawCircle(
+                if (selected) Teal else Color(0xFF6B6B6B),
+                rad,
+                Offset(cw * (i % cols + 0.5f), ch * (i / cols + 0.5f)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RmMode(r: RoomInfo, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var sel by remember { mutableStateOf(r.micCount) }
+    Text("Pilih mode party", color = Color.White, fontSize = 22.sp)
+    Spacer(Modifier.height(12.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(60.dp).clip(CircleShape).background(Color(0xFF1C1C1C)).border(2.dp, Gold, CircleShape), contentAlignment = Alignment.Center) {
+                Text("😎", fontSize = 28.sp)
+            }
+            Text("Obrolan", color = Color.White, fontSize = 13.sp)
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(60.dp).clip(CircleShape).background(Color(0xFF1C1C1C)), contentAlignment = Alignment.Center) {
+                Text("🛋️", fontSize = 28.sp)
+            }
+            Text("Mode MC acara", color = Color(0xFF6B6B6B), fontSize = 13.sp)
+        }
+    }
+    Spacer(Modifier.height(16.dp))
+    Text("Jumlah mic", color = Color.White, fontSize = 18.sp)
+    Text("Posisi kursi host akan berubah jika mengganti jumlah mic", color = Color(0xFF8A8A8A), fontSize = 12.sp)
+    listOf(8, 10, 12, 15, 16, 20).chunked(3).forEach { rowItems ->
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            rowItems.forEach { n ->
+                val on = sel == n
+                Column(
+                    Modifier.weight(1f).clickable {
+                        sel = n
+                        scope.launch {
+                            RoomRepo.setMicCount(r.id, n)?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+                        }
+                    },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    RmMiniSeats(
+                        n, on,
+                        Modifier.fillMaxWidth().height(70.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1C1C1C))
+                            .border(2.dp, if (on) Teal else Color(0xFF333333), RoundedCornerShape(10.dp)).padding(8.dp),
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "$n", color = if (on) Color.Black else Color.White, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Teal else Color(0xFF222222)).padding(horizontal = 16.dp, vertical = 3.dp),
+                    )
+                }
+            }
+        }
+    }
+    Spacer(Modifier.height(18.dp))
+    Box(
+        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50)).background(Color(0xFF00D1B2)).clickable(onClick = onClose),
+        contentAlignment = Alignment.Center,
+    ) { Text("Konfirmasi", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp) }
+}
+
+@Composable
+private fun RmSettings(r: RoomInfo, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var name by remember { mutableStateOf(r.name) }
+    var ann by remember { mutableStateOf(r.announcement) }
+    var photo by remember { mutableStateOf<String?>(null) }
+    var bg by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val photoBmp = remember(photo, r.photoB64) { ProfileRepo.decodeB64(photo ?: r.photoB64) }
+    val bgBmp = remember(bg, r.backgroundB64) { ProfileRepo.decodeB64(bg ?: r.backgroundB64) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch {
+            busy = true
+            val b = ProfileRepo.encodeImage(context, uri, 320, square = true, quality = 85)
+            busy = false
+            if (b != null) photo = b
+        }
+    }
+    val bgPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch {
+            busy = true
+            val b = ProfileRepo.encodeImage(context, uri, 900, square = false, quality = 72)
+            busy = false
+            if (b != null) bg = b
+        }
+    }
+    val imageOnly = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+
+    Text("Pengaturan room", color = Color.White, fontSize = 22.sp)
+    Spacer(Modifier.height(14.dp))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                Modifier.size(72.dp).clip(CircleShape).background(Color(0xFF1E1E1E)).border(2.dp, Gold, CircleShape)
+                    .clickable(enabled = !busy) { photoPicker.launch(imageOnly) },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (photoBmp != null) Image(bitmap = photoBmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                else Text("📷", fontSize = 26.sp)
+            }
+            Text("Foto room", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+        }
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1E1E1E))
+                    .border(1.dp, Gold, RoundedCornerShape(12.dp)).clickable(enabled = !busy) { bgPicker.launch(imageOnly) },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (bgBmp != null) Image(bitmap = bgBmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                else Text("🖼️", fontSize = 26.sp)
+            }
+            Text("Background room", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+        }
+    }
+    Spacer(Modifier.height(14.dp))
+    OutlinedTextField(
+        value = name, onValueChange = { if (it.length <= 30) name = it },
+        modifier = Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Nama room") },
+        shape = RoundedCornerShape(12.dp), colors = goldFieldColors(),
+    )
+    Spacer(Modifier.height(10.dp))
+    OutlinedTextField(
+        value = ann, onValueChange = { if (it.length <= 200) ann = it },
+        modifier = Modifier.fillMaxWidth(), minLines = 3, placeholder = { Text("Pengumuman room") },
+        shape = RoundedCornerShape(12.dp), colors = goldFieldColors(),
+    )
+    Spacer(Modifier.height(16.dp))
+    GoldButton("Konfirmasi", enabled = name.isNotBlank() && !busy) {
+        scope.launch {
+            busy = true
+            val err = RoomRepo.updateSettings(r.id, name.trim(), photo, bg, ann.trim())
+            busy = false
+            Toast.makeText(context, err ?: "Tersimpan", Toast.LENGTH_SHORT).show()
+            if (err == null) onClose()
+        }
+    }
+}
+
+@Composable
+private fun RmLock(r: RoomInfo, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pw by remember { mutableStateOf("") }
+    Text(if (r.locked) "Kamar terkunci" else "Kunci kamar dengan password", color = Color.White, fontSize = 20.sp)
+    Spacer(Modifier.height(12.dp))
+    if (r.locked) {
+        Text("Pengguna lain harus memasukkan password untuk masuk.", color = Color(0xFF9A9A9A), fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        GoldButton("Jadikan publik") {
+            scope.launch {
+                val e = RoomRepo.setLock(r.id, null)
+                Toast.makeText(context, e ?: "Kamar sekarang publik", Toast.LENGTH_SHORT).show()
+                if (e == null) onClose()
+            }
+        }
+    } else {
+        OutlinedTextField(
+            value = pw, onValueChange = { pw = it },
+            modifier = Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Password (min. 4 karakter)") },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            shape = RoundedCornerShape(12.dp), colors = goldFieldColors(),
+        )
+        Spacer(Modifier.height(16.dp))
+        GoldButton("Kunci kamar", enabled = pw.length >= 4) {
+            scope.launch {
+                val e = RoomRepo.setLock(r.id, pw)
+                Toast.makeText(context, e ?: "Kamar dikunci", Toast.LENGTH_SHORT).show()
+                if (e == null) onClose()
+            }
+        }
+    }
+}
+
+/** Bulatan kecil mengambang saat room diminimalkan. Bisa digeser, klik untuk masuk lagi. */
+@Composable
+fun FloatingRoomBubble(room: RoomInfo, onClick: () -> Unit) {
+    val density = LocalDensity.current
+    val cfg = LocalConfiguration.current
+    val sizePx = with(density) { 60.dp.toPx() }
+    val maxX = with(density) { cfg.screenWidthDp.dp.toPx() } - sizePx
+    val maxY = with(density) { cfg.screenHeightDp.dp.toPx() } - sizePx
+    var x by remember { mutableStateOf(maxX - 24f) }
+    var y by remember { mutableStateOf(maxY * 0.6f) }
+    val bmp = remember(room.photoB64) { ProfileRepo.decodeB64(room.photoB64) }
+    Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier
+                .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
+                .size(60.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF1E1E1E))
+                .border(2.dp, Gold, CircleShape)
+                .pointerInput(Unit) {
+                    detectDragGestures { change, drag ->
+                        change.consume()
+                        x = (x + drag.x).coerceIn(0f, maxX)
+                        y = (y + drag.y).coerceIn(0f, maxY)
+                    }
+                }
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (bmp != null) Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            else Text("🎙️", fontSize = 26.sp)
+        }
+    }
+}
