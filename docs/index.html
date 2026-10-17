@@ -1,7 +1,13 @@
 <!doctype html>
 <html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>REZO CHAT VOICE</title></head>
-<body style="font-family:sans-serif;max-width:700px;margin:40px auto;padding:0 16px">
+<body style="font-family:sans-serif;max-width:700px;margin:40px auto;padding:0 16px;text-align:center">
 <h1>REZO CHAT VOICE</h1>
 <p>Aplikasi Android untuk chat suara dengan teman.</p>
+<p><a href="https://github.com/exbottod/voice-chat-room-real-time/releases/latest/download/REZO-CHAT-VOICE.apk" style="display:inline-block;background:#d4af37;color:#000;padding:14px 28px;border-radius:12px;font-weight:bold;text-decoration:none">Unduh APK Terbaru</a></p>
+<p id="kode"></p>
 <p><a href="privacy.html">Kebijakan Privasi</a></p>
+<script>
+var k=new URLSearchParams(location.search).get("invite");
+if(k&&/^\d+$/.test(k)){document.getElementById("kode").textContent="Kode undangan: "+k+" (masukkan di menu Undang teman setelah login)";}
+</script>
 </body></html>
