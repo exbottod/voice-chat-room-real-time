@@ -55,12 +55,27 @@ import androidx.compose.ui.unit.sp
 data class Room(val name: String, val owner: String, val online: Int)
 
 @Composable
-fun PartyTab(onSearch: () -> Unit = {}) {
+fun PartyTab(
+    myUid: String,
+    myName: String,
+    onSearch: () -> Unit = {},
+    onEnterRoom: (RoomInfo) -> Unit = {},
+) {
     val context = LocalContext.current
     var subTab by rememberSaveable { mutableStateOf(1) }
     var filter by rememberSaveable { mutableStateOf(0) }
-    val rooms = remember { List(6) { Room("Room ${it + 1}", "Belum ada pemilik", 0) } }
+    var showCreate by remember { mutableStateOf(false) }
+    var lockedRoom by remember { mutableStateOf<RoomInfo?>(null) }
+    val allRooms = rememberRooms()
     val soon = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
+    val open: (RoomInfo) -> Unit = { room ->
+        if (room.locked && room.ownerUid != myUid) lockedRoom = room else onEnterRoom(room)
+    }
+    val shown = when {
+        subTab == 0 -> allRooms.filter { it.ownerUid == myUid }
+        filter == 0 -> allRooms.sortedByDescending { it.online }
+        else -> allRooms
+    }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -74,28 +89,46 @@ fun PartyTab(onSearch: () -> Unit = {}) {
                 selected = subTab,
                 onSelect = { subTab = it },
                 onSearch = onSearch,
-                onCreate = { soon("Buat room segera hadir") },
+                onCreate = { showCreate = true },
             )
         }
-        if (subTab != 1) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                EmptyBlock(if (subTab == 0) "Belum ada room milik Anda" else "Belum ada aktivitas")
-            }
+        if (subTab == 2) {
+            item(span = { GridItemSpan(maxLineSpan) }) { EmptyBlock("Belum ada aktivitas") }
         } else {
-            item(span = { GridItemSpan(maxLineSpan) }) { BannerPager() }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                RankRow(onClick = { soon("$it segera hadir") })
+            if (subTab == 1) {
+                item(span = { GridItemSpan(maxLineSpan) }) { BannerPager() }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    RankRow(onClick = { soon("$it segera hadir") })
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    PrizeBar(onClick = { soon("Undian hadiah segera hadir") })
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    FilterChips(selected = filter, onSelect = { filter = it })
+                }
             }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                PrizeBar(onClick = { soon("Undian hadiah segera hadir") })
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                FilterChips(selected = filter, onSelect = { filter = it })
-            }
-            items(rooms) { room ->
-                RoomCard(room, onClick = { soon("${room.name} belum tersedia") })
+            if (shown.isEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    EmptyBlock(if (subTab == 0) "Belum ada room milik Anda" else "Belum ada room.\nTekan + untuk membuat room")
+                }
+            } else {
+                items(shown, key = { it.id }) { room ->
+                    RoomCardView(room, onClick = { open(room) })
+                }
             }
         }
+    }
+
+    if (showCreate) {
+        CreateRoomDialog(
+            ownerUid = myUid,
+            ownerName = myName,
+            onDismiss = { showCreate = false },
+            onCreated = { showCreate = false; onEnterRoom(it) },
+        )
+    }
+    lockedRoom?.let { r ->
+        PasswordDialog(r, onDismiss = { lockedRoom = null }, onOk = { lockedRoom = null; onEnterRoom(r) })
     }
 }
 

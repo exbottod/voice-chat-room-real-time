@@ -57,6 +57,31 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var profile by remember { mutableStateOf(ProfileRepo.loadLocal(context, user.email)) }
     var userId by remember { mutableStateOf(UserDirectory.cachedId(context, uid) ?: "...") }
 
+    var activeRoom by remember { mutableStateOf<RoomInfo?>(null) }
+    var minimized by remember { mutableStateOf(false) }
+    val myName = profile.nickname.ifBlank { user.name }
+
+    fun enterRoom(room: RoomInfo) {
+        if (activeRoom?.id == room.id) {
+            minimized = false
+            return
+        }
+        val old = activeRoom
+        activeRoom = room
+        minimized = false
+        scope.launch {
+            if (old != null) RoomRepo.leave(old.id, uid)
+            RoomRepo.join(room.id, myName)
+        }
+    }
+
+    fun exitRoom() {
+        val r = activeRoom ?: return
+        activeRoom = null
+        minimized = false
+        scope.launch { RoomRepo.leave(r.id, uid) }
+    }
+
     // Muat profil dari Firestore, pastikan ID pengguna (mulai 100000) ada, lalu publikasikan.
     LaunchedEffect(uid) {
         if (uid.isEmpty()) return@LaunchedEffect
@@ -113,7 +138,12 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             } else padding
             Box(Modifier.fillMaxSize().padding(contentPadding)) {
                 when (selected) {
-                    0 -> PartyTab(onSearch = { overlay = OV_SEARCH })
+                    0 -> PartyTab(
+                        myUid = uid,
+                        myName = myName,
+                        onSearch = { overlay = OV_SEARCH },
+                        onEnterRoom = ::enterRoom,
+                    )
                     1 -> DiscoverTab()
                     2 -> FamilyTab()
                     3 -> MessagesTab()
@@ -153,6 +183,21 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 myUserId = userId,
                 onBack = { overlay = OV_NONE },
             )
+        }
+        val room = activeRoom
+        if (room != null) {
+            if (!minimized) {
+                RoomScreen(
+                    roomId = room.id,
+                    myUid = uid,
+                    myName = myName,
+                    myAvatarB64 = profile.avatarB64,
+                    onExit = ::exitRoom,
+                    onMinimize = { minimized = true },
+                )
+            } else {
+                FloatingRoomBubble(room = room, onClick = { minimized = false })
+            }
         }
     }
 }
