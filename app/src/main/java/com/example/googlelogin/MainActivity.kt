@@ -89,7 +89,7 @@ fun AppRoot() {
     val credentialManager = remember { CredentialManager.create(context) }
     val scope = rememberCoroutineScope()
 
-    var user by remember { mutableStateOf(store.load()) }
+    var user by remember { mutableStateOf(if (FirebaseSession.isSignedIn()) store.load() else null) }
     var loading by remember { mutableStateOf(false) }
 
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
@@ -117,8 +117,12 @@ fun AppRoot() {
                         photoUrl = google.profilePictureUri?.toString(),
                         idToken = google.idToken,
                     )
+                    val uid = FirebaseSession.signIn(google.idToken)
                     store.save(profile)
                     user = profile
+                    FirebaseSession.saveProfile(uid, profile)?.let {
+                        toast("Profil belum tersimpan di server: ${it.message}")
+                    }
                 } else {
                     toast("Tipe kredensial tidak dikenal")
                 }
@@ -134,6 +138,9 @@ fun AppRoot() {
             } catch (e: GoogleIdTokenParsingException) {
                 Log.e("GoogleLogin", "Token tidak valid", e)
                 toast("Token Google tidak valid")
+            } catch (e: Exception) {
+                Log.e("GoogleLogin", "Gagal masuk Firebase", e)
+                toast("Gagal masuk: ${e.message}")
             } finally {
                 loading = false
             }
@@ -147,6 +154,7 @@ fun AppRoot() {
             } catch (e: Exception) {
                 Log.w("GoogleLogin", "clearCredentialState gagal", e)
             }
+            FirebaseSession.signOut()
             store.clear()
             user = null
         }
