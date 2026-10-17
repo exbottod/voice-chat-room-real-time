@@ -55,7 +55,7 @@ import androidx.compose.ui.unit.sp
 data class Room(val name: String, val owner: String, val online: Int)
 
 @Composable
-fun PartyTab() {
+fun PartyTab(onSearch: () -> Unit = {}) {
     val context = LocalContext.current
     var subTab by rememberSaveable { mutableStateOf(1) }
     var filter by rememberSaveable { mutableStateOf(0) }
@@ -73,7 +73,7 @@ fun PartyTab() {
             TopTabs(
                 selected = subTab,
                 onSelect = { subTab = it },
-                onSearch = { soon("Pencarian segera hadir") },
+                onSearch = onSearch,
                 onCreate = { soon("Buat room segera hadir") },
             )
         }

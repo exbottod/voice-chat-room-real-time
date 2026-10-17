@@ -111,12 +111,14 @@ private fun MenuItem(emoji: String, label: String, trailing: String? = null, onC
 fun ProfileTab(
     user: UserProfile,
     profile: ProfileData,
+    userId: String,
     onEditClick: () -> Unit,
+    onInviteClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
-    val userId = remember(user.email) { userIdFrom(user.email) }
     val nick = profile.nickname.ifBlank { user.name }
     val bg = remember(profile.backgroundB64) { ProfileRepo.decodeB64(profile.backgroundB64) }
     val ink = if (bg != null) Color.White else Navy
@@ -303,14 +305,14 @@ fun ProfileTab(
                     .background(Color.White)
                     .padding(vertical = 4.dp),
             ) {
-                MenuItem("🎁", "Undang teman dan dapatkan koin") { soon("Undang teman") }
+                MenuItem("🎁", "Undang teman dan dapatkan koin") { onInviteClick() }
                 MenuItem("⭐", "Lencana glory") { soon("Lencana glory") }
                 MenuItem("🎨", "Pusat kustom") { soon("Pusat kustom") }
                 MenuItem("🏪", "Store") { soon("Store") }
                 MenuItem("🧰", "Alat peraga") { soon("Alat peraga") }
                 MenuItem("🏰", "Family", trailing = "Liga Peringkat Fam") { soon("Family") }
                 MenuItem("🏠", "CP house") { soon("CP house") }
-                MenuItem("⚙️", "Pengaturan") { soon("Pengaturan") }
+                MenuItem("⚙️", "Pengaturan") { onSettingsClick() }
                 MenuItem("❓", "Bantuan") { soon("Bantuan") }
             }
 

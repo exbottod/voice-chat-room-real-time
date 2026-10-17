@@ -147,6 +147,28 @@ fun AppRoot() {
         }
     }
 
+    fun emailLogin(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
+            toast("Isi email dan password")
+            return
+        }
+        loading = true
+        scope.launch {
+            try {
+                val fb = FirebaseSession.signInEmail(email.trim(), password)
+                val (name, photo) = FirebaseSession.fetchBasic(fb.uid, email.trim().substringBefore("@"))
+                val profile = UserProfile(name = name, email = email.trim(), photoUrl = photo, idToken = "")
+                store.save(profile)
+                user = profile
+            } catch (e: Exception) {
+                Log.e("EmailLogin", "Gagal", e)
+                toast(FirebaseSession.friendlyError(e))
+            } finally {
+                loading = false
+            }
+        }
+    }
+
     fun signOut() {
         scope.launch {
             try {
@@ -165,7 +187,7 @@ fun AppRoot() {
         LoginScreen(
             loading = loading,
             onGoogleClick = ::signIn,
-            onEmailLogin = { _, _ -> toast("Login email belum tersedia, gunakan Google") },
+            onEmailLogin = { e, p -> emailLogin(e, p) },
             onForgotPassword = { toast("Lupa password belum tersedia") },
             onSignUp = { toast("Pendaftaran belum tersedia") },
         )

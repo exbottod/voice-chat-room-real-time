@@ -99,6 +99,7 @@ private fun EditRow(
 @Composable
 fun EditProfileScreen(
     user: UserProfile,
+    userId: String,
     profile: ProfileData,
     onChange: (ProfileData) -> Unit,
     onBack: () -> Unit,
@@ -110,7 +111,6 @@ fun EditProfileScreen(
     var busy by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<EditDialog?>(null) }
 
-    val userId = remember(user.email) { userIdFrom(user.email) }
     val nick = profile.nickname.ifBlank { user.name }
     val bgBmp = remember(profile.backgroundB64) { ProfileRepo.decodeB64(profile.backgroundB64) }
 
@@ -166,7 +166,7 @@ fun EditProfileScreen(
         ).apply { datePicker.maxDate = System.currentTimeMillis() }.show()
     }
 
-    Box(Modifier.fillMaxSize().background(Color.White)) {
+    Box(Modifier.fillMaxSize().blockTouches().background(Color.White)) {
         Column(Modifier.fillMaxSize()) {
             // ---------- Top bar ----------
             Box(Modifier.fillMaxWidth().statusBarsPadding().height(56.dp)) {
