@@ -27,6 +27,7 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
@@ -122,7 +123,11 @@ fun AppRoot() {
                     toast("Tipe kredensial tidak dikenal")
                 }
             } catch (e: GetCredentialCancellationException) {
-                toast("Dibatalkan [${e.type}]: ${e.message}")
+                Log.w("GoogleLogin", "Login dibatalkan / ditolak", e)
+                toast("Login Google dibatalkan. Jika dialog langsung menutup sendiri, periksa SHA-1 & package di Google Cloud Console.")
+            } catch (e: NoCredentialException) {
+                Log.e("GoogleLogin", "Tidak ada akun Google di perangkat", e)
+                toast("Tidak ada akun Google di perangkat. Tambahkan akun Google di Pengaturan lalu coba lagi.")
             } catch (e: GetCredentialException) {
                 Log.e("GoogleLogin", "Login gagal", e)
                 toast("Login gagal [${e.type}]: ${e.message}")
