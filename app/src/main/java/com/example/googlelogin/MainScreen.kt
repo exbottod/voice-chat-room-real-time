@@ -29,9 +29,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 private data class NavItem(val label: String, val icon: ImageVector)
+
+private const val OV_NONE = 0
+private const val OV_EDIT = 1
+private const val OV_SETTINGS = 2
+private const val OV_INVITE = 3
+private const val OV_SEARCH = 4
 
 @Composable
 fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
@@ -44,16 +51,25 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         NavItem("Pesan", Icons.Default.Email),
         NavItem("Saya", Icons.Default.Person),
     )
+    val uid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
     var selected by rememberSaveable { mutableStateOf(0) }
-    var showEdit by rememberSaveable { mutableStateOf(false) }
+    var overlay by rememberSaveable { mutableStateOf(OV_NONE) }
     var profile by remember { mutableStateOf(ProfileRepo.loadLocal(context, user.email)) }
+    var userId by remember { mutableStateOf(UserDirectory.cachedId(context, uid) ?: "...") }
 
-    // Ambil profil terbaru dari Firestore (jika sudah pernah disimpan)
-    LaunchedEffect(user.email) {
+    // Muat profil dari Firestore, pastikan ID pengguna (mulai 100000) ada, lalu publikasikan.
+    LaunchedEffect(uid) {
+        if (uid.isEmpty()) return@LaunchedEffect
         ProfileRepo.loadRemote()?.let {
             profile = it
             ProfileRepo.saveLocal(context, user.email, it)
         }
+        try {
+            userId = UserDirectory.ensureUserId(context, uid)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+        UserDirectory.publish(context, user, profile)
     }
 
     fun updateProfile(new: ProfileData) {
@@ -63,6 +79,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             ProfileRepo.saveRemote(new)?.let {
                 Toast.makeText(context, "Tersimpan di perangkat, gagal sinkron: ${it.message}", Toast.LENGTH_LONG).show()
             }
+            UserDirectory.publish(context, user, new)
         }
     }
 
@@ -96,26 +113,45 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             } else padding
             Box(Modifier.fillMaxSize().padding(contentPadding)) {
                 when (selected) {
-                    0 -> PartyTab()
+                    0 -> PartyTab(onSearch = { overlay = OV_SEARCH })
                     1 -> DiscoverTab()
                     2 -> FamilyTab()
                     3 -> MessagesTab()
                     else -> ProfileTab(
                         user = user,
                         profile = profile,
-                        onEditClick = { showEdit = true },
+                        userId = userId,
+                        onEditClick = { overlay = OV_EDIT },
+                        onInviteClick = { overlay = OV_INVITE },
+                        onSettingsClick = { overlay = OV_SETTINGS },
                         onSignOutClick = onSignOutClick,
                     )
                 }
             }
         }
 
-        if (showEdit) {
-            EditProfileScreen(
+        when (overlay) {
+            OV_EDIT -> EditProfileScreen(
                 user = user,
+                userId = userId,
                 profile = profile,
                 onChange = ::updateProfile,
-                onBack = { showEdit = false },
+                onBack = { overlay = OV_NONE },
+            )
+            OV_SETTINGS -> SettingsScreen(
+                user = user,
+                userId = userId,
+                onSignOut = onSignOutClick,
+                onBack = { overlay = OV_NONE },
+            )
+            OV_INVITE -> InviteScreen(
+                uid = uid,
+                myUserId = userId,
+                onBack = { overlay = OV_NONE },
+            )
+            OV_SEARCH -> UserSearchScreen(
+                myUserId = userId,
+                onBack = { overlay = OV_NONE },
             )
         }
     }
