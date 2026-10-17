@@ -1,3 +1,5 @@
 <resources>
-    <style name="Theme.GoogleLogin" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.GoogleLogin" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
 </resources>
