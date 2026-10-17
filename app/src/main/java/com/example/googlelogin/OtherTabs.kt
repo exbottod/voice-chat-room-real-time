@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -118,17 +119,37 @@ private fun MenuRow(label: String, onClick: () -> Unit) {
     }
 }
 
+private fun userIdFrom(email: String): String {
+    val n = (email.lowercase().hashCode().toLong() and 0x7FFFFFFFL) % 90000000L + 10000000L
+    return n.toString()
+}
+
+@Composable
+private fun StatItem(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = Color(0xFFBDBDBD), fontSize = 12.sp)
+    }
+}
+
 @Composable
 fun ProfileTab(user: UserProfile, onSignOutClick: () -> Unit) {
     val context = LocalContext.current
+    val userId = remember(user.email) { userIdFrom(user.email) }
+    val level = 1
+    val coins = 0
+    val followers = 0
+    val following = 0
+    val cardShape = RoundedCornerShape(16.dp)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
         if (!user.photoUrl.isNullOrBlank()) {
             AsyncImage(
                 model = user.photoUrl,
@@ -152,19 +173,47 @@ fun ProfileTab(user: UserProfile, onSignOutClick: () -> Unit) {
         }
         Spacer(Modifier.height(12.dp))
         Text(user.name, color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text(user.email, color = Color(0xFFBDBDBD), fontSize = 14.sp)
-        Spacer(Modifier.height(24.dp))
-        listOf("Edit profil", "Dompet", "Pengaturan", "Bantuan").forEach { label ->
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("ID: $userId", color = Color(0xFFBDBDBD), fontSize = 13.sp)
+            Spacer(Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(GoldBrush)
+                    .padding(horizontal = 10.dp, vertical = 2.dp),
+            ) {
+                Text("Lv.$level", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(cardShape)
+                .background(CardBlack.copy(alpha = 0.9f))
+                .border(1.dp, Gold.copy(alpha = 0.35f), cardShape)
+                .padding(vertical = 14.dp),
+        ) {
+            StatItem("$followers", "Pengikut", Modifier.weight(1f))
+            StatItem("$following", "Mengikuti", Modifier.weight(1f))
+            StatItem("$coins", "Koin", Modifier.weight(1f))
+        }
+
+        Spacer(Modifier.height(16.dp))
+        listOf("Edit profil", "Dompet", "Item saya", "Pengaturan", "Bantuan").forEach { label ->
             MenuRow(label) {
                 Toast.makeText(context, "$label segera hadir", Toast.LENGTH_SHORT).show()
             }
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
         OutlinedButton(
             onClick = onSignOutClick,
             modifier = Modifier.fillMaxWidth(),
             border = BorderStroke(1.dp, Gold),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldLight),
         ) { Text("Keluar") }
+        Spacer(Modifier.height(16.dp))
     }
 }
