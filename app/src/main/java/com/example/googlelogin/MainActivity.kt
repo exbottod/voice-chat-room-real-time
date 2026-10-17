@@ -122,7 +122,7 @@ fun AppRoot() {
                     toast("Tipe kredensial tidak dikenal")
                 }
             } catch (e: GetCredentialCancellationException) {
-                // User menutup dialog, abaikan.
+                toast("Dibatalkan [${e.type}]: ${e.message}")
             } catch (e: GetCredentialException) {
                 Log.e("GoogleLogin", "Login gagal", e)
                 toast("Login gagal [${e.type}]: ${e.message}")
