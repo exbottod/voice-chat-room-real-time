@@ -227,6 +227,7 @@ fun GiftPanel(
     onDismiss: () -> Unit,
     seats: List<Seat> = emptyList(),
     initialTarget: String? = null,
+    myAvatarB64: String? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -239,7 +240,10 @@ fun GiftPanel(
     var sending by remember { mutableStateOf(false) }
     var allSelected by remember { mutableStateOf(initialTarget == null) }
     var picked by remember { mutableStateOf<Set<String>>(if (initialTarget != null) setOf(initialTarget) else emptySet()) }
-    val targets = remember(seats, myUid) { seats.filter { it.uid.isNotBlank() && it.uid != myUid }.sortedBy { it.index } }
+    val targets = remember(seats, myUid, myName, myAvatarB64) {
+        val me = seats.firstOrNull { it.uid == myUid } ?: Seat(-1, myUid, myName, myAvatarB64, false)
+        listOf(me) + seats.filter { it.uid.isNotBlank() && it.uid != myUid }.sortedBy { it.index }
+    }
     val pages = remember { GIFTS.chunked(8) }
     val pager = rememberPagerState(pageCount = { pages.size })
     val teal = Color(0xFF2BD9C4)
@@ -297,7 +301,7 @@ fun GiftPanel(
                     } else {
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             targets.forEach { s ->
-                                val on = allSelected || s.uid in picked
+                                val on = (allSelected && s.index >= 0) || s.uid in picked
                                 val bmp = remember(s.avatarB64) { ProfileRepo.decodeB64(s.avatarB64) }
                                 Box(
                                     Modifier
@@ -384,7 +388,7 @@ fun GiftPanel(
                         Modifier
                             .background(if (sending) Color(0xFF3A4A48) else teal)
                             .clickable(enabled = !sending) {
-                                val receivers = targets.filter { allSelected || it.uid in picked }
+                                val receivers = targets.filter { if (allSelected) it.index >= 0 else it.uid in picked }
                                 if (receivers.isEmpty()) {
                                     Toast.makeText(context, tr("Pilih penerima dulu"), Toast.LENGTH_SHORT).show()
                                     return@clickable
