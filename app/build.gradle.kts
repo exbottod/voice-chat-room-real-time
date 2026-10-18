@@ -25,8 +25,8 @@ android {
         applicationId = "com.example.googlelogin"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "1")
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         buildConfigField("String", "AGORA_TOKEN_URL", "\"$agoraTokenUrl\"")
