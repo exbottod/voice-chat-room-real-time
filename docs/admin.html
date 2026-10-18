@@ -31,7 +31,7 @@ label{font-size:12px;color:var(--mut)}
 .muted{color:var(--mut);font-size:13px}
 .hide{display:none!important}
 #msg{position:fixed;left:12px;right:12px;bottom:14px;background:#222;border:1px solid var(--gold);padding:10px 14px;border-radius:12px;text-align:center;font-size:14px}
-</style></head><body>
+.u{display:flex;gap:10px;align-items:center;margin:10px 0}.u img,.u .ph{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#263238;flex:none;display:flex;align-items:center;justify-content:center;color:var(--gold2);font-weight:700}.u b{display:block}</style></head><body>
 <h1>⚙️ Panel Developer</h1>
 
 <div id="login" class="card hide">
@@ -51,7 +51,8 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div class="tabs"><div class="tab on">🖼️ Banner</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div></div>
+  <div id="tab-banner">
 
   <div class="card">
     <h2>Tambah banner</h2>
@@ -70,6 +71,42 @@ label{font-size:12px;color:var(--mut)}
   <div class="card">
     <h2>Banner aktif di aplikasi</h2>
     <div id="list" class="muted">Memuat...</div>
+  </div>
+  </div>
+
+  <div id="tab-ban" class="hide">
+    <div class="card">
+      <h2>Banned user</h2>
+      <label>ID user (angka, mulai 100000)</label>
+      <input type="number" id="banId" inputmode="numeric">
+      <label>Alasan (opsional, tampil ke user)</label>
+      <input type="text" id="banReason" maxlength="100">
+      <button class="btn out" id="banFind">Cari user</button>
+      <div id="banUser"></div>
+      <div class="row" id="banActs" style="display:none">
+        <button class="btn bad" id="banDo">Banned user ini</button>
+        <button class="btn out" id="banUndo">Buka banned</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Daftar banned</h2>
+      <div id="banList" class="muted">Memuat...</div>
+    </div>
+  </div>
+
+  <div id="tab-coin" class="hide">
+    <div class="card">
+      <h2>Kirim coin ke user</h2>
+      <label>ID user (angka)</label>
+      <input type="number" id="coinId" inputmode="numeric">
+      <button class="btn out" id="coinFind">Cari user</button>
+      <div id="coinUser"></div>
+      <div id="coinForm" style="display:none">
+        <label>Jumlah coin (pakai minus untuk mengurangi)</label>
+        <input type="number" id="coinAmt" inputmode="numeric" placeholder="contoh: 500">
+        <button class="btn" id="coinSend">Kirim coin</button>
+      </div>
+    </div>
   </div>
 </div>
 <div id="msg" class="hide"></div>
@@ -102,11 +139,13 @@ $("btnOut1").onclick = out; $("btnOut2").onclick = out;
 
 auth.onAuthStateChanged(u => {
   if (unsub) { unsub(); unsub = null; }
+  if (unsubBan) { unsubBan(); unsubBan = null; }
   if (!u) return show("login");
   const ok = (u.email || "").toLowerCase() === ADMIN_EMAIL;
   if (!ok) { $("deniedTxt").textContent = (u.email || "Akun ini") + " bukan akun developer."; return show("denied"); }
   $("who").textContent = "Masuk sebagai " + u.email;
   show("panel");
+  startBan();
   unsub = db.collection("banners").orderBy("order").onSnapshot(renderList, e => { $("list").textContent = "Gagal memuat: " + e.message; });
 });
 
@@ -175,5 +214,115 @@ function renderList(snap){
     box.appendChild(row);
   });
 }
+
+let unsubBan = null, foundBan = null, foundCoin = null;
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+  ["banner", "ban", "coin"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+});
+
+async function lookup(raw){
+  const id = String(raw || "").trim();
+  if (!/^\d+$/.test(id)) throw new Error("ID harus berupa angka");
+  const d = await db.collection("userIds").doc(id).get();
+  if (!d.exists) throw new Error("ID " + id + " tidak ditemukan");
+  const x = d.data();
+  if (!x.uid) throw new Error("Data user tidak lengkap");
+  return { id, uid: x.uid, name: x.name || ("Pengguna " + id), avatarB64: x.avatarB64 || null };
+}
+
+function userCard(el, u, line2){
+  el.textContent = "";
+  const row = document.createElement("div"); row.className = "u";
+  let av;
+  if (u.avatarB64) { av = document.createElement("img"); av.src = "data:image/jpeg;base64," + u.avatarB64; }
+  else { av = document.createElement("div"); av.className = "ph"; av.textContent = (u.name || "?").slice(0, 1).toUpperCase(); }
+  const box = document.createElement("div");
+  const n = document.createElement("b"); n.textContent = u.name;
+  const i = document.createElement("span"); i.className = "muted"; i.textContent = "ID " + u.id;
+  box.append(n, i);
+  if (line2) { const l = document.createElement("div"); l.className = "muted"; l.textContent = line2; box.appendChild(l); }
+  row.append(av, box); el.appendChild(row);
+}
+
+function logAction(obj){
+  return db.collection("adminLogs").add(Object.assign({ by: auth.currentUser.email, at: Date.now() }, obj)).catch(() => {});
+}
+
+/* ---------- Banned ---------- */
+$("banFind").onclick = async () => {
+  foundBan = null; $("banActs").style.display = "none"; $("banUser").textContent = "";
+  try {
+    const u = await lookup($("banId").value);
+    const b = await db.collection("banned").doc(u.uid).get();
+    userCard($("banUser"), u, b.exists ? "Status: BANNED" + (b.data().reason ? " (" + b.data().reason + ")" : "") : "Status: aktif");
+    foundBan = u; $("banActs").style.display = "flex";
+  } catch (e) { toast(e.message); }
+};
+$("banDo").onclick = async () => {
+  if (!foundBan) return;
+  if (foundBan.uid === auth.currentUser.uid) return toast("Tidak bisa banned akun sendiri");
+  if (!confirm("Banned " + foundBan.name + " (ID " + foundBan.id + ")?")) return;
+  try {
+    await db.collection("banned").doc(foundBan.uid).set({ userId: foundBan.id, name: foundBan.name, reason: $("banReason").value.trim(), at: Date.now(), by: auth.currentUser.email });
+    logAction({ type: "ban", targetId: foundBan.id, uid: foundBan.uid });
+    toast("User dibanned ✅"); $("banFind").click();
+  } catch (e) { toast("Gagal: " + e.message); }
+};
+$("banUndo").onclick = async () => {
+  if (!foundBan) return;
+  try {
+    await db.collection("banned").doc(foundBan.uid).delete();
+    logAction({ type: "unban", targetId: foundBan.id, uid: foundBan.uid });
+    toast("Banned dibuka ✅"); $("banFind").click();
+  } catch (e) { toast("Gagal: " + e.message); }
+};
+function startBan(){
+  unsubBan = db.collection("banned").orderBy("at", "desc").onSnapshot(snap => {
+    const box = $("banList"); box.textContent = "";
+    if (snap.empty) { box.textContent = "Belum ada user yang dibanned."; return; }
+    snap.forEach(d => {
+      const b = d.data(), row = document.createElement("div"); row.className = "item";
+      const info = document.createElement("div"); info.className = "info";
+      const t = document.createElement("b"); t.textContent = (b.name || "?") + " (ID " + (b.userId || "?") + ")";
+      const s = document.createElement("span"); s.className = "muted"; s.textContent = b.reason || "tanpa alasan";
+      info.append(t, s);
+      const un = document.createElement("button"); un.className = "btn out"; un.textContent = "Buka";
+      un.onclick = () => { if (confirm("Buka banned user ini?")) d.ref.delete().then(() => logAction({ type: "unban", targetId: b.userId, uid: d.id })).catch(e => toast(e.message)); };
+      row.append(info, un); box.appendChild(row);
+    });
+  }, e => { $("banList").textContent = "Gagal memuat: " + e.message; });
+}
+
+/* ---------- Kirim coin ---------- */
+async function showCoinUser(){
+  const w = await db.collection("wallets").doc(foundCoin.uid).get();
+  const c = w.exists ? (w.data().coins || 0) : 0, dm = w.exists ? (w.data().diamonds || 0) : 0;
+  userCard($("coinUser"), foundCoin, "Saldo: " + c + " coin, " + dm + " diamond");
+}
+$("coinFind").onclick = async () => {
+  foundCoin = null; $("coinForm").style.display = "none"; $("coinUser").textContent = "";
+  try {
+    foundCoin = await lookup($("coinId").value);
+    await showCoinUser();
+    $("coinForm").style.display = "block";
+  } catch (e) { toast(e.message); }
+};
+$("coinSend").onclick = async () => {
+  if (!foundCoin) return;
+  const n = parseInt($("coinAmt").value, 10);
+  if (!n || !isFinite(n)) return toast("Isi jumlah coin (bukan 0)");
+  if (Math.abs(n) > 100000000) return toast("Jumlah terlalu besar");
+  if (!confirm((n > 0 ? "Kirim " : "Kurangi ") + Math.abs(n) + " coin " + (n > 0 ? "ke " : "dari ") + foundCoin.name + " (ID " + foundCoin.id + ")?")) return;
+  $("coinSend").disabled = true;
+  try {
+    await db.collection("wallets").doc(foundCoin.uid).set({ coins: firebase.firestore.FieldValue.increment(n) }, { merge: true });
+    logAction({ type: "coin", targetId: foundCoin.id, uid: foundCoin.uid, amount: n });
+    toast("Berhasil ✅ " + (n > 0 ? "+" : "") + n + " coin");
+    $("coinAmt").value = ""; await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("coinSend").disabled = false;
+};
 </script>
 </body></html>
