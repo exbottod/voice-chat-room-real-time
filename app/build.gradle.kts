@@ -9,6 +9,10 @@ val agoraAppId: String =
     System.getenv("AGORA_APP_ID")?.takeIf { it.isNotBlank() }
         ?: (project.findProperty("agoraAppId") as String? ?: "")
 
+val agoraTokenUrl: String =
+    System.getenv("AGORA_TOKEN_URL")?.takeIf { it.isNotBlank() }
+        ?: (project.findProperty("agoraTokenUrl") as String? ?: "")
+
 val googleWebClientId: String =
     System.getenv("GOOGLE_WEB_CLIENT_ID")?.takeIf { it.isNotBlank() }
         ?: (project.findProperty("googleWebClientId") as String? ?: "")
@@ -24,6 +28,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
+        buildConfigField("String", "AGORA_TOKEN_URL", "\"$agoraTokenUrl\"")
         buildConfigField("String", "AGORA_APP_ID", "\"$agoraAppId\"")
     }
 

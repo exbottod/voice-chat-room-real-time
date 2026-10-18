@@ -15,32 +15,51 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import com.google.firebase.auth.FirebaseAuth
 import io.agora.rtc2.ChannelMediaOptions
 import io.agora.rtc2.Constants
 import io.agora.rtc2.IRtcEngineEventHandler
 import io.agora.rtc2.RtcEngine
 import io.agora.rtc2.RtcEngineConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
-/** Agora RTC (voice only). Satu channel = satu room (channel = roomId). */
+/** Agora RTC (voice only). Satu channel = satu room (channel = roomId). Token diminta dari Cloudflare Worker. */
 object AgoraVoice {
     private const val TAG = "AgoraVoice"
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var engine: RtcEngine? = null
-    private var inChannel = false
+
+    @Volatile private var inChannel = false
+    @Volatile private var roomId: String? = null
+    @Volatile private var wantSpeaking = false
+    @Volatile private var muteRemote = false
+    private var joinJob: Job? = null
+
+    private val handler = object : IRtcEngineEventHandler() {
+        override fun onError(err: Int) { Log.e(TAG, "onError $err") }
+        override fun onTokenPrivilegeWillExpire(token: String?) {
+            val r = roomId ?: return
+            scope.launch { fetchToken(r)?.let { engine?.renewToken(it) } }
+        }
+    }
 
     private fun ensure(ctx: Context): RtcEngine? {
         engine?.let { return it }
-        if (BuildConfig.AGORA_APP_ID.isBlank()) {
-            Log.e(TAG, "AGORA_APP_ID kosong")
-            return null
-        }
+        if (BuildConfig.AGORA_APP_ID.isBlank()) { Log.e(TAG, "AGORA_APP_ID kosong"); return null }
         return try {
             val cfg = RtcEngineConfig().apply {
                 mContext = ctx.applicationContext
                 mAppId = BuildConfig.AGORA_APP_ID
                 mChannelProfile = Constants.CHANNEL_PROFILE_LIVE_BROADCASTING
-                mEventHandler = object : IRtcEngineEventHandler() {
-                    override fun onError(err: Int) { Log.e(TAG, "onError $err") }
-                }
+                mEventHandler = handler
             }
             RtcEngine.create(cfg).also {
                 it.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_GAME_STREAMING)
@@ -50,26 +69,58 @@ object AgoraVoice {
         } catch (e: Exception) { Log.e(TAG, "init gagal", e); null }
     }
 
-    /** Masuk channel sebagai audience (hanya mendengar). */
-    fun join(ctx: Context, roomId: String) {
-        val e = ensure(ctx) ?: return
-        if (inChannel) e.leaveChannel()
-        val opt = ChannelMediaOptions().apply {
-            clientRoleType = Constants.CLIENT_ROLE_AUDIENCE
-            channelProfile = Constants.CHANNEL_PROFILE_LIVE_BROADCASTING
-            autoSubscribeAudio = true
-            publishMicrophoneTrack = false
+    private suspend fun fetchToken(channel: String): String? {
+        val url = BuildConfig.AGORA_TOKEN_URL
+        if (url.isBlank()) { Log.e(TAG, "AGORA_TOKEN_URL kosong"); return null }
+        return try {
+            val idToken = FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token ?: return null
+            val c = (URL(url).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 10000
+                readTimeout = 10000
+                doOutput = true
+                setRequestProperty("Authorization", "Bearer $idToken")
+                setRequestProperty("Content-Type", "application/json")
+            }
+            c.outputStream.use { it.write(JSONObject().put("channel", channel).toString().toByteArray()) }
+            if (c.responseCode != 200) {
+                Log.e(TAG, "token gagal ${c.responseCode}: ${c.errorStream?.bufferedReader()?.readText()}")
+                return null
+            }
+            JSONObject(c.inputStream.bufferedReader().readText()).getString("token")
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            Log.e(TAG, "token error", e); null
         }
-        // Token null = hanya untuk testing (App Certificate harus nonaktif).
-        val r = e.joinChannel(null, roomId, 0, opt)
-        inChannel = r == 0
-        if (r != 0) Log.e(TAG, "joinChannel gagal: $r")
     }
 
-    /** true = broadcaster + kirim mic; false = audience. */
-    fun setSpeaking(on: Boolean) {
+    /** Masuk channel sebagai audience (hanya mendengar). */
+    fun join(ctx: Context, id: String) {
+        val app = ctx.applicationContext
+        joinJob?.cancel()
+        roomId = id
+        joinJob = scope.launch {
+            val e = ensure(app) ?: return@launch
+            if (inChannel) { e.leaveChannel(); inChannel = false }
+            val token = fetchToken(id) ?: return@launch
+            if (roomId != id) return@launch
+            val opt = ChannelMediaOptions().apply {
+                clientRoleType = Constants.CLIENT_ROLE_AUDIENCE
+                channelProfile = Constants.CHANNEL_PROFILE_LIVE_BROADCASTING
+                autoSubscribeAudio = true
+                publishMicrophoneTrack = false
+            }
+            val r = e.joinChannel(token, id, 0, opt)
+            if (r != 0) { Log.e(TAG, "joinChannel gagal: $r"); return@launch }
+            inChannel = true
+            e.muteAllRemoteAudioStreams(muteRemote)
+            applyRole()
+        }
+    }
+
+    private fun applyRole() {
         val e = engine ?: return
         if (!inChannel) return
+        val on = wantSpeaking
         val opt = ChannelMediaOptions().apply {
             clientRoleType = if (on) Constants.CLIENT_ROLE_BROADCASTER else Constants.CLIENT_ROLE_AUDIENCE
             publishMicrophoneTrack = on
@@ -78,9 +129,16 @@ object AgoraVoice {
         e.updateChannelMediaOptions(opt)
     }
 
-    fun muteRoom(mute: Boolean) { engine?.muteAllRemoteAudioStreams(mute) }
+    /** true = broadcaster + kirim mic; false = audience. Aman dipanggil sebelum join selesai. */
+    fun setSpeaking(on: Boolean) { wantSpeaking = on; applyRole() }
+
+    fun muteRoom(mute: Boolean) { muteRemote = mute; engine?.muteAllRemoteAudioStreams(mute) }
 
     fun leave() {
+        joinJob?.cancel()
+        roomId = null
+        wantSpeaking = false
+        muteRemote = false
         engine?.leaveChannel()
         inChannel = false
     }

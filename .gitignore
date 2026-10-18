@@ -8,3 +8,6 @@ captures/
 .externalNativeBuild/
 .cxx/
 apk/
+token-worker/node_modules/
+token-worker/.wrangler/
+token-worker/.dev.vars

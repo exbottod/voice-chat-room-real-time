@@ -26,6 +26,7 @@ jobs:
       - name: Build debug + release APK
         env:
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+          AGORA_TOKEN_URL: ${{ secrets.AGORA_TOKEN_URL }}
           AGORA_APP_ID: ${{ secrets.AGORA_APP_ID }}
         run: gradle assembleDebug assembleRelease --stacktrace
 
