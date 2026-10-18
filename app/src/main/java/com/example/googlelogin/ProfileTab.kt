@@ -120,6 +120,7 @@ fun ProfileTab(
     following: Long = 0L,
     fans: Long = 0L,
     onWalletClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -177,11 +178,11 @@ fun ProfileTab(
                 }
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.border(3.dp, Color(0xFFE8B923), CircleShape).padding(3.dp)) {
+                    Box(Modifier.clip(CircleShape).clickable(onClick = onProfileClick).border(3.dp, Color(0xFFE8B923), CircleShape).padding(3.dp)) {
                         AvatarImage(user, profile, 92.dp)
                     }
                     Spacer(Modifier.width(14.dp))
-                    Column {
+                    Column(Modifier.clickable(onClick = onProfileClick)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 nick,
