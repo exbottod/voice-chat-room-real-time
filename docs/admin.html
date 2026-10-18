@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Panel Developer - REZO CHAT VOICE</title>
+<style>
+:root{--bg:#0b0b0b;--card:#161616;--line:#2a2a2a;--gold:#d4af37;--gold2:#f3d97a;--txt:#eee;--mut:#9a9a9a;--bad:#e5484d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif;padding:16px;max-width:720px;margin-inline:auto}
+h1{color:var(--gold2);font-size:20px;margin:6px 0 14px}
+h2{color:var(--gold2);font-size:16px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.btn{background:var(--gold);color:#000;border:0;border-radius:10px;padding:11px 16px;font-weight:700;font-size:14px;cursor:pointer}
+.btn.out{background:transparent;color:var(--gold2);border:1px solid var(--gold)}
+.btn.bad{background:var(--bad);color:#fff}
+.btn:disabled{opacity:.5}
+input[type=text],input[type=number]{width:100%;background:#0f0f0f;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px;font-size:14px;margin:4px 0 10px}
+label{font-size:12px;color:var(--mut)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tab{padding:8px 14px;border-radius:50px;border:1px solid var(--line);color:var(--mut);cursor:pointer;font-size:14px}
+.tab.on{border-color:var(--gold);color:var(--gold2)}
+.prev{width:100%;aspect-ratio:5/2;border-radius:12px;border:1px dashed var(--gold);background:#0f0f0f;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:13px;overflow:hidden;cursor:pointer}
+.prev img{width:100%;height:100%;object-fit:cover}
+.item{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.item img{width:110px;aspect-ratio:5/2;object-fit:cover;border-radius:8px;flex:none}
+.item .info{flex:1;min-width:0;font-size:13px}
+.item .info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item input[type=number]{width:64px;margin:0;padding:6px}
+.muted{color:var(--mut);font-size:13px}
+.hide{display:none!important}
+#msg{position:fixed;left:12px;right:12px;bottom:14px;background:#222;border:1px solid var(--gold);padding:10px 14px;border-radius:12px;text-align:center;font-size:14px}
+</style></head><body>
+<h1>⚙️ Panel Developer</h1>
+
+<div id="login" class="card hide">
+  <h2>Masuk</h2>
+  <p class="muted">Hanya akun Google developer yang bisa mengelola konten aplikasi.</p>
+  <button class="btn" id="btnLogin">Masuk dengan Google</button>
+</div>
+
+<div id="denied" class="card hide">
+  <h2>Akses ditolak</h2>
+  <p class="muted" id="deniedTxt"></p>
+  <button class="btn out" id="btnOut1">Keluar</button>
+</div>
+
+<div id="panel" class="hide">
+  <div class="card row">
+    <div class="muted" style="flex:1" id="who"></div>
+    <button class="btn out" id="btnOut2">Keluar</button>
+  </div>
+  <div class="tabs"><div class="tab on">🖼️ Banner</div></div>
+
+  <div class="card">
+    <h2>Tambah banner</h2>
+    <div class="prev" id="prev">Ketuk untuk pilih gambar (rasio 5:2, otomatis dipotong)</div>
+    <input type="file" id="file" accept="image/*" class="hide">
+    <div style="height:10px"></div>
+    <label>Judul (opsional, tampil di bawah gambar)</label>
+    <input type="text" id="title" maxlength="60">
+    <label>Subjudul (opsional)</label>
+    <input type="text" id="sub" maxlength="100">
+    <label>Urutan (angka kecil tampil lebih dulu)</label>
+    <input type="number" id="order" value="1">
+    <button class="btn" id="btnSave" disabled>Upload banner</button>
+  </div>
+
+  <div class="card">
+    <h2>Banner aktif di aplikasi</h2>
+    <div id="list" class="muted">Memuat...</div>
+  </div>
+</div>
+<div id="msg" class="hide"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+const CFG = {
+  apiKey: "AIzaSyC-Fu_WeY93DxtwieQ_psU2DSSwzdZ899o",
+  authDomain: "arboreal-cat-511705-p6.firebaseapp.com",
+  projectId: "arboreal-cat-511705-p6",
+  messagingSenderId: "707122344337"
+};
+const ADMIN_EMAIL = "developerex100@gmail.com".toLowerCase();
+firebase.initializeApp(CFG);
+const auth = firebase.auth(), db = firebase.firestore();
+const $ = id => document.getElementById(id);
+let imgB64 = null, unsub = null;
+
+function toast(t){ const m=$("msg"); m.textContent=t; m.classList.remove("hide"); clearTimeout(toast.t); toast.t=setTimeout(()=>m.classList.add("hide"),3000); }
+function show(which){ ["login","denied","panel"].forEach(k=>$(k).classList.toggle("hide",k!==which)); }
+
+$("btnLogin").onclick = async () => {
+  try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch(e){ toast("Gagal masuk: " + (e.code || e.message)); }
+};
+const out = () => auth.signOut();
+$("btnOut1").onclick = out; $("btnOut2").onclick = out;
+
+auth.onAuthStateChanged(u => {
+  if (unsub) { unsub(); unsub = null; }
+  if (!u) return show("login");
+  const ok = (u.email || "").toLowerCase() === ADMIN_EMAIL && u.emailVerified;
+  if (!ok) { $("deniedTxt").textContent = (u.email || "Akun ini") + " bukan akun developer."; return show("denied"); }
+  $("who").textContent = "Masuk sebagai " + u.email;
+  show("panel");
+  unsub = db.collection("banners").orderBy("order").onSnapshot(renderList, e => { $("list").textContent = "Gagal memuat: " + e.message; });
+});
+
+$("prev").onclick = () => $("file").click();
+$("file").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    imgB64 = await toB64(f);
+    const im = document.createElement("img"); im.src = "data:image/jpeg;base64," + imgB64;
+    $("prev").textContent = ""; $("prev").appendChild(im);
+    $("btnSave").disabled = false;
+  } catch(err){ toast("Gambar tidak bisa dibaca"); }
+};
+
+function toB64(file){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const W = 1000, H = 400, c = document.createElement("canvas");
+      c.width = W; c.height = H;
+      const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
+      c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL("image/jpeg", 0.82).split(",")[1]);
+    };
+    img.onerror = rej; img.src = url;
+  });
+}
+
+$("btnSave").onclick = async () => {
+  if (!imgB64) return;
+  $("btnSave").disabled = true;
+  try {
+    await db.collection("banners").add({
+      imageB64: imgB64,
+      title: $("title").value.trim(),
+      subtitle: $("sub").value.trim(),
+      order: parseInt($("order").value, 10) || 0,
+      active: true,
+      createdAt: Date.now()
+    });
+    toast("Banner terupload ✅");
+    imgB64 = null; $("file").value = ""; $("title").value = ""; $("sub").value = "";
+    $("prev").textContent = "Ketuk untuk pilih gambar (rasio 5:2, otomatis dipotong)";
+    $("order").value = (parseInt($("order").value, 10) || 0) + 1;
+  } catch(e){ toast("Gagal upload: " + e.message); $("btnSave").disabled = false; }
+};
+
+function renderList(snap){
+  const box = $("list"); box.textContent = "";
+  if (snap.empty) { box.textContent = "Belum ada banner. Aplikasi memakai banner bawaan."; return; }
+  snap.forEach(d => {
+    const b = d.data(), row = document.createElement("div"); row.className = "item";
+    const im = document.createElement("img"); im.src = "data:image/jpeg;base64," + b.imageB64;
+    const info = document.createElement("div"); info.className = "info";
+    const t = document.createElement("b"); t.textContent = b.title || "(tanpa judul)";
+    const s = document.createElement("span"); s.className = "muted"; s.textContent = b.subtitle || "";
+    info.append(t, s);
+    const ord = document.createElement("input"); ord.type = "number"; ord.value = b.order || 0;
+    ord.onchange = () => d.ref.update({ order: parseInt(ord.value, 10) || 0 }).catch(e => toast(e.message));
+    const act = document.createElement("input"); act.type = "checkbox"; act.checked = b.active !== false; act.title = "Aktif";
+    act.onchange = () => d.ref.update({ active: act.checked }).catch(e => toast(e.message));
+    const del = document.createElement("button"); del.className = "btn bad"; del.textContent = "🗑";
+    del.onclick = () => { if (confirm("Hapus banner ini?")) d.ref.delete().catch(e => toast(e.message)); };
+    row.append(im, info, ord, act, del);
+    box.appendChild(row);
+  });
+}
+</script>
+</body></html>

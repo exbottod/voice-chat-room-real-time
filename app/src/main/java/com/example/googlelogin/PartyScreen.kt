@@ -176,46 +176,86 @@ private fun TopTabs(
     }
 }
 
+private data class AppBanner(val title: String, val subtitle: String, val imageB64: String?)
+
 @Composable
 private fun BannerPager() {
-    val banners = listOf(
+    val defaults = listOf(
         Triple("Liga Peringkat Fam", "Raih hadiah terbesar minggu ini", listOf(Color(0xFF5B1E1E), Color(0xFF1A0A0A))),
         Triple("Event Spesial", "Kumpulkan poin dan menangkan hadiah", listOf(Color(0xFF3B1E5B), Color(0xFF120A1A))),
         Triple("Top Family", "Family terbaik pekan ini", listOf(Color(0xFF1E3B5B), Color(0xFF0A121A))),
     )
-    val state = rememberPagerState(pageCount = { banners.size })
+    var remote by remember { mutableStateOf<List<AppBanner>>(emptyList()) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val reg = com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("banners")
+            .addSnapshotListener { snap, _ ->
+                if (snap != null) {
+                    remote = snap.documents
+                        .filter { it.getBoolean("active") != false && !it.getString("imageB64").isNullOrBlank() }
+                        .sortedBy { it.getLong("order") ?: 0L }
+                        .map { AppBanner(it.getString("title") ?: "", it.getString("subtitle") ?: "", it.getString("imageB64")) }
+                }
+            }
+        onDispose { reg.remove() }
+    }
+    val count = if (remote.isNotEmpty()) remote.size else defaults.size
+    val state = rememberPagerState(pageCount = { count })
     val frame = RoundedCornerShape(18.dp)
+    val goldBorder = Brush.linearGradient(listOf(GoldDark, GoldLight, GoldDark))
     Column(Modifier.fillMaxWidth()) {
         HorizontalPager(state = state, modifier = Modifier.fillMaxWidth(), pageSpacing = 12.dp) { page ->
-            val (title, subtitle, colors) = banners[page]
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .clip(frame)
-                    .background(Brush.linearGradient(colors))
-                    .border(1.dp, Brush.linearGradient(listOf(GoldDark, GoldLight, GoldDark)), frame),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        title,
-                        textAlign = TextAlign.Center,
-                        style = TextStyle(
-                            brush = Brush.verticalGradient(listOf(GoldLight, Gold, GoldDark)),
-                            fontFamily = FontFamily.Serif,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 28.sp,
-                        ),
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(subtitle, color = Color(0xFFE0E0E0), fontSize = 13.sp)
+            if (remote.isNotEmpty()) {
+                val b = remote[page.coerceAtMost(remote.lastIndex)]
+                val bmp = remember(b.imageB64) { ProfileRepo.decodeB64(b.imageB64) }
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(150.dp).clip(frame)
+                        .background(Color(0xFF1A1A1A)).border(1.dp, goldBorder, frame),
+                ) {
+                    if (bmp != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = bmp, contentDescription = null,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                    if (b.title.isNotBlank() || b.subtitle.isNotBlank()) {
+                        Column(
+                            Modifier.align(Alignment.BottomStart).fillMaxWidth()
+                                .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000))))
+                                .padding(12.dp),
+                        ) {
+                            if (b.title.isNotBlank()) Text(b.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            if (b.subtitle.isNotBlank()) Text(b.subtitle, color = Color(0xFFE0E0E0), fontSize = 12.sp)
+                        }
+                    }
+                }
+            } else {
+                val (title, subtitle, colors) = defaults[page.coerceAtMost(defaults.lastIndex)]
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(150.dp).clip(frame)
+                        .background(Brush.linearGradient(colors)).border(1.dp, goldBorder, frame),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            title,
+                            textAlign = TextAlign.Center,
+                            style = TextStyle(
+                                brush = Brush.verticalGradient(listOf(GoldLight, Gold, GoldDark)),
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 28.sp,
+                            ),
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(subtitle, color = Color(0xFFE0E0E0), fontSize = 13.sp)
+                    }
                 }
             }
         }
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            repeat(banners.size) { i ->
+            repeat(count) { i ->
                 val on = state.currentPage == i
                 Box(
                     Modifier
