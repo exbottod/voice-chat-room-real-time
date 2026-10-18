@@ -49,10 +49,10 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
 
 @Composable
-fun rememberRooms(): List<RoomInfo> {
+fun rememberRooms(refreshKey: Int = 0): List<RoomInfo> {
     var rooms by remember { mutableStateOf(emptyList<RoomInfo>()) }
     var online by remember { mutableStateOf(emptyMap<String, Int>()) }
-    DisposableEffect(Unit) {
+    DisposableEffect(refreshKey) {
         val reg = RoomRepo.observeRooms { rooms = it }
         val reg2 = RoomRepo.observeAllOnline { online = it }
         onDispose { reg.remove(); reg2.remove() }

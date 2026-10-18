@@ -28,6 +28,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -54,6 +59,7 @@ import androidx.compose.ui.unit.sp
 
 data class Room(val name: String, val owner: String, val online: Int)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PartyTab(
     myUid: String,
@@ -67,7 +73,10 @@ fun PartyTab(
     var showCreate by remember { mutableStateOf(false) }
     var lockedRoom by remember { mutableStateOf<RoomInfo?>(null) }
     var showRank by remember { mutableStateOf(false) }
-    val allRooms = rememberRooms()
+    var refreshKey by remember { mutableStateOf(0) }
+    var refreshing by remember { mutableStateOf(false) }
+    val refreshScope = rememberCoroutineScope()
+    val allRooms = rememberRooms(refreshKey)
     val soon = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
     val open: (RoomInfo) -> Unit = { room ->
         if (room.locked && room.ownerUid != myUid) lockedRoom = room else onEnterRoom(room)
@@ -78,6 +87,15 @@ fun PartyTab(
         else -> allRooms
     }
 
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = {
+            refreshing = true
+            refreshKey++
+            refreshScope.launch { delay(1000); refreshing = false }
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -118,6 +136,7 @@ fun PartyTab(
                 }
             }
         }
+    }
     }
 
     if (showCreate) {
