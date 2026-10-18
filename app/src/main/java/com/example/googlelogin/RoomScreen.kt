@@ -98,6 +98,7 @@ fun RoomScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val appActions = LocalActions.current
     var room by remember { mutableStateOf<RoomInfo?>(null) }
     var seats by remember { mutableStateOf<Map<Int, Seat>>(emptyMap()) }
     var messages by remember { mutableStateOf<List<RoomMsg>>(emptyList()) }
@@ -245,11 +246,45 @@ fun RoomScreen(
         // Dialog seat mic
         seatSheet?.let { idx ->
             val s = seats[idx]
-            RmPanel(onDismiss = { seatSheet = null }) {
-                Text("Seat mic", color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(14.dp))
-                val seatLocked = r.lockedSeats.contains(idx)
-                if (s == null) {
+            if (s != null) {
+                // Mic terisi: langsung tampilkan sheet profil (tap -> profil lengkap)
+                UserProfileSheet(
+                    uid = s.uid,
+                    myUid = myUid,
+                    onDismiss = { seatSheet = null },
+                    onChat = { u -> seatSheet = null; appActions.openChat(u) },
+                    onFollowChanged = { },
+                    onOpenFull = { seatSheet = null; appActions.openFullProfile(s.uid) },
+                    extra = {
+                        if (s.uid == myUid) {
+                            ProfileSheetAction("Turun Mic", "⬇️") {
+                                seatSheet = null
+                                scope.launch { RoomRepo.leaveSeat(r.id, idx) }
+                            }
+                            ProfileSheetAction(if (s.muted) "Buka mic" else "Matikan mic", if (s.muted) "🎤" else "🔇") {
+                                scope.launch { RoomRepo.setSeatMuted(r.id, idx, !s.muted) }
+                            }
+                        } else if (isOwner) {
+                            ProfileSheetAction("Turunkan", "⬇️") {
+                                seatSheet = null
+                                scope.launch { RoomRepo.leaveSeat(r.id, idx) }
+                            }
+                            ProfileSheetAction("Kunci mic", "🔒") {
+                                seatSheet = null
+                                scope.launch { RoomExtras.lockSeat(r.id, idx)?.let { toast(it) } }
+                            }
+                        }
+                        ProfileSheetAction("Hadiah", "🎁") {
+                            seatSheet = null
+                            giftOpen = true
+                        }
+                    },
+                )
+            } else {
+                RmPanel(onDismiss = { seatSheet = null }) {
+                    Text("Seat mic", color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(14.dp))
+                    val seatLocked = r.lockedSeats.contains(idx)
                     Text(if (idx == 0) "Kursi MC masih kosong" else "Kursi No.${idx + 1} masih kosong", color = Color(0xFFBDBDBD))
                     if (seatLocked) {
                         Spacer(Modifier.height(8.dp))
@@ -274,22 +309,6 @@ fun RoomScreen(
                                 seatSheet = null
                                 scope.launch { RoomExtras.lockSeat(r.id, idx)?.let { toast(it) } }
                             }
-                        }
-                    }
-                } else {
-                    RmSeatProfile(
-                        seat = s,
-                        isMe = s.uid == myUid,
-                        isOwner = isOwner,
-                        onLeave = { seatSheet = null; scope.launch { RoomRepo.leaveSeat(r.id, idx) } },
-                        onToggleMic = { scope.launch { RoomRepo.setSeatMuted(r.id, idx, !s.muted) } },
-                        onKick = { seatSheet = null; scope.launch { RoomRepo.leaveSeat(r.id, idx) } },
-                    )
-                    if (isOwner && s.uid != myUid) {
-                        Spacer(Modifier.height(10.dp))
-                        OutlineButton("Kunci mic ini") {
-                            seatSheet = null
-                            scope.launch { RoomExtras.lockSeat(r.id, idx)?.let { toast(it) } }
                         }
                     }
                 }

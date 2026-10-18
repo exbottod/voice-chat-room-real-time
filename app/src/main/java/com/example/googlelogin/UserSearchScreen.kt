@@ -81,7 +81,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
         scope.launch {
             try {
                 val u = UserDirectory.find(q)
-                if (u == null) message = "ID $q tidak ditemukan" else result = u
+                if (u == null) message = "ID $q tidak ditemukan" else { result = u; actions.openProfile(u.uid) }
             } catch (e: Exception) {
                 message = "Gagal mencari: ${e.message}"
             } finally {
