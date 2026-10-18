@@ -1,0 +1,7 @@
+name = "rezo-agora-token"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+FIREBASE_PROJECT_ID = "arboreal-cat-511705-p6"

@@ -1,0 +1,1 @@
+{"name":"rezo-agora-token","private":true,"type":"module","scripts":{"deploy":"wrangler deploy"},"dependencies":{"agora-token":"^2.0.7","wrangler":"^4.151.1"}}
