@@ -127,7 +127,7 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
 
     OverlayBox {
         Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
-            GoldTopBar("Dompet", onBack)
+            GoldTopBar(tr("Dompet"), onBack)
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     BalanceCard("🪙", "Coin", fmtNum(wallet.coins), Modifier.weight(1f))
@@ -135,7 +135,7 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(20.dp))
-                Text("Isi coin", color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(tr("Isi coin"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(
                     if (TOPUP_TEST_MODE) "Mode uji: coin ditambahkan gratis (pembayaran belum terhubung)."
                     else "Pembayaran belum tersedia.",
@@ -149,7 +149,7 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("🪙 ${fmtNum(c)} coin", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                        GoldButton("Isi", Modifier.width(80.dp), enabled = !busy) {
+                        GoldButton(tr("Isi"), Modifier.width(80.dp), enabled = !busy) {
                             if (!TOPUP_TEST_MODE) {
                                 toast("Pembayaran belum tersedia")
                             } else {
@@ -165,7 +165,7 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(20.dp))
-                Text("Tukar diamond ke coin", color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(tr("Tukar diamond ke coin"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text("$DIAMOND_PER_COIN diamond = 1 coin", color = Color(0xFF9A9A9A), fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -173,7 +173,7 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     onValueChange = { amount = it.filter { c -> c.isDigit() }.take(12) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("Jumlah diamond") },
+                    placeholder = { Text(tr("Jumlah diamond")) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = goldFieldColors(),
                 )
@@ -181,8 +181,8 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 Text("Kamu dapat ${fmtNum(n / DIAMOND_PER_COIN)} coin", color = Color(0xFFBDBDBD), fontSize = 13.sp)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlineButton("Tukar semua", Modifier.weight(1f)) { amount = wallet.diamonds.toString() }
-                    GoldButton("Tukar", Modifier.weight(1f), enabled = !busy && n > 0) {
+                    OutlineButton(tr("Tukar semua"), Modifier.weight(1f)) { amount = wallet.diamonds.toString() }
+                    GoldButton(tr("Tukar"), Modifier.weight(1f), enabled = !busy && n > 0) {
                         busy = true
                         scope.launch {
                             val e = WalletRepo.exchange(uid, n)
@@ -218,9 +218,16 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
     }
 }
 
-/** Panel hadiah di dalam room (gaya seperti contoh). */
+/** Panel hadiah di dalam room: kirim ke semua user di mic (All) atau pilih user tertentu. */
 @Composable
-fun GiftPanel(roomId: String, myUid: String, myName: String, onDismiss: () -> Unit) {
+fun GiftPanel(
+    roomId: String,
+    myUid: String,
+    myName: String,
+    onDismiss: () -> Unit,
+    seats: List<Seat> = emptyList(),
+    initialTarget: String? = null,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val actions = LocalActions.current
@@ -230,6 +237,9 @@ fun GiftPanel(roomId: String, myUid: String, myName: String, onDismiss: () -> Un
     var count by remember { mutableStateOf(1) }
     var countMenu by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
+    var allSelected by remember { mutableStateOf(initialTarget == null) }
+    var picked by remember { mutableStateOf<Set<String>>(if (initialTarget != null) setOf(initialTarget) else emptySet()) }
+    val targets = remember(seats, myUid) { seats.filter { it.uid.isNotBlank() && it.uid != myUid }.sortedBy { it.index } }
     val pages = remember { GIFTS.chunked(8) }
     val pager = rememberPagerState(pageCount = { pages.size })
     val teal = Color(0xFF2BD9C4)
@@ -257,7 +267,7 @@ fun GiftPanel(roomId: String, myUid: String, myName: String, onDismiss: () -> Un
                 .padding(top = 14.dp, bottom = 10.dp),
         ) {
             Row(Modifier.padding(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Hadiah", "Aktivitas", "Cashback").forEachIndexed { i, label ->
+                listOf(tr("Hadiah"), tr("Aktivitas"), tr("Cashback")).forEachIndexed { i, label ->
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(50))
@@ -269,7 +279,55 @@ fun GiftPanel(roomId: String, myUid: String, myName: String, onDismiss: () -> Un
             }
             Spacer(Modifier.height(10.dp))
             if (tab == 0) {
-                HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(250.dp)) { p ->
+                // ---- Penerima: All + foto profil user di mic ----
+                Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val allShape = RoundedCornerShape(50)
+                    Box(
+                        Modifier
+                            .clip(allShape)
+                            .background(if (allSelected) teal else Color(0xFF16302F))
+                            .clickable { allSelected = true; picked = emptySet() }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
+                        Text(tr("Semua"), color = if (allSelected) Color.Black else Color(0xFF8FA3A0), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    if (targets.isEmpty()) {
+                        Text(tr("Belum ada user di mic"), color = Color(0xFF8FA3A0), fontSize = 12.sp)
+                    } else {
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            targets.forEach { s ->
+                                val on = allSelected || s.uid in picked
+                                val bmp = remember(s.avatarB64) { ProfileRepo.decodeB64(s.avatarB64) }
+                                Box(
+                                    Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF16302F))
+                                        .border(if (on) 2.dp else 1.dp, if (on) teal else Color(0xFF3A4A48), CircleShape)
+                                        .clickable {
+                                            if (allSelected) {
+                                                allSelected = false
+                                                picked = setOf(s.uid)
+                                            } else {
+                                                val n = if (s.uid in picked) picked - s.uid else picked + s.uid
+                                                if (n.isEmpty()) { allSelected = true; picked = emptySet() } else picked = n
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (bmp != null) {
+                                        Image(bitmap = bmp, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                    } else {
+                                        Text(s.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(240.dp)) { p ->
                     Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
                         pages[p].chunked(4).forEach { row ->
                             Row(Modifier.fillMaxWidth().weight(1f)) {
@@ -290,8 +348,8 @@ fun GiftPanel(roomId: String, myUid: String, myName: String, onDismiss: () -> Un
                     }
                 }
             } else {
-                Box(Modifier.fillMaxWidth().height(250.dp), contentAlignment = Alignment.Center) {
-                    Text("Segera hadir", color = Color(0xFF8FA3A0))
+                Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
+                    Text(tr("Segera hadir"), color = Color(0xFF8FA3A0))
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -301,7 +359,7 @@ fun GiftPanel(roomId: String, myUid: String, myName: String, onDismiss: () -> Un
                 Text(fmtNum(wallet.coins), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    "Topup ◆", color = teal, fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                    tr("Topup") + " ◆", color = teal, fontSize = 17.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable { onDismiss(); actions.openWallet() },
                 )
                 Spacer(Modifier.weight(1f))
@@ -326,20 +384,30 @@ fun GiftPanel(roomId: String, myUid: String, myName: String, onDismiss: () -> Un
                         Modifier
                             .background(if (sending) Color(0xFF3A4A48) else teal)
                             .clickable(enabled = !sending) {
+                                val receivers = targets.filter { allSelected || it.uid in picked }
+                                if (receivers.isEmpty()) {
+                                    Toast.makeText(context, tr("Pilih penerima dulu"), Toast.LENGTH_SHORT).show()
+                                    return@clickable
+                                }
                                 val g = GIFTS.first { it.id == selected }
-                                val total = g.price * count
+                                val perReceiver = g.price * count
+                                val total = perReceiver * receivers.size
+                                val toText = if (allSelected) "semua mic (${receivers.size})"
+                                else receivers.joinToString(", ") { it.name }
                                 sending = true
                                 scope.launch {
                                     val err = WalletRepo.sendGift(myUid, total)
                                     if (err == null) {
-                                        RoomExtras.sendGiftMessage(roomId, myName, g, count)
+                                        RoomExtras.sendGiftMessage(roomId, myName, g, count, toText)
+                                        val rerr = GiftRankRepo.record(myUid, myName, roomId, perReceiver, receivers)
                                         Toast.makeText(context, "Gift terkirim! +${fmtNum(total)} diamond", Toast.LENGTH_SHORT).show()
+                                        if (rerr != null) Toast.makeText(context, "Ranking gagal: $rerr", Toast.LENGTH_LONG).show()
                                     } else Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
                                     sending = false
                                 }
                             }
                             .padding(horizontal = 22.dp, vertical = 10.dp),
-                    ) { Text("Berikan", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                    ) { Text(tr("Berikan"), color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
                 }
             }
         }

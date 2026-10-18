@@ -245,7 +245,7 @@ fun UserProfileSheet(
             if (u == null) {
                 Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                     if (loading) CircularProgressIndicator(color = Gold)
-                    else Text("Profil tidak ditemukan", color = Color(0xFFBDBDBD))
+                    else Text(tr("Profil tidak ditemukan"), color = Color(0xFFBDBDBD))
                 }
             } else {
                 // Bagian atas: ketuk -> halaman profil lengkap
@@ -290,11 +290,11 @@ fun UserProfileSheet(
                     ) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("VIP", color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-                            Text("Segera hadir", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+                            Text(tr("Segera hadir"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    Text("Ketuk untuk lihat profil lengkap ›", color = Gold, fontSize = 12.sp)
+                    Text(tr("Ketuk untuk lihat profil lengkap ›"), color = Gold, fontSize = 12.sp)
                 }
 
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
@@ -308,14 +308,14 @@ fun UserProfileSheet(
                     if (!isMe) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             if (following) {
-                                OutlineButton("Mengikuti ✓", Modifier.weight(1f)) { if (!busy) toggleFollow() }
+                                OutlineButton(tr("Mengikuti ✓"), Modifier.weight(1f)) { if (!busy) toggleFollow() }
                             } else {
-                                GoldButton("Ikuti", Modifier.weight(1f), enabled = !busy) { toggleFollow() }
+                                GoldButton(tr("Ikuti"), Modifier.weight(1f), enabled = !busy) { toggleFollow() }
                             }
                             OutlineButton("Chat", Modifier.weight(1f)) { onChat(u) }
                         }
                     } else if (extra == null) {
-                        Text("Ini profil kamu", color = Color(0xFF9A9A9A))
+                        Text(tr("Ini profil kamu"), color = Color(0xFF9A9A9A))
                     }
                 }
             }

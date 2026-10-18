@@ -171,7 +171,7 @@ fun LoginScreen(
                     )
                 }
                 Spacer(Modifier.height(14.dp))
-                Text("or continue with", color = Color(0xFF9A9A9A), fontSize = 13.sp)
+                Text(tr("or continue with"), color = Color(0xFF9A9A9A), fontSize = 13.sp)
                 Spacer(Modifier.height(12.dp))
 
                 Box(
@@ -204,7 +204,7 @@ fun LoginScreen(
             }
 
             Spacer(Modifier.height(24.dp))
-            Text("Don't have an account?", color = Color(0xFFBDBDBD), fontSize = 14.sp)
+            Text(tr("Don't have an account?"), color = Color(0xFFBDBDBD), fontSize = 14.sp)
             Text(
                 "Sign Up",
                 color = GoldLight,

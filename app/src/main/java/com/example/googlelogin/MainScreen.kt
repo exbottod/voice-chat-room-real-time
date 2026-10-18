@@ -156,7 +156,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                                 selected = selected == index,
                                 onClick = { selected = index },
                                 icon = { Icon(item.icon, contentDescription = item.label) },
-                                label = { Text(item.label) },
+                                label = { Text(tr(item.label)) },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = Color.Black,
                                     selectedTextColor = Gold,

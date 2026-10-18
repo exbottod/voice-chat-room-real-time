@@ -76,7 +76,7 @@ fun DiscoverTab() {
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             singleLine = true,
-            placeholder = { Text("Cari room atau ID") },
+            placeholder = { Text(tr("Cari room atau ID")) },
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White,
@@ -89,7 +89,7 @@ fun DiscoverTab() {
             ),
         )
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Belum ada hasil pencarian", color = Color(0xFF8A8A8A))
+            Text(tr("Belum ada hasil pencarian"), color = Color(0xFF8A8A8A))
         }
     }
 }

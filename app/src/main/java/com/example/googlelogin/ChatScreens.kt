@@ -222,7 +222,7 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
                     value = text,
                     onValueChange = { if (it.length <= 500) text = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Tulis pesan...") },
+                    placeholder = { Text(tr("Tulis pesan...")) },
                     maxLines = 3,
                     shape = RoundedCornerShape(24.dp),
                     colors = goldFieldColors(),
