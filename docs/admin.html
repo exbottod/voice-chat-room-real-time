@@ -84,7 +84,7 @@ const CFG = {
   projectId: "arboreal-cat-511705-p6",
   messagingSenderId: "707122344337"
 };
-const ADMIN_EMAIL = "developerex100@gmail.com".toLowerCase();
+const ADMIN_EMAIL = "developerex100@gmail.com";
 firebase.initializeApp(CFG);
 const auth = firebase.auth(), db = firebase.firestore();
 const $ = id => document.getElementById(id);
@@ -103,7 +103,7 @@ $("btnOut1").onclick = out; $("btnOut2").onclick = out;
 auth.onAuthStateChanged(u => {
   if (unsub) { unsub(); unsub = null; }
   if (!u) return show("login");
-  const ok = (u.email || "").toLowerCase() === ADMIN_EMAIL && u.emailVerified;
+  const ok = (u.email || "").toLowerCase() === ADMIN_EMAIL;
   if (!ok) { $("deniedTxt").textContent = (u.email || "Akun ini") + " bukan akun developer."; return show("denied"); }
   $("who").textContent = "Masuk sebagai " + u.email;
   show("panel");
