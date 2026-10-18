@@ -18,7 +18,7 @@ h2{color:var(--gold2);font-size:16px;margin:0 0 10px}
 input[type=text],input[type=number]{width:100%;background:#0f0f0f;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px;font-size:14px;margin:4px 0 10px}
 label{font-size:12px;color:var(--mut)}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .tab{padding:8px 14px;border-radius:50px;border:1px solid var(--line);color:var(--mut);cursor:pointer;font-size:14px}
 .tab.on{border-color:var(--gold);color:var(--gold2)}
 .prev{width:100%;aspect-ratio:5/2;border-radius:12px;border:1px dashed var(--gold);background:#0f0f0f;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:13px;overflow:hidden;cursor:pointer}
@@ -51,7 +51,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -109,6 +109,16 @@ label{font-size:12px;color:var(--mut)}
     </div>
   </div>
 </div>
+<div id="tab-user" class="hide">
+    <div class="card">
+      <h2>Daftar user terdaftar</h2>
+      <p class="muted">Menampilkan ID yang benar-benar ada di database (maks. 200).</p>
+      <input type="text" id="userQ" placeholder="Cari nama atau ID (opsional)">
+      <button class="btn out" id="userLoad">Muat daftar user</button>
+      <div class="muted" id="userCount" style="margin-top:8px"></div>
+      <div id="userList"></div>
+    </div>
+  </div>
 <div id="msg" class="hide"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -219,13 +229,15 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+  ["banner", "ban", "coin", "user"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
 });
 
 async function lookup(raw){
   const id = String(raw || "").trim();
   if (!/^\d+$/.test(id)) throw new Error("ID harus berupa angka");
-  const d = await db.collection("userIds").doc(id).get();
+  let d;
+  try { d = await db.collection("userIds").doc(id).get(); }
+  catch (e) { throw new Error(e.code === "permission-denied" ? "Ditolak rules Firestore (userIds). Pastikan rules sudah di-Publish." : e.message); }
   if (!d.exists) throw new Error("ID " + id + " tidak ditemukan");
   const x = d.data();
   if (!x.uid) throw new Error("Data user tidak lengkap");
@@ -292,7 +304,7 @@ function startBan(){
       un.onclick = () => { if (confirm("Buka banned user ini?")) d.ref.delete().then(() => logAction({ type: "unban", targetId: b.userId, uid: d.id })).catch(e => toast(e.message)); };
       row.append(info, un); box.appendChild(row);
     });
-  }, e => { $("banList").textContent = "Gagal memuat: " + e.message; });
+  }, e => { $("banList").textContent = e.code === "permission-denied" ? "Ditolak rules Firestore. Pastikan rules sudah di-Publish dan isAdmin() memakai email Anda." : "Gagal memuat: " + e.message; });
 }
 
 /* ---------- Kirim coin ---------- */
@@ -323,6 +335,43 @@ $("coinSend").onclick = async () => {
     $("coinAmt").value = ""; await showCoinUser();
   } catch (e) { toast("Gagal: " + e.message); }
   $("coinSend").disabled = false;
+};
+
+function goFind(tab, inputId, btnId, id){
+  document.querySelector('.tab[data-t="' + tab + '"]').click();
+  $(inputId).value = id; $(btnId).click();
+}
+$("userLoad").onclick = async () => {
+  const box = $("userList"); box.textContent = "Memuat...";
+  try {
+    const snap = await db.collection("userIds").limit(200).get();
+    box.textContent = "";
+    if (snap.empty) { $("userCount").textContent = "0 user"; box.textContent = "Belum ada user di koleksi userIds."; return; }
+    const q = $("userQ").value.trim().toLowerCase();
+    const docs = snap.docs.slice().sort((a, b) => Number(a.id) - Number(b.id));
+    let shown = 0;
+    docs.forEach(d => {
+      const x = d.data(), name = x.name || "(belum ada nama)";
+      if (q && !(d.id.includes(q) || name.toLowerCase().includes(q))) return;
+      shown++;
+      const row = document.createElement("div"); row.className = "item";
+      let av;
+      if (x.avatarB64) { av = document.createElement("img"); av.src = "data:image/jpeg;base64," + x.avatarB64; av.style.cssText = "width:40px;height:40px;border-radius:50%;aspect-ratio:1"; }
+      else { av = document.createElement("div"); av.className = "ph"; av.style.cssText = "width:40px;height:40px;border-radius:50%;background:#263238;display:flex;align-items:center;justify-content:center;flex:none"; av.textContent = name.slice(0, 1).toUpperCase(); }
+      const info = document.createElement("div"); info.className = "info";
+      const t = document.createElement("b"); t.textContent = name;
+      const s = document.createElement("span"); s.className = "muted"; s.textContent = "ID " + d.id;
+      info.append(t, s);
+      const b1 = document.createElement("button"); b1.className = "btn bad"; b1.textContent = "Ban";
+      b1.onclick = () => goFind("ban", "banId", "banFind", d.id);
+      const b2 = document.createElement("button"); b2.className = "btn"; b2.textContent = "Coin";
+      b2.onclick = () => goFind("coin", "coinId", "coinFind", d.id);
+      row.append(av, info, b1, b2); box.appendChild(row);
+    });
+    $("userCount").textContent = shown + " dari " + snap.size + " user";
+  } catch (e) {
+    box.textContent = e.code === "permission-denied" ? "Ditolak rules Firestore. Pastikan rules sudah di-Publish dan isAdmin() memakai email Anda." : "Gagal: " + e.message;
+  }
 };
 </script>
 </body></html>
