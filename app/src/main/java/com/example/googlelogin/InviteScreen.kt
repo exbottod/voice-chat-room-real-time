@@ -79,7 +79,7 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     OverlayBox {
         Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
-            GoldTopBar("Undang teman", onBack)
+            GoldTopBar(tr("Undang teman"), onBack)
             Column(
                 Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             ) {
@@ -92,7 +92,7 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("Kode undangan kamu", color = Color(0xFFBDBDBD), fontSize = 14.sp)
+                    Text(tr("Kode undangan kamu"), color = Color(0xFFBDBDBD), fontSize = 14.sp)
                     Spacer(Modifier.height(6.dp))
                     Text(
                         if (ready) myUserId else "...",
@@ -111,14 +111,14 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
                             modifier = Modifier.weight(1f),
                             border = BorderStroke(1.dp, Gold),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldLight),
-                        ) { Text("Salin kode") }
+                        ) { Text(tr("Salin kode")) }
                         Spacer(Modifier.width(10.dp))
                         Button(
                             enabled = ready,
                             onClick = { share() },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color.Black),
-                        ) { Text("Bagikan link") }
+                        ) { Text(tr("Bagikan link")) }
                     }
                     Spacer(Modifier.height(12.dp))
                     Text("Teman yang kamu undang: $count", color = Color(0xFFE0E0E0), fontSize = 14.sp)
@@ -133,7 +133,7 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
                         .border(1.dp, Gold.copy(alpha = 0.4f), shape)
                         .padding(20.dp),
                 ) {
-                    Text("Punya kode undangan?", color = GoldLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(tr("Punya kode undangan?"), color = GoldLight, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(10.dp))
                     val inviter = invitedBy
                     if (inviter != null) {
@@ -144,7 +144,7 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
                             onValueChange = { code = it.filter { c -> c.isDigit() }.take(12) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            placeholder = { Text("Masukkan kode undangan", color = Color(0xFF8A8A8A)) },
+                            placeholder = { Text(tr("Masukkan kode undangan"), color = Color(0xFF8A8A8A)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.White,

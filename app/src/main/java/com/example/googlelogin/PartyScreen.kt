@@ -66,6 +66,7 @@ fun PartyTab(
     var filter by rememberSaveable { mutableStateOf(0) }
     var showCreate by remember { mutableStateOf(false) }
     var lockedRoom by remember { mutableStateOf<RoomInfo?>(null) }
+    var showRank by remember { mutableStateOf(false) }
     val allRooms = rememberRooms()
     val soon = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
     val open: (RoomInfo) -> Unit = { room ->
@@ -93,12 +94,12 @@ fun PartyTab(
             )
         }
         if (subTab == 2) {
-            item(span = { GridItemSpan(maxLineSpan) }) { EmptyBlock("Belum ada aktivitas") }
+            item(span = { GridItemSpan(maxLineSpan) }) { EmptyBlock(tr("Belum ada aktivitas")) }
         } else {
             if (subTab == 1) {
                 item(span = { GridItemSpan(maxLineSpan) }) { BannerPager() }
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    RankRow(onClick = { soon("$it segera hadir") })
+                    RankRow(onClick = { if (it == "Top Sawer") showRank = true else soon("$it segera hadir") })
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     PrizeBar(onClick = { soon("Undian hadiah segera hadir") })
@@ -127,6 +128,7 @@ fun PartyTab(
             onCreated = { showCreate = false; onEnterRoom(it) },
         )
     }
+    if (showRank) TopRankDialog(onDismiss = { showRank = false })
     lockedRoom?.let { r ->
         PasswordDialog(r, onDismiss = { lockedRoom = null }, onOk = { lockedRoom = null; onEnterRoom(r) })
     }
@@ -139,7 +141,7 @@ private fun TopTabs(
     onSearch: () -> Unit,
     onCreate: () -> Unit,
 ) {
-    val labels = listOf("Saya", "Party", "Aktivitas")
+    val labels = listOf(tr("Saya"), tr("Party"), tr("Aktivitas"))
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,

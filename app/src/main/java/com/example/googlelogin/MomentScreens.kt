@@ -221,7 +221,7 @@ fun MomentTab(myUid: String, onPost: () -> Unit, onComments: (Moment) -> Unit) {
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Moment", color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(tr("Moment"), color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onPost) { Icon(Icons.Default.Add, "Posting moment", tint = GoldLight) }
             }
@@ -260,14 +260,14 @@ fun PostMomentScreen(uid: String, name: String, onBack: () -> Unit) {
 
     OverlayBox {
         Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
-            GoldTopBar("Buat moment", onBack)
+            GoldTopBar(tr("Buat moment"), onBack)
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { if (it.length <= 300) text = it },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 5,
-                    placeholder = { Text("Apa yang sedang kamu pikirkan?") },
+                    placeholder = { Text(tr("Apa yang sedang kamu pikirkan?")) },
                     supportingText = { Text("${text.length}/300", color = Color(0xFF8A8A8A)) },
                     colors = goldFieldColors(),
                 )
@@ -285,11 +285,11 @@ fun PostMomentScreen(uid: String, name: String, onBack: () -> Unit) {
                     if (preview != null) {
                         Image(preview, null, Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth)
                     } else {
-                        Text("+ Tambah foto", color = GoldLight, fontSize = 16.sp, modifier = Modifier.padding(40.dp))
+                        Text(tr("+ Tambah foto"), color = GoldLight, fontSize = 16.sp, modifier = Modifier.padding(40.dp))
                     }
                 }
                 if (preview != null) {
-                    TextButton(onClick = { photoB64 = null }) { Text("Hapus foto", color = Color(0xFFFF8A80)) }
+                    TextButton(onClick = { photoB64 = null }) { Text(tr("Hapus foto"), color = Color(0xFFFF8A80)) }
                 }
                 Spacer(Modifier.height(16.dp))
                 GoldButton(
@@ -348,7 +348,7 @@ fun MomentCommentsPanel(m: Moment, myUid: String, myName: String, onDismiss: () 
             Text("Komentar (${list.size})", color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (list.isEmpty()) item { Text("Belum ada komentar", color = Color(0xFF8A8A8A)) }
+                if (list.isEmpty()) item { Text(tr("Belum ada komentar"), color = Color(0xFF8A8A8A)) }
                 items(list, key = { it.id }) { c ->
                     Row {
                         Text(
@@ -368,7 +368,7 @@ fun MomentCommentsPanel(m: Moment, myUid: String, myName: String, onDismiss: () 
                     onValueChange = { if (it.length <= 200) text = it },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    placeholder = { Text("Tulis komentar...") },
+                    placeholder = { Text(tr("Tulis komentar...")) },
                     shape = RoundedCornerShape(24.dp),
                     colors = goldFieldColors(),
                 )

@@ -92,7 +92,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
 
     OverlayBox {
         Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
-            GoldTopBar("Cari pengguna", onBack)
+            GoldTopBar(tr("Cari pengguna"), onBack)
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -102,7 +102,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
                     onValueChange = { query = it.filter { c -> c.isDigit() }.take(12) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    placeholder = { Text("Masukkan ID pengguna", color = Color(0xFF8A8A8A)) },
+                    placeholder = { Text(tr("Masukkan ID pengguna"), color = Color(0xFF8A8A8A)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { search() }),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -177,7 +177,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Gold),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldLight),
-                    ) { Text("Salin ID") }
+                    ) { Text(tr("Salin ID")) }
                 }
             }
         }

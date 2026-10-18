@@ -173,7 +173,7 @@ fun EditProfileScreen(
                 IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = Ink)
                 }
-                Text("Edit profil", color = Ink, fontSize = 19.sp, modifier = Modifier.align(Alignment.Center))
+                Text(tr("Edit profil"), color = Ink, fontSize = 19.sp, modifier = Modifier.align(Alignment.Center))
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
 
@@ -200,7 +200,7 @@ fun EditProfileScreen(
                         "F" -> Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFEC407A)), Alignment.Center) {
                             Text("♀", color = Color.White, fontSize = 20.sp)
                         }
-                        else -> Text("Belum diatur", color = Hint, fontSize = 16.sp)
+                        else -> Text(tr("Belum diatur"), color = Hint, fontSize = 16.sp)
                     }
                 }
                 // Backgrounds
@@ -304,7 +304,7 @@ fun EditProfileScreen(
     when (dialog) {
         EditDialog.Gender -> AlertDialog(
             onDismissRequest = { dialog = null },
-            title = { Text("Jenis kelamin") },
+            title = { Text(tr("Jenis kelamin")) },
             text = {
                 Column {
                     listOf("M" to "♂  Pria", "F" to "♀  Wanita").forEach { (code, label) ->
@@ -324,7 +324,7 @@ fun EditProfileScreen(
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton({ dialog = null }) { Text("Batal") } },
+            dismissButton = { TextButton({ dialog = null }) { Text(tr("Batal")) } },
         )
         EditDialog.Nickname -> TextEditDialog(
             title = "Nama panggilan",
@@ -378,10 +378,10 @@ private fun TextEditDialog(
         },
         confirmButton = {
             TextButton(enabled = allowBlank || text.isNotBlank(), onClick = { onSave(text.trim()) }) {
-                Text("Simpan")
+                Text(tr("Simpan"))
             }
         },
-        dismissButton = { TextButton(onDismiss) { Text("Batal") } },
+        dismissButton = { TextButton(onDismiss) { Text(tr("Batal")) } },
     )
 }
 
@@ -393,14 +393,14 @@ private fun CountryDialog(onPick: (Country) -> Unit, onDismiss: () -> Unit) {
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Pilih negara") },
+        title = { Text(tr("Pilih negara")) },
         text = {
             Column {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
                     singleLine = true,
-                    placeholder = { Text("Cari negara") },
+                    placeholder = { Text(tr("Cari negara")) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -422,6 +422,6 @@ private fun CountryDialog(onPick: (Country) -> Unit, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onDismiss) { Text("Batal") } },
+        dismissButton = { TextButton(onDismiss) { Text(tr("Batal")) } },
     )
 }

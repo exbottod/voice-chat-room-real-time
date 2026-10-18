@@ -163,7 +163,7 @@ fun CreateRoomDialog(ownerUid: String, ownerName: String, onDismiss: () -> Unit,
     }
     Dialog(onDismissRequest = { if (!busy) onDismiss() }) {
         DialogCard {
-            Text("Buat room", color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(tr("Buat room"), color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(16.dp))
             Box(
                 Modifier
@@ -180,19 +180,19 @@ fun CreateRoomDialog(ownerUid: String, ownerName: String, onDismiss: () -> Unit,
                 else Text("📷", fontSize = 30.sp)
             }
             Spacer(Modifier.height(6.dp))
-            Text("Foto room", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+            Text(tr("Foto room"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
             Spacer(Modifier.height(14.dp))
             OutlinedTextField(
                 value = name,
                 onValueChange = { if (it.length <= 30) name = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("Nama room") },
+                placeholder = { Text(tr("Nama room")) },
                 shape = RoundedCornerShape(12.dp),
                 colors = goldFieldColors(),
             )
             Spacer(Modifier.height(18.dp))
-            GoldButton("Buat", enabled = name.isNotBlank() && !busy) {
+            GoldButton(tr("Buat"), enabled = name.isNotBlank() && !busy) {
                 scope.launch {
                     busy = true
                     try {
@@ -213,7 +213,7 @@ fun PasswordDialog(room: RoomInfo, onDismiss: () -> Unit, onOk: () -> Unit) {
     var pw by remember { mutableStateOf("") }
     Dialog(onDismissRequest = onDismiss) {
         DialogCard {
-            Text("Room terkunci", color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(tr("Room terkunci"), color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             Text(room.name, color = Color(0xFFBDBDBD), fontSize = 13.sp)
             Spacer(Modifier.height(14.dp))
@@ -229,7 +229,7 @@ fun PasswordDialog(room: RoomInfo, onDismiss: () -> Unit, onOk: () -> Unit) {
                 colors = goldFieldColors(),
             )
             Spacer(Modifier.height(16.dp))
-            GoldButton("Masuk", enabled = pw.isNotEmpty()) {
+            GoldButton(tr("Masuk"), enabled = pw.isNotEmpty()) {
                 if (sha256(pw) == room.lockHash) onOk()
                 else Toast.makeText(context, "Password salah", Toast.LENGTH_SHORT).show()
             }

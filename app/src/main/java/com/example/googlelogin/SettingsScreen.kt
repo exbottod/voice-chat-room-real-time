@@ -79,6 +79,7 @@ fun SettingsScreen(
     var showPrivacy by remember { mutableStateOf(false) }
     var showAddEmail by remember { mutableStateOf(false) }
     var showLogout by remember { mutableStateOf(false) }
+    var showLang by remember { mutableStateOf(false) }
     var hasPassword by remember { mutableStateOf(FirebaseSession.hasPassword()) }
 
     if (showPrivacy) {
@@ -90,12 +91,12 @@ fun SettingsScreen(
 
     OverlayBox {
         Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
-            GoldTopBar("Pengaturan", onBack)
+            GoldTopBar(tr("Pengaturan"), onBack)
             Column(
                 Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             ) {
-                SettingRow("Akun", user.email) {}
-                SettingRow("ID pengguna", userId) {}
+                SettingRow(tr("Akun"), user.email) {}
+                SettingRow(tr("ID pengguna"), userId) {}
                 SettingRow(
                     "Email & password",
                     if (hasPassword) (FirebaseSession.passwordEmail() ?: "Aktif") else "Belum diatur",
@@ -104,19 +105,21 @@ fun SettingsScreen(
                         Toast.makeText(context, "Login email & password sudah aktif", Toast.LENGTH_SHORT).show()
                     } else showAddEmail = true
                 }
-                SettingRow("Kebijakan privasi") { showPrivacy = true }
+                SettingRow(tr("Kebijakan privasi")) { showPrivacy = true }
+                SettingRow(tr("Bahasa"), AppLang.label()) { showLang = true }
                 Spacer(Modifier.height(20.dp))
                 OutlinedButton(
                     onClick = { showLogout = true },
                     modifier = Modifier.fillMaxWidth(),
                     border = BorderStroke(1.dp, Gold),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldLight),
-                ) { Text("Keluar") }
+                ) { Text(tr("Keluar")) }
                 Spacer(Modifier.height(24.dp))
             }
         }
     }
 
+    if (showLang) LanguageDialog(onDismiss = { showLang = false })
     if (showAddEmail) {
         AddEmailDialog(
             onDone = { hasPassword = FirebaseSession.hasPassword(); showAddEmail = false },
@@ -126,10 +129,10 @@ fun SettingsScreen(
     if (showLogout) {
         AlertDialog(
             onDismissRequest = { showLogout = false },
-            title = { Text("Keluar dari akun?") },
-            text = { Text("Kamu perlu login lagi untuk memakai aplikasi.") },
-            confirmButton = { TextButton(onClick = { showLogout = false; onSignOut() }) { Text("Keluar") } },
-            dismissButton = { TextButton(onClick = { showLogout = false }) { Text("Batal") } },
+            title = { Text(tr("Keluar dari akun?")) },
+            text = { Text(tr("Kamu perlu login lagi untuk memakai aplikasi.")) },
+            confirmButton = { TextButton(onClick = { showLogout = false; onSignOut() }) { Text(tr("Keluar")) } },
+            dismissButton = { TextButton(onClick = { showLogout = false }) { Text(tr("Batal")) } },
         )
     }
 }
@@ -146,7 +149,7 @@ private fun AddEmailDialog(onDone: () -> Unit, onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
-        title = { Text("Tambah email & password") },
+        title = { Text(tr("Tambah email & password")) },
         text = {
             Column {
                 OutlinedTextField(
@@ -161,7 +164,7 @@ private fun AddEmailDialog(onDone: () -> Unit, onDismiss: () -> Unit) {
                 OutlinedTextField(
                     value = pass,
                     onValueChange = { pass = it },
-                    label = { Text("Password (min. 6 karakter)") },
+                    label = { Text(tr("Password (min. 6 karakter)")) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -171,7 +174,7 @@ private fun AddEmailDialog(onDone: () -> Unit, onDismiss: () -> Unit) {
                 OutlinedTextField(
                     value = pass2,
                     onValueChange = { pass2 = it },
-                    label = { Text("Ulangi password") },
+                    label = { Text(tr("Ulangi password")) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -208,7 +211,7 @@ private fun AddEmailDialog(onDone: () -> Unit, onDismiss: () -> Unit) {
                 },
             ) { Text(if (busy) "Menyimpan..." else "Simpan") }
         },
-        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Batal") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text(tr("Batal")) } },
     )
 }
 
@@ -218,7 +221,7 @@ fun PrivacyScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     OverlayBox {
         Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-            GoldTopBar("Kebijakan privasi", onBack)
+            GoldTopBar(tr("Kebijakan privasi"), onBack)
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->

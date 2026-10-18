@@ -43,8 +43,8 @@ object RoomExtras {
     suspend fun sendChat(roomId: String, name: String, text: String): String? =
         addMessage(roomId, "$name: $text")
 
-    suspend fun sendGiftMessage(roomId: String, name: String, g: Gift, count: Int): String? =
-        addMessage(roomId, "🎁 $name mengirim ${g.emoji} ${g.name} x$count")
+    suspend fun sendGiftMessage(roomId: String, name: String, g: Gift, count: Int, to: String = ""): String? =
+        addMessage(roomId, "🎁 $name mengirim ${g.emoji} ${g.name} x$count" + (if (to.isNotBlank()) " ke $to" else ""))
 
     suspend fun sendEmote(roomId: String, uid: String, emoji: String): String? = try {
         room(roomId).collection("emotes").document(uid).set(
@@ -98,7 +98,7 @@ fun RoomTypingBar(onSend: (String) -> Unit, onClose: () -> Unit) {
             onValueChange = { if (it.length <= 120) text = it },
             modifier = Modifier.weight(1f).focusRequester(focus),
             singleLine = true,
-            placeholder = { Text("Ketik pesan...") },
+            placeholder = { Text(tr("Ketik pesan...")) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { submit() }),
             shape = RoundedCornerShape(24.dp),

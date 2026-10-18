@@ -292,7 +292,7 @@ fun ProfileTab(
                         .padding(14.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
-                        Text("Level user", color = Color(0xFFB8F5EC), fontSize = 16.sp)
+                        Text(tr("Level user"), color = Color(0xFFB8F5EC), fontSize = 16.sp)
                         Text("LV.$level", color = Color(0xFFFFE082), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
                     Text("🛡️", fontSize = 40.sp, modifier = Modifier.align(Alignment.CenterEnd))
@@ -325,7 +325,7 @@ fun ProfileTab(
                 modifier = Modifier.fillMaxWidth(),
                 border = BorderStroke(1.dp, Color(0xFFD9534F)),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD9534F)),
-            ) { Text("Keluar") }
+            ) { Text(tr("Keluar")) }
             Spacer(Modifier.height(20.dp))
         }
     }

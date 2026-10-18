@@ -117,7 +117,7 @@ fun OtherProfileScreen(
         if (u == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (loading) CircularProgressIndicator(color = Gold)
-                else Text("Profil tidak ditemukan", color = Color(0xFFBDBDBD))
+                else Text(tr("Profil tidak ditemukan"), color = Color(0xFFBDBDBD))
             }
         } else {
             Column(
@@ -233,9 +233,9 @@ fun OtherProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (following) {
-                        OutlineButton("Mengikuti ✓", Modifier.weight(1f)) { if (!busy) toggleFollow() }
+                        OutlineButton(tr("Mengikuti ✓"), Modifier.weight(1f)) { if (!busy) toggleFollow() }
                     } else {
-                        GoldButton("Ikuti", Modifier.weight(1f), enabled = !busy) { toggleFollow() }
+                        GoldButton(tr("Ikuti"), Modifier.weight(1f), enabled = !busy) { toggleFollow() }
                     }
                     OutlineButton("Chat", Modifier.weight(1f)) { onChat(u) }
                 }
