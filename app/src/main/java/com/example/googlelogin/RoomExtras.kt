@@ -40,8 +40,19 @@ object RoomExtras {
         e.message ?: "Gagal mengirim"
     }
 
-    suspend fun sendChat(roomId: String, name: String, text: String): String? =
-        addMessage(roomId, "$name: $text")
+    suspend fun sendChat(roomId: String, uid: String, name: String, text: String): String? = try {
+        Rtdb.ref("messages/$roomId").push().setValue(
+            hashMapOf<String, Any?>(
+                "text" to text,
+                "uid" to uid,
+                "name" to name,
+                "createdAt" to System.currentTimeMillis(),
+            ),
+        ).await()
+        null
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        e.message ?: "Gagal mengirim"
+    }
 
     suspend fun sendGiftMessage(roomId: String, name: String, g: Gift, count: Int, to: String = ""): String? =
         addMessage(roomId, "🎁 $name mengirim ${g.emoji} ${g.name} x$count" + (if (to.isNotBlank()) " ke $to" else ""))
@@ -86,20 +97,19 @@ object RoomExtras {
 }
 
 @Composable
-fun RoomTypingBar(onSend: (String) -> Unit, onClose: () -> Unit) {
-    var text by remember { mutableStateOf("") }
+fun RoomTypingBar(text: String, onTextChange: (String) -> Unit, onSend: (String) -> Unit, onClose: () -> Unit) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     fun submit() {
         if (text.isNotBlank()) {
             onSend(text.trim())
-            text = ""
+            onTextChange("")
         }
     }
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(
             value = text,
-            onValueChange = { if (it.length <= 120) text = it },
+            onValueChange = { if (it.length <= 120) onTextChange(it) },
             modifier = Modifier.weight(1f).focusRequester(focus),
             singleLine = true,
             placeholder = { Text(tr("Ketik pesan...")) },
