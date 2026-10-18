@@ -134,7 +134,7 @@ fun GiftBanner(roomId: String) {
     var lastId by remember { mutableStateOf<String?>(null) }
     var first by remember { mutableStateOf(true) }
     DisposableEffect(roomId) {
-        val reg = RoomRepo.observeMessages(roomId) { list ->
+        val reg = RoomRepo.observeMessages(roomId, 1) { list ->
             val last = list.lastOrNull()
             if (first) {
                 first = false

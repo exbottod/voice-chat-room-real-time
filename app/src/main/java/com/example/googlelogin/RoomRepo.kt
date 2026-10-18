@@ -95,8 +95,8 @@ object RoomRepo {
             }
         }
 
-    fun observeMessages(id: String, onChange: (List<RoomMsg>) -> Unit): ListenerRegistration =
-        roomRef(id).collection("messages").orderBy("createdAt").limitToLast(50)
+    fun observeMessages(id: String, limit: Int = 50, onChange: (List<RoomMsg>) -> Unit): ListenerRegistration =
+        roomRef(id).collection("messages").orderBy("createdAt").limitToLast(limit.toLong())
             .addSnapshotListener { snap, _ ->
                 if (snap != null) {
                     onChange(snap.documents.map { RoomMsg(it.id, it.getString("text") ?: "", it.getLong("createdAt") ?: 0L) })
