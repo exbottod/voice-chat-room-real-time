@@ -27,7 +27,7 @@ data class RoomInfo(
 }
 
 data class Seat(val index: Int, val uid: String, val name: String, val avatarB64: String?, val muted: Boolean)
-data class RoomMsg(val id: String, val text: String, val createdAt: Long)
+data class RoomMsg(val id: String, val text: String, val createdAt: Long, val uid: String = "", val name: String = "")
 
 fun sha256(s: String): String =
     MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -108,6 +108,8 @@ object RoomRepo {
                         c.key ?: "",
                         c.child("text").getValue(String::class.java) ?: "",
                         (c.child("createdAt").value as? Number)?.toLong() ?: 0L,
+                        c.child("uid").getValue(String::class.java) ?: "",
+                        c.child("name").getValue(String::class.java) ?: "",
                     )
                 },
             )
@@ -127,6 +129,14 @@ object RoomRepo {
         Rtdb.listen(Rtdb.ref("locks/$id")) { snap ->
             onChange(snap.children.mapNotNull { it.key?.toIntOrNull() }.toSet())
         }
+
+    /** Hapus semua chat publik di room (untuk semua orang). null = sukses. */
+    suspend fun clearMessages(roomId: String): String? = try {
+        Rtdb.ref("messages/$roomId").removeValue().await()
+        null
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        e.message ?: "Gagal menghapus chat"
+    }
 
     suspend fun join(roomId: String, name: String) {
         try {

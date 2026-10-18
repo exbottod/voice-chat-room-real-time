@@ -85,6 +85,7 @@ private const val P_TOOLS = 2
 private const val P_MODE = 3
 private const val P_SETTINGS = 4
 private const val P_LOCK = 5
+private const val P_CLEAR = 6
 private val Teal = Color(0xFF2BD9C4)
 
 @Composable
@@ -113,16 +114,22 @@ fun RoomScreen(
     var giftOpen by remember { mutableStateOf(false) }
     var giftTarget by remember { mutableStateOf<String?>(null) }
     var emotes by remember { mutableStateOf<Map<String, SeatEmote>>(emptyMap()) }
+    var draft by remember { mutableStateOf("") }
+    var profileUid by remember { mutableStateOf<String?>(null) }
+    var clearedAt by remember { mutableStateOf(0L) }
+    var sendTick by remember { mutableStateOf(0) }
     val toast = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
 
     DisposableEffect(roomId) {
+        draft = ""
+        typing = false
         val a = RoomRepo.observeRoom(roomId) { room = it }
         val b = RoomRepo.observeSeats(roomId) { rawSeats = it }
         val c = RoomRepo.observeMessages(roomId) { messages = it }
         val d = RoomExtras.observeEmotes(roomId) { emotes = it }
         val e1 = RoomRepo.observeMembers(roomId) { members = it }
         val e2 = RoomRepo.observeLocks(roomId) { locks = it }
-        onDispose { a.remove(); b.remove(); c.remove(); d.remove(); e1.remove(); e2.remove() }
+        onDispose { draft = ""; typing = false; a.remove(); b.remove(); c.remove(); d.remove(); e1.remove(); e2.remove() }
     }
     BackHandler {
         when {
@@ -152,14 +159,35 @@ fun RoomScreen(
             Box(Modifier.fillMaxSize().background(Color(0x88000000)))
         }
         val isOwner = r.ownerUid == myUid
+        var ownerUserId by remember(r.ownerUid) {
+            mutableStateOf(
+                if (r.ownerUid == myUid) UserDirectory.cachedId(context, myUid) else UserCache.peek(r.ownerUid)?.userId,
+            )
+        }
+        LaunchedEffect(r.ownerUid) {
+            if (ownerUserId == null) {
+                ownerUserId = (if (r.ownerUid == myUid) UserDirectory.cachedId(context, myUid) else UserCache.byUid(r.ownerUid)?.userId)
+                    ?: r.roomNo
+            }
+        }
         val mySeat = seats.values.firstOrNull { it.uid == myUid }
         val roomBmp = remember(r.photoB64) { ProfileRepo.decodeB64(r.photoB64) }
         val cols = micColumns(r.micCount)
         val rows = (r.micCount + cols - 1) / cols
         val seatSize = if (cols == 4) 64.dp else 54.dp
         val listState = rememberLazyListState()
-        val total = messages.size + (if (r.announcement.isNotBlank()) 1 else 0)
-        LaunchedEffect(total) { if (total > 0) listState.animateScrollToItem(total - 1) }
+        val visible = messages.filter { clearedAt == 0L || it.createdAt > clearedAt }
+        val total = visible.size + (if (r.announcement.isNotBlank()) 1 else 0)
+        val lastMsgId = visible.lastOrNull()?.id
+        LaunchedEffect(lastMsgId, sendTick) {
+            if (total > 0) {
+                val info = listState.layoutInfo
+                val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+                val nearBottom = lastVisible >= info.totalItemsCount - 3
+                val mine = visible.lastOrNull()?.uid == myUid
+                if (mine || nearBottom) listState.animateScrollToItem(total - 1)
+            }
+        }
 
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             // Header
@@ -175,7 +203,7 @@ fun RoomScreen(
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f, fill = false)) {
                         Text(r.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("ID:${r.roomNo}", color = Color(0xFFBDBDBD), fontSize = 11.sp)
+                        Text("ID:${ownerUserId ?: "..."}", color = Color(0xFFBDBDBD), fontSize = 11.sp)
                     }
                     Spacer(Modifier.width(10.dp))
                 }
@@ -215,7 +243,10 @@ fun RoomScreen(
                 if (r.announcement.isNotBlank()) {
                     item { RmMsgBox("Pengumuman kamar: ${r.announcement}", Gold) }
                 }
-                items(messages, key = { it.id }) { m -> RmMsgBox(m.text, if (m.text.startsWith("🎁")) Gold else Color.White) }
+                items(visible, key = { it.id }) { m ->
+                    if (m.uid.isNotEmpty()) RmChatRow(m) { uid -> profileUid = uid }
+                    else RmMsgBox(m.text, if (m.text.startsWith("🎁")) Gold else Color.White)
+                }
             }
 
             // Bar bawah
@@ -227,7 +258,12 @@ fun RoomScreen(
                 })
             }
             if (typing) RoomTypingBar(
-                onSend = { t -> scope.launch { RoomExtras.sendChat(r.id, myName, t)?.let { toast(it) } } },
+                text = draft,
+                onTextChange = { draft = it },
+                onSend = { t ->
+                    sendTick++
+                    scope.launch { RoomExtras.sendChat(r.id, myUid, myName, t)?.let { toast(it) } }
+                },
                 onClose = { typing = false },
             ) else Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -322,6 +358,17 @@ fun RoomScreen(
             }
         }
 
+        profileUid?.let { pu ->
+            UserProfileSheet(
+                uid = pu,
+                myUid = myUid,
+                onDismiss = { profileUid = null },
+                onChat = { u -> profileUid = null; appActions.openChat(u) },
+                onFollowChanged = { },
+                onOpenFull = { profileUid = null; appActions.openFullProfile(pu) },
+            )
+        }
+
         if (giftOpen) GiftPanel(roomId = r.id, myUid = myUid, myName = myName, onDismiss = { giftOpen = false }, seats = seats.values.sortedBy { it.index }, initialTarget = giftTarget, myAvatarB64 = myAvatarB64)
         GiftBanner(r.id)
 
@@ -331,7 +378,7 @@ fun RoomScreen(
                 DialogCard {
                     Text(tr("Keluar dari room?"), color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(18.dp))
-                    GoldButton(tr("Keluar")) { panel = P_NONE; onExit() }
+                    GoldButton(tr("Keluar")) { panel = P_NONE; draft = ""; typing = false; onExit() }
                     Spacer(Modifier.height(10.dp))
                     OutlineButton(tr("Minimalkan")) { panel = P_NONE; onMinimize() }
                 }
@@ -360,7 +407,37 @@ fun RoomScreen(
                         }
                     }
                 }
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    RmTool(
+                        "Bersihkan chat",
+                        onClick = {
+                            clearedAt = messages.maxOfOrNull { it.createdAt } ?: System.currentTimeMillis()
+                            panel = P_NONE
+                            toast("Chat dibersihkan di layar kamu")
+                        },
+                    ) { Text("🧹", fontSize = 24.sp) }
+                    if (isOwner) {
+                        RmTool("Hapus chat semua", onClick = { panel = P_CLEAR }) { Text("🗑️", fontSize = 24.sp) }
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
+            }
+        }
+        if (panel == P_CLEAR) {
+            Dialog(onDismissRequest = { panel = P_NONE }) {
+                DialogCard {
+                    Text(tr("Hapus semua chat publik?"), color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text(tr("Chat akan terhapus untuk semua orang di room ini."), color = Color(0xFFBDBDBD), fontSize = 13.sp)
+                    Spacer(Modifier.height(18.dp))
+                    GoldButton(tr("Hapus")) {
+                        panel = P_NONE
+                        scope.launch { toast(RoomRepo.clearMessages(r.id) ?: "Chat publik dihapus") }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    OutlineButton(tr("Batal")) { panel = P_NONE }
+                }
             }
         }
         if (panel == P_MODE) RmPanel(onDismiss = { panel = P_NONE }) { RmMode(r) { panel = P_NONE } }
@@ -753,6 +830,32 @@ fun FloatingRoomBubble(room: RoomInfo, onClick: () -> Unit) {
         ) {
             if (bmp != null) Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             else Text("🎙️", fontSize = 26.sp)
+        }
+    }
+}
+
+/** Baris chat publik: avatar, nama, level, lalu isi pesan. Klik avatar/nama untuk buka profil. */
+@Composable
+private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
+    var u by remember(m.uid) { mutableStateOf(UserCache.peek(m.uid)) }
+    LaunchedEffect(m.uid) { if (u == null) u = UserCache.byUid(m.uid) }
+    val shownName = u?.name?.takeIf { it.isNotBlank() } ?: m.name
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        PublicAvatar(u, 38.dp, fallback = shownName, modifier = Modifier.clickable { onProfile(m.uid) })
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f, fill = false)) {
+            Row(Modifier.clickable { onProfile(m.uid) }, verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    shownName, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 160.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                LevelBadge(userLevel(u))
+            }
+            Spacer(Modifier.height(3.dp))
+            Box(Modifier.widthIn(max = 280.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x66000000)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Text(m.text, color = Color.White, fontSize = 14.sp)
+            }
         }
     }
 }
