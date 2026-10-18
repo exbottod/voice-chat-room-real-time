@@ -23,30 +23,29 @@ jobs:
         with:
           gradle-version: 8.9
 
-      - name: Build debug + release APK
+      - name: Build release APK
         env:
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
           AGORA_TOKEN_URL: ${{ secrets.AGORA_TOKEN_URL }}
           AGORA_APP_ID: ${{ secrets.AGORA_APP_ID }}
-        run: gradle assembleDebug assembleRelease --stacktrace
+        run: gradle assembleRelease --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
           name: app-apk
           path: |
-            app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/release/app-release.apk
 
       - name: Publikasikan APK terbaru ke Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk REZO-CHAT-VOICE-debug.apk
           cp app/build/outputs/apk/release/app-release.apk REZO-CHAT-VOICE.apk
           NOTES="Build otomatis dari commit ${GITHUB_SHA::7}"
+          gh release delete-asset terbaru REZO-CHAT-VOICE-debug.apk -y 2>/dev/null || true
           if gh release view terbaru >/dev/null 2>&1; then
-            gh release upload terbaru REZO-CHAT-VOICE.apk REZO-CHAT-VOICE-debug.apk --clobber
+            gh release upload terbaru REZO-CHAT-VOICE.apk --clobber
             gh release edit terbaru --notes "$NOTES" --latest
           else
-            gh release create terbaru REZO-CHAT-VOICE.apk REZO-CHAT-VOICE-debug.apk --title "REZO CHAT VOICE (terbaru)" --notes "$NOTES" --latest
+            gh release create terbaru REZO-CHAT-VOICE.apk --title "REZO CHAT VOICE (terbaru)" --notes "$NOTES" --latest
           fi
