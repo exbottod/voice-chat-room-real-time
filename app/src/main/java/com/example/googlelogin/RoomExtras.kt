@@ -36,7 +36,7 @@ object RoomExtras {
             hashMapOf<String, Any?>("text" to text, "createdAt" to System.currentTimeMillis()),
         ).await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal mengirim"
     }
 
@@ -51,7 +51,7 @@ object RoomExtras {
             hashMapOf<String, Any?>("emoji" to emoji, "at" to System.currentTimeMillis()),
         ).await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal mengirim emot"
     }
 
@@ -69,14 +69,14 @@ object RoomExtras {
         b.delete(room(roomId).collection("seats").document(index.toString()))
         b.commit().await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal mengunci mic"
     }
 
     suspend fun unlockSeat(roomId: String, index: Int): String? = try {
         room(roomId).update("lockedSeats", FieldValue.arrayRemove(index)).await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal membuka kunci"
     }
 }

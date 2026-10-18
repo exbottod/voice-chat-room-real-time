@@ -139,7 +139,7 @@ fun AppRoot() {
             } catch (e: GoogleIdTokenParsingException) {
                 Log.e("GoogleLogin", "Token tidak valid", e)
                 toast("Token Google tidak valid")
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 Log.e("GoogleLogin", "Gagal masuk Firebase", e)
                 toast("Gagal masuk: ${e.message}")
             } finally {
@@ -161,7 +161,7 @@ fun AppRoot() {
                 val profile = UserProfile(name = name, email = email.trim(), photoUrl = photo, idToken = "")
                 store.save(profile)
                 user = profile
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 Log.e("EmailLogin", "Gagal", e)
                 toast(FirebaseSession.friendlyError(e))
             } finally {
@@ -174,7 +174,7 @@ fun AppRoot() {
         scope.launch {
             try {
                 credentialManager.clearCredentialState(ClearCredentialStateRequest())
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 Log.w("GoogleLogin", "clearCredentialState gagal", e)
             }
             FirebaseSession.signOut()

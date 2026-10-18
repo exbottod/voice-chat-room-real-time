@@ -107,7 +107,7 @@ object ProfileRepo {
                 avatarB64 = doc.getString("avatarB64"),
                 backgroundB64 = doc.getString("backgroundB64"),
             )
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             null
         }
     }
@@ -129,7 +129,7 @@ object ProfileRepo {
             FirebaseFirestore.getInstance().collection("users").document(uid)
                 .set(data, SetOptions.merge()).await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e
         }
     }
@@ -141,7 +141,7 @@ object ProfileRepo {
         return try {
             val bytes = Base64.decode(b64, Base64.NO_WRAP)
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             null
         }
     }
@@ -176,7 +176,7 @@ object ProfileRepo {
                         ExifInterface.ORIENTATION_NORMAL,
                     )
                 } ?: ExifInterface.ORIENTATION_NORMAL
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 ExifInterface.ORIENTATION_NORMAL
             }
 
@@ -205,7 +205,7 @@ object ProfileRepo {
             val bos = ByteArrayOutputStream()
             out.compress(Bitmap.CompressFormat.JPEG, quality, bos)
             Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             null
         }
     }

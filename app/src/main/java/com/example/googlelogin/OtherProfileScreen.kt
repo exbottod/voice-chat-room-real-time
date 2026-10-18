@@ -82,11 +82,11 @@ fun OtherProfileScreen(
     LaunchedEffect(uid) {
         user = UserCache.byUid(uid, force = true) ?: user
         loading = false
-        try { counts = FollowRepo.counts(uid) } catch (e: Exception) { }
+        try { counts = FollowRepo.counts(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         if (!isMe) {
-            try { following = FollowRepo.isFollowing(myUid, uid) } catch (e: Exception) { }
+            try { following = FollowRepo.isFollowing(myUid, uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         }
-        moments = try { MomentRepo.byUid(uid) } catch (e: Exception) { emptyList() }
+        moments = try { MomentRepo.byUid(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
     }
 
     fun toggleFollow() {
@@ -102,7 +102,7 @@ fun OtherProfileScreen(
                     following = true
                     counts = counts.first to counts.second + 1
                 }
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 Toast.makeText(context, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
             }
             busy = false

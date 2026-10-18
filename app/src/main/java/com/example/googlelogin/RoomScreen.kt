@@ -500,7 +500,7 @@ private fun RmSeatProfile(
     val bmp = remember(seat.avatarB64) { ProfileRepo.decodeB64(seat.avatarB64) }
     val actions = LocalActions.current
     var counts by remember(seat.uid) { mutableStateOf(0L to 0L) }
-    LaunchedEffect(seat.uid) { try { counts = FollowRepo.counts(seat.uid) } catch (e: Exception) { } }
+    LaunchedEffect(seat.uid) { try { counts = FollowRepo.counts(seat.uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { } }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Column(Modifier.clickable { actions.openProfile(seat.uid) }, horizontalAlignment = Alignment.CenterHorizontally) {
             RmAvatar(bmp, seat.name, 76.dp)

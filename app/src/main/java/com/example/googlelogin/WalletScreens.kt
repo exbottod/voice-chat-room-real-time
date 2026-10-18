@@ -65,7 +65,7 @@ object WalletRepo {
     suspend fun topUp(uid: String, coins: Long): String? = try {
         ref(uid).set(hashMapOf<String, Any?>("coins" to FieldValue.increment(coins)), SetOptions.merge()).await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal isi coin"
     }
 
@@ -81,7 +81,7 @@ object WalletRepo {
             true
         }.await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal mengirim gift"
     }
 
@@ -98,7 +98,7 @@ object WalletRepo {
             true
         }.await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal menukar"
     }
 }
@@ -399,7 +399,7 @@ fun GiftPanel(
                                 val toText = if (allSelected) "semua mic (${receivers.size})"
                                 else receivers.joinToString(", ") { it.name }
                                 sending = true
-                                scope.launch {
+                                AppScope.scope.launch {
                                     val err = WalletRepo.sendGift(myUid, total)
                                     if (err == null) {
                                         RoomExtras.sendGiftMessage(roomId, myName, g, count, toText)

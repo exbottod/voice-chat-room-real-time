@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -119,7 +120,7 @@ object GiftRankRepo {
             val total = perReceiver * receivers.size
             val roomName = try {
                 db().collection("rooms").document(roomId).get().await().getString("name") ?: "Room"
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 "Room"
             }
             val b = db().batch()
@@ -128,7 +129,7 @@ object GiftRankRepo {
             receivers.forEach { bump(b, COL_CHARM, it.uid, it.name, perReceiver, now) }
             b.commit().await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e.message ?: "Gagal mencatat ranking"
         }
     }
@@ -282,6 +283,39 @@ private fun RkRow(col: String, e: RankEntry, rank: Int) {
 }
 
 @Composable
+private fun RkMine(col: String, e: RankEntry?, index: Int, modifier: Modifier) {
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .clip(shape)
+            .background(Brush.horizontalGradient(listOf(Color(0xFF8E1B1B), Color(0xFF4A0D0D))))
+            .border(1.dp, Gold, shape)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            if (index >= 0) "#${index + 1}" else "-",
+            color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center, modifier = Modifier.width(64.dp),
+        )
+        if (e != null) {
+            RkAvatar(col, e, 44.dp, Gold)
+            Spacer(Modifier.width(10.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(tr("Peringkat kamu"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(
+                if (e != null) e.name else tr("Belum ada di ranking periode ini"),
+                color = Color(0xFFD9C7A8), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (e != null) RkCoin(e.total, 16.sp)
+    }
+}
+
+@Composable
 private fun TopRankContent(onBack: () -> Unit, initialTab: Int) {
     var tab by remember { mutableStateOf(initialTab) }   // 0 Kamar, 1 Sawer, 2 Pesona
     var period by remember { mutableStateOf(0) }          // 0 Harian, 1 Mingguan, 2 Bulanan
@@ -289,6 +323,7 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int) {
     var entries by remember { mutableStateOf<List<RankEntry>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    val myUid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
     val col = when (tab) {
         0 -> GiftRankRepo.COL_ROOM
         1 -> GiftRankRepo.COL_SAWER
@@ -307,7 +342,7 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int) {
         error = null
         entries = emptyList()
         try {
-            entries = GiftRankRepo.top(col, periodKey)
+            entries = GiftRankRepo.top(col, periodKey, 100)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -378,7 +413,7 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int) {
             )
             Spacer(Modifier.height(6.dp))
 
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 100.dp)) {
                 if (loading || entries.isEmpty()) {
                     item {
                         Column(Modifier.fillMaxWidth().padding(vertical = 80.dp, horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -409,6 +444,10 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int) {
                     itemsIndexed(entries.drop(3)) { i, e -> RkRow(col, e, i + 4) }
                 }
             }
+        }
+        if (!loading && col != GiftRankRepo.COL_ROOM) {
+            val mine = entries.indexOfFirst { it.id == myUid }
+            RkMine(col, entries.getOrNull(mine), mine, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
         }
     }
 }

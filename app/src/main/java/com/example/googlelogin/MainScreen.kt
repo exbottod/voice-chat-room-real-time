@@ -93,7 +93,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 val c = FollowRepo.counts(uid)
                 following = c.first
                 fans = c.second
-            } catch (e: Exception) { }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         }
     }
 
@@ -127,7 +127,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
         try {
             userId = UserDirectory.ensureUserId(context, uid)
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
         }
         UserDirectory.publish(context, user, profile)

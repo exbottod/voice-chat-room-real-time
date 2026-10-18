@@ -56,7 +56,7 @@ object UserCache {
         if (!force && c != null && System.currentTimeMillis() - c.first < 300_000) return c.second
         return try {
             UserDirectory.findByUid(uid)?.also { map[uid] = System.currentTimeMillis() to it }
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             c?.second
         }
     }
@@ -201,7 +201,7 @@ fun UserProfileSheet(
         user = UserCache.byUid(uid, force = true) ?: user
         loading = false
         if (!isMe) {
-            try { following = FollowRepo.isFollowing(myUid, uid) } catch (e: Exception) { }
+            try { following = FollowRepo.isFollowing(myUid, uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         }
     }
 
@@ -217,7 +217,7 @@ fun UserProfileSheet(
                     following = true
                 }
                 onFollowChanged()
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 Toast.makeText(context, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
             }
             busy = false

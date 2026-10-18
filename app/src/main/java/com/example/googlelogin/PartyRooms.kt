@@ -197,7 +197,7 @@ fun CreateRoomDialog(ownerUid: String, ownerName: String, onDismiss: () -> Unit,
                     busy = true
                     try {
                         onCreated(RoomRepo.createRoom(ownerUid, ownerName, name.trim(), photo))
-                    } catch (e: Exception) {
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                         Toast.makeText(context, "Gagal membuat room: ${e.message}", Toast.LENGTH_LONG).show()
                     }
                     busy = false
