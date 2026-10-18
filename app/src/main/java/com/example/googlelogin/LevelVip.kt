@@ -230,29 +230,6 @@ object LvRepo {
 }
 
 /** Salin exp, VIP & item yang dipakai ke userIds/{id} supaya pemain lain bisa melihatnya. */
-object PublicSync {
-    suspend fun push(uid: String) {
-        try {
-            val db = FirebaseFirestore.getInstance()
-            val w = parseWallet(db.collection("wallets").document(uid).get().await())
-            val q = db.collection("userIds").whereEqualTo("uid", uid).limit(1).get().await()
-            val d = q.documents.firstOrNull() ?: return
-            db.collection("userIds").document(d.id).set(
-                hashMapOf<String, Any?>(
-                    "uid" to uid,
-                    "exp" to w.exp,
-                    "vip" to w.vip.toLong(),
-                    "vipUntil" to w.vipUntil,
-                    "frame" to activeEquip(w, "frame"),
-                    "bubble" to activeEquip(w, "bubble"),
-                    "badge" to activeEquip(w, "badge"),
-                ),
-                SetOptions.merge(),
-            ).await()
-            UserCache.byUid(uid, force = true)
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-    }
-}
 
 // =====================================================================
 //  KOMPONEN KECIL (dipakai profil, chat room, sheet profil)
@@ -789,5 +766,37 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
             },
             dismissButton = { TextButton(onClick = { buying = null }) { Text("Batal") } },
         )
+    }
+}
+
+/** Salin exp, VIP & item ke userIds/{id}. Hemat kuota: cache id dokumen & lewati kalau tidak berubah. */
+object PublicSync {
+    private val docIds = HashMap<String, String>()
+    private val lastKey = HashMap<String, String>()
+
+    suspend fun push(uid: String) {
+        try {
+            val db = FirebaseFirestore.getInstance()
+            val w = parseWallet(db.collection("wallets").document(uid).get().await())
+            val data = hashMapOf<String, Any?>(
+                "uid" to uid,
+                "exp" to w.exp,
+                "vip" to w.vip.toLong(),
+                "vipUntil" to w.vipUntil,
+                "frame" to activeEquip(w, "frame"),
+                "bubble" to activeEquip(w, "bubble"),
+                "badge" to activeEquip(w, "badge"),
+            )
+            val key = data.toString()
+            if (lastKey[uid] == key) return
+            var id = docIds[uid]
+            if (id == null) {
+                id = db.collection("userIds").whereEqualTo("uid", uid).limit(1).get().await()
+                    .documents.firstOrNull()?.id ?: return
+                docIds[uid] = id
+            }
+            db.collection("userIds").document(id).set(data, SetOptions.merge()).await()
+            lastKey[uid] = key
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
     }
 }
