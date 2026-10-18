@@ -116,6 +116,10 @@ fun ProfileTab(
     onInviteClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onSignOutClick: () -> Unit,
+    coins: Long = 0L,
+    following: Long = 0L,
+    fans: Long = 0L,
+    onWalletClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -123,7 +127,6 @@ fun ProfileTab(
     val bg = remember(profile.backgroundB64) { ProfileRepo.decodeB64(profile.backgroundB64) }
     val ink = if (bg != null) Color.White else Navy
     val level = 1
-    val coins = 0
 
     fun soon(label: String) =
         Toast.makeText(context, "$label segera hadir", Toast.LENGTH_SHORT).show()
@@ -222,9 +225,9 @@ fun ProfileTab(
                 }
                 Spacer(Modifier.height(22.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    StatItem("0", "Mengikuti", ink, Modifier.weight(1f))
+                    StatItem(fmtNum(following), "Mengikuti", ink, Modifier.weight(1f))
                     Box(Modifier.width(1.dp).height(36.dp).background(ink.copy(alpha = 0.25f)))
-                    StatItem("0", "Fans", ink, Modifier.weight(1f))
+                    StatItem(fmtNum(fans), "Fans", ink, Modifier.weight(1f))
                     Box(Modifier.width(1.dp).height(36.dp).background(ink.copy(alpha = 0.25f)))
                     StatItem("0", "Pesona", ink, Modifier.weight(1f))
                 }
@@ -242,7 +245,7 @@ fun ProfileTab(
                     .clip(goldShape)
                     .background(Brush.horizontalGradient(listOf(Color(0xFFE8A91C), Color(0xFFF7DA5A), Color(0xFFE8A91C))))
                     .border(2.dp, Color(0xFFB8860B), goldShape)
-                    .clickable { soon("Dompet") },
+                    .clickable { onWalletClick() },
             ) {
                 Text("💰", fontSize = 58.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp))
                 Column(
@@ -256,7 +259,7 @@ fun ProfileTab(
                         fontWeight = FontWeight.ExtraBold,
                         fontStyle = FontStyle.Italic,
                     )
-                    Text("$coins koin", color = Color(0xFF7A4A00), fontSize = 14.sp)
+                    Text("${fmtNum(coins)} koin", color = Color(0xFF7A4A00), fontSize = 14.sp)
                 }
             }
             Spacer(Modifier.height(8.dp))

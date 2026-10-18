@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.AggregateSource
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
@@ -92,6 +93,20 @@ object UserDirectory {
         )
     }
 
+    suspend fun findByUid(uid: String): PublicUser? {
+        val q = db().collection("userIds").whereEqualTo("uid", uid).limit(1).get().await()
+        val doc = q.documents.firstOrNull() ?: return null
+        return PublicUser(
+            userId = doc.id,
+            uid = doc.getString("uid") ?: "",
+            name = doc.getString("name") ?: "Pengguna ${doc.id}",
+            countryCode = doc.getString("countryCode") ?: "ID",
+            bio = doc.getString("bio") ?: "",
+            avatarB64 = doc.getString("avatarB64"),
+            photoUrl = doc.getString("photoUrl"),
+        )
+    }
+
     // ---------- Undangan ----------
 
     suspend fun invitedBy(uid: String): String? =
@@ -111,14 +126,22 @@ object UserDirectory {
             if (mine.exists()) return "Kamu sudah pernah memakai kode undangan"
             val inviter = db().collection("userIds").document(c).get().await()
             val inviterUid = inviter.getString("uid") ?: return "Kode undangan tidak ditemukan"
-            db().collection("invites").document(myUid).set(
+            val batch = db().batch()
+            batch.set(
+                db().collection("invites").document(myUid),
                 hashMapOf<String, Any?>(
                     "inviterUid" to inviterUid,
                     "inviterId" to c,
                     "inviteeId" to myId,
                     "createdAt" to Timestamp.now(),
                 ),
-            ).await()
+            )
+            batch.set(
+                db().collection("wallets").document(myUid),
+                hashMapOf<String, Any?>("coins" to FieldValue.increment(INVITE_REWARD_COINS)),
+                SetOptions.merge(),
+            )
+            batch.commit().await()
             null
         } catch (e: Exception) {
             "Gagal: ${e.message}"

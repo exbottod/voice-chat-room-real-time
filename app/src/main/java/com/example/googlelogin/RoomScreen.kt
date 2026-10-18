@@ -75,7 +75,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 private const val P_NONE = 0
 private const val P_POWER = 1
@@ -102,16 +104,24 @@ fun RoomScreen(
     var panel by remember { mutableStateOf(P_NONE) }
     var seatSheet by remember { mutableStateOf<Int?>(null) }
     var roomMuted by remember { mutableStateOf(false) }
+    var typing by remember { mutableStateOf(false) }
+    var emoteOpen by remember { mutableStateOf(false) }
+    var giftOpen by remember { mutableStateOf(false) }
+    var emotes by remember { mutableStateOf<Map<String, SeatEmote>>(emptyMap()) }
     val toast = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
 
     DisposableEffect(roomId) {
         val a = RoomRepo.observeRoom(roomId) { room = it }
         val b = RoomRepo.observeSeats(roomId) { seats = it }
         val c = RoomRepo.observeMessages(roomId) { messages = it }
-        onDispose { a.remove(); b.remove(); c.remove() }
+        val d = RoomExtras.observeEmotes(roomId) { emotes = it }
+        onDispose { a.remove(); b.remove(); c.remove(); d.remove() }
     }
     BackHandler {
         when {
+            giftOpen -> giftOpen = false
+            typing -> typing = false
+            emoteOpen -> emoteOpen = false
             seatSheet != null -> seatSheet = null
             panel != P_NONE -> panel = P_NONE
             else -> onMinimize()
@@ -144,7 +154,7 @@ fun RoomScreen(
         val total = messages.size + (if (r.announcement.isNotBlank()) 1 else 0)
         LaunchedEffect(total) { if (total > 0) listState.animateScrollToItem(total - 1) }
 
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             // Header
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -181,7 +191,7 @@ fun RoomScreen(
                         for (col in 0 until cols) {
                             val i = row * cols + col
                             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                if (i < r.micCount) RmSeatView(i, seats[i], seatSize) { seatSheet = i }
+                                if (i < r.micCount) RmSeatView(i, seats[i], seatSize, locked = r.lockedSeats.contains(i), emote = seats[i]?.uid?.let { emotes[it] }) { seatSheet = i }
                             }
                         }
                     }
@@ -198,17 +208,29 @@ fun RoomScreen(
                 if (r.announcement.isNotBlank()) {
                     item { RmMsgBox("Pengumuman kamar: ${r.announcement}", Gold) }
                 }
-                items(messages, key = { it.id }) { m -> RmMsgBox(m.text, Color.White) }
+                items(messages, key = { it.id }) { m -> RmMsgBox(m.text, if (m.text.startsWith("🎁")) Gold else Color.White) }
             }
 
             // Bar bawah
-            Row(
+            if (emoteOpen) {
+                RoomEmoteBar(onPick = { e ->
+                    emoteOpen = false
+                    if (mySeat == null) toast("Naik mic dulu untuk kirim emot")
+                    else scope.launch { RoomExtras.sendEmote(r.id, myUid, e)?.let { toast(it) } }
+                })
+            }
+            if (typing) RoomTypingBar(
+                onSend = { t -> scope.launch { RoomExtras.sendChat(r.id, myName, t)?.let { toast(it) } } },
+                onClose = { typing = false },
+            ) else Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                RmRoundBtn({ toast("Chat segera hadir") }) { Text("💬", fontSize = 20.sp) }
+                RmRoundBtn({ typing = true; emoteOpen = false }) { Text("💬", fontSize = 20.sp) }
+                Spacer(Modifier.width(10.dp))
+                RmRoundBtn({ emoteOpen = !emoteOpen }) { Text("😊", fontSize = 20.sp) }
                 Spacer(Modifier.weight(1f))
-                RmRoundBtn({ toast("Hadiah segera hadir") }) { Text("🎁", fontSize = 20.sp) }
+                RmRoundBtn({ giftOpen = true; emoteOpen = false }) { Text("🎁", fontSize = 20.sp) }
                 Spacer(Modifier.weight(1f))
                 if (mySeat != null) {
                     RmRoundBtn({ scope.launch { RoomRepo.setSeatMuted(r.id, mySeat.index, !mySeat.muted) } }) {
@@ -226,12 +248,33 @@ fun RoomScreen(
             RmPanel(onDismiss = { seatSheet = null }) {
                 Text("Seat mic", color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(14.dp))
+                val seatLocked = r.lockedSeats.contains(idx)
                 if (s == null) {
                     Text(if (idx == 0) "Kursi MC masih kosong" else "Kursi No.${idx + 1} masih kosong", color = Color(0xFFBDBDBD))
+                    if (seatLocked) {
+                        Spacer(Modifier.height(8.dp))
+                        Text("🔒 Mic ini dikunci", color = Gold)
+                    }
                     Spacer(Modifier.height(16.dp))
-                    GoldButton(if (mySeat == null) "Naik kursi mic" else "Pindah ke kursi ini") {
-                        seatSheet = null
-                        scope.launch { RoomRepo.takeSeat(r.id, idx, myUid, myName, myAvatarB64)?.let { toast(it) } }
+                    if (seatLocked) {
+                        if (isOwner) {
+                            GoldButton("Buka kunci mic") {
+                                seatSheet = null
+                                scope.launch { RoomExtras.unlockSeat(r.id, idx)?.let { toast(it) } }
+                            }
+                        }
+                    } else {
+                        GoldButton(if (mySeat == null) "Naik kursi mic" else "Pindah ke kursi ini") {
+                            seatSheet = null
+                            scope.launch { RoomRepo.takeSeat(r.id, idx, myUid, myName, myAvatarB64)?.let { toast(it) } }
+                        }
+                        if (isOwner) {
+                            Spacer(Modifier.height(10.dp))
+                            OutlineButton("Kunci mic") {
+                                seatSheet = null
+                                scope.launch { RoomExtras.lockSeat(r.id, idx)?.let { toast(it) } }
+                            }
+                        }
                     }
                 } else {
                     RmSeatProfile(
@@ -242,9 +285,19 @@ fun RoomScreen(
                         onToggleMic = { scope.launch { RoomRepo.setSeatMuted(r.id, idx, !s.muted) } },
                         onKick = { seatSheet = null; scope.launch { RoomRepo.leaveSeat(r.id, idx) } },
                     )
+                    if (isOwner && s.uid != myUid) {
+                        Spacer(Modifier.height(10.dp))
+                        OutlineButton("Kunci mic ini") {
+                            seatSheet = null
+                            scope.launch { RoomExtras.lockSeat(r.id, idx)?.let { toast(it) } }
+                        }
+                    }
                 }
             }
         }
+
+        if (giftOpen) GiftPanel(roomId = r.id, myUid = myUid, myName = myName, onDismiss = { giftOpen = false })
+        GiftBanner(r.id)
 
         // Tombol power: keluar / minimalkan
         if (panel == P_POWER) {
@@ -302,7 +355,7 @@ private fun RmAvatar(bmp: ImageBitmap?, fallback: String, size: Dp) {
 }
 
 @Composable
-private fun RmSeatView(index: Int, seat: Seat?, size: Dp, onClick: () -> Unit) {
+private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = false, emote: SeatEmote? = null, onClick: () -> Unit) {
     val bmp = remember(seat?.avatarB64) { ProfileRepo.decodeB64(seat?.avatarB64) }
     Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
@@ -314,8 +367,20 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, onClick: () -> Unit) {
                     Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 seat != null ->
                     Text(seat.name.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                seat == null && locked -> Text("🔒", fontSize = (size.value * 0.42f).sp)
                 index == 0 -> MicIcon(true, Modifier.size(size * 0.5f), Gold)
                 else -> Text("💺", fontSize = (size.value * 0.42f).sp)
+            }
+            var emoteShow by remember { mutableStateOf(false) }
+            LaunchedEffect(emote?.at) {
+                if (emote != null && abs(System.currentTimeMillis() - emote.at) < 20000) {
+                    emoteShow = true
+                    delay(3000)
+                    emoteShow = false
+                }
+            }
+            if (emoteShow && emote != null) {
+                Text(emote.emoji, fontSize = (size.value * 0.6f).sp, modifier = Modifier.align(Alignment.Center))
             }
             if (seat != null && seat.muted) {
                 Box(
@@ -412,14 +477,20 @@ private fun RmSeatProfile(
     onKick: () -> Unit,
 ) {
     val bmp = remember(seat.avatarB64) { ProfileRepo.decodeB64(seat.avatarB64) }
+    val actions = LocalActions.current
+    var counts by remember(seat.uid) { mutableStateOf(0L to 0L) }
+    LaunchedEffect(seat.uid) { try { counts = FollowRepo.counts(seat.uid) } catch (e: Exception) { } }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        RmAvatar(bmp, seat.name, 76.dp)
-        Spacer(Modifier.height(8.dp))
-        Text(seat.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Column(Modifier.clickable { actions.openProfile(seat.uid) }, horizontalAlignment = Alignment.CenterHorizontally) {
+            RmAvatar(bmp, seat.name, 76.dp)
+            Spacer(Modifier.height(8.dp))
+            Text(seat.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text("Lihat profil ›", color = Gold, fontSize = 12.sp)
+        }
         Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth()) {
-            RmStat("0", "Followers", Modifier.weight(1f))
-            RmStat("0", "Follow", Modifier.weight(1f))
+            RmStat("${counts.second}", "Followers", Modifier.weight(1f))
+            RmStat("${counts.first}", "Follow", Modifier.weight(1f))
             RmStat("0", "Level", Modifier.weight(1f))
         }
         Spacer(Modifier.height(18.dp))
