@@ -741,7 +741,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                     }
                 } else {
                     val mine = wallet.inv.filter { it.value > now }.mapNotNull { (id, exp) -> findItem(id)?.let { it to exp } }
-                        .sortedWith(compareBy({ it.first.slot }, { it.first.id }))
+                        .sortedWith(compareBy<Pair<StoreItem, Long>>({ it.first.slot }, { it.first.id }))
                     if (mine.isEmpty()) {
                         Spacer(Modifier.height(60.dp))
                         Text("Belum ada item.\nBeli di Store atau beli VIP untuk mendapatkan item.", color = Color(0xFFBDBDBD), fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())

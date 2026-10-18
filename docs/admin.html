@@ -105,6 +105,16 @@ label{font-size:12px;color:var(--mut)}
         <label>Jumlah coin (pakai minus untuk mengurangi)</label>
         <input type="number" id="coinAmt" inputmode="numeric" placeholder="contoh: 500">
         <button class="btn" id="coinSend">Kirim coin</button>
+        <hr>
+        <label>Jumlah exp level (minus untuk mengurangi)</label>
+        <input type="number" id="expAmt" inputmode="numeric" placeholder="contoh: 5000000">
+        <button class="btn" id="expSend">Kirim exp</button>
+        <hr>
+        <label>Set VIP (0 = cabut VIP, 1-9 = aktifkan)</label>
+        <input type="number" id="vipTier" inputmode="numeric" placeholder="0-9">
+        <label>Durasi VIP (hari)</label>
+        <input type="number" id="vipDays" inputmode="numeric" value="30">
+        <button class="btn" id="vipSet">Set VIP</button>
       </div>
     </div>
   </div>
@@ -311,7 +321,9 @@ function startBan(){
 async function showCoinUser(){
   const w = await db.collection("wallets").doc(foundCoin.uid).get();
   const c = w.exists ? (w.data().coins || 0) : 0, dm = w.exists ? (w.data().diamonds || 0) : 0;
-  userCard($("coinUser"), foundCoin, "Saldo: " + c + " coin, " + dm + " diamond");
+  const ex = w.exists ? (w.data().exp || 0) : 0, vp = w.exists ? (w.data().vip || 0) : 0, vu = w.exists ? (w.data().vipUntil || 0) : 0;
+  const vipTxt = (vp > 0 && vu > Date.now()) ? ("VIP" + vp + " s/d " + new Date(vu).toLocaleString()) : "tanpa VIP";
+  userCard($("coinUser"), foundCoin, "Saldo: " + c + " coin, " + dm + " diamond, exp " + ex + ", " + vipTxt);
 }
 $("coinFind").onclick = async () => {
   foundCoin = null; $("coinForm").style.display = "none"; $("coinUser").textContent = "";
@@ -325,7 +337,7 @@ $("coinSend").onclick = async () => {
   if (!foundCoin) return;
   const n = parseInt($("coinAmt").value, 10);
   if (!n || !isFinite(n)) return toast("Isi jumlah coin (bukan 0)");
-  if (Math.abs(n) > 100000000) return toast("Jumlah terlalu besar");
+  if (!Number.isSafeInteger(n) || Math.abs(n) > 1000000000000) return toast("Jumlah terlalu besar (maks 1 triliun)");
   if (!confirm((n > 0 ? "Kirim " : "Kurangi ") + Math.abs(n) + " coin " + (n > 0 ? "ke " : "dari ") + foundCoin.name + " (ID " + foundCoin.id + ")?")) return;
   $("coinSend").disabled = true;
   try {
@@ -335,6 +347,38 @@ $("coinSend").onclick = async () => {
     $("coinAmt").value = ""; await showCoinUser();
   } catch (e) { toast("Gagal: " + e.message); }
   $("coinSend").disabled = false;
+};
+
+$("expSend").onclick = async () => {
+  if (!foundCoin) return;
+  const n = Number($("expAmt").value);
+  if (!n || !Number.isSafeInteger(n)) return toast("Isi jumlah exp (bukan 0)");
+  if (!confirm((n > 0 ? "Tambah " : "Kurangi ") + Math.abs(n) + " exp untuk " + foundCoin.name + " (ID " + foundCoin.id + ")?")) return;
+  $("expSend").disabled = true;
+  try {
+    await db.collection("wallets").doc(foundCoin.uid).set({ exp: firebase.firestore.FieldValue.increment(n) }, { merge: true });
+    logAction({ type: "exp", targetId: foundCoin.id, uid: foundCoin.uid, amount: n });
+    toast("Berhasil ✅ " + (n > 0 ? "+" : "") + n + " exp (tampil ke orang lain setelah user buka app)");
+    $("expAmt").value = ""; await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("expSend").disabled = false;
+};
+$("vipSet").onclick = async () => {
+  if (!foundCoin) return;
+  const t = parseInt($("vipTier").value, 10), d = parseInt($("vipDays").value, 10) || 30;
+  if (!(t >= 0 && t <= 9)) return toast("VIP harus 0 sampai 9");
+  if (!confirm((t === 0 ? "Cabut VIP dari " : "Set VIP" + t + " (" + d + " hari) untuk ") + foundCoin.name + " (ID " + foundCoin.id + ")?")) return;
+  const until = t === 0 ? 0 : Date.now() + d * 86400000;
+  const data = { vip: t, vipUntil: until };
+  if (t > 0) data.inv = { ["vipt_" + t]: until, ["vipf_" + t]: until, ["vipb_" + t]: until };
+  $("vipSet").disabled = true;
+  try {
+    await db.collection("wallets").doc(foundCoin.uid).set(data, { merge: true });
+    logAction({ type: "vip", targetId: foundCoin.id, uid: foundCoin.uid, vip: t, days: d });
+    toast("Berhasil ✅ " + (t === 0 ? "VIP dicabut" : "VIP" + t + " aktif " + d + " hari"));
+    await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("vipSet").disabled = false;
 };
 
 function goFind(tab, inputId, btnId, id){
