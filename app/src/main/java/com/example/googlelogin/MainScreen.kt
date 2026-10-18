@@ -283,6 +283,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onChat = { u -> chatWith = u; fullProfileUid = null },
                 )
             }
+            BanGate(uid = uid, onSignOut = onSignOutClick, onBanned = { if (activeRoom != null) exitRoom() })
         }
     }
 }
