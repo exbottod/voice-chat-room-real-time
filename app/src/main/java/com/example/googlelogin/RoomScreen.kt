@@ -134,6 +134,8 @@ fun RoomScreen(
 
     DisposableEffect(roomId) {
         resetDrafts()
+        // Riwayat chat/gift lama tidak ditampilkan lagi saat masuk room (hanya pesan setelah masuk)
+        clearedAt = System.currentTimeMillis()
         val a = RoomRepo.observeRoom(roomId) { room = it }
         val b = RoomRepo.observeSeats(roomId) { rawSeats = it }
         val c = RoomRepo.observeMessages(roomId) { messages = it }
