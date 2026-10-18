@@ -5,6 +5,10 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+val agoraAppId: String =
+    System.getenv("AGORA_APP_ID")?.takeIf { it.isNotBlank() }
+        ?: (project.findProperty("agoraAppId") as String? ?: "")
+
 val googleWebClientId: String =
     System.getenv("GOOGLE_WEB_CLIENT_ID")?.takeIf { it.isNotBlank() }
         ?: (project.findProperty("googleWebClientId") as String? ?: "")
@@ -20,6 +24,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
+        buildConfigField("String", "AGORA_APP_ID", "\"$agoraAppId\"")
     }
 
     signingConfigs {
@@ -55,6 +60,7 @@ android {
 }
 
 dependencies {
+    implementation("io.agora.rtc:voice-sdk:4.5.2")
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
     implementation(composeBom)
     implementation("androidx.compose.material3:material3")
