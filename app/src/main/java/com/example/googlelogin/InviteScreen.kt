@@ -164,7 +164,7 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
                                     val err = UserDirectory.redeemInvite(uid, myUserId, code)
                                     busy = false
                                     if (err == null) {
-                                        Toast.makeText(context, "Kode undangan berhasil dipakai", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Berhasil! Kamu mendapat 10.000.000 coin", Toast.LENGTH_SHORT).show()
                                         code = ""
                                         refresh()
                                     } else message = err

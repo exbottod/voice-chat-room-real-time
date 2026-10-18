@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -57,6 +58,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     val focus = LocalFocusManager.current
     val scope = rememberCoroutineScope()
+    val actions = LocalActions.current
     var query by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<PublicUser?>(null) }
@@ -135,6 +137,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
                         .clip(shape)
                         .background(CardBlack.copy(alpha = 0.9f))
                         .border(1.dp, Gold.copy(alpha = 0.4f), shape)
+                        .clickable { actions.openProfile(u.uid) }
                         .padding(16.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

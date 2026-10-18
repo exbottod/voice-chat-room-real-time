@@ -1,0 +1,236 @@
+package com.example.googlelogin
+
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.*
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+
+data class ChatSummary(
+    val id: String,
+    val otherUid: String,
+    val otherName: String,
+    val otherId: String,
+    val lastText: String,
+    val lastAt: Long,
+)
+
+data class ChatMsg(val id: String, val from: String, val text: String, val at: Long)
+
+object ChatRepo {
+    private fun db() = FirebaseFirestore.getInstance()
+
+    fun chatId(a: String, b: String) = if (a < b) "${a}_$b" else "${b}_$a"
+
+    fun observeChats(myUid: String, onChange: (List<ChatSummary>) -> Unit): ListenerRegistration =
+        db().collection("chats").whereArrayContains("members", myUid).addSnapshotListener { snap, _ ->
+            if (snap != null) {
+                onChange(
+                    snap.documents.mapNotNull { d ->
+                        val members = (d.get("members") as? List<*>)?.filterIsInstance<String>() ?: return@mapNotNull null
+                        val other = members.firstOrNull { it != myUid } ?: return@mapNotNull null
+                        val names = d.get("names") as? Map<*, *>
+                        val ids = d.get("ids") as? Map<*, *>
+                        ChatSummary(
+                            id = d.id,
+                            otherUid = other,
+                            otherName = names?.get(other) as? String ?: "Pengguna",
+                            otherId = ids?.get(other) as? String ?: "",
+                            lastText = d.getString("lastText") ?: "",
+                            lastAt = d.getLong("lastAt") ?: 0L,
+                        )
+                    }.sortedByDescending { it.lastAt },
+                )
+            }
+        }
+
+    fun observeMessages(chatId: String, onChange: (List<ChatMsg>) -> Unit): ListenerRegistration =
+        db().collection("chats").document(chatId).collection("messages")
+            .orderBy("at").limitToLast(100)
+            .addSnapshotListener { snap, _ ->
+                if (snap != null) {
+                    onChange(
+                        snap.documents.map {
+                            ChatMsg(it.id, it.getString("from") ?: "", it.getString("text") ?: "", it.getLong("at") ?: 0L)
+                        },
+                    )
+                }
+            }
+
+    suspend fun send(me: String, myName: String, myId: String, other: PublicUser, text: String): String? {
+        return try {
+            val ref = db().collection("chats").document(chatId(me, other.uid))
+            val now = System.currentTimeMillis()
+            val b = db().batch()
+            b.set(
+                ref,
+                hashMapOf<String, Any?>(
+                    "members" to listOf(me, other.uid),
+                    "names" to mapOf(me to myName, other.uid to other.name),
+                    "ids" to mapOf(me to myId, other.uid to other.userId),
+                    "lastText" to text,
+                    "lastAt" to now,
+                ),
+                SetOptions.merge(),
+            )
+            b.set(ref.collection("messages").document(), hashMapOf<String, Any?>("from" to me, "text" to text, "at" to now))
+            b.commit().await()
+            null
+        } catch (e: Exception) {
+            e.message ?: "Gagal mengirim"
+        }
+    }
+}
+
+@Composable
+private fun ChatRow(c: ChatSummary) {
+    val actions = LocalActions.current
+    var u by remember(c.otherUid) { mutableStateOf(UserCache.peek(c.otherUid)) }
+    LaunchedEffect(c.otherUid) { if (u == null) u = UserCache.byUid(c.otherUid) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable {
+                actions.openChat(u ?: PublicUser(c.otherId, c.otherUid, c.otherName, "ID", "", null, null))
+            }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.clickable { actions.openProfile(c.otherUid) }) { PublicAvatar(u, 52.dp, c.otherName) }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(u?.name ?: c.otherName, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1)
+            Text(c.lastText, color = Color(0xFFBDBDBD), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text(timeAgo(c.lastAt), color = Color(0xFF8A8A8A), fontSize = 11.sp)
+    }
+}
+
+/** Isi tab Pesan: daftar chat pribadi. */
+@Composable
+fun ChatListTab(myUid: String) {
+    var chats by remember { mutableStateOf<List<ChatSummary>>(emptyList()) }
+    DisposableEffect(myUid) {
+        val r = ChatRepo.observeChats(myUid) { chats = it }
+        onDispose { r.remove() }
+    }
+    Column(Modifier.fillMaxSize()) {
+        Text(
+            "Pesan", color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+        if (chats.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    "Belum ada pesan.\nBuka profil seseorang lalu tekan Chat.",
+                    color = Color(0xFF8A8A8A), textAlign = TextAlign.Center,
+                )
+            }
+        } else {
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(chats, key = { it.id }) { c -> ChatRow(c) }
+            }
+        }
+    }
+}
+
+@Composable
+fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val actions = LocalActions.current
+    val chatId = remember(other.uid) { ChatRepo.chatId(myUid, other.uid) }
+    var msgs by remember { mutableStateOf<List<ChatMsg>>(emptyList()) }
+    var text by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+
+    DisposableEffect(chatId) {
+        val r = ChatRepo.observeMessages(chatId) { msgs = it }
+        onDispose { r.remove() }
+    }
+    LaunchedEffect(msgs.size) { if (msgs.isNotEmpty()) listState.animateScrollToItem(msgs.size - 1) }
+    BackHandler(onBack = onBack)
+
+    fun send() {
+        val t = text.trim()
+        if (t.isEmpty()) return
+        text = ""
+        scope.launch {
+            ChatRepo.send(myUid, myName, myId, other, t)?.let {
+                Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    OverlayBox {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
+            Row(Modifier.fillMaxWidth().height(60.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = GoldLight)
+                }
+                Row(
+                    Modifier.clickable { actions.openProfile(other.uid) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PublicAvatar(other, 36.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text(other.name, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            LazyColumn(
+                Modifier.weight(1f).fillMaxWidth(),
+                state = listState,
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items(msgs, key = { it.id }) { m ->
+                    val mine = m.from == myUid
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
+                        Box(
+                            Modifier
+                                .widthIn(max = 280.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (mine) Gold else Color(0xFF1E1E1E))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                        ) {
+                            Text(m.text, color = if (mine) Color.Black else Color.White, fontSize = 15.sp)
+                        }
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { if (it.length <= 500) text = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Tulis pesan...") },
+                    maxLines = 3,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = goldFieldColors(),
+                )
+                IconButton(onClick = { send() }) {
+                    Icon(Icons.AutoMirrored.Filled.Send, "Kirim", tint = Gold)
+                }
+            }
+        }
+    }
+}

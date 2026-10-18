@@ -10,7 +10,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -18,6 +18,8 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +41,7 @@ private const val OV_EDIT = 1
 private const val OV_SETTINGS = 2
 private const val OV_INVITE = 3
 private const val OV_SEARCH = 4
+private const val OV_POST = 5
 
 @Composable
 fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
@@ -46,7 +49,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     val scope = rememberCoroutineScope()
     val items = listOf(
         NavItem("Party", Icons.Default.Home),
-        NavItem("Temukan", Icons.Default.Search),
+        NavItem("Moment", Icons.Default.Star),
         NavItem("Family", Icons.Default.Favorite),
         NavItem("Pesan", Icons.Default.Email),
         NavItem("Saya", Icons.Default.Person),
@@ -60,6 +63,37 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var activeRoom by remember { mutableStateOf<RoomInfo?>(null) }
     var minimized by remember { mutableStateOf(false) }
     val myName = profile.nickname.ifBlank { user.name }
+
+    var showWallet by remember { mutableStateOf(false) }
+    var sheetUid by remember { mutableStateOf<String?>(null) }
+    var chatWith by remember { mutableStateOf<PublicUser?>(null) }
+    var commentMoment by remember { mutableStateOf<Moment?>(null) }
+    var wallet by remember { mutableStateOf(Wallet()) }
+    var following by remember { mutableStateOf(0L) }
+    var fans by remember { mutableStateOf(0L) }
+    var followTick by remember { mutableStateOf(0) }
+
+    val actions = remember {
+        AppActions(
+            openProfile = { sheetUid = it },
+            openChat = { chatWith = it; sheetUid = null },
+            openWallet = { showWallet = true },
+        )
+    }
+
+    DisposableEffect(uid) {
+        val reg = if (uid.isNotEmpty()) WalletRepo.observe(uid) { wallet = it } else null
+        onDispose { reg?.remove() }
+    }
+    LaunchedEffect(uid, selected, followTick) {
+        if (uid.isNotEmpty()) {
+            try {
+                val c = FollowRepo.counts(uid)
+                following = c.first
+                fans = c.second
+            } catch (e: Exception) { }
+        }
+    }
 
     fun enterRoom(room: RoomInfo) {
         if (activeRoom?.id == room.id) {
@@ -108,95 +142,134 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
-        RoyalBackground()
-        Scaffold(
-            containerColor = Color.Transparent,
-            bottomBar = {
-                NavigationBar(containerColor = Color(0xFF0B0B0B)) {
-                    items.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            selected = selected == index,
-                            onClick = { selected = index },
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color.Black,
-                                selectedTextColor = Gold,
-                                indicatorColor = Gold,
-                                unselectedIconColor = Color(0xFF9A9A9A),
-                                unselectedTextColor = Color(0xFF9A9A9A),
-                            ),
+    CompositionLocalProvider(LocalActions provides actions) {
+        Box(Modifier.fillMaxSize()) {
+            RoyalBackground()
+            Scaffold(
+                containerColor = Color.Transparent,
+                bottomBar = {
+                    NavigationBar(containerColor = Color(0xFF0B0B0B)) {
+                        items.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                selected = selected == index,
+                                onClick = { selected = index },
+                                icon = { Icon(item.icon, contentDescription = item.label) },
+                                label = { Text(item.label) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color.Black,
+                                    selectedTextColor = Gold,
+                                    indicatorColor = Gold,
+                                    unselectedIconColor = Color(0xFF9A9A9A),
+                                    unselectedTextColor = Color(0xFF9A9A9A),
+                                ),
+                            )
+                        }
+                    }
+                },
+            ) { padding ->
+                // Tab profil memakai header sampai ke bawah status bar, jadi tanpa padding atas.
+                val contentPadding = if (selected == 4) {
+                    PaddingValues(bottom = padding.calculateBottomPadding())
+                } else padding
+                Box(Modifier.fillMaxSize().padding(contentPadding)) {
+                    when (selected) {
+                        0 -> PartyTab(
+                            myUid = uid,
+                            myName = myName,
+                            onSearch = { overlay = OV_SEARCH },
+                            onEnterRoom = ::enterRoom,
+                        )
+                        1 -> MomentTab(
+                            myUid = uid,
+                            onPost = { overlay = OV_POST },
+                            onComments = { commentMoment = it },
+                        )
+                        2 -> FamilyTab()
+                        3 -> ChatListTab(myUid = uid)
+                        else -> ProfileTab(
+                            user = user,
+                            profile = profile,
+                            userId = userId,
+                            onEditClick = { overlay = OV_EDIT },
+                            onInviteClick = { overlay = OV_INVITE },
+                            onSettingsClick = { overlay = OV_SETTINGS },
+                            onSignOutClick = onSignOutClick,
+                            coins = wallet.coins,
+                            following = following,
+                            fans = fans,
+                            onWalletClick = { showWallet = true },
                         )
                     }
                 }
-            },
-        ) { padding ->
-            // Tab profil memakai header sampai ke bawah status bar, jadi tanpa padding atas.
-            val contentPadding = if (selected == 4) {
-                PaddingValues(bottom = padding.calculateBottomPadding())
-            } else padding
-            Box(Modifier.fillMaxSize().padding(contentPadding)) {
-                when (selected) {
-                    0 -> PartyTab(
+            }
+
+            when (overlay) {
+                OV_EDIT -> EditProfileScreen(
+                    user = user,
+                    userId = userId,
+                    profile = profile,
+                    onChange = ::updateProfile,
+                    onBack = { overlay = OV_NONE },
+                )
+                OV_SETTINGS -> SettingsScreen(
+                    user = user,
+                    userId = userId,
+                    onSignOut = onSignOutClick,
+                    onBack = { overlay = OV_NONE },
+                )
+                OV_INVITE -> InviteScreen(
+                    uid = uid,
+                    myUserId = userId,
+                    onBack = { overlay = OV_NONE },
+                )
+                OV_SEARCH -> UserSearchScreen(
+                    myUserId = userId,
+                    onBack = { overlay = OV_NONE },
+                )
+                OV_POST -> PostMomentScreen(
+                    uid = uid,
+                    name = myName,
+                    onBack = { overlay = OV_NONE },
+                )
+            }
+
+            val room = activeRoom
+            if (room != null) {
+                if (!minimized) {
+                    RoomScreen(
+                        roomId = room.id,
                         myUid = uid,
                         myName = myName,
-                        onSearch = { overlay = OV_SEARCH },
-                        onEnterRoom = ::enterRoom,
+                        myAvatarB64 = profile.avatarB64,
+                        onExit = ::exitRoom,
+                        onMinimize = { minimized = true },
                     )
-                    1 -> DiscoverTab()
-                    2 -> FamilyTab()
-                    3 -> MessagesTab()
-                    else -> ProfileTab(
-                        user = user,
-                        profile = profile,
-                        userId = userId,
-                        onEditClick = { overlay = OV_EDIT },
-                        onInviteClick = { overlay = OV_INVITE },
-                        onSettingsClick = { overlay = OV_SETTINGS },
-                        onSignOutClick = onSignOutClick,
-                    )
+                } else {
+                    FloatingRoomBubble(room = room, onClick = { minimized = false })
                 }
             }
-        }
 
-        when (overlay) {
-            OV_EDIT -> EditProfileScreen(
-                user = user,
-                userId = userId,
-                profile = profile,
-                onChange = ::updateProfile,
-                onBack = { overlay = OV_NONE },
-            )
-            OV_SETTINGS -> SettingsScreen(
-                user = user,
-                userId = userId,
-                onSignOut = onSignOutClick,
-                onBack = { overlay = OV_NONE },
-            )
-            OV_INVITE -> InviteScreen(
-                uid = uid,
-                myUserId = userId,
-                onBack = { overlay = OV_NONE },
-            )
-            OV_SEARCH -> UserSearchScreen(
-                myUserId = userId,
-                onBack = { overlay = OV_NONE },
-            )
-        }
-        val room = activeRoom
-        if (room != null) {
-            if (!minimized) {
-                RoomScreen(
-                    roomId = room.id,
+            chatWith?.let {
+                ChatScreen(
                     myUid = uid,
                     myName = myName,
-                    myAvatarB64 = profile.avatarB64,
-                    onExit = ::exitRoom,
-                    onMinimize = { minimized = true },
+                    myId = userId,
+                    other = it,
+                    onBack = { chatWith = null },
                 )
-            } else {
-                FloatingRoomBubble(room = room, onClick = { minimized = false })
+            }
+            if (showWallet) WalletScreen(uid = uid, wallet = wallet, onBack = { showWallet = false })
+            commentMoment?.let {
+                MomentCommentsPanel(m = it, myUid = uid, myName = myName, onDismiss = { commentMoment = null })
+            }
+            sheetUid?.let {
+                UserProfileSheet(
+                    uid = it,
+                    myUid = uid,
+                    onDismiss = { sheetUid = null },
+                    onChat = { u -> chatWith = u; sheetUid = null },
+                    onFollowChanged = { followTick++ },
+                )
             }
         }
     }

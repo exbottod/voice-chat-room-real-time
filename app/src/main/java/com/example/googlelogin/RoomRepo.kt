@@ -20,6 +20,7 @@ data class RoomInfo(
     val micCount: Int,
     val lockHash: String,
     val online: Int,
+    val lockedSeats: List<Int> = emptyList(),
 ) {
     val locked: Boolean get() = lockHash.isNotEmpty()
 }
@@ -50,6 +51,7 @@ object RoomRepo {
             micCount = (getLong("micCount") ?: 8L).toInt(),
             lockHash = getString("lockHash") ?: "",
             online = (getLong("online") ?: 0L).toInt().coerceAtLeast(0),
+            lockedSeats = (get("lockedSeats") as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(),
         )
     }
 
@@ -128,6 +130,8 @@ object RoomRepo {
             val mine = seats.whereEqualTo("uid", uid).get().await()
             db().runTransaction { tx ->
                 val target = seats.document(index.toString())
+                val lockedList = (tx.get(roomRef(roomId)).get("lockedSeats") as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList()
+                if (lockedList.contains(index)) throw IllegalStateException("Mic ini dikunci oleh owner")
                 val cur = tx.get(target)
                 val curUid = cur.getString("uid")
                 if (cur.exists() && curUid != null && curUid != uid) {
