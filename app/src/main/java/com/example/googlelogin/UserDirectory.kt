@@ -23,6 +23,12 @@ data class PublicUser(
     val avatarB64: String?,
     val photoUrl: String?,
     val gender: String = "",
+    val exp: Long = 0L,
+    val vip: Int = 0,
+    val vipUntil: Long = 0L,
+    val frame: String = "",
+    val bubble: String = "",
+    val badge: String = "",
 )
 
 object UserDirectory {
@@ -93,6 +99,12 @@ object UserDirectory {
             avatarB64 = doc.getString("avatarB64"),
             photoUrl = doc.getString("photoUrl"),
             gender = doc.getString("gender") ?: "",
+            exp = doc.getLong("exp") ?: 0L,
+            vip = (doc.getLong("vip") ?: 0L).toInt(),
+            vipUntil = doc.getLong("vipUntil") ?: 0L,
+            frame = doc.getString("frame") ?: "",
+            bubble = doc.getString("bubble") ?: "",
+            badge = doc.getString("badge") ?: "",
         )
     }
 
@@ -108,6 +120,12 @@ object UserDirectory {
             avatarB64 = doc.getString("avatarB64"),
             photoUrl = doc.getString("photoUrl"),
             gender = doc.getString("gender") ?: "",
+            exp = doc.getLong("exp") ?: 0L,
+            vip = (doc.getLong("vip") ?: 0L).toInt(),
+            vipUntil = doc.getLong("vipUntil") ?: 0L,
+            frame = doc.getString("frame") ?: "",
+            bubble = doc.getString("bubble") ?: "",
+            badge = doc.getString("badge") ?: "",
         )
     }
 

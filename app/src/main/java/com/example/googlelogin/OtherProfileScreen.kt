@@ -158,12 +158,14 @@ fun OtherProfileScreen(
                     }
                     Spacer(Modifier.height(14.dp))
                     MedalRow()
+                    Spacer(Modifier.height(10.dp))
+                    UserBadges(u)
                     Spacer(Modifier.height(12.dp))
                     // Chip level & negara
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         InfoChip("Lv ${userLevel(u)}", Color(0xFF6A3DE8))
                         InfoChip("${flagEmoji(u.countryCode)} ${ProfileRepo.countryName(u.countryCode)}", Color(0xFF2B6CB0))
-                        InfoChip("VIP –", Color(0xFF8E6B1F))
+                        InfoChip(if (vipActive(u.vip, u.vipUntil)) "VIP${u.vip}" else "VIP –", Color(0xFF8E6B1F))
                     }
                 }
 
