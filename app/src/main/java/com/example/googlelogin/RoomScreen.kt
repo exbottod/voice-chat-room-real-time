@@ -100,7 +100,10 @@ fun RoomScreen(
     val scope = rememberCoroutineScope()
     val appActions = LocalActions.current
     var room by remember { mutableStateOf<RoomInfo?>(null) }
-    var seats by remember { mutableStateOf<Map<Int, Seat>>(emptyMap()) }
+    var members by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var locks by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var rawSeats by remember { mutableStateOf<Map<Int, Seat>>(emptyMap()) }
+    val seats = rawSeats.filterValues { it.uid in members }
     var messages by remember { mutableStateOf<List<RoomMsg>>(emptyList()) }
     var panel by remember { mutableStateOf(P_NONE) }
     var seatSheet by remember { mutableStateOf<Int?>(null) }
@@ -114,10 +117,12 @@ fun RoomScreen(
 
     DisposableEffect(roomId) {
         val a = RoomRepo.observeRoom(roomId) { room = it }
-        val b = RoomRepo.observeSeats(roomId) { seats = it }
+        val b = RoomRepo.observeSeats(roomId) { rawSeats = it }
         val c = RoomRepo.observeMessages(roomId) { messages = it }
         val d = RoomExtras.observeEmotes(roomId) { emotes = it }
-        onDispose { a.remove(); b.remove(); c.remove(); d.remove() }
+        val e1 = RoomRepo.observeMembers(roomId) { members = it }
+        val e2 = RoomRepo.observeLocks(roomId) { locks = it }
+        onDispose { a.remove(); b.remove(); c.remove(); d.remove(); e1.remove(); e2.remove() }
     }
     BackHandler {
         when {
@@ -130,7 +135,7 @@ fun RoomScreen(
         }
     }
 
-    val r = room
+    val r = room?.copy(online = members.size, lockedSeats = locks.toList())
     Box(Modifier.fillMaxSize().blockTouches()) {
         RoyalBackground()
         if (r == null) {
