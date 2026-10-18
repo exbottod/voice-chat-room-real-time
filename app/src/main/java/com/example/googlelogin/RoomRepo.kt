@@ -1,5 +1,6 @@
 package com.example.googlelogin
 
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -84,31 +85,57 @@ object RoomRepo {
     fun observeRoom(id: String, onChange: (RoomInfo?) -> Unit): ListenerRegistration =
         roomRef(id).addSnapshotListener { snap, _ -> onChange(snap?.toRoom()) }
 
-    fun observeSeats(id: String, onChange: (Map<Int, Seat>) -> Unit): ListenerRegistration =
-        roomRef(id).collection("seats").addSnapshotListener { snap, _ ->
-            if (snap != null) {
-                val list = snap.documents.mapNotNull { d ->
-                    val i = d.id.toIntOrNull() ?: return@mapNotNull null
-                    Seat(i, d.getString("uid") ?: "", d.getString("name") ?: "", d.getString("avatarB64"), d.getBoolean("muted") == true)
-                }
-                onChange(list.associateBy { it.index })
+    fun observeSeats(id: String, onChange: (Map<Int, Seat>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("seats/$id")) { snap ->
+            val list = snap.children.mapNotNull { c ->
+                val i = c.key?.toIntOrNull() ?: return@mapNotNull null
+                val uid = c.child("uid").getValue(String::class.java) ?: return@mapNotNull null
+                Seat(
+                    i, uid,
+                    c.child("name").getValue(String::class.java) ?: "",
+                    c.child("avatarB64").getValue(String::class.java),
+                    c.child("muted").value == true,
+                )
             }
+            onChange(list.associateBy { it.index })
         }
 
-    fun observeMessages(id: String, limit: Int = 50, onChange: (List<RoomMsg>) -> Unit): ListenerRegistration =
-        roomRef(id).collection("messages").orderBy("createdAt").limitToLast(limit.toLong())
-            .addSnapshotListener { snap, _ ->
-                if (snap != null) {
-                    onChange(snap.documents.map { RoomMsg(it.id, it.getString("text") ?: "", it.getLong("createdAt") ?: 0L) })
-                }
-            }
+    fun observeMessages(id: String, limit: Int = 50, onChange: (List<RoomMsg>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("messages/$id").limitToLast(limit)) { snap ->
+            onChange(
+                snap.children.map { c ->
+                    RoomMsg(
+                        c.key ?: "",
+                        c.child("text").getValue(String::class.java) ?: "",
+                        (c.child("createdAt").value as? Number)?.toLong() ?: 0L,
+                    )
+                },
+            )
+        }
+
+    fun observeAllOnline(onChange: (Map<String, Int>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("members")) { snap ->
+            onChange(snap.children.associate { (it.key ?: "") to it.childrenCount.toInt() })
+        }
+
+    fun observeMembers(id: String, onChange: (Set<String>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("members/$id")) { snap ->
+            onChange(snap.children.mapNotNull { it.key }.toSet())
+        }
+
+    fun observeLocks(id: String, onChange: (Set<Int>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("locks/$id")) { snap ->
+            onChange(snap.children.mapNotNull { it.key?.toIntOrNull() }.toSet())
+        }
 
     suspend fun join(roomId: String, name: String) {
         try {
-            val ref = roomRef(roomId)
-            ref.update("online", FieldValue.increment(1)).await()
-            ref.collection("messages").add(
-                hashMapOf<String, Any?>("text" to "$name masuk kamar", "createdAt" to System.currentTimeMillis())
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+            val me = Rtdb.ref("members/$roomId/$uid")
+            me.onDisconnect().removeValue()
+            me.setValue(true).await()
+            Rtdb.ref("messages/$roomId").push().setValue(
+                hashMapOf<String, Any?>("text" to "$name masuk kamar", "createdAt" to System.currentTimeMillis()),
             ).await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         }
@@ -116,34 +143,39 @@ object RoomRepo {
 
     suspend fun leave(roomId: String, uid: String) {
         try {
-            val ref = roomRef(roomId)
-            val mine = ref.collection("seats").whereEqualTo("uid", uid).get().await()
-            mine.documents.forEach { it.reference.delete() }
-            ref.update("online", FieldValue.increment(-1)).await()
+            val me = Rtdb.ref("members/$roomId/$uid")
+            me.onDisconnect().cancel()
+            me.removeValue().await()
+            val base = Rtdb.ref("seats/$roomId")
+            val upd = HashMap<String, Any?>()
+            for (c in base.get().await().children) {
+                if (c.child("uid").getValue(String::class.java) == uid) upd[c.key!!] = null
+            }
+            if (upd.isNotEmpty()) base.updateChildren(upd).await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         }
     }
 
     suspend fun takeSeat(roomId: String, index: Int, uid: String, name: String, avatarB64: String?): String? {
         return try {
-            val seats = roomRef(roomId).collection("seats")
-            val mine = seats.whereEqualTo("uid", uid).get().await()
-            db().runTransaction { tx ->
-                val target = seats.document(index.toString())
-                val lockedList = (tx.get(roomRef(roomId)).get("lockedSeats") as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList()
-                if (lockedList.contains(index)) throw IllegalStateException("Mic ini dikunci oleh owner")
-                val cur = tx.get(target)
-                val curUid = cur.getString("uid")
-                if (cur.exists() && curUid != null && curUid != uid) {
-                    throw IllegalStateException("Kursi sudah terisi")
+            val base = Rtdb.ref("seats/$roomId")
+            if (Rtdb.ref("locks/$roomId/$index").get().await().exists()) return "Mic ini dikunci oleh owner"
+            val present = Rtdb.ref("members/$roomId").get().await().children.mapNotNull { it.key }.toSet()
+            val err = Rtdb.tx(base.child(index.toString())) { d ->
+                val curUid = d.child("uid").getValue(String::class.java)
+                if (curUid != null && curUid != uid && curUid in present) {
+                    "Kursi sudah terisi"
+                } else {
+                    d.value = hashMapOf<String, Any?>("uid" to uid, "name" to name, "avatarB64" to avatarB64, "muted" to false)
+                    null
                 }
-                mine.documents.forEach { if (it.id != index.toString()) tx.delete(it.reference) }
-                tx.set(
-                    target,
-                    hashMapOf<String, Any?>("uid" to uid, "name" to name, "avatarB64" to avatarB64, "muted" to false),
-                )
-                true
-            }.await()
+            }
+            if (err != null) return err
+            val upd = HashMap<String, Any?>()
+            for (c in base.get().await().children) {
+                if (c.key != index.toString() && c.child("uid").getValue(String::class.java) == uid) upd[c.key!!] = null
+            }
+            if (upd.isNotEmpty()) base.updateChildren(upd).await()
             null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e.message ?: "Gagal naik kursi"
@@ -152,14 +184,21 @@ object RoomRepo {
 
     suspend fun leaveSeat(roomId: String, index: Int) {
         try {
-            roomRef(roomId).collection("seats").document(index.toString()).delete().await()
+            Rtdb.ref("seats/$roomId/$index").removeValue().await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         }
     }
 
     suspend fun setSeatMuted(roomId: String, index: Int, muted: Boolean) {
         try {
-            roomRef(roomId).collection("seats").document(index.toString()).update("muted", muted).await()
+            Rtdb.tx(Rtdb.ref("seats/$roomId/$index")) { d ->
+                if (d.child("uid").value == null) {
+                    "Kursi kosong"
+                } else {
+                    d.child("muted").value = muted
+                    null
+                }
+            }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         }
     }
@@ -168,13 +207,12 @@ object RoomRepo {
         return try {
             val ref = roomRef(roomId)
             ref.update("micCount", n).await()
-            val seats = ref.collection("seats").get().await()
-            val over = seats.documents.filter { (it.id.toIntOrNull() ?: 0) >= n }
-            if (over.isNotEmpty()) {
-                val b = db().batch()
-                over.forEach { b.delete(it.reference) }
-                b.commit().await()
+            val seatsRef = Rtdb.ref("seats/$roomId")
+            val upd = HashMap<String, Any?>()
+            for (c in seatsRef.get().await().children) {
+                if ((c.key?.toIntOrNull() ?: 0) >= n) upd[c.key!!] = null
             }
+            if (upd.isNotEmpty()) seatsRef.updateChildren(upd).await()
             null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e.message ?: "Gagal mengubah mic"

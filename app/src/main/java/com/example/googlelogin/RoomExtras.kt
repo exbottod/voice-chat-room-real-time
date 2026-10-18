@@ -32,7 +32,7 @@ object RoomExtras {
     private fun room(id: String) = db().collection("rooms").document(id)
 
     private suspend fun addMessage(roomId: String, text: String): String? = try {
-        room(roomId).collection("messages").add(
+        Rtdb.ref("messages/$roomId").push().setValue(
             hashMapOf<String, Any?>("text" to text, "createdAt" to System.currentTimeMillis()),
         ).await()
         null
@@ -47,7 +47,7 @@ object RoomExtras {
         addMessage(roomId, "🎁 $name mengirim ${g.emoji} ${g.name} x$count" + (if (to.isNotBlank()) " ke $to" else ""))
 
     suspend fun sendEmote(roomId: String, uid: String, emoji: String): String? = try {
-        room(roomId).collection("emotes").document(uid).set(
+        Rtdb.ref("emotes/$roomId/$uid").setValue(
             hashMapOf<String, Any?>("emoji" to emoji, "at" to System.currentTimeMillis()),
         ).await()
         null
@@ -55,26 +55,30 @@ object RoomExtras {
         e.message ?: "Gagal mengirim emot"
     }
 
-    fun observeEmotes(roomId: String, onChange: (Map<String, SeatEmote>) -> Unit): ListenerRegistration =
-        room(roomId).collection("emotes").addSnapshotListener { snap, _ ->
-            if (snap != null) {
-                onChange(snap.documents.associate { it.id to SeatEmote(it.getString("emoji") ?: "", it.getLong("at") ?: 0L) })
-            }
+    fun observeEmotes(roomId: String, onChange: (Map<String, SeatEmote>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("emotes/$roomId")) { snap ->
+            onChange(
+                snap.children.associate {
+                    (it.key ?: "") to SeatEmote(
+                        it.child("emoji").getValue(String::class.java) ?: "",
+                        (it.child("at").value as? Number)?.toLong() ?: 0L,
+                    )
+                },
+            )
         }
 
     /** Kunci mic: kursi dikosongkan dan tidak bisa dinaiki sampai dibuka owner. */
     suspend fun lockSeat(roomId: String, index: Int): String? = try {
-        val b = db().batch()
-        b.update(room(roomId), "lockedSeats", FieldValue.arrayUnion(index))
-        b.delete(room(roomId).collection("seats").document(index.toString()))
-        b.commit().await()
+        Rtdb.root().updateChildren(
+            hashMapOf<String, Any?>("locks/$roomId/$index" to true, "seats/$roomId/$index" to null),
+        ).await()
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal mengunci mic"
     }
 
     suspend fun unlockSeat(roomId: String, index: Int): String? = try {
-        room(roomId).update("lockedSeats", FieldValue.arrayRemove(index)).await()
+        Rtdb.ref("locks/$roomId/$index").removeValue().await()
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal membuka kunci"
