@@ -22,6 +22,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -239,14 +240,17 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             val room = activeRoom
             if (room != null) {
                 if (!minimized) {
-                    RoomScreen(
-                        roomId = room.id,
-                        myUid = uid,
-                        myName = myName,
-                        myAvatarB64 = profile.avatarB64,
-                        onExit = ::exitRoom,
-                        onMinimize = { minimized = true },
-                    )
+                    // key(room.id): pindah/masuk ulang room selalu mulai dari state bersih (tanpa draft)
+                    key(room.id) {
+                        RoomScreen(
+                            roomId = room.id,
+                            myUid = uid,
+                            myName = myName,
+                            myAvatarB64 = profile.avatarB64,
+                            onExit = ::exitRoom,
+                            onMinimize = { minimized = true },
+                        )
+                    }
                 } else {
                     FloatingRoomBubble(room = room, onClick = { minimized = false })
                 }

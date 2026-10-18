@@ -120,16 +120,27 @@ fun RoomScreen(
     var sendTick by remember { mutableStateOf(0) }
     val toast = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
 
-    DisposableEffect(roomId) {
+    // Hapus semua draft/state sementara (ketikan chat, panel gift, emot, dll)
+    fun resetDrafts() {
         draft = ""
         typing = false
+        emoteOpen = false
+        giftOpen = false
+        giftTarget = null
+        seatSheet = null
+        profileUid = null
+        panel = P_NONE
+    }
+
+    DisposableEffect(roomId) {
+        resetDrafts()
         val a = RoomRepo.observeRoom(roomId) { room = it }
         val b = RoomRepo.observeSeats(roomId) { rawSeats = it }
         val c = RoomRepo.observeMessages(roomId) { messages = it }
         val d = RoomExtras.observeEmotes(roomId) { emotes = it }
         val e1 = RoomRepo.observeMembers(roomId) { members = it }
         val e2 = RoomRepo.observeLocks(roomId) { locks = it }
-        onDispose { draft = ""; typing = false; a.remove(); b.remove(); c.remove(); d.remove(); e1.remove(); e2.remove() }
+        onDispose { resetDrafts(); a.remove(); b.remove(); c.remove(); d.remove(); e1.remove(); e2.remove() }
     }
     BackHandler {
         when {
@@ -378,7 +389,7 @@ fun RoomScreen(
                 DialogCard {
                     Text(tr("Keluar dari room?"), color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(18.dp))
-                    GoldButton(tr("Keluar")) { panel = P_NONE; draft = ""; typing = false; onExit() }
+                    GoldButton(tr("Keluar")) { resetDrafts(); onExit() }
                     Spacer(Modifier.height(10.dp))
                     OutlineButton(tr("Minimalkan")) { panel = P_NONE; onMinimize() }
                 }
