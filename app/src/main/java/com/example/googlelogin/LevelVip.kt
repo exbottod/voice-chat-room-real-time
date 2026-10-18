@@ -352,9 +352,6 @@ private fun OrnTitle(text: String, color: Color) {
     }
 }
 
-private fun Modifier.blockTouches(): Modifier = composed {
-    clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
-}
 
 // =====================================================================
 //  LAYAR LEVEL USER
