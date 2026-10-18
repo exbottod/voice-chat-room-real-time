@@ -239,6 +239,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
 
             val room = activeRoom
             if (room != null) {
+                key(room.id) { AgoraRoomBridge(roomId = room.id, myUid = uid) }
                 if (!minimized) {
                     // key(room.id): pindah/masuk ulang room selalu mulai dari state bersih (tanpa draft)
                     key(room.id) {

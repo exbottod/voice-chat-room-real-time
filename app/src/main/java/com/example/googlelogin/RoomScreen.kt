@@ -408,6 +408,7 @@ fun RoomScreen(
                         if (roomMuted) "Aktifkan suara" else "Matikan suara",
                         onClick = {
                             roomMuted = !roomMuted
+                            AgoraVoice.muteRoom(roomMuted)
                             toast(if (roomMuted) "Suara room dimatikan" else "Suara room aktif")
                             panel = P_NONE
                         },
