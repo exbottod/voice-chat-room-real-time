@@ -95,7 +95,7 @@ object ChatRepo {
             b.set(ref.collection("messages").document(), hashMapOf<String, Any?>("from" to me, "text" to text, "at" to now))
             b.commit().await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e.message ?: "Gagal mengirim"
         }
     }

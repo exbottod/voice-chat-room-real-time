@@ -82,7 +82,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
             try {
                 val u = UserDirectory.find(q)
                 if (u == null) message = "ID $q tidak ditemukan" else { result = u; actions.openProfile(u.uid) }
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 message = "Gagal mencari: ${e.message}"
             } finally {
                 loading = false

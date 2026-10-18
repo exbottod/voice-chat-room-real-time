@@ -90,7 +90,7 @@ object MomentRepo {
             ),
         ).await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal posting"
     }
 
@@ -104,7 +104,7 @@ object MomentRepo {
         b.update(ref(id), "likeCount", FieldValue.increment(if (like) 1L else -1L))
         b.commit().await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal"
     }
 
@@ -128,7 +128,7 @@ object MomentRepo {
         b.update(ref(id), "commentCount", FieldValue.increment(1L))
         b.commit().await()
         null
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal"
     }
 }
@@ -141,7 +141,7 @@ private fun MomentCard(m: Moment, myUid: String, onComments: (Moment) -> Unit) {
     var author by remember(m.uid) { mutableStateOf(UserCache.peek(m.uid)) }
     var liked by remember(m.id) { mutableStateOf(false) }
     LaunchedEffect(m.uid) { if (author == null) author = UserCache.byUid(m.uid) }
-    LaunchedEffect(m.id) { liked = try { MomentRepo.isLiked(m.id, myUid) } catch (e: Exception) { false } }
+    LaunchedEffect(m.id) { liked = try { MomentRepo.isLiked(m.id, myUid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false } }
     val photo = remember(m.photoB64) { ProfileRepo.decodeB64(m.photoB64) }
     val shape = RoundedCornerShape(16.dp)
 

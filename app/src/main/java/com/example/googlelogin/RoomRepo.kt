@@ -110,7 +110,7 @@ object RoomRepo {
             ref.collection("messages").add(
                 hashMapOf<String, Any?>("text" to "$name masuk kamar", "createdAt" to System.currentTimeMillis())
             ).await()
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         }
     }
 
@@ -120,7 +120,7 @@ object RoomRepo {
             val mine = ref.collection("seats").whereEqualTo("uid", uid).get().await()
             mine.documents.forEach { it.reference.delete() }
             ref.update("online", FieldValue.increment(-1)).await()
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         }
     }
 
@@ -145,7 +145,7 @@ object RoomRepo {
                 true
             }.await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e.message ?: "Gagal naik kursi"
         }
     }
@@ -153,14 +153,14 @@ object RoomRepo {
     suspend fun leaveSeat(roomId: String, index: Int) {
         try {
             roomRef(roomId).collection("seats").document(index.toString()).delete().await()
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         }
     }
 
     suspend fun setSeatMuted(roomId: String, index: Int, muted: Boolean) {
         try {
             roomRef(roomId).collection("seats").document(index.toString()).update("muted", muted).await()
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         }
     }
 
@@ -176,7 +176,7 @@ object RoomRepo {
                 b.commit().await()
             }
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e.message ?: "Gagal mengubah mic"
         }
     }
@@ -188,7 +188,7 @@ object RoomRepo {
             if (bgB64 != null) m["backgroundB64"] = bgB64
             roomRef(roomId).update(m).await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e.message ?: "Gagal menyimpan"
         }
     }
@@ -197,7 +197,7 @@ object RoomRepo {
         return try {
             roomRef(roomId).update("lockHash", if (password == null) "" else sha256(password)).await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e.message ?: "Gagal mengubah kunci"
         }
     }

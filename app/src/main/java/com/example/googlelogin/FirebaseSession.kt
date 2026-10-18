@@ -39,7 +39,7 @@ object FirebaseSession {
                 ?: doc.getString("name")?.takeIf { it.isNotBlank() }
                 ?: fallbackName
             name to doc.getString("photoUrl")
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             fallbackName to null
         }
     }
@@ -57,7 +57,7 @@ object FirebaseSession {
         return try {
             u.linkWithCredential(EmailAuthProvider.getCredential(email, password)).await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             Log.w("FirebaseSession", "Link email gagal", e)
             e
         }
@@ -87,7 +87,7 @@ object FirebaseSession {
                 .set(data, SetOptions.merge())
                 .await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             Log.w("Firestore", "Simpan profil gagal", e)
             e
         }

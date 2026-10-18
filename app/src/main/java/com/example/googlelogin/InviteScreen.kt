@@ -60,8 +60,8 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
 
     suspend fun refresh() {
-        try { invitedBy = UserDirectory.invitedBy(uid) } catch (e: Exception) { }
-        try { count = UserDirectory.inviteCount(uid) } catch (e: Exception) { }
+        try { invitedBy = UserDirectory.invitedBy(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        try { count = UserDirectory.inviteCount(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
     }
     LaunchedEffect(uid) { refresh() }
 

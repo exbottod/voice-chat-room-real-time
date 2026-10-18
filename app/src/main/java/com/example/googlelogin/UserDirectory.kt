@@ -75,7 +75,7 @@ object UserDirectory {
                 SetOptions.merge(),
             ).await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e
         }
     }
@@ -147,7 +147,7 @@ object UserDirectory {
             )
             batch.commit().await()
             null
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             "Gagal: ${e.message}"
         }
     }
