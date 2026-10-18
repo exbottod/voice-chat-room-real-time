@@ -200,6 +200,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             following = following,
                             fans = fans,
                             onWalletClick = { showWallet = true },
+                            onProfileClick = { fullProfileUid = uid },
                         )
                     }
                 }
