@@ -22,6 +22,7 @@ data class PublicUser(
     val bio: String,
     val avatarB64: String?,
     val photoUrl: String?,
+    val gender: String = "",
 )
 
 object UserDirectory {
@@ -69,6 +70,7 @@ object UserDirectory {
                     "bio" to d.bio,
                     "avatarB64" to d.avatarB64,
                     "photoUrl" to user.photoUrl,
+                    "gender" to d.gender,
                 ),
                 SetOptions.merge(),
             ).await()
@@ -90,6 +92,7 @@ object UserDirectory {
             bio = doc.getString("bio") ?: "",
             avatarB64 = doc.getString("avatarB64"),
             photoUrl = doc.getString("photoUrl"),
+            gender = doc.getString("gender") ?: "",
         )
     }
 
@@ -104,6 +107,7 @@ object UserDirectory {
             bio = doc.getString("bio") ?: "",
             avatarB64 = doc.getString("avatarB64"),
             photoUrl = doc.getString("photoUrl"),
+            gender = doc.getString("gender") ?: "",
         )
     }
 

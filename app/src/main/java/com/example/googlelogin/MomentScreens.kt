@@ -68,6 +68,20 @@ object MomentRepo {
                 }
             }
 
+    suspend fun byUid(uid: String): List<Moment> =
+        db().collection("moments").whereEqualTo("uid", uid).limit(50).get().await().documents.map {
+            Moment(
+                id = it.id,
+                uid = it.getString("uid") ?: "",
+                name = it.getString("name") ?: "Pengguna",
+                text = it.getString("text") ?: "",
+                photoB64 = it.getString("photoB64"),
+                createdAt = it.getLong("createdAt") ?: 0L,
+                likes = (it.getLong("likeCount") ?: 0L).toInt().coerceAtLeast(0),
+                comments = (it.getLong("commentCount") ?: 0L).toInt().coerceAtLeast(0),
+            )
+        }.sortedByDescending { it.createdAt }
+
     suspend fun post(uid: String, name: String, text: String, photoB64: String?): String? = try {
         db().collection("moments").add(
             hashMapOf<String, Any?>(

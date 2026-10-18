@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import coil.compose.AsyncImage
 import com.google.firebase.firestore.AggregateSource
@@ -29,6 +30,7 @@ class AppActions(
     val openProfile: (String) -> Unit,
     val openChat: (PublicUser) -> Unit,
     val openWallet: () -> Unit,
+    val openFullProfile: (String) -> Unit = {},
 )
 
 val LocalActions = staticCompositionLocalOf { AppActions({}, {}, {}) }
@@ -109,15 +111,73 @@ fun PublicAvatar(u: PublicUser?, size: Dp, fallback: String = "?", modifier: Mod
     }
 }
 
+/** Level pengguna. Sementara 1 untuk semua; ganti nanti saat sistem level sudah ada. */
+fun userLevel(u: PublicUser?): Int = 1
+
 @Composable
-private fun SheetStat(value: String, label: String, modifier: Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-        Text(label, color = Color(0xFF9A9A9A), fontSize = 12.sp)
+fun LevelBadge(level: Int, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .clip(RoundedCornerShape(50))
+            .background(Brush.horizontalGradient(listOf(Color(0xFF6A3DE8), Color(0xFFB04CFF))))
+            .padding(horizontal = 10.dp, vertical = 3.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text("Lv $level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+}
+
+/** Deretan medali. Slot kosong sekarang; isi daftar [medals] nanti (emoji / label). */
+@Composable
+fun MedalRow(medals: List<String> = emptyList(), slots: Int = 8) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        repeat(slots) { i ->
+            val m = medals.getOrNull(i)
+            Box(
+                Modifier.size(34.dp).clip(CircleShape)
+                    .background(if (m != null) Gold.copy(alpha = 0.2f) else Color(0x22FFFFFF))
+                    .border(1.dp, Gold.copy(alpha = if (m != null) 0.9f else 0.25f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { if (m != null) Text(m, fontSize = 18.sp) }
+        }
     }
 }
 
-/** Sheet profil pengguna lain: ikuti / berhenti mengikuti, dan chat pribadi. */
+@Composable
+fun GenderBadge(gender: String) {
+    when (gender) {
+        "M" -> Box(Modifier.size(22.dp).clip(CircleShape).background(Color(0xFF1E88E5)), Alignment.Center) {
+            Text("♂", color = Color.White, fontSize = 13.sp)
+        }
+        "F" -> Box(Modifier.size(22.dp).clip(CircleShape).background(Color(0xFFEC407A)), Alignment.Center) {
+            Text("♀", color = Color.White, fontSize = 13.sp)
+        }
+    }
+}
+
+/** Avatar besar dengan bingkai emas (tempat bingkai khusus nanti). */
+@Composable
+fun FramedAvatar(u: PublicUser?, size: Dp) {
+    Box(
+        Modifier.size(size + 16.dp)
+            .border(3.dp, Brush.sweepGradient(listOf(GoldLight, Gold, GoldDark, Gold, GoldLight)), CircleShape)
+            .padding(8.dp),
+        contentAlignment = Alignment.Center,
+    ) { PublicAvatar(u, size) }
+}
+
+@Composable
+fun ProfileSheetAction(label: String, icon: String, onClick: () -> Unit) {
+    Column(Modifier.clickable(onClick = onClick).padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(icon, fontSize = 28.sp)
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = Color(0xFFD0D0D0), fontSize = 12.sp)
+    }
+}
+
+/**
+ * Sheet profil pengguna lain. Muncul saat profil di mic / hasil pencarian diketuk.
+ * Mengetuk bagian atas (avatar, nama, medali, VIP) membuka halaman profil lengkap.
+ * [extra] = tombol tambahan (mis. Turun Mic, Hadiah) saat dibuka dari dalam room.
+ */
 @Composable
 fun UserProfileSheet(
     uid: String,
@@ -125,6 +185,8 @@ fun UserProfileSheet(
     onDismiss: () -> Unit,
     onChat: (PublicUser) -> Unit,
     onFollowChanged: () -> Unit,
+    onOpenFull: () -> Unit = {},
+    extra: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -132,14 +194,12 @@ fun UserProfileSheet(
     var user by remember(uid) { mutableStateOf(UserCache.peek(uid)) }
     var loading by remember(uid) { mutableStateOf(true) }
     var following by remember(uid) { mutableStateOf(false) }
-    var counts by remember(uid) { mutableStateOf(0L to 0L) }
     var busy by remember(uid) { mutableStateOf(false) }
 
     BackHandler(onBack = onDismiss)
     LaunchedEffect(uid) {
         user = UserCache.byUid(uid, force = true) ?: user
         loading = false
-        try { counts = FollowRepo.counts(uid) } catch (e: Exception) { }
         if (!isMe) {
             try { following = FollowRepo.isFollowing(myUid, uid) } catch (e: Exception) { }
         }
@@ -152,11 +212,9 @@ fun UserProfileSheet(
                 if (following) {
                     FollowRepo.unfollow(myUid, uid)
                     following = false
-                    counts = counts.first to (counts.second - 1).coerceAtLeast(0)
                 } else {
                     FollowRepo.follow(myUid, uid)
                     following = true
-                    counts = counts.first to counts.second + 1
                 }
                 onFollowChanged()
             } catch (e: Exception) {
@@ -177,46 +235,87 @@ fun UserProfileSheet(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .background(Color(0xFF0B0B0B))
                 .blockTouches()
-                .navigationBarsPadding()
-                .padding(20.dp),
+                .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val u = user
             if (u == null) {
-                if (loading) CircularProgressIndicator(color = Gold)
-                else Text("Profil tidak ditemukan", color = Color(0xFFBDBDBD))
+                Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    if (loading) CircularProgressIndicator(color = Gold)
+                    else Text("Profil tidak ditemukan", color = Color(0xFFBDBDBD))
+                }
             } else {
-                Box(Modifier.border(3.dp, Gold, CircleShape).padding(3.dp)) { PublicAvatar(u, 84.dp) }
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(u.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Text(flagEmoji(u.countryCode), fontSize = 18.sp)
-                }
-                Text("ID: ${u.userId}", color = Color(0xFFBDBDBD), fontSize = 13.sp)
-                if (u.bio.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(u.bio, color = Color(0xFFE0E0E0), fontSize = 14.sp)
-                }
-                Spacer(Modifier.height(14.dp))
-                Row(Modifier.fillMaxWidth()) {
-                    SheetStat(fmtNum(counts.first), "Mengikuti", Modifier.weight(1f))
-                    SheetStat(fmtNum(counts.second), "Fans", Modifier.weight(1f))
-                }
-                Spacer(Modifier.height(16.dp))
-                if (isMe) {
-                    Text("Ini profil kamu", color = Color(0xFF9A9A9A))
-                } else {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (following) {
-                            OutlineButton("Mengikuti ✓", Modifier.weight(1f)) { if (!busy) toggleFollow() }
-                        } else {
-                            GoldButton("Ikuti", Modifier.weight(1f), enabled = !busy) { toggleFollow() }
+                // Bagian atas: ketuk -> halaman profil lengkap
+                Column(
+                    Modifier.fillMaxWidth().clickable(onClick = onOpenFull).padding(horizontal = 20.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    FramedAvatar(u, 96.dp)
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            u.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(flagEmoji(u.countryCode), fontSize = 22.sp)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("UID:${u.userId}", color = Color(0xFFBDBDBD), fontSize = 15.sp)
+                        Spacer(Modifier.width(8.dp))
+                        LevelBadge(userLevel(u))
+                        Spacer(Modifier.width(6.dp))
+                        GenderBadge(u.gender)
+                    }
+                    if (u.bio.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(u.bio, color = Color(0xFFE0E0E0), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
+                    Spacer(Modifier.height(12.dp))
+                    MedalRow()
+                    Spacer(Modifier.height(14.dp))
+                    // Banner VIP (placeholder, diisi nanti)
+                    Box(
+                        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(12.dp))
+                            .background(Brush.horizontalGradient(listOf(Color(0xFF3B2A0A), Color(0xFF1A1206))))
+                            .border(1.dp, Gold.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("VIP", color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                            Text("Segera hadir", color = Color(0xFF9A9A9A), fontSize = 12.sp)
                         }
-                        OutlineButton("Chat", Modifier.weight(1f)) { onChat(u) }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("Ketuk untuk lihat profil lengkap ›", color = Gold, fontSize = 12.sp)
+                }
+
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
+                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (extra != null) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                            extra()
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
+                    if (!isMe) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (following) {
+                                OutlineButton("Mengikuti ✓", Modifier.weight(1f)) { if (!busy) toggleFollow() }
+                            } else {
+                                GoldButton("Ikuti", Modifier.weight(1f), enabled = !busy) { toggleFollow() }
+                            }
+                            OutlineButton("Chat", Modifier.weight(1f)) { onChat(u) }
+                        }
+                    } else if (extra == null) {
+                        Text("Ini profil kamu", color = Color(0xFF9A9A9A))
                     }
                 }
             }

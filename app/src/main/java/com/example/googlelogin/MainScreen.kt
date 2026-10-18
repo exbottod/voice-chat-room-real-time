@@ -66,6 +66,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
 
     var showWallet by remember { mutableStateOf(false) }
     var sheetUid by remember { mutableStateOf<String?>(null) }
+    var fullProfileUid by remember { mutableStateOf<String?>(null) }
     var chatWith by remember { mutableStateOf<PublicUser?>(null) }
     var commentMoment by remember { mutableStateOf<Moment?>(null) }
     var wallet by remember { mutableStateOf(Wallet()) }
@@ -76,8 +77,9 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     val actions = remember {
         AppActions(
             openProfile = { sheetUid = it },
-            openChat = { chatWith = it; sheetUid = null },
+            openChat = { chatWith = it; sheetUid = null; fullProfileUid = null },
             openWallet = { showWallet = true },
+            openFullProfile = { fullProfileUid = it; sheetUid = null },
         )
     }
 
@@ -269,6 +271,15 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onDismiss = { sheetUid = null },
                     onChat = { u -> chatWith = u; sheetUid = null },
                     onFollowChanged = { followTick++ },
+                    onOpenFull = { fullProfileUid = it; sheetUid = null },
+                )
+            }
+            fullProfileUid?.let {
+                OtherProfileScreen(
+                    uid = it,
+                    myUid = uid,
+                    onBack = { fullProfileUid = null },
+                    onChat = { u -> chatWith = u; fullProfileUid = null },
                 )
             }
         }
