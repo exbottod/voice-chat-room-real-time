@@ -31,7 +31,16 @@ const val DIAMOND_PER_COIN = 2L          // 2 diamond = 1 coin
 const val INVITE_REWARD_COINS = 10_000_000L
 const val TOPUP_TEST_MODE = true         // true = isi coin gratis (mode uji, belum ada pembayaran)
 
-data class Wallet(val coins: Long = 0L, val diamonds: Long = 0L)
+data class Wallet(
+    val coins: Long = 0L,
+    val diamonds: Long = 0L,
+    val exp: Long = 0L,
+    val vip: Int = 0,
+    val vipUntil: Long = 0L,
+    val inv: Map<String, Long> = emptyMap(),
+    val equip: Map<String, String> = emptyMap(),
+    val lvClaimed: Long = 0L,
+)
 data class Gift(val id: String, val name: String, val emoji: String, val price: Long)
 
 val GIFTS = listOf(
@@ -59,7 +68,7 @@ object WalletRepo {
 
     fun observe(uid: String, onChange: (Wallet) -> Unit): ListenerRegistration =
         ref(uid).addSnapshotListener { s, _ ->
-            onChange(Wallet(s?.getLong("coins") ?: 0L, s?.getLong("diamonds") ?: 0L))
+            onChange(parseWallet(s))
         }
 
     suspend fun topUp(uid: String, coins: Long): String? = try {
@@ -77,7 +86,11 @@ object WalletRepo {
             val coins = s.getLong("coins") ?: 0L
             val dia = s.getLong("diamonds") ?: 0L
             if (coins < price) throw IllegalStateException("Coin tidak cukup. Tekan Topup")
-            tx.set(r, hashMapOf<String, Any?>("coins" to coins - price, "diamonds" to dia + price), SetOptions.merge())
+            val exp = s.getLong("exp") ?: 0L
+            val vipLv = s.getLong("vip") ?: 0L
+            val vipUntil = s.getLong("vipUntil") ?: 0L
+            val boost = if (vipUntil > System.currentTimeMillis()) 100L + 5L * vipLv else 100L
+            tx.set(r, hashMapOf<String, Any?>("coins" to coins - price, "diamonds" to dia + price, "exp" to exp + price * boost / 100L), SetOptions.merge())
             true
         }.await()
         null
@@ -402,6 +415,7 @@ fun GiftPanel(
                                 AppScope.scope.launch {
                                     val err = WalletRepo.sendGift(myUid, total)
                                     if (err == null) {
+                                        PublicSync.push(myUid)
                                         RoomExtras.sendGiftMessage(roomId, myName, g, count, toText)
                                         val rerr = GiftRankRepo.record(myUid, myName, roomId, perReceiver, receivers)
                                         Toast.makeText(context, "Gift terkirim! +${fmtNum(total)} diamond", Toast.LENGTH_SHORT).show()

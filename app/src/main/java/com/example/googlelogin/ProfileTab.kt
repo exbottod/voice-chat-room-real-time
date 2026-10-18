@@ -121,13 +121,18 @@ fun ProfileTab(
     fans: Long = 0L,
     onWalletClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    wallet: Wallet = Wallet(),
+    onVipClick: () -> Unit = {},
+    onLevelClick: () -> Unit = {},
+    onStoreClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val nick = profile.nickname.ifBlank { user.name }
     val bg = remember(profile.backgroundB64) { ProfileRepo.decodeB64(profile.backgroundB64) }
     val ink = if (bg != null) Color.White else Navy
-    val level = 1
+    val level = levelFromExp(wallet.exp)
+    val vipOn = vipActive(wallet.vip, wallet.vipUntil)
 
     fun soon(label: String) =
         Toast.makeText(context, "$label segera hadir", Toast.LENGTH_SHORT).show()
@@ -178,7 +183,7 @@ fun ProfileTab(
                 }
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.clip(CircleShape).clickable(onClick = onProfileClick).border(3.dp, Color(0xFFE8B923), CircleShape).padding(3.dp)) {
+                    Box(Modifier.clip(CircleShape).clickable(onClick = onProfileClick).border(3.dp, frameBrush(activeEquip(wallet, "frame")), CircleShape).padding(3.dp)) {
                         AvatarImage(user, profile, 92.dp)
                     }
                     Spacer(Modifier.width(14.dp))
@@ -209,15 +214,10 @@ fun ProfileTab(
                                 Text("📋", fontSize = 14.sp)
                             }
                             Spacer(Modifier.width(10.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Brush.horizontalGradient(listOf(Color(0xFF7C4DFF), Color(0xFF5E35B1))))
-                                    .padding(horizontal = 10.dp, vertical = 2.dp),
-                            ) {
-                                Text("Lv.$level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
+                            LevelBadge(level)
                         }
+                        Spacer(Modifier.height(6.dp))
+                        BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"))
                     }
                 }
                 if (profile.bio.isNotBlank()) {
@@ -273,12 +273,12 @@ fun ProfileTab(
                         .clip(cardShape)
                         .background(Brush.horizontalGradient(listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0))))
                         .border(1.5.dp, Color(0xFFE8B923), cardShape)
-                        .clickable { soon("VIP") }
+                        .clickable { onVipClick() }
                         .padding(14.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
                         Text("VIP", color = Color(0xFFFFD54F), fontSize = 16.sp)
-                        Text("VIP1", color = Color(0xFFFFD54F), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
+                        Text(if (vipOn) "VIP${wallet.vip}" else "VIP", color = Color(0xFFFFD54F), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
                     Text("👑", fontSize = 40.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
@@ -289,7 +289,7 @@ fun ProfileTab(
                         .clip(cardShape)
                         .background(Brush.horizontalGradient(listOf(Color(0xFF1FA89A), Color(0xFF0E7C86))))
                         .border(1.5.dp, Color(0xFF7FE3D6), cardShape)
-                        .clickable { soon("Level user") }
+                        .clickable { onLevelClick() }
                         .padding(14.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
@@ -312,7 +312,7 @@ fun ProfileTab(
                 MenuItem("🎁", "Undang teman dan dapatkan koin") { onInviteClick() }
                 MenuItem("⭐", "Lencana glory") { soon("Lencana glory") }
                 MenuItem("🎨", "Pusat kustom") { soon("Pusat kustom") }
-                MenuItem("🏪", "Store") { soon("Store") }
+                MenuItem("🏪", "Store & My Item") { onStoreClick() }
                 MenuItem("🧰", "Alat peraga") { soon("Alat peraga") }
                 MenuItem("🏰", "Family", trailing = "Liga Peringkat Fam") { soon("Family") }
                 MenuItem("🏠", "CP house") { soon("CP house") }

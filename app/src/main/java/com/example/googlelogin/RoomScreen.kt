@@ -865,9 +865,11 @@ private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
                 )
                 Spacer(Modifier.width(6.dp))
                 LevelBadge(userLevel(u))
+                u?.let { if (vipActive(it.vip, it.vipUntil)) { Spacer(Modifier.width(4.dp)); VipTag(it.vip) } }
+                findItem(u?.badge)?.let { Spacer(Modifier.width(4.dp)); Text(it.emoji, fontSize = 14.sp) }
             }
             Spacer(Modifier.height(3.dp))
-            Box(Modifier.widthIn(max = 280.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x66000000)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Box(Modifier.widthIn(max = 280.dp).clip(RoundedCornerShape(12.dp)).background(bubbleColor(u?.bubble)).padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Text(m.text, color = Color.White, fontSize = 14.sp)
             }
         }

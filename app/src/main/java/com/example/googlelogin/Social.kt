@@ -111,15 +111,15 @@ fun PublicAvatar(u: PublicUser?, size: Dp, fallback: String = "?", modifier: Mod
     }
 }
 
-/** Level pengguna. Sementara 1 untuk semua; ganti nanti saat sistem level sudah ada. */
-fun userLevel(u: PublicUser?): Int = 1
+/** Level pengguna dihitung dari exp (1-250). */
+fun userLevel(u: PublicUser?): Int = levelFromExp(u?.exp ?: 0L)
 
 @Composable
 fun LevelBadge(level: Int, modifier: Modifier = Modifier) {
     Box(
         modifier
             .clip(RoundedCornerShape(50))
-            .background(Brush.horizontalGradient(listOf(Color(0xFF6A3DE8), Color(0xFFB04CFF))))
+            .background(levelBrush(level))
             .padding(horizontal = 10.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center,
     ) { Text("Lv $level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
@@ -158,7 +158,7 @@ fun GenderBadge(gender: String) {
 fun FramedAvatar(u: PublicUser?, size: Dp) {
     Box(
         Modifier.size(size + 16.dp)
-            .border(3.dp, Brush.sweepGradient(listOf(GoldLight, Gold, GoldDark, Gold, GoldLight)), CircleShape)
+            .border(3.dp, frameBrush(u?.frame), CircleShape)
             .padding(8.dp),
         contentAlignment = Alignment.Center,
     ) { PublicAvatar(u, size) }
@@ -280,19 +280,9 @@ fun UserProfileSheet(
                     Spacer(Modifier.height(12.dp))
                     MedalRow()
                     Spacer(Modifier.height(14.dp))
-                    // Banner VIP (placeholder, diisi nanti)
-                    Box(
-                        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(12.dp))
-                            .background(Brush.horizontalGradient(listOf(Color(0xFF3B2A0A), Color(0xFF1A1206))))
-                            .border(1.dp, Gold.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("VIP", color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-                            Text(tr("Segera hadir"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
-                        }
-                    }
+                    VipBanner(u)
+                    Spacer(Modifier.height(8.dp))
+                    UserBadges(u)
                     Spacer(Modifier.height(10.dp))
                     Text(tr("Ketuk untuk lihat profil lengkap ›"), color = Gold, fontSize = 12.sp)
                 }
