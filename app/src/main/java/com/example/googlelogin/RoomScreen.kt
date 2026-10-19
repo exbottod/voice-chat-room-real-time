@@ -475,9 +475,14 @@ private fun RmAvatar(bmp: ImageBitmap?, fallback: String, size: Dp) {
 @Composable
 private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = false, emote: SeatEmote? = null, onClick: () -> Unit) {
     val bmp = remember(seat?.avatarB64) { ProfileRepo.decodeB64(seat?.avatarB64) }
+    var seatUser by remember(seat?.uid) { mutableStateOf(seat?.uid?.let { UserCache.peek(it) }) }
+    LaunchedEffect(seat?.uid) { val id = seat?.uid; if (id != null && seatUser == null) seatUser = UserCache.byUid(id) }
+    val seatTier = if (seat != null) vipFrameTier(seatUser?.frame, seatUser?.vip ?: 0, seatUser?.vipUntil ?: 0L) else 0
     Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         Box(
-            Modifier.size(size).clip(CircleShape).background(Color(0xFF0F3D33)).border(2.dp, Teal, CircleShape),
+            Modifier.size(size).clip(CircleShape).background(Color(0xFF0F3D33))
+                .then(if (hasVipFrame(seatTier)) Modifier else Modifier.border(2.dp, Teal, CircleShape)),
             contentAlignment = Alignment.Center,
         ) {
             when {
@@ -506,6 +511,8 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                     contentAlignment = Alignment.Center,
                 ) { MicIcon(false, Modifier.size(13.dp)) }
             }
+        }
+        if (hasVipFrame(seatTier)) VipFrame(seatTier, (size.value * 1.3f).dp)
         }
         Text(
             seat?.name ?: (if (index == 0) "MC" else "No.${index + 1}"),
@@ -600,7 +607,13 @@ private fun RmSeatProfile(
     LaunchedEffect(seat.uid) { try { counts = FollowRepo.counts(seat.uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { } }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Column(Modifier.clickable { actions.openProfile(seat.uid) }, horizontalAlignment = Alignment.CenterHorizontally) {
-            RmAvatar(bmp, seat.name, 76.dp)
+            var sheetUser by remember(seat.uid) { mutableStateOf(UserCache.peek(seat.uid)) }
+            LaunchedEffect(seat.uid) { if (sheetUser == null) sheetUser = UserCache.byUid(seat.uid) }
+            val sheetTier = vipFrameTier(sheetUser?.frame, sheetUser?.vip ?: 0, sheetUser?.vipUntil ?: 0L)
+            Box(Modifier.padding(bottom = 8.dp).size(76.dp), contentAlignment = Alignment.Center) {
+                RmAvatar(bmp, seat.name, 76.dp)
+                if (hasVipFrame(sheetTier)) VipFrame(sheetTier, 104.dp)
+            }
             Spacer(Modifier.height(8.dp))
             Text(seat.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text(tr("Lihat profil ›"), color = Gold, fontSize = 12.sp)
@@ -856,7 +869,7 @@ private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
     LaunchedEffect(m.uid) { if (u == null) u = UserCache.byUid(m.uid) }
     val shownName = u?.name?.takeIf { it.isNotBlank() } ?: m.name
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        PublicAvatar(u, 38.dp, fallback = shownName, modifier = Modifier.clickable { onProfile(m.uid) })
+        PublicAvatarFramed(u, 38.dp, fallback = shownName, modifier = Modifier.clickable { onProfile(m.uid) })
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f, fill = false)) {
             Row(Modifier.clickable { onProfile(m.uid) }, verticalAlignment = Alignment.CenterVertically) {
