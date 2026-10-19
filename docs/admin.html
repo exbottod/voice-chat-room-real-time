@@ -439,9 +439,34 @@ function dataUrlToBlobUrl(d){
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
   return URL.createObjectURL(new Blob([arr], { type: mime }));
 }
+async function fetchPreviewBlob(src){
+  if (src.indexOf("blob:") === 0 || src.indexOf("data:") === 0) return src;
+  const tries = [
+    src,
+    "https://corsproxy.io/?url=" + encodeURIComponent(src),
+    "https://api.allorigins.win/raw?url=" + encodeURIComponent(src),
+  ];
+  for (const u of tries) {
+    try {
+      const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 15000);
+      const r = await fetch(u, { signal: ctrl.signal });
+      clearTimeout(t);
+      if (!r.ok) continue;
+      const bl = await r.blob();
+      if (bl.size > 0) return URL.createObjectURL(bl);
+    } catch (e) {}
+  }
+  return null;
+}
 async function playSvga(box, src){
   box.textContent = "Memuat SVGA...";
   if (!(await loadSvgaLib())) { box.textContent = "Library pratinjau SVGA gagal dimuat (cek internet)"; return; }
+  const local = await fetchPreviewBlob(src);
+  if (!local) {
+    box.style.aspectRatio = "auto"; box.style.height = "auto";
+    box.textContent = "Pratinjau tidak bisa ditampilkan di browser (server file tidak mengizinkan CORS). Link tetap bisa disimpan dan akan tampil di aplikasi.";
+    return;
+  }
   box.textContent = "";
   box.style.aspectRatio = "auto"; box.style.height = "220px";
   const holder = document.createElement("div");
@@ -451,8 +476,8 @@ async function playSvga(box, src){
     const player = new SVGA.Player(holder);
     const parser = new SVGA.Parser();
     player.setContentMode("AspectFit");
-    parser.load(src, v => { player.setVideoItem(v); player.startAnimation(); },
-      () => { box.textContent = "Gagal membaca file SVGA (URL harus mengizinkan CORS)"; });
+    parser.load(local, v => { player.setVideoItem(v); player.startAnimation(); },
+      () => { box.style.height = "auto"; box.textContent = "File tidak bisa dibaca sebagai SVGA (cek apakah link-nya benar-benar file .svga)"; });
     box._p = player; vipPlayers.push(player);
   } catch (e) { box.textContent = "Gagal memutar SVGA: " + e.message; }
 }
