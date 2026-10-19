@@ -477,12 +477,12 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
     val bmp = remember(seat?.avatarB64) { ProfileRepo.decodeB64(seat?.avatarB64) }
     var seatUser by remember(seat?.uid) { mutableStateOf(seat?.uid?.let { UserCache.peek(it) }) }
     LaunchedEffect(seat?.uid) { val id = seat?.uid; if (id != null && seatUser == null) seatUser = UserCache.byUid(id) }
-    val seatTier = if (seat != null) vipFrameTier(seatUser?.frame, seatUser?.vip ?: 0, seatUser?.vipUntil ?: 0L) else 0
+    val seatFrame = if (seat != null) frameAssetOf(seatUser?.frame, seatUser?.vip ?: 0, seatUser?.vipUntil ?: 0L) else null
     Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         Box(
             Modifier.size(size).clip(CircleShape).background(Color(0xFF0F3D33))
-                .then(if (hasVipFrame(seatTier)) Modifier else Modifier.border(2.dp, Teal, CircleShape)),
+                .then(if (seatFrame != null) Modifier else Modifier.border(2.dp, Teal, CircleShape)),
             contentAlignment = Alignment.Center,
         ) {
             when {
@@ -512,7 +512,7 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                 ) { MicIcon(false, Modifier.size(13.dp)) }
             }
         }
-        if (hasVipFrame(seatTier)) VipFrame(seatTier, (size.value * 1.3f).dp)
+        seatFrame?.let { FrameOverlay(it, (size.value * 1.3f).dp) }
         }
         Text(
             seat?.name ?: (if (index == 0) "MC" else "No.${index + 1}"),
@@ -609,10 +609,10 @@ private fun RmSeatProfile(
         Column(Modifier.clickable { actions.openProfile(seat.uid) }, horizontalAlignment = Alignment.CenterHorizontally) {
             var sheetUser by remember(seat.uid) { mutableStateOf(UserCache.peek(seat.uid)) }
             LaunchedEffect(seat.uid) { if (sheetUser == null) sheetUser = UserCache.byUid(seat.uid) }
-            val sheetTier = vipFrameTier(sheetUser?.frame, sheetUser?.vip ?: 0, sheetUser?.vipUntil ?: 0L)
+            val sheetFrame = frameAssetOf(sheetUser?.frame, sheetUser?.vip ?: 0, sheetUser?.vipUntil ?: 0L)
             Box(Modifier.padding(bottom = 8.dp).size(76.dp), contentAlignment = Alignment.Center) {
                 RmAvatar(bmp, seat.name, 76.dp)
-                if (hasVipFrame(sheetTier)) VipFrame(sheetTier, 104.dp)
+                sheetFrame?.let { FrameOverlay(it, 104.dp) }
             }
             Spacer(Modifier.height(8.dp))
             Text(seat.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -880,7 +880,7 @@ private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
                 Spacer(Modifier.width(6.dp))
                 LevelBadge(userLevel(u))
                 u?.let { if (vipActive(it.vip, it.vipUntil)) { Spacer(Modifier.width(4.dp)); VipTag(it.vip) } }
-                findItem(u?.badge)?.let { Spacer(Modifier.width(4.dp)); Text(it.emoji, fontSize = 14.sp) }
+                findItem(u?.badge)?.let { Spacer(Modifier.width(4.dp)); StoreBadgeIcon(it, 18.dp) }
             }
             Spacer(Modifier.height(3.dp))
             val bTier = vipBubbleTier(u?.bubble, u?.vip ?: 0, u?.vipUntil ?: 0L)

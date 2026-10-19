@@ -114,10 +114,10 @@ fun PublicAvatar(u: PublicUser?, size: Dp, fallback: String = "?", modifier: Mod
 /** Avatar kecil/sedang dengan bingkai VIP (kalau ada) di atasnya. */
 @Composable
 fun PublicAvatarFramed(u: PublicUser?, size: Dp, fallback: String = "?", modifier: Modifier = Modifier) {
-    val tier = vipFrameTier(u?.frame, u?.vip ?: 0, u?.vipUntil ?: 0L)
+    val fa = frameAssetOf(u?.frame, u?.vip ?: 0, u?.vipUntil ?: 0L)
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
         PublicAvatar(u, size, fallback)
-        if (hasVipFrame(tier)) VipFrame(tier, (size.value * 1.36f).dp)
+        if (fa != null) FrameOverlay(fa, (size.value * 1.36f).dp)
     }
 }
 
@@ -166,15 +166,15 @@ fun GenderBadge(gender: String) {
 /** Avatar besar dengan bingkai emas (tempat bingkai khusus nanti). */
 @Composable
 fun FramedAvatar(u: PublicUser?, size: Dp) {
-    val tier = vipFrameTier(u?.frame, u?.vip ?: 0, u?.vipUntil ?: 0L)
+    val fa = frameAssetOf(u?.frame, u?.vip ?: 0, u?.vipUntil ?: 0L)
     Box(
         Modifier.size(size + 16.dp)
-            .then(if (hasVipFrame(tier)) Modifier else Modifier.border(3.dp, frameBrush(u?.frame), CircleShape))
+            .then(if (fa != null) Modifier else Modifier.border(3.dp, frameBrush(u?.frame), CircleShape))
             .padding(8.dp),
         contentAlignment = Alignment.Center,
     ) {
         PublicAvatar(u, size)
-        VipFrame(tier, size + 30.dp)
+        if (fa != null) FrameOverlay(fa, size + 30.dp)
     }
 }
 

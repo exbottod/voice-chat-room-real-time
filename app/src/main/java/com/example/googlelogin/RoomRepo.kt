@@ -27,7 +27,7 @@ data class RoomInfo(
 }
 
 data class Seat(val index: Int, val uid: String, val name: String, val avatarB64: String?, val muted: Boolean)
-data class RoomMsg(val id: String, val text: String, val createdAt: Long, val uid: String = "", val name: String = "", val vip: Int = 0, val vipUid: String = "")
+data class RoomMsg(val id: String, val text: String, val createdAt: Long, val uid: String = "", val name: String = "", val vip: Int = 0, val vipUid: String = "", val entry: String = "")
 
 fun sha256(s: String): String =
     MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -112,6 +112,7 @@ object RoomRepo {
                         c.child("name").getValue(String::class.java) ?: "",
                         (c.child("vip").value as? Number)?.toInt() ?: 0,
                         c.child("vipUid").getValue(String::class.java) ?: "",
+                        c.child("entry").getValue(String::class.java) ?: "",
                     )
                 },
             )
@@ -140,14 +141,14 @@ object RoomRepo {
         e.message ?: "Gagal menghapus chat"
     }
 
-    suspend fun join(roomId: String, name: String, vip: Int = 0) {
+    suspend fun join(roomId: String, name: String, vip: Int = 0, entry: String = "") {
         try {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
             val me = Rtdb.ref("members/$roomId/$uid")
             me.onDisconnect().removeValue()
             me.setValue(true).await()
             Rtdb.ref("messages/$roomId").push().setValue(
-                hashMapOf<String, Any?>("text" to "$name masuk kamar", "createdAt" to System.currentTimeMillis(), "vip" to vip, "vipUid" to (if (vip > 0) uid else "")),
+                hashMapOf<String, Any?>("text" to "$name masuk kamar", "createdAt" to System.currentTimeMillis(), "vip" to vip, "entry" to entry, "vipUid" to (if (vip > 0 || entry.isNotBlank()) uid else "")),
             ).await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         }

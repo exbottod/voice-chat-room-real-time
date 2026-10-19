@@ -51,7 +51,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -127,6 +127,23 @@ label{font-size:12px;color:var(--mut)}
     <p class="muted" style="margin-top:10px">Isi URL (.svga .gif .webp .png; efek masuk .mp4/.gif) atau pilih file dari HP. File dari HP maksimal sekitar 5 MB (otomatis dipecah). Untuk file lebih besar, pakai URL.</p>
   </div>
   <div id="vipSlots"></div>
+</div>
+
+<div id="tab-store" class="hide">
+  <div class="card">
+    <h2>Tambah item Store</h2>
+    <label>Jenis item</label>
+    <select id="stSlot" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"><option value="frame">⭕ Bingkai avatar</option><option value="entry">✨ Efek masuk</option><option value="badge">🎖️ Lencana</option></select>
+    <label>Nama item</label><input type="text" id="stName" placeholder="Contoh: Bingkai Vietnam">
+    <label>Harga (koin)</label><input type="number" id="stPrice" value="1000000" min="0">
+    <label>Durasi (hari)</label><input type="number" id="stDays" value="7" min="1">
+    <label>Urutan (angka kecil tampil lebih dulu)</label><input type="number" id="stOrder" value="0">
+    <div class="prev" id="stPrev">Pratinjau</div>
+    <label>URL (svga, gif, webp, png; efek masuk juga mp4)</label><input type="text" id="stUrl" placeholder="https://...">
+    <label>atau pilih file dari HP (maks sekitar 5 MB)</label><input type="file" id="stFile" accept=".svga,.gif,.webp,.png,.mp4">
+    <button class="btn" id="stAdd">Tambah ke Store</button>
+  </div>
+  <div id="stList"></div>
 </div>
 
 <div id="tab-user" class="hide">
@@ -249,8 +266,9 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+  ["banner", "ban", "coin", "user", "vip", "store"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
   if (t.dataset.t === "vip") vipStart();
+  if (t.dataset.t === "store") storeStart();
 });
 
 async function lookup(raw){
@@ -578,6 +596,126 @@ async function vipDelete(slot){
     toast("Dihapus ✅");
   } catch (e) { toast("Gagal: " + e.message); }
 }
+
+/* ---------- Store: bingkai, efek masuk, lencana ---------- */
+const STORE_SLOTS = {
+  frame: { name: "⭕ Bingkai avatar", accept: [".svga", ".gif", ".webp", ".png"] },
+  entry: { name: "✨ Efek masuk", accept: [".svga", ".gif", ".webp", ".png", ".mp4"] },
+  badge: { name: "🎖️ Lencana", accept: [".svga", ".gif", ".webp", ".png"] },
+};
+let storeItems = [], storeUnsub = null;
+function storeStart(){
+  if (storeUnsub) return;
+  storeUnsub = db.collection("vipConfig").where("store", "==", true).onSnapshot(s => {
+    storeItems = [];
+    s.forEach(d => storeItems.push(d.data()));
+    storeItems.sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name)));
+    renderStore();
+  }, e => toast("Gagal memuat Store: " + e.message));
+}
+async function storePreview(box, c){
+  stopPrev(box); box.textContent = "";
+  let src = c.url || "";
+  if (c.hasData) {
+    try {
+      let s = "";
+      for (let i = 0; i < (c.chunks || 0); i++) {
+        const d = await db.collection("vipConfig").doc("data_store_" + c.id + "_" + i).get();
+        s += (d.data() || {}).data || "";
+      }
+      src = s ? dataUrlToBlobUrl(s) : "";
+    } catch (e) { box.textContent = "Gagal memuat pratinjau"; return; }
+  }
+  if (!src) { box.textContent = "Belum ada media"; return; }
+  showPrevSrc(box, c.kind, src);
+}
+function renderStore(){
+  vipPlayers.forEach(p => { try { p.stopAnimation(); p.clear(); } catch (e) {} }); vipPlayers = [];
+  const box = $("stList"); box.innerHTML = "";
+  if (!storeItems.length) { box.innerHTML = '<div class="card muted">Belum ada item Store.</div>'; return; }
+  storeItems.forEach(c => {
+    const sl = STORE_SLOTS[c.slot] || STORE_SLOTS.frame;
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = '<h2></h2><div class="prev"></div>' +
+      '<label>Nama</label><input type="text" class="f-name">' +
+      '<label>Harga (koin)</label><input type="number" class="f-price" min="0">' +
+      '<label>Durasi (hari)</label><input type="number" class="f-days" min="1">' +
+      '<label>Urutan</label><input type="number" class="f-order">' +
+      '<label>Ganti media: URL (kosongkan kalau tidak diganti)</label><input type="text" class="f-url" placeholder="https://...">' +
+      '<label>atau pilih file baru</label><input type="file" class="f-file" accept="' + sl.accept.join(",") + '">' +
+      '<button class="btn f-save">Simpan perubahan</button> <button class="btn f-del" style="background:#7a1f1f;color:#fff">Hapus</button>';
+    card.querySelector("h2").textContent = sl.name + " — " + (c.name || "");
+    card.querySelector(".f-name").value = c.name || "";
+    card.querySelector(".f-price").value = c.price || 0;
+    card.querySelector(".f-days").value = c.days || 7;
+    card.querySelector(".f-order").value = c.order || 0;
+    const prev = card.querySelector(".prev");
+    storePreview(prev, c);
+    const el = { name: card.querySelector(".f-name"), price: card.querySelector(".f-price"), days: card.querySelector(".f-days"),
+      order: card.querySelector(".f-order"), url: card.querySelector(".f-url"), file: card.querySelector(".f-file") };
+    el.file.onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile(prev, f); };
+    const saveBtn = card.querySelector(".f-save");
+    saveBtn.onclick = () => storeSave(c, el, saveBtn);
+    card.querySelector(".f-del").onclick = () => storeDelete(c);
+    box.appendChild(card);
+  });
+}
+async function storeSave(c, el, btn){
+  const name = el.name.value.trim(), price = parseInt(el.price.value, 10), days = parseInt(el.days.value, 10), order = parseInt(el.order.value, 10) || 0;
+  if (!name) return toast("Isi nama item");
+  if (!(price >= 0)) return toast("Harga tidak valid");
+  if (!(days >= 1)) return toast("Durasi minimal 1 hari");
+  const slot = c ? c.slot : el.slot.value, sl = STORE_SLOTS[slot];
+  const url = el.url.value.trim(), f = el.file.files[0];
+  if (!c && !url && !f) return toast("Isi URL atau pilih file");
+  const id = c ? c.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const col = db.collection("vipConfig"), docId = "store_" + id, did = "data_store_" + id;
+  const base = { store: true, meta: false, id: id, slot: slot, name: name, price: price, days: days, order: order };
+  if (btn) btn.disabled = true;
+  try {
+    const b = db.batch();
+    if (f) {
+      const e = vipExt(f.name);
+      if (e && !sl.accept.includes("." + e)) { toast("Format file harus " + sl.accept.join(" ")); return; }
+      const data = await readAsDataURL(f);
+      const CH = 900000, MAXP = 8, parts = Math.ceil(data.length / CH);
+      if (parts > MAXP) { toast("File terlalu besar (maks sekitar 5 MB). Pakai URL."); return; }
+      toast("Mengunggah " + parts + " bagian...");
+      for (let i = 0; i < parts; i++) b.set(col.doc(did + "_" + i), { meta: false, i: i, data: data.substr(i * CH, CH) });
+      for (let i = parts; i < MAXP; i++) b.delete(col.doc(did + "_" + i));
+      b.set(col.doc(docId), Object.assign(base, { kind: vipKind(f.name), url: "", hasData: true, chunks: parts, updatedAt: Date.now() }));
+    } else if (url) {
+      if (!/^https?:\/\//i.test(url)) { toast("URL harus diawali http:// atau https://"); return; }
+      const e = vipExt(url);
+      if (e && !sl.accept.includes("." + e)) { toast("Format URL harus " + sl.accept.join(" ")); return; }
+      b.set(col.doc(docId), Object.assign(base, { kind: vipKind(url), url: url, hasData: false, chunks: 0, updatedAt: Date.now() }));
+      for (let i = 0; i < 8; i++) b.delete(col.doc(did + "_" + i));
+    } else {
+      b.set(col.doc(docId), Object.assign(base, { kind: c.kind, url: c.url || "", hasData: !!c.hasData, chunks: c.chunks || 0, updatedAt: c.updatedAt || Date.now() }));
+    }
+    await b.commit();
+    logAction({ type: "storeItem", id: id, slot: slot });
+    toast("Tersimpan ✅");
+    if (!c) {
+      el.name.value = ""; el.url.value = ""; el.file.value = "";
+      const p = $("stPrev"); stopPrev(p); p.textContent = "Pratinjau";
+    }
+  } catch (e) { toast("Gagal: " + e.message); }
+  finally { if (btn) btn.disabled = false; }
+}
+async function storeDelete(c){
+  if (!confirm("Hapus item \"" + (c.name || "") + "\" dari Store?")) return;
+  const col = db.collection("vipConfig");
+  try {
+    const b = db.batch();
+    b.delete(col.doc("store_" + c.id));
+    for (let i = 0; i < 8; i++) b.delete(col.doc("data_store_" + c.id + "_" + i));
+    await b.commit();
+    toast("Dihapus ✅");
+  } catch (e) { toast("Gagal: " + e.message); }
+}
+$("stAdd").onclick = () => storeSave(null, { slot: $("stSlot"), name: $("stName"), price: $("stPrice"), days: $("stDays"), order: $("stOrder"), url: $("stUrl"), file: $("stFile") }, $("stAdd"));
+$("stFile").onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile($("stPrev"), f); };
 
 function goFind(tab, inputId, btnId, id){
   document.querySelector('.tab[data-t="' + tab + '"]').click();
