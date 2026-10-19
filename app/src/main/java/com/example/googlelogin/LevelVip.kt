@@ -111,6 +111,7 @@ private fun vipItems(n: Int) = listOf(
     StoreItem("vipt_$n", "title", "Gelar VIP$n", "🏅", 0, VIP_DAYS, vipColor(n), n),
     StoreItem("vipf_$n", "frame", "Bingkai eksklusif VIP$n", "⭕", 0, VIP_DAYS, vipColor(n), n),
     StoreItem("vipb_$n", "bubble", "Gelembung obrolan VIP$n", "💬", 0, VIP_DAYS, vipColor(n), n),
+    StoreItem("vipe_$n", "entry", "Efek masuk VIP$n", "✨", 0, VIP_DAYS, vipColor(n), n),
 )
 
 private val ALL_ITEMS: List<StoreItem> by lazy { STORE_ITEMS + (1..9).flatMap { vipItems(it) } }
@@ -212,6 +213,19 @@ object LvRepo {
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal"
+    }
+
+    /** Lengkapi item VIP (gelar, bingkai, gelembung, efek masuk) kalau ada yang belum masuk My Item. */
+    suspend fun backfillVip(uid: String, w: Wallet) {
+        if (!vipActive(w.vip, w.vipUntil)) return
+        val missing = vipItems(w.vip).filter { (w.inv[it.id] ?: 0L) < w.vipUntil }
+        if (missing.isEmpty()) return
+        try {
+            ref(uid).set(
+                hashMapOf<String, Any?>("inv" to missing.associate { it.id to w.vipUntil }),
+                SetOptions.merge(),
+            ).await()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
     }
 
     /** Klaim hadiah koin untuk semua level yang belum diambil. */
@@ -541,7 +555,7 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
             }
             val perks = listOf(
                 "👑 Lencana VIP$sel otomatis tampil di bawah level & nama",
-                "🎁 Gelar, bingkai & gelembung VIP$sel masuk ke My Item (Store)",
+                "🎁 Gelar, bingkai, gelembung & efek masuk VIP$sel masuk ke My Item (Store)",
                 "⚡ Bonus exp +${vipBoostPercent(sel)}% dari setiap gift",
                 "🖼️ Bingkai avatar eksklusif VIP$sel",
                 "💬 Gelembung chat eksklusif VIP$sel",
@@ -551,7 +565,18 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 Text("👑 Privileges ${perks.size}", color = Color(0xFFFFE9A8), fontSize = 22.sp)
             }
             Spacer(Modifier.height(22.dp))
-            OrnTitle("Penampilan mewah $own/3", Color(0xFFE6C47A))
+            OrnTitle("Penampilan mewah $own/4", Color(0xFFE6C47A))
+            VipAssets.lastError?.let { err ->
+                Column(
+                    Modifier.padding(horizontal = 18.dp, vertical = 6.dp).fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp)).background(Color(0x66B71C1C))
+                        .clickable { VipAssets.start(force = true) }.padding(10.dp),
+                ) {
+                    Text("Aset VIP dari panel developer belum termuat", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(err, color = Color(0xFFFFCDD2), fontSize = 12.sp)
+                    Text("Ketuk untuk coba lagi. Kalau 'permission denied', publish rules vipConfig.", color = Color(0xFFFFCDD2), fontSize = 12.sp)
+                }
+            }
             // ---- kartu penampilan: gelar, bingkai, gelembung, efek masuk (aset dari panel developer) ----
             LaunchedEffect(Unit) { VipAssets.load(force = true) }
             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -648,7 +673,7 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     if (confirm) AlertDialog(
         onDismissRequest = { confirm = false },
         title = { Text("Beli VIP$sel") },
-        text = { Text("Harga ${fmtNum(price)} koin untuk $VIP_DAYS hari. Lencana, bingkai & gelembung VIP$sel otomatis masuk ke My Item.") },
+        text = { Text("Harga ${fmtNum(price)} koin untuk $VIP_DAYS hari. Lencana, bingkai, gelembung & efek masuk VIP$sel otomatis masuk ke My Item.") },
         confirmButton = {
             TextButton(onClick = {
                 confirm = false
@@ -675,9 +700,30 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
 @Composable
 private fun ItemPreview(item: StoreItem) {
     Box(Modifier.size(70.dp), contentAlignment = Alignment.Center) {
+        val frameA = if (item.vip > 0 && item.slot == "frame") VipAssets.get(item.vip, "frame") else null
+        val bubbleA = if (item.vip > 0 && item.slot == "bubble") VipAssets.get(item.vip, "bubble") else null
+        val entryA = if (item.vip > 0 && item.slot == "entry") VipAssets.get(item.vip, "entry") else null
         when (item.slot) {
-            "frame" -> Box(Modifier.size(56.dp).border(5.dp, frameBrush(item.id), CircleShape))
-            "bubble" -> Box(Modifier.width(62.dp).height(36.dp).clip(RoundedCornerShape(10.dp)).background(item.color.copy(alpha = 0.75f)).border(1.5.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(10.dp)))
+            "frame" -> if (frameA != null) {
+                Box(Modifier.size(50.dp).clip(CircleShape).background(Color(0xFF4A3030)), contentAlignment = Alignment.Center) {
+                    Text("\uD83D\uDC64", fontSize = 22.sp)
+                }
+                key(frameA.updatedAt) { VipFrame(item.vip, 70.dp) }
+            } else {
+                Box(Modifier.size(56.dp).border(5.dp, frameBrush(item.id), CircleShape))
+            }
+            "bubble" -> if (bubbleA != null) {
+                Box(Modifier.width(62.dp).height(36.dp), contentAlignment = Alignment.Center) {
+                    key(bubbleA.updatedAt) { VipMedia(bubbleA, Modifier.matchParentSize(), contentScale = ContentScale.FillBounds) }
+                }
+            } else {
+                Box(Modifier.width(62.dp).height(36.dp).clip(RoundedCornerShape(10.dp)).background(item.color.copy(alpha = 0.75f)).border(1.5.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(10.dp)))
+            }
+            "entry" -> if (entryA != null) {
+                key(entryA.updatedAt) { VipMedia(entryA, Modifier.fillMaxSize(), loop = true) }
+            } else {
+                Text("\u2728", fontSize = 38.sp)
+            }
             "title" -> VipTag(item.vip)
             else -> Text(item.emoji, fontSize = 38.sp)
         }
@@ -688,6 +734,7 @@ private fun slotLabel(slot: String) = when (slot) {
     "frame" -> "Bingkai"
     "bubble" -> "Gelembung"
     "badge" -> "Lencana"
+    "entry" -> "Efek masuk"
     else -> "Gelar"
 }
 
@@ -726,7 +773,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                     ) {
                         Column {
                             Text("👑 VIP1 – VIP9", color = Color(0xFFFFD54F), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                            Text("Beli VIP: lencana, bingkai & gelembung eksklusif otomatis masuk My Item", color = Color.White, fontSize = 13.sp)
+                            Text("Beli VIP: gelar, bingkai, gelembung & efek masuk eksklusif otomatis masuk My Item", color = Color.White, fontSize = 13.sp)
                         }
                     }
                     listOf("frame", "bubble", "badge").forEach { slot ->
@@ -772,7 +819,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                 Text("${slotLabel(item.slot)} · sisa ${daysLeft(exp)} hari", color = Color(0xFFD0C6E8), fontSize = 12.sp)
                                 if (item.vip > 0) Text("Dari VIP${item.vip}", color = vipColor(item.vip), fontSize = 12.sp)
                             }
-                            if (item.slot == "title") Text("Otomatis", color = Color(0xFF9A9A9A), fontSize = 13.sp)
+                            if (item.slot == "title" || item.slot == "entry") Text("Otomatis", color = Color(0xFF9A9A9A), fontSize = 13.sp)
                             else GoldPill(if (used) "Lepas" else "Pakai") {
                                 AppScope.scope.launch {
                                     val err = LvRepo.equip(uid, item.slot, if (used) "" else item.id)

@@ -381,7 +381,7 @@ $("vipSet").onclick = async () => {
   if (!confirm((t === 0 ? "Cabut VIP dari " : "Set VIP" + t + " (" + d + " hari) untuk ") + foundCoin.name + " (ID " + foundCoin.id + ")?")) return;
   const until = t === 0 ? 0 : Date.now() + d * 86400000;
   const data = { vip: t, vipUntil: until };
-  if (t > 0) data.inv = { ["vipt_" + t]: until, ["vipf_" + t]: until, ["vipb_" + t]: until };
+  if (t > 0) data.inv = { ["vipt_" + t]: until, ["vipf_" + t]: until, ["vipb_" + t]: until, ["vipe_" + t]: until };
   $("vipSet").disabled = true;
   try {
     await db.collection("wallets").doc(foundCoin.uid).set(data, { merge: true });
