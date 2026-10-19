@@ -384,6 +384,7 @@ fun RoomScreen(
 
         if (giftOpen) GiftPanel(roomId = r.id, myUid = myUid, myName = myName, onDismiss = { giftOpen = false }, seats = seats.values.sortedBy { it.index }, initialTarget = giftTarget, myAvatarB64 = myAvatarB64)
         GiftBanner(r.id)
+        VipEntryEffect(r.id)
 
         // Tombol power: keluar / minimalkan
         if (panel == P_POWER) {

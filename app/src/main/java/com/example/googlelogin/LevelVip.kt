@@ -242,7 +242,7 @@ private fun daysLeft(ms: Long): Long =
     ((ms - System.currentTimeMillis()) / 86_400_000L + 1).coerceAtLeast(1L)
 
 @Composable
-fun VipTag(n: Int, modifier: Modifier = Modifier) {
+fun VipTagText(n: Int, modifier: Modifier = Modifier) {
     val c = vipColor(n)
     Box(
         modifier

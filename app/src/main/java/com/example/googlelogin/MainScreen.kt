@@ -111,7 +111,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         minimized = false
         scope.launch {
             if (old != null) RoomRepo.leave(old.id, uid)
-            RoomRepo.join(room.id, myName)
+            RoomRepo.join(room.id, myName, if (vipActive(wallet.vip, wallet.vipUntil)) wallet.vip else 0)
         }
     }
 
@@ -136,6 +136,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
         UserDirectory.publish(context, user, profile)
         PublicSync.push(uid)
+        VipAssets.load()
     }
 
     fun updateProfile(new: ProfileData) {
