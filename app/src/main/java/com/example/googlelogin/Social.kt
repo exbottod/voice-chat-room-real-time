@@ -1,5 +1,7 @@
 package com.example.googlelogin
 
+// PERSIST_PUB
+
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
@@ -50,15 +52,66 @@ fun timeAgo(ms: Long): String {
 /** Cache profil publik berdasarkan UID supaya tidak membaca Firestore berulang. */
 object UserCache {
     private val map = ConcurrentHashMap<String, Pair<Long, PublicUser>>()
-    fun peek(uid: String): PublicUser? = map[uid]?.second
+
+    private fun sp() = com.google.firebase.FirebaseApp.getInstance().applicationContext
+        .getSharedPreferences("user_pub_cache", android.content.Context.MODE_PRIVATE)
+
+    private fun save(u: PublicUser) {
+        try {
+            sp().edit().putString(
+                u.uid,
+                org.json.JSONObject().put("userId", u.userId).put("name", u.name)
+                    .put("countryCode", u.countryCode).put("photoUrl", u.photoUrl ?: "")
+                    .put("gender", u.gender).put("exp", u.exp).put("vip", u.vip)
+                    .put("vipUntil", u.vipUntil).put("frame", u.frame)
+                    .put("bubble", u.bubble).put("badge", u.badge).toString(),
+            ).apply()
+        } catch (e: Exception) { }
+    }
+
+    private fun disk(uid: String): PublicUser? = try {
+        val o = org.json.JSONObject(sp().getString(uid, null) ?: "")
+        PublicUser(
+            userId = o.optString("userId"), uid = uid, name = o.optString("name"),
+            countryCode = o.optString("countryCode", "ID"), bio = "", avatarB64 = null,
+            photoUrl = o.optString("photoUrl").ifBlank { null }, gender = o.optString("gender"),
+            exp = o.optLong("exp"), vip = o.optInt("vip"), vipUntil = o.optLong("vipUntil"),
+            frame = o.optString("frame"), bubble = o.optString("bubble"), badge = o.optString("badge"),
+        )
+    } catch (e: Exception) { null }
+
+    private suspend fun rtdb(uid: String, base: PublicUser?): PublicUser? = try {
+        val s = kotlinx.coroutines.withTimeoutOrNull(6000L) { Rtdb.ref("pub/$uid").get().await() }
+        if (s == null || !s.exists()) null else {
+            val b = base ?: PublicUser("", uid, "", "ID", "", null, null)
+            b.copy(
+                exp = (s.child("exp").value as? Number)?.toLong() ?: b.exp,
+                vip = (s.child("vip").value as? Number)?.toInt() ?: b.vip,
+                vipUntil = (s.child("vipUntil").value as? Number)?.toLong() ?: b.vipUntil,
+                frame = s.child("frame").getValue(String::class.java) ?: b.frame,
+                bubble = s.child("bubble").getValue(String::class.java) ?: b.bubble,
+                badge = s.child("badge").getValue(String::class.java) ?: b.badge,
+            )
+        }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+
+    fun peek(uid: String): PublicUser? = map[uid]?.second ?: disk(uid)
+
     suspend fun byUid(uid: String, force: Boolean = false): PublicUser? {
         val c = map[uid]
         if (!force && c != null && System.currentTimeMillis() - c.first < 300_000) return c.second
-        return try {
-            UserDirectory.findByUid(uid)?.also { map[uid] = System.currentTimeMillis() to it }
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-            c?.second
+        val fromDb = try {
+            kotlinx.coroutines.withTimeoutOrNull(8000L) { UserDirectory.findByUid(uid) }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+        if (fromDb != null) {
+            map[uid] = System.currentTimeMillis() to fromDb
+            save(fromDb)
+            return fromDb
         }
+        val base = c?.second ?: disk(uid)
+        val r = rtdb(uid, base) ?: base
+        if (r != null) map[uid] = (System.currentTimeMillis() - 240_000L) to r
+        return r
     }
 }
 

@@ -2,7 +2,6 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "members": {
       ".read": "auth != null",
       "$roomId": {
@@ -12,7 +11,6 @@
         }
       }
     },
-
     "seats": {
       "$roomId": {
         ".read": "auth != null",
@@ -22,14 +20,12 @@
         }
       }
     },
-
     "locks": {
       "$roomId": {
         ".read": "auth != null",
         ".write": "auth != null"
       }
     },
-
     "messages": {
       "$roomId": {
         ".read": "auth != null",
@@ -39,13 +35,18 @@
         }
       }
     },
-
     "emotes": {
       "$roomId": {
         ".read": "auth != null",
         "$uid": {
           ".write": "auth != null && auth.uid === $uid"
         }
+      }
+    },
+    "pub": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
       }
     }
   }
