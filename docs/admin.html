@@ -412,27 +412,77 @@ function vipStart(){
     renderVip();
   }, e => toast("Gagal memuat VIP: " + e.message));
 }
-async function vipPreview(box, c){
+/* ---------- Pratinjau aset VIP (gambar, gif, webp, mp4, SVGA) ---------- */
+let vipPlayers = [], svgaLibP = null;
+function loadSvgaLib(){
+  if (window.SVGA) return Promise.resolve(true);
+  if (svgaLibP) return svgaLibP;
+  const urls = ["https://cdn.jsdelivr.net/npm/svgaplayerweb@2.3.1/build/svga.min.js", "https://unpkg.com/svgaplayerweb@2.3.1/build/svga.min.js"];
+  svgaLibP = (async () => {
+    for (const u of urls) {
+      const ok = await new Promise(res => { const t = document.createElement("script"); t.src = u; t.onload = () => res(true); t.onerror = () => res(false); document.head.appendChild(t); });
+      if (ok && window.SVGA) return true;
+    }
+    svgaLibP = null;
+    return false;
+  })();
+  return svgaLibP;
+}
+function stopPrev(box){
+  if (box._p) { try { box._p.stopAnimation(); box._p.clear(); } catch (e) {} box._p = null; }
+  box.style.aspectRatio = ""; box.style.height = "";
+}
+function dataUrlToBlobUrl(d){
+  const p = d.indexOf(","), head = d.slice(0, p), bin = atob(d.slice(p + 1));
+  const mime = (head.match(/:(.*?);/) || [])[1] || "application/octet-stream";
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([arr], { type: mime }));
+}
+async function playSvga(box, src){
+  box.textContent = "Memuat SVGA...";
+  if (!(await loadSvgaLib())) { box.textContent = "Library pratinjau SVGA gagal dimuat (cek internet)"; return; }
   box.textContent = "";
-  if (!c) { box.textContent = "Belum diatur"; return; }
-  if (c.kind === "svga") { box.textContent = "File SVGA (pratinjau hanya di aplikasi)"; return; }
-  let src = c.url;
-  if (c.hasData) {
-    try {
-      const base = "data_vip" + c.n + "_" + c.slot;
-      if (c.chunks > 0) {
-        src = "";
-        for (let i = 0; i < c.chunks; i++) { const d = await db.collection("vipConfig").doc(base + "_" + i).get(); src += d.exists ? d.data().data : ""; }
-      } else { const d = await db.collection("vipConfig").doc(base).get(); src = d.exists ? d.data().data : ""; }
-    } catch (e) { box.textContent = "Gagal memuat pratinjau"; return; }
-  }
-  if (!src) { box.textContent = "Belum diatur"; return; }
-  const el = document.createElement(c.kind === "mp4" ? "video" : "img");
+  box.style.aspectRatio = "auto"; box.style.height = "220px";
+  const holder = document.createElement("div");
+  holder.style.cssText = "width:100%;height:100%";
+  box.appendChild(holder);
+  try {
+    const player = new SVGA.Player(holder);
+    const parser = new SVGA.Parser();
+    player.setContentMode("AspectFit");
+    parser.load(src, v => { player.setVideoItem(v); player.startAnimation(); },
+      () => { box.textContent = "Gagal membaca file SVGA (URL harus mengizinkan CORS)"; });
+    box._p = player; vipPlayers.push(player);
+  } catch (e) { box.textContent = "Gagal memutar SVGA: " + e.message; }
+}
+function showPrevSrc(box, kind, src){
+  if (kind === "svga") { playSvga(box, src); return; }
+  const el = document.createElement(kind === "mp4" ? "video" : "img");
   el.src = src; el.style.maxWidth = "100%"; el.style.maxHeight = "150px";
-  if (c.kind === "mp4") { el.muted = true; el.autoplay = true; el.loop = true; el.playsInline = true; }
+  if (kind === "mp4") { el.muted = true; el.autoplay = true; el.loop = true; el.playsInline = true; }
   box.appendChild(el);
 }
+async function vipPreview(box, c){
+  stopPrev(box);
+  box.textContent = "";
+  if (!c) { box.textContent = "Belum diatur"; return; }
+  let src = c.url;
+  if (c.hasData) {
+    try { const d = await db.collection("vipConfig").doc("data_vip" + c.n + "_" + c.slot).get(); src = d.exists ? d.data().data : ""; }
+    catch (e) { box.textContent = "Gagal memuat pratinjau"; return; }
+    if (src && src.indexOf("data:") === 0) src = dataUrlToBlobUrl(src);
+  }
+  if (!src) { box.textContent = "Belum diatur"; return; }
+  showPrevSrc(box, c.kind, src);
+}
+function vipPreviewFile(box, f){
+  stopPrev(box);
+  box.textContent = "";
+  showPrevSrc(box, vipKind(f.name), URL.createObjectURL(f));
+}
 function renderVip(){
+  vipPlayers.forEach(p => { try { p.stopAnimation(); p.clear(); } catch (e) {} }); vipPlayers = [];
   const tabs = $("vipTabs"); tabs.innerHTML = "";
   for (let n = 1; n <= 9; n++) {
     const b = document.createElement("div");
@@ -457,6 +507,7 @@ function renderVip(){
     if (c && !c.hasData) $("vurl_" + slot.k).value = c.url || "";
     vipPreview($("vprev_" + slot.k), c);
     $("vsave_" + slot.k).onclick = () => vipSave(slot);
+    $("vfile_" + slot.k).onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile($("vprev_" + slot.k), f); };
     $("vdel_" + slot.k).onclick = () => vipDelete(slot);
   });
 }
