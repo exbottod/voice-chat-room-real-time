@@ -111,6 +111,16 @@ fun PublicAvatar(u: PublicUser?, size: Dp, fallback: String = "?", modifier: Mod
     }
 }
 
+/** Avatar kecil/sedang dengan bingkai VIP (kalau ada) di atasnya. */
+@Composable
+fun PublicAvatarFramed(u: PublicUser?, size: Dp, fallback: String = "?", modifier: Modifier = Modifier) {
+    val tier = vipFrameTier(u?.frame, u?.vip ?: 0, u?.vipUntil ?: 0L)
+    Box(modifier.size(size), contentAlignment = Alignment.Center) {
+        PublicAvatar(u, size, fallback)
+        if (hasVipFrame(tier)) VipFrame(tier, (size.value * 1.36f).dp)
+    }
+}
+
 /** Level pengguna dihitung dari exp (1-250). */
 fun userLevel(u: PublicUser?): Int = levelFromExp(u?.exp ?: 0L)
 

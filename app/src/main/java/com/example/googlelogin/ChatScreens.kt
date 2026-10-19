@@ -115,7 +115,7 @@ private fun ChatRow(c: ChatSummary) {
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.clickable { actions.openProfile(c.otherUid) }) { PublicAvatar(u, 52.dp, c.otherName) }
+        Box(Modifier.clickable { actions.openProfile(c.otherUid) }) { PublicAvatarFramed(u, 52.dp, c.otherName) }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(u?.name ?: c.otherName, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1)
@@ -191,7 +191,7 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
                     Modifier.clickable { actions.openProfile(other.uid) },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    PublicAvatar(other, 36.dp)
+                    PublicAvatarFramed(other, 36.dp)
                     Spacer(Modifier.width(10.dp))
                     Text(other.name, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }

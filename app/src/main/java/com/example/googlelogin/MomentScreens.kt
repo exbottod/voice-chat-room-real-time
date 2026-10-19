@@ -154,7 +154,7 @@ private fun MomentCard(m: Moment, myUid: String, onComments: (Moment) -> Unit) {
             .padding(14.dp),
     ) {
         Row(Modifier.clickable { actions.openProfile(m.uid) }, verticalAlignment = Alignment.CenterVertically) {
-            PublicAvatar(author, 42.dp, m.name)
+            PublicAvatarFramed(author, 42.dp, m.name)
             Spacer(Modifier.width(10.dp))
             Column {
                 Text(author?.name ?: m.name, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 15.sp)
