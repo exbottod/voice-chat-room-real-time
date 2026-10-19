@@ -14,7 +14,7 @@ service cloud.firestore {
     // Ganti dengan email developer/admin Anda
     function isAdmin() {
       return signedIn()
-        && request.auth.token.email == "developerex100@gmail.com"
+        && request.auth.token.email == "bangexx01@gmail.com"
         && request.auth.token.email_verified == true;
     }
 
