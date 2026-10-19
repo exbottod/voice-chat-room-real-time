@@ -21,6 +21,7 @@ label{font-size:12px;color:var(--mut)}
 .tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .tab{padding:8px 14px;border-radius:50px;border:1px solid var(--line);color:var(--mut);cursor:pointer;font-size:14px}
 .tab.on{border-color:var(--gold);color:var(--gold2)}
+#prev{aspect-ratio:3/1 !important}
 .prev{width:100%;aspect-ratio:5/2;border-radius:12px;border:1px dashed var(--gold);background:#0f0f0f;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:13px;overflow:hidden;cursor:pointer}
 .prev img{width:100%;height:100%;object-fit:cover}
 .item{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
@@ -56,13 +57,15 @@ label{font-size:12px;color:var(--mut)}
 
   <div class="card">
     <h2>Tambah banner</h2>
-    <div class="prev" id="prev">Ketuk untuk pilih gambar (rasio 5:2, otomatis dipotong)</div>
+    <div class="prev" id="prev">Ketuk untuk pilih gambar (rasio 3:1, otomatis dipotong)</div>
     <input type="file" id="file" accept="image/*" class="hide">
     <div style="height:10px"></div>
     <label>Judul (opsional, tampil di bawah gambar)</label>
     <input type="text" id="title" maxlength="60">
     <label>Subjudul (opsional)</label>
     <input type="text" id="sub" maxlength="100">
+    <label>Link tujuan saat banner diklik (opsional, https://...)</label>
+    <input type="text" id="link" placeholder="https://...">
     <label>Urutan (angka kecil tampil lebih dulu)</label>
     <input type="number" id="order" value="1">
     <button class="btn" id="btnSave" disabled>Upload banner</button>
@@ -211,7 +214,7 @@ function toB64(file){
   return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
-      const W = 1000, H = 400, c = document.createElement("canvas");
+      const W = 1200, H = 400, c = document.createElement("canvas");
       c.width = W; c.height = H;
       const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
       c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
@@ -224,19 +227,22 @@ function toB64(file){
 
 $("btnSave").onclick = async () => {
   if (!imgB64) return;
+  const link = $("link").value.trim();
+  if (link && !/^https?:\/\//i.test(link)) return toast("Link harus diawali http:// atau https://");
   $("btnSave").disabled = true;
   try {
     await db.collection("banners").add({
       imageB64: imgB64,
       title: $("title").value.trim(),
       subtitle: $("sub").value.trim(),
+      link: link,
       order: parseInt($("order").value, 10) || 0,
       active: true,
       createdAt: Date.now()
     });
     toast("Banner terupload ✅");
-    imgB64 = null; $("file").value = ""; $("title").value = ""; $("sub").value = "";
-    $("prev").textContent = "Ketuk untuk pilih gambar (rasio 5:2, otomatis dipotong)";
+    imgB64 = null; $("file").value = ""; $("title").value = ""; $("sub").value = ""; $("link").value = "";
+    $("prev").textContent = "Ketuk untuk pilih gambar (rasio 3:1, otomatis dipotong)";
     $("order").value = (parseInt($("order").value, 10) || 0) + 1;
   } catch(e){ toast("Gagal upload: " + e.message); $("btnSave").disabled = false; }
 };
@@ -249,15 +255,23 @@ function renderList(snap){
     const im = document.createElement("img"); im.src = "data:image/jpeg;base64," + b.imageB64;
     const info = document.createElement("div"); info.className = "info";
     const t = document.createElement("b"); t.textContent = b.title || "(tanpa judul)";
-    const s = document.createElement("span"); s.className = "muted"; s.textContent = b.subtitle || "";
+    const s = document.createElement("span"); s.className = "muted"; s.textContent = (b.subtitle || "") + (b.link ? "  🔗 " + b.link : "");
     info.append(t, s);
+    const lk = document.createElement("button"); lk.className = "btn"; lk.textContent = "🔗"; lk.title = "Ubah link";
+    lk.onclick = () => {
+      const v = prompt("Link tujuan banner (kosongkan untuk menghapus)", b.link || "");
+      if (v === null) return;
+      const t2 = v.trim();
+      if (t2 && !/^https?:\/\//i.test(t2)) return toast("Link harus diawali http:// atau https://");
+      d.ref.update({ link: t2 }).then(() => toast("Link disimpan ✅")).catch(e => toast(e.message));
+    };
     const ord = document.createElement("input"); ord.type = "number"; ord.value = b.order || 0;
     ord.onchange = () => d.ref.update({ order: parseInt(ord.value, 10) || 0 }).catch(e => toast(e.message));
     const act = document.createElement("input"); act.type = "checkbox"; act.checked = b.active !== false; act.title = "Aktif";
     act.onchange = () => d.ref.update({ active: act.checked }).catch(e => toast(e.message));
     const del = document.createElement("button"); del.className = "btn bad"; del.textContent = "🗑";
     del.onclick = () => { if (confirm("Hapus banner ini?")) d.ref.delete().catch(e => toast(e.message)); };
-    row.append(im, info, ord, act, del);
+    row.append(im, info, lk, ord, act, del);
     box.appendChild(row);
   });
 }

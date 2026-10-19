@@ -195,7 +195,7 @@ private fun TopTabs(
     }
 }
 
-private data class AppBanner(val title: String, val subtitle: String, val imageB64: String?)
+private data class AppBanner(val title: String, val subtitle: String, val imageB64: String?, val link: String = "")
 
 @Composable
 private fun BannerPager() {
@@ -205,14 +205,27 @@ private fun BannerPager() {
         Triple("Top Family", "Family terbaik pekan ini", listOf(Color(0xFF1E3B5B), Color(0xFF0A121A))),
     )
     var remote by remember { mutableStateOf<List<AppBanner>>(emptyList()) }
+    val context = LocalContext.current
+    val openLink = { url: String ->
+        try {
+            val u = if (url.startsWith("http", ignoreCase = true)) url else "https://$url"
+            context.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(u))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        } catch (e: Exception) {
+            Toast.makeText(context, "Tidak bisa membuka link", Toast.LENGTH_SHORT).show()
+        }
+    }
     androidx.compose.runtime.DisposableEffect(Unit) {
         val reg = com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("banners")
-            .addSnapshotListener { snap, _ ->
+            .addSnapshotListener { snap, err ->
+                if (err != null) android.util.Log.w("Banner", err)
                 if (snap != null) {
                     remote = snap.documents
                         .filter { it.getBoolean("active") != false && !it.getString("imageB64").isNullOrBlank() }
                         .sortedBy { it.getLong("order") ?: 0L }
-                        .map { AppBanner(it.getString("title") ?: "", it.getString("subtitle") ?: "", it.getString("imageB64")) }
+                        .map { AppBanner(it.getString("title") ?: "", it.getString("subtitle") ?: "", it.getString("imageB64"), it.getString("link") ?: "") }
                 }
             }
         onDispose { reg.remove() }
@@ -227,8 +240,9 @@ private fun BannerPager() {
                 val b = remote[page.coerceAtMost(remote.lastIndex)]
                 val bmp = remember(b.imageB64) { ProfileRepo.decodeB64(b.imageB64) }
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(150.dp).clip(frame)
-                        .background(Color(0xFF1A1A1A)).border(1.dp, goldBorder, frame),
+                    modifier = Modifier.fillMaxWidth().aspectRatio(3f).clip(frame)
+                        .background(Color(0xFF1A1A1A)).border(1.dp, goldBorder, frame)
+                        .clickable(enabled = b.link.isNotBlank()) { openLink(b.link) },
                 ) {
                     if (bmp != null) {
                         androidx.compose.foundation.Image(
@@ -251,7 +265,7 @@ private fun BannerPager() {
             } else {
                 val (title, subtitle, colors) = defaults[page.coerceAtMost(defaults.lastIndex)]
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(150.dp).clip(frame)
+                    modifier = Modifier.fillMaxWidth().aspectRatio(3f).clip(frame)
                         .background(Brush.linearGradient(colors)).border(1.dp, goldBorder, frame),
                     contentAlignment = Alignment.Center,
                 ) {
