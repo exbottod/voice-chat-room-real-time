@@ -139,6 +139,11 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         VipAssets.load()
     }
 
+    // Item VIP (gelar, bingkai, gelembung, efek masuk) otomatis masuk My Item, termasuk VIP yang dibeli sebelumnya
+    LaunchedEffect(wallet.vip, wallet.vipUntil, wallet.inv.size) {
+        if (uid.isNotEmpty()) LvRepo.backfillVip(uid, wallet)
+    }
+
     fun updateProfile(new: ProfileData) {
         profile = new
         ProfileRepo.saveLocal(context, user.email, new)

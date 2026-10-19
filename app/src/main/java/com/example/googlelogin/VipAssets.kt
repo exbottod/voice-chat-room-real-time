@@ -18,6 +18,7 @@ import coil.decode.ImageDecoderDecoder
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.opensource.svgaplayer.SVGAImageView
 import com.opensource.svgaplayer.SVGAParser
 import com.opensource.svgaplayer.SVGAVideoEntity
@@ -41,35 +42,47 @@ data class VipAsset(
 object VipAssets {
     private val cfg = mutableStateMapOf<String, VipAsset>()
     private val blobs = HashMap<String, ByteArray>()
-    private var loaded = false
+    private var reg: ListenerRegistration? = null
+
+    /** Pesan error terakhir saat memuat aset (mis. rules Firestore menolak). null = lancar. */
+    var lastError by mutableStateOf<String?>(null)
+        private set
 
     fun get(n: Int, slot: String): VipAsset? = cfg["${n}_$slot"]
 
-    /** Muat daftar aset (maks 27 dokumen kecil). Dipanggil sekali per sesi app. */
-    suspend fun load(force: Boolean = false) {
-        if (loaded && !force) return
-        try {
-            val snap = FirebaseFirestore.getInstance().collection("vipConfig")
-                .whereEqualTo("meta", true).get().await()
-            val fresh = HashMap<String, VipAsset>()
-            for (d in snap.documents) {
-                val n = (d.getLong("n") ?: 0L).toInt()
-                val slot = d.getString("slot") ?: continue
-                if (n !in 1..9) continue
-                fresh["${n}_$slot"] = VipAsset(
-                    n, slot,
-                    d.getString("kind") ?: "image",
-                    d.getString("url") ?: "",
-                    d.getBoolean("hasData") ?: false,
-                    d.getLong("updatedAt") ?: 0L,
-                    (d.getLong("chunks") ?: 0L).toInt(),
-                )
+    /** Dengarkan aset VIP secara langsung: upload dari panel developer langsung tampil tanpa buka ulang app. */
+    fun start(force: Boolean = false) {
+        if (reg != null && !force) return
+        reg?.remove()
+        reg = FirebaseFirestore.getInstance().collection("vipConfig")
+            .whereEqualTo("meta", true)
+            .addSnapshotListener { snap, e ->
+                if (e != null) {
+                    lastError = e.message ?: e.toString()
+                    return@addSnapshotListener
+                }
+                if (snap == null) return@addSnapshotListener
+                val fresh = HashMap<String, VipAsset>()
+                for (d in snap.documents) {
+                    val n = (d.getLong("n") ?: 0L).toInt()
+                    val slot = d.getString("slot") ?: continue
+                    if (n !in 1..9) continue
+                    fresh["${n}_$slot"] = VipAsset(
+                        n, slot,
+                        d.getString("kind") ?: "image",
+                        d.getString("url") ?: "",
+                        d.getBoolean("hasData") ?: false,
+                        d.getLong("updatedAt") ?: 0L,
+                        (d.getLong("chunks") ?: 0L).toInt(),
+                    )
+                }
+                cfg.clear()
+                cfg.putAll(fresh)
+                lastError = null
             }
-            cfg.clear()
-            cfg.putAll(fresh)
-            loaded = true
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
     }
+
+    suspend fun load(force: Boolean = false) { start(force) }
 
     /** Ambil isi file yang di-upload dari HP (disimpan base64 di Firestore). Di-cache di memori. */
     suspend fun bytes(a: VipAsset): ByteArray? {
