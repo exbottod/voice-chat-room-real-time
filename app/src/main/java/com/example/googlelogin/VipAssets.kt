@@ -174,13 +174,33 @@ private fun VipVideo(a: VipAsset, data: ByteArray?, modifier: Modifier, loop: Bo
 }
 
 @Composable
-private fun VipSvga(a: VipAsset, data: ByteArray?, modifier: Modifier, loop: Boolean) {
+private fun VipSvga(
+    a: VipAsset,
+    data: ByteArray?,
+    modifier: Modifier,
+    loop: Boolean,
+    contentScale: ContentScale,
+    onEnd: () -> Unit,
+) {
     AndroidView(
         modifier = modifier,
         factory = { c ->
             SVGAImageView(c).apply {
                 loops = if (loop) 0 else 1
                 clearsAfterStop = true
+                scaleType = when (contentScale) {
+                    ContentScale.Crop -> android.widget.ImageView.ScaleType.CENTER_CROP
+                    ContentScale.FillBounds -> android.widget.ImageView.ScaleType.FIT_XY
+                    else -> android.widget.ImageView.ScaleType.FIT_CENTER
+                }
+                if (!loop) {
+                    callback = object : com.opensource.svgaplayer.SVGACallback {
+                        override fun onPause() {}
+                        override fun onFinished() { onEnd() }
+                        override fun onRepeat() {}
+                        override fun onStep(frame: Int, percentage: Double) {}
+                    }
+                }
                 val parser = SVGAParser(c)
                 val done = object : SVGAParser.ParseCompletion {
                     override fun onComplete(videoItem: SVGAVideoEntity) {
@@ -217,7 +237,7 @@ fun VipMedia(
     if (!remote && data == null) return
     when (a.kind) {
         "mp4" -> VipVideo(a, data, modifier, loop, onEnd)
-        "svga" -> VipSvga(a, data, modifier, loop)
+        "svga" -> VipSvga(a, data, modifier, loop, contentScale, onEnd)
         else -> AsyncImage(
             model = if (remote) a.url else ByteBuffer.wrap(data!!),
             contentDescription = null,
@@ -272,14 +292,15 @@ fun VipEntryEffect(roomId: String) {
     val p = playing
     if (p != null) {
         LaunchedEffect(p) {
-            delay(if (p.kind == "mp4") 15000L else 5000L)
+            delay(if (p.kind == "mp4" || p.kind == "svga") 15000L else 5000L)
             playing = null
         }
-        Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = 90.dp), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             VipMedia(
                 p,
-                Modifier.fillMaxWidth().height(240.dp),
+                Modifier.fillMaxSize(),
                 loop = false,
+                contentScale = ContentScale.Crop,
                 onEnd = { playing = null },
             )
         }
