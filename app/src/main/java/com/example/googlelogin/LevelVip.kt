@@ -1,5 +1,7 @@
 package com.example.googlelogin
 
+// PERSIST_PUB
+
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
@@ -993,6 +995,15 @@ object PublicSync {
             )
             val key = data.toString()
             if (lastKey[uid] == key) return
+            try {
+                Rtdb.ref("pub/$uid").setValue(
+                    hashMapOf<String, Any?>(
+                        "exp" to w.exp, "vip" to w.vip.toLong(), "vipUntil" to w.vipUntil,
+                        "frame" to activeEquip(w, "frame"), "bubble" to activeEquip(w, "bubble"),
+                        "badge" to activeEquip(w, "badge"),
+                    ),
+                ).await()
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
             var id = docIds[uid]
             if (id == null) {
                 id = db.collection("userIds").whereEqualTo("uid", uid).limit(1).get().await()
