@@ -1,0 +1,52 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "members": {
+      ".read": "auth != null",
+      "$roomId": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+
+    "seats": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$index": {
+          ".write": "auth != null",
+          ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'muted']) && newData.child('uid').isString() && newData.child('muted').isBoolean())"
+        }
+      }
+    },
+
+    "locks": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "messages": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$msgId": {
+          ".validate": "!newData.exists() || (newData.child('text').isString() && newData.child('text').val().length <= 300 && newData.hasChild('createdAt'))"
+        }
+      }
+    },
+
+    "emotes": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    }
+  }
+}
