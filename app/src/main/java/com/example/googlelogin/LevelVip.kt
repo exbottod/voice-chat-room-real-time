@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -551,29 +552,67 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
             }
             Spacer(Modifier.height(22.dp))
             OrnTitle("Penampilan mewah $own/3", Color(0xFFE6C47A))
-            // ---- 3 kartu penampilan ----
+            // ---- kartu penampilan: gelar, bingkai, gelembung, efek masuk (aset dari panel developer) ----
+            LaunchedEffect(Unit) { VipAssets.load(force = true) }
             Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.height(90.dp), contentAlignment = Alignment.Center) { VipTag(sel, Modifier.scale(1.6f)) }
+                    Box(Modifier.height(120.dp), contentAlignment = Alignment.Center) {
+                        key(sel) { VipTag(sel, Modifier.scale(1.6f)) }
+                    }
                     Text("Gelar VIP", color = Color(0xFFE6C47A), fontSize = 17.sp)
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.height(90.dp), contentAlignment = Alignment.Center) {
-                        Box(Modifier.size(80.dp).border(6.dp, frameBrush("vipf_$sel"), CircleShape), contentAlignment = Alignment.Center) {
-                            Text("VIP$sel", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                    Box(Modifier.size(120.dp), contentAlignment = Alignment.Center) {
+                        if (VipAssets.get(sel, "frame") == null) {
+                            Box(Modifier.size(80.dp).border(6.dp, frameBrush("vipf_$sel"), CircleShape), contentAlignment = Alignment.Center) {
+                                Text("VIP$sel", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                        } else {
+                            Box(Modifier.size(86.dp).clip(CircleShape).background(Color(0xFF4A3030)), contentAlignment = Alignment.Center) {
+                                Text("\uD83D\uDC64", fontSize = 34.sp)
+                            }
+                            key(sel) { VipFrame(sel, 120.dp) }
                         }
                     }
                     Text("Bingkai eksklusif", color = Color(0xFFE6C47A), fontSize = 17.sp)
                 }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.height(90.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.height(120.dp), contentAlignment = Alignment.Center) {
+                        val ba = VipAssets.get(sel, "bubble")
                         Box(
-                            Modifier.width(96.dp).height(50.dp).clip(RoundedCornerShape(12.dp))
-                                .background(Brush.verticalGradient(listOf(c, lerp(c, Color.Black, 0.5f))))
-                                .border(2.dp, Color.White.copy(alpha = 0.7f), RoundedCornerShape(12.dp)),
-                        )
+                            Modifier.width(150.dp).height(64.dp).clip(RoundedCornerShape(14.dp))
+                                .then(
+                                    if (ba == null) Modifier
+                                        .background(Brush.verticalGradient(listOf(c, lerp(c, Color.Black, 0.5f))))
+                                        .border(2.dp, Color.White.copy(alpha = 0.7f), RoundedCornerShape(14.dp))
+                                    else Modifier,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (ba != null) {
+                                key(sel) { VipMedia(ba, Modifier.matchParentSize(), contentScale = ContentScale.FillBounds) }
+                            }
+                            Text("Halo!", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        }
                     }
                     Text("Gelembung obrolan", color = Color(0xFFE6C47A), fontSize = 17.sp, textAlign = TextAlign.Center)
+                }
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        Modifier.size(120.dp).clip(RoundedCornerShape(14.dp)).background(Color(0x33000000)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val ea = VipAssets.get(sel, "entry")
+                        if (ea != null) {
+                            key(sel) { VipMedia(ea, Modifier.fillMaxSize(), loop = true) }
+                        } else {
+                            Text("\u2728", fontSize = 40.sp)
+                        }
+                    }
+                    Text("Efek masuk", color = Color(0xFFE6C47A), fontSize = 17.sp)
                 }
             }
             Spacer(Modifier.height(18.dp))
