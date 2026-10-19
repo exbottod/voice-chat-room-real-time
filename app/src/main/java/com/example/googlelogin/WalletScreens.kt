@@ -62,14 +62,54 @@ val GIFTS = listOf(
     Gift("castle", "Istana", "🏰", 5000000),
 )
 
+/** Salinan dompet terakhir di perangkat (SharedPreferences). */
+object WalletCache {
+    private var prefs: android.content.SharedPreferences? = null
+    fun init(ctx: android.content.Context) {
+        if (prefs == null) prefs = ctx.applicationContext.getSharedPreferences("wallet_cache", android.content.Context.MODE_PRIVATE)
+    }
+
+    fun save(uid: String, w: Wallet) {
+        try {
+            val o = org.json.JSONObject()
+                .put("coins", w.coins).put("diamonds", w.diamonds).put("exp", w.exp)
+                .put("vip", w.vip).put("vipUntil", w.vipUntil).put("lvClaimed", w.lvClaimed)
+                .put("inv", org.json.JSONObject(w.inv as Map<*, *>))
+                .put("equip", org.json.JSONObject(w.equip as Map<*, *>))
+            prefs?.edit()?.putString(uid, o.toString())?.apply()
+        } catch (e: Exception) { }
+    }
+
+    fun load(uid: String): Wallet? = try {
+        val o = org.json.JSONObject(prefs?.getString(uid, null) ?: return null)
+        val inv = o.optJSONObject("inv")?.let { j -> j.keys().asSequence().associateWith { j.getLong(it) } } ?: emptyMap()
+        val eq = o.optJSONObject("equip")?.let { j -> j.keys().asSequence().associateWith { j.getString(it) } } ?: emptyMap()
+        Wallet(
+            coins = o.optLong("coins"), diamonds = o.optLong("diamonds"), exp = o.optLong("exp"),
+            vip = o.optInt("vip"), vipUntil = o.optLong("vipUntil"), inv = inv, equip = eq,
+            lvClaimed = o.optLong("lvClaimed"),
+        )
+    } catch (e: Exception) { null }
+}
+
 object WalletRepo {
     private fun db() = FirebaseFirestore.getInstance()
     private fun ref(uid: String) = db().collection("wallets").document(uid)
 
-    fun observe(uid: String, onChange: (Wallet) -> Unit): ListenerRegistration =
-        ref(uid).addSnapshotListener { s, _ ->
-            onChange(parseWallet(s))
+    /**
+     * Pantau dompet. Data terakhir yang berhasil dibaca disimpan di perangkat, jadi kalau
+     * kuota Firestore habis / offline, frame, VIP, dan item tetap tampil (tidak dikosongkan).
+     */
+    fun observe(uid: String, onChange: (Wallet) -> Unit): ListenerRegistration {
+        WalletCache.load(uid)?.let(onChange)
+        return ref(uid).addSnapshotListener { s, e ->
+            if (e != null || s == null) return@addSnapshotListener // error/kuota habis: pertahankan data lama
+            if (!s.exists() && s.metadata.isFromCache) return@addSnapshotListener // belum ada di cache lokal
+            val w = parseWallet(s)
+            if (s.exists()) WalletCache.save(uid, w)
+            onChange(w)
         }
+    }
 
     suspend fun topUp(uid: String, coins: Long): String? = try {
         ref(uid).set(hashMapOf<String, Any?>("coins" to FieldValue.increment(coins)), SetOptions.merge()).await()

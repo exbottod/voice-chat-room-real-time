@@ -191,6 +191,14 @@ object LvRepo {
                 "vip" to tier.toLong(),
                 "vipUntil" to until,
                 "inv" to items,
+                // Item VIP langsung terpasang: bingkai selalu diganti ke VIP ini;
+                // gelembung & efek masuk hanya kalau belum memakai item store.
+                "equip" to buildMap<String, String> {
+                    put("frame", "vipf_$tier")
+                    val cur = w.equip
+                    if (cur["bubble"].isNullOrBlank() || cur["bubble"]!!.startsWith("vipb_")) put("bubble", "vipb_$tier")
+                    if (cur["entry"].isNullOrBlank() || cur["entry"]!!.startsWith("vipe_")) put("entry", "vipe_$tier")
+                },
             ),
             SetOptions.merge(),
         )

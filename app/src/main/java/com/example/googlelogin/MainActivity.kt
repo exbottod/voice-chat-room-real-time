@@ -49,7 +49,7 @@ class SessionStore(context: Context) {
             name = prefs.getString("name", "") ?: "",
             email = email,
             photoUrl = prefs.getString("photo", null),
-            idToken = prefs.getString("token", "") ?: "",
+            idToken = "", // token Google tidak disimpan di perangkat
         )
     }
 
@@ -58,7 +58,6 @@ class SessionStore(context: Context) {
             .putString("name", user.name)
             .putString("email", user.email)
             .putString("photo", user.photoUrl)
-            .putString("token", user.idToken)
             .apply()
     }
 
@@ -73,6 +72,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         AppLang.load(this)
+        WalletCache.init(this)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
