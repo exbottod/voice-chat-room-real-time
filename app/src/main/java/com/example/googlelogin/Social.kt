@@ -156,12 +156,16 @@ fun GenderBadge(gender: String) {
 /** Avatar besar dengan bingkai emas (tempat bingkai khusus nanti). */
 @Composable
 fun FramedAvatar(u: PublicUser?, size: Dp) {
+    val tier = vipFrameTier(u?.frame, u?.vip ?: 0, u?.vipUntil ?: 0L)
     Box(
         Modifier.size(size + 16.dp)
-            .border(3.dp, frameBrush(u?.frame), CircleShape)
+            .then(if (hasVipFrame(tier)) Modifier else Modifier.border(3.dp, frameBrush(u?.frame), CircleShape))
             .padding(8.dp),
         contentAlignment = Alignment.Center,
-    ) { PublicAvatar(u, size) }
+    ) {
+        PublicAvatar(u, size)
+        VipFrame(tier, size + 30.dp)
+    }
 }
 
 @Composable

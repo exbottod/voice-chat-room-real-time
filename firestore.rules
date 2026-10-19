@@ -111,6 +111,11 @@ service cloud.firestore {
       }
     }
 
+    match /vipConfig/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     match /banners/{id} {
       allow read: if signedIn();
       allow write: if isAdmin();

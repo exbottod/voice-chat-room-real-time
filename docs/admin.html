@@ -51,7 +51,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -119,6 +119,16 @@ label{font-size:12px;color:var(--mut)}
     </div>
   </div>
 </div>
+<div id="tab-vip" class="hide">
+  <div class="card">
+    <h2>Pengaturan VIP 1-9</h2>
+    <label>Pilih tingkat VIP</label>
+    <div id="vipTabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <p class="muted" style="margin-top:10px">Isi URL (.svga .gif .webp .png; efek masuk .mp4/.gif) atau pilih file dari HP. File dari HP maksimal sekitar 650 KB. Untuk file lebih besar, taruh di repo (misal folder docs/vip/) lalu pakai URL-nya.</p>
+  </div>
+  <div id="vipSlots"></div>
+</div>
+
 <div id="tab-user" class="hide">
     <div class="card">
       <h2>Daftar user terdaftar</h2>
@@ -239,7 +249,8 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+  ["banner", "ban", "coin", "user", "vip"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+  if (t.dataset.t === "vip") vipStart();
 });
 
 async function lookup(raw){
@@ -380,6 +391,104 @@ $("vipSet").onclick = async () => {
   } catch (e) { toast("Gagal: " + e.message); }
   $("vipSet").disabled = false;
 };
+
+const VIP_SLOTS = [
+  { k: "title", name: "🏅 Gelar VIP (medal)", accept: ".png,.webp,.gif,.svga", hint: "svga, gif, webp, png" },
+  { k: "frame", name: "⭕ Bingkai eksklusif", accept: ".svga,.gif,.webp,.png", hint: "svga, gif, webp, png" },
+  { k: "entry", name: "✨ Efek masuk VIP", accept: ".mp4,.gif", hint: "mp4 atau gif" },
+];
+let vipSel = 1, vipCfg = {}, vipUnsub = null;
+function vipExt(name){ const p = (name || "").split("?")[0].split("#")[0]; return p.indexOf(".") < 0 ? "" : p.split(".").pop().toLowerCase(); }
+function vipKind(name){ const e = vipExt(name); return e === "svga" ? "svga" : e === "mp4" ? "mp4" : "image"; }
+function vipExtOk(slot, name){ const e = vipExt(name); return e === "" || slot.accept.split(",").includes("." + e); }
+function readAsDataURL(f){ return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
+
+function vipStart(){
+  if (vipUnsub) return;
+  vipUnsub = db.collection("vipConfig").where("meta", "==", true).onSnapshot(s => {
+    vipCfg = {};
+    s.forEach(d => { const x = d.data(); vipCfg[x.n + "_" + x.slot] = x; });
+    renderVip();
+  }, e => toast("Gagal memuat VIP: " + e.message));
+}
+async function vipPreview(box, c){
+  box.textContent = "";
+  if (!c) { box.textContent = "Belum diatur"; return; }
+  if (c.kind === "svga") { box.textContent = "File SVGA (pratinjau hanya di aplikasi)"; return; }
+  let src = c.url;
+  if (c.hasData) {
+    try { const d = await db.collection("vipConfig").doc("data_vip" + c.n + "_" + c.slot).get(); src = d.exists ? d.data().data : ""; }
+    catch (e) { box.textContent = "Gagal memuat pratinjau"; return; }
+  }
+  if (!src) { box.textContent = "Belum diatur"; return; }
+  const el = document.createElement(c.kind === "mp4" ? "video" : "img");
+  el.src = src; el.style.maxWidth = "100%"; el.style.maxHeight = "150px";
+  if (c.kind === "mp4") { el.muted = true; el.autoplay = true; el.loop = true; el.playsInline = true; }
+  box.appendChild(el);
+}
+function renderVip(){
+  const tabs = $("vipTabs"); tabs.innerHTML = "";
+  for (let n = 1; n <= 9; n++) {
+    const b = document.createElement("div");
+    b.textContent = "VIP" + n;
+    b.style.cssText = "padding:8px 14px;border-radius:50px;border:1px solid " + (n === vipSel ? "var(--gold)" : "var(--line)") + ";color:" + (n === vipSel ? "var(--gold2)" : "var(--mut)") + ";cursor:pointer;font-size:14px";
+    b.onclick = () => { vipSel = n; renderVip(); };
+    tabs.appendChild(b);
+  }
+  const box = $("vipSlots"); box.innerHTML = "";
+  VIP_SLOTS.forEach(slot => {
+    const c = vipCfg[vipSel + "_" + slot.k];
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = '<h2>' + slot.name + ' - VIP' + vipSel + '</h2>' +
+      '<div class="prev" id="vprev_' + slot.k + '"></div>' +
+      '<label>URL (' + slot.hint + ')</label>' +
+      '<input type="text" id="vurl_' + slot.k + '" placeholder="https://...">' +
+      '<label>atau pilih file dari HP (' + slot.hint + ')</label>' +
+      '<input type="file" id="vfile_' + slot.k + '" accept="' + slot.accept + '">' +
+      '<button class="btn" id="vsave_' + slot.k + '">Simpan</button> ' +
+      '<button class="btn" id="vdel_' + slot.k + '" style="background:#7a1f1f;color:#fff">Hapus</button>';
+    box.appendChild(card);
+    if (c && !c.hasData) $("vurl_" + slot.k).value = c.url || "";
+    vipPreview($("vprev_" + slot.k), c);
+    $("vsave_" + slot.k).onclick = () => vipSave(slot);
+    $("vdel_" + slot.k).onclick = () => vipDelete(slot);
+  });
+}
+async function vipSave(slot){
+  const n = vipSel, url = $("vurl_" + slot.k).value.trim(), f = $("vfile_" + slot.k).files[0];
+  if (!url && !f) return toast("Isi URL atau pilih file");
+  const col = db.collection("vipConfig"), id = "vip" + n + "_" + slot.k, did = "data_" + id;
+  $("vsave_" + slot.k).disabled = true;
+  try {
+    const b = db.batch();
+    if (f) {
+      if (!vipExtOk(slot, f.name)) { toast("Format file harus " + slot.hint); return; }
+      const data = await readAsDataURL(f);
+      if (data.length > 950000) { toast("File terlalu besar (maks sekitar 650 KB). Pakai URL."); return; }
+      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(f.name), url: "", hasData: true, updatedAt: Date.now() });
+      b.set(col.doc(did), { meta: false, data: data });
+    } else {
+      if (!/^https?:\/\//i.test(url)) { toast("URL harus diawali http:// atau https://"); return; }
+      if (!vipExtOk(slot, url)) { toast("Format URL harus " + slot.hint); return; }
+      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(url), url: url, hasData: false, updatedAt: Date.now() });
+      b.delete(col.doc(did));
+    }
+    await b.commit();
+    logAction({ type: "vipAsset", vip: n, slot: slot.k });
+    toast("Tersimpan ✅ (app memuat saat dibuka ulang)");
+    $("vfile_" + slot.k).value = "";
+  } catch (e) { toast("Gagal: " + e.message); }
+  finally { const s = $("vsave_" + slot.k); if (s) s.disabled = false; }
+}
+async function vipDelete(slot){
+  if (!confirm("Hapus " + slot.name + " VIP" + vipSel + "?")) return;
+  const col = db.collection("vipConfig"), id = "vip" + vipSel + "_" + slot.k;
+  try {
+    const b = db.batch(); b.delete(col.doc(id)); b.delete(col.doc("data_" + id)); await b.commit();
+    $("vurl_" + slot.k).value = "";
+    toast("Dihapus ✅");
+  } catch (e) { toast("Gagal: " + e.message); }
+}
 
 function goFind(tab, inputId, btnId, id){
   document.querySelector('.tab[data-t="' + tab + '"]').click();
