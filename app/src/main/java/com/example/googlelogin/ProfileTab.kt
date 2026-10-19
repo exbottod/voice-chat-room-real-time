@@ -183,16 +183,16 @@ fun ProfileTab(
                 }
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val vfTier = vipFrameTier(activeEquip(wallet, "frame"), wallet.vip, wallet.vipUntil)
+                    val vfAsset = frameAssetOf(activeEquip(wallet, "frame"), wallet.vip, wallet.vipUntil)
                     Box(contentAlignment = Alignment.Center) {
                         Box(
                             Modifier.clip(CircleShape).clickable(onClick = onProfileClick)
-                                .then(if (hasVipFrame(vfTier)) Modifier else Modifier.border(3.dp, frameBrush(activeEquip(wallet, "frame")), CircleShape))
+                                .then(if (vfAsset != null) Modifier else Modifier.border(3.dp, frameBrush(activeEquip(wallet, "frame")), CircleShape))
                                 .padding(3.dp),
                         ) {
                             AvatarImage(user, profile, 92.dp)
                         }
-                        VipFrame(vfTier, 128.dp)
+                        if (vfAsset != null) FrameOverlay(vfAsset, 128.dp)
                     }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.clickable(onClick = onProfileClick)) {

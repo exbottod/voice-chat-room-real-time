@@ -98,12 +98,13 @@ object VipAssets {
             }
             val col = FirebaseFirestore.getInstance().collection("vipConfig")
             val sb = StringBuilder()
+            val base = if (a.n == 0) "data_store_${a.slot.removePrefix("st_")}" else "data_vip${a.n}_${a.slot}"
             if (a.chunks > 0) {
                 for (i in 0 until a.chunks) {
-                    sb.append(col.document("data_vip${a.n}_${a.slot}_$i").get().await().getString("data") ?: return null)
+                    sb.append(col.document("${base}_$i").get().await().getString("data") ?: return null)
                 }
             } else {
-                sb.append(col.document("data_vip${a.n}_${a.slot}").get().await().getString("data") ?: return null)
+                sb.append(col.document(base).get().await().getString("data") ?: return null)
             }
             val s = sb.toString()
             val b = Base64.decode(s.substringAfter("base64,", s), Base64.DEFAULT)
@@ -279,12 +280,12 @@ fun VipEntryEffect(roomId: String) {
                 first = false
                 lastId = last?.id
                 val fresh = last != null && System.currentTimeMillis() - last.createdAt < 8000
-                if (last != null && fresh && last.vip in 1..9 && last.vipUid == myUid) {
-                    VipAssets.get(last.vip, "entry")?.let { playing = it }
+                if (last != null && fresh && last.vipUid == myUid) {
+                    entryAssetOf(last)?.let { playing = it }
                 }
             } else if (last != null && last.id != lastId) {
                 lastId = last.id
-                if (last.vip in 1..9) VipAssets.get(last.vip, "entry")?.let { playing = it }
+                entryAssetOf(last)?.let { playing = it }
             }
         }
         onDispose { reg.remove() }
