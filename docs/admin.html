@@ -124,7 +124,7 @@ label{font-size:12px;color:var(--mut)}
     <h2>Pengaturan VIP 1-9</h2>
     <label>Pilih tingkat VIP</label>
     <div id="vipTabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-    <p class="muted" style="margin-top:10px">Isi URL (.svga .gif .webp .png; efek masuk .mp4/.gif) atau pilih file dari HP. File dari HP maksimal sekitar 650 KB. Untuk file lebih besar, taruh di repo (misal folder docs/vip/) lalu pakai URL-nya.</p>
+    <p class="muted" style="margin-top:10px">Isi URL (.svga .gif .webp .png; efek masuk .mp4/.gif) atau pilih file dari HP. File dari HP maksimal sekitar 5 MB (otomatis dipecah). Untuk file lebih besar, pakai URL.</p>
   </div>
   <div id="vipSlots"></div>
 </div>
@@ -417,8 +417,13 @@ async function vipPreview(box, c){
   if (c.kind === "svga") { box.textContent = "File SVGA (pratinjau hanya di aplikasi)"; return; }
   let src = c.url;
   if (c.hasData) {
-    try { const d = await db.collection("vipConfig").doc("data_vip" + c.n + "_" + c.slot).get(); src = d.exists ? d.data().data : ""; }
-    catch (e) { box.textContent = "Gagal memuat pratinjau"; return; }
+    try {
+      const base = "data_vip" + c.n + "_" + c.slot;
+      if (c.chunks > 0) {
+        src = "";
+        for (let i = 0; i < c.chunks; i++) { const d = await db.collection("vipConfig").doc(base + "_" + i).get(); src += d.exists ? d.data().data : ""; }
+      } else { const d = await db.collection("vipConfig").doc(base).get(); src = d.exists ? d.data().data : ""; }
+    } catch (e) { box.textContent = "Gagal memuat pratinjau"; return; }
   }
   if (!src) { box.textContent = "Belum diatur"; return; }
   const el = document.createElement(c.kind === "mp4" ? "video" : "img");
@@ -464,14 +469,19 @@ async function vipSave(slot){
     if (f) {
       if (!vipExtOk(slot, f.name)) { toast("Format file harus " + slot.hint); return; }
       const data = await readAsDataURL(f);
-      if (data.length > 950000) { toast("File terlalu besar (maks sekitar 650 KB). Pakai URL."); return; }
-      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(f.name), url: "", hasData: true, updatedAt: Date.now() });
-      b.set(col.doc(did), { meta: false, data: data });
+      const CH = 900000, MAXP = 8, parts = Math.ceil(data.length / CH);
+      if (parts > MAXP) { toast("File terlalu besar (maks sekitar 5 MB). Pakai URL."); return; }
+      toast("Mengunggah " + parts + " bagian...");
+      for (let i = 0; i < parts; i++) b.set(col.doc(did + "_" + i), { meta: false, i: i, data: data.substr(i * CH, CH) });
+      for (let i = parts; i < MAXP; i++) b.delete(col.doc(did + "_" + i));
+      b.delete(col.doc(did));
+      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(f.name), url: "", hasData: true, chunks: parts, updatedAt: Date.now() });
     } else {
       if (!/^https?:\/\//i.test(url)) { toast("URL harus diawali http:// atau https://"); return; }
       if (!vipExtOk(slot, url)) { toast("Format URL harus " + slot.hint); return; }
-      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(url), url: url, hasData: false, updatedAt: Date.now() });
+      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(url), url: url, hasData: false, chunks: 0, updatedAt: Date.now() });
       b.delete(col.doc(did));
+      for (let i = 0; i < 8; i++) b.delete(col.doc(did + "_" + i));
     }
     await b.commit();
     logAction({ type: "vipAsset", vip: n, slot: slot.k });
@@ -484,7 +494,9 @@ async function vipDelete(slot){
   if (!confirm("Hapus " + slot.name + " VIP" + vipSel + "?")) return;
   const col = db.collection("vipConfig"), id = "vip" + vipSel + "_" + slot.k;
   try {
-    const b = db.batch(); b.delete(col.doc(id)); b.delete(col.doc("data_" + id)); await b.commit();
+    const b = db.batch(); b.delete(col.doc(id)); b.delete(col.doc("data_" + id));
+    for (let i = 0; i < 8; i++) b.delete(col.doc("data_" + id + "_" + i));
+    await b.commit();
     $("vurl_" + slot.k).value = "";
     toast("Dihapus ✅");
   } catch (e) { toast("Gagal: " + e.message); }
