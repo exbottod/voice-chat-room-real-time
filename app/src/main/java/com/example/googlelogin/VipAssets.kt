@@ -15,6 +15,7 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.opensource.svgaplayer.SVGAImageView
@@ -34,6 +35,7 @@ data class VipAsset(
     val url: String,
     val hasData: Boolean,
     val updatedAt: Long,
+    val chunks: Int = 0,
 )
 
 object VipAssets {
@@ -60,6 +62,7 @@ object VipAssets {
                     d.getString("url") ?: "",
                     d.getBoolean("hasData") ?: false,
                     d.getLong("updatedAt") ?: 0L,
+                    (d.getLong("chunks") ?: 0L).toInt(),
                 )
             }
             cfg.clear()
@@ -73,9 +76,25 @@ object VipAssets {
         val key = "${a.n}_${a.slot}_${a.updatedAt}"
         blobs[key]?.let { return it }
         return try {
-            val s = FirebaseFirestore.getInstance().collection("vipConfig")
-                .document("data_vip${a.n}_${a.slot}").get().await().getString("data") ?: return null
+            val ctx = FirebaseApp.getInstance().applicationContext
+            val cache = File(ctx.cacheDir, "vipasset_$key.bin")
+            if (cache.exists() && cache.length() > 0) {
+                val cached = cache.readBytes()
+                blobs[key] = cached
+                return cached
+            }
+            val col = FirebaseFirestore.getInstance().collection("vipConfig")
+            val sb = StringBuilder()
+            if (a.chunks > 0) {
+                for (i in 0 until a.chunks) {
+                    sb.append(col.document("data_vip${a.n}_${a.slot}_$i").get().await().getString("data") ?: return null)
+                }
+            } else {
+                sb.append(col.document("data_vip${a.n}_${a.slot}").get().await().getString("data") ?: return null)
+            }
+            val s = sb.toString()
             val b = Base64.decode(s.substringAfter("base64,", s), Base64.DEFAULT)
+            try { cache.writeBytes(b) } catch (e: Exception) { }
             blobs[key] = b
             b
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
