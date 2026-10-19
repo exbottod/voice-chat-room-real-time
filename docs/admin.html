@@ -564,7 +564,7 @@ async function vipSave(slot){
     logAction({ type: "vipAsset", vip: n, slot: slot.k });
     toast("Tersimpan ✅ (app memuat saat dibuka ulang)");
     $("vfile_" + slot.k).value = "";
-  } catch (e) { toast("Gagal: " + e.message); }
+  } catch (e) { const u = auth.currentUser || {}; toast("Gagal: " + e.message + " | " + u.email + " | verified=" + u.emailVerified); }
   finally { const s = $("vsave_" + slot.k); if (s) s.disabled = false; }
 }
 async function vipDelete(slot){
