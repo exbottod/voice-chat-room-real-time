@@ -870,8 +870,18 @@ private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
                 findItem(u?.badge)?.let { Spacer(Modifier.width(4.dp)); Text(it.emoji, fontSize = 14.sp) }
             }
             Spacer(Modifier.height(3.dp))
-            Box(Modifier.widthIn(max = 280.dp).clip(RoundedCornerShape(12.dp)).background(bubbleColor(u?.bubble)).padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Text(m.text, color = Color.White, fontSize = 14.sp)
+            val bTier = vipBubbleTier(u?.bubble, u?.vip ?: 0, u?.vipUntil ?: 0L)
+            val bAsset = if (bTier in 1..9) VipAssets.get(bTier, "bubble") else null
+            Box(
+                Modifier.widthIn(max = 280.dp).clip(RoundedCornerShape(12.dp))
+                    .then(if (bAsset == null) Modifier.background(bubbleColor(u?.bubble)) else Modifier),
+            ) {
+                if (bAsset != null) {
+                    androidx.compose.runtime.key(bTier) {
+                        VipMedia(bAsset, Modifier.matchParentSize(), contentScale = androidx.compose.ui.layout.ContentScale.FillBounds)
+                    }
+                }
+                Text(m.text, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
             }
         }
     }

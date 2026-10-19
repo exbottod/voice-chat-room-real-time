@@ -110,6 +110,14 @@ fun vipFrameTier(frameId: String?, vip: Int, until: Long): Int {
 
 fun hasVipFrame(tier: Int): Boolean = tier in 1..9 && VipAssets.get(tier, "frame") != null
 
+/** Tingkat VIP untuk gelembung obrolan: pakai vipb_N yang dipakai, atau otomatis mengikuti VIP aktif. */
+fun vipBubbleTier(bubbleId: String?, vip: Int, until: Long): Int {
+    if (!bubbleId.isNullOrBlank()) {
+        return if (bubbleId.startsWith("vipb_")) bubbleId.removePrefix("vipb_").toIntOrNull() ?: 0 else 0
+    }
+    return if (vipActive(vip, until)) vip else 0
+}
+
 @Composable
 private fun rememberVipLoader(): ImageLoader {
     val ctx = LocalContext.current
