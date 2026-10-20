@@ -771,6 +771,7 @@ private fun slotLabel(slot: String) = when (slot) {
     "bubble" -> "Gelembung"
     "badge" -> "Lencana"
     "entry" -> "Efek masuk"
+    "medal" -> "Medali"
     else -> "Gelar"
 }
 
@@ -792,6 +793,7 @@ private val STORE_CATS = listOf(
     Triple("entry", "Efek masuk", "\u2728"),
     Triple("badge", "Lencana", "\uD83C\uDF96\uFE0F"),
     Triple("bubble", "Gelembung", "\uD83D\uDCAC"),
+    Triple("medal", "Medali", "\uD83C\uDFC5"),
 )
 
 @Composable
@@ -939,7 +941,8 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                 Text("${slotLabel(item.slot)} \u00B7 sisa ${daysLeft(exp)} hari", color = Color(0xFFD0F5EF), fontSize = 12.sp)
                                 if (item.vip > 0) Text("Dari VIP${item.vip}", color = vipColor(item.vip), fontSize = 12.sp)
                             }
-                            if (item.slot == "title" || (item.slot == "entry" && item.asset == null)) Text("Otomatis", color = Color(0xFFD0F5EF), fontSize = 13.sp)
+                            if (item.slot == "medal") Text("Atur di Lencana glory", color = Color(0xFFD0F5EF), fontSize = 12.sp)
+                            else if (item.slot == "title" || (item.slot == "entry" && item.asset == null)) Text("Otomatis", color = Color(0xFFD0F5EF), fontSize = 13.sp)
                             else GoldPill(if (used) "Lepas" else "Pakai") {
                                 AppScope.scope.launch {
                                     val err = LvRepo.equip(uid, item.slot, if (used) "" else item.id)
@@ -992,6 +995,7 @@ object PublicSync {
                 "frame" to activeEquip(w, "frame"),
                 "bubble" to activeEquip(w, "bubble"),
                 "badge" to activeEquip(w, "badge"),
+                "medals" to activeMedalIds(w).joinToString(","),
             )
             val key = data.toString()
             if (lastKey[uid] == key) return

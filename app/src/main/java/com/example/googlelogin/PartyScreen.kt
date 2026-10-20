@@ -83,8 +83,8 @@ fun PartyTab(
     }
     val shown = when {
         subTab == 0 -> allRooms.filter { it.ownerUid == myUid }
-        filter == 0 -> allRooms.sortedByDescending { it.online }
-        else -> allRooms
+        filter == 0 -> allRooms.filter { it.online > 0 }.sortedByDescending { it.online }
+        else -> allRooms.filter { it.online > 0 }
     }
 
     PullToRefreshBox(
@@ -108,7 +108,17 @@ fun PartyTab(
                 selected = subTab,
                 onSelect = { subTab = it },
                 onSearch = onSearch,
-                onCreate = { showCreate = true },
+                onCreate = {
+                    refreshScope.launch {
+                        val mine = RoomRepo.findOwned(myUid) ?: allRooms.firstOrNull { it.ownerUid == myUid }
+                        if (mine != null) {
+                            Toast.makeText(context, "Kamu sudah punya room, langsung masuk", Toast.LENGTH_SHORT).show()
+                            onEnterRoom(mine)
+                        } else {
+                            showCreate = true
+                        }
+                    }
+                },
             )
         }
         if (subTab == 2) {
@@ -128,7 +138,7 @@ fun PartyTab(
             }
             if (shown.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    EmptyBlock(if (subTab == 0) "Belum ada room milik Anda" else "Belum ada room.\nTekan + untuk membuat room")
+                    EmptyBlock(if (subTab == 0) "Belum ada room milik Anda" else "Belum ada room aktif.\nTekan + untuk membuat room")
                 }
             } else {
                 items(shown, key = { it.id }) { room ->

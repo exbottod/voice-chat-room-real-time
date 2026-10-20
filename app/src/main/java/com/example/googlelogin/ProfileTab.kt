@@ -125,6 +125,7 @@ fun ProfileTab(
     onVipClick: () -> Unit = {},
     onLevelClick: () -> Unit = {},
     onStoreClick: () -> Unit = {},
+    onGloryClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -226,6 +227,11 @@ fun ProfileTab(
                         }
                         Spacer(Modifier.height(6.dp))
                         BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"))
+                        val myMedals = activeMedalIds(wallet)
+                        if (myMedals.isNotEmpty()) {
+                            Spacer(Modifier.height(6.dp))
+                            UserMedals(myMedals.joinToString(","), 22.dp)
+                        }
                     }
                 }
                 if (profile.bio.isNotBlank()) {
@@ -318,7 +324,7 @@ fun ProfileTab(
                     .padding(vertical = 4.dp),
             ) {
                 MenuItem("🎁", "Undang teman dan dapatkan koin") { onInviteClick() }
-                MenuItem("⭐", "Lencana glory") { soon("Lencana glory") }
+                MenuItem("⭐", "Lencana glory") { onGloryClick() }
                 MenuItem("🎨", "Pusat kustom") { soon("Pusat kustom") }
                 MenuItem("🏪", "Store & My Item") { onStoreClick() }
                 MenuItem("🧰", "Alat peraga") { soon("Alat peraga") }

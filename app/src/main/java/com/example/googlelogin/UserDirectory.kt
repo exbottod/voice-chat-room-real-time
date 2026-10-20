@@ -29,6 +29,7 @@ data class PublicUser(
     val frame: String = "",
     val bubble: String = "",
     val badge: String = "",
+    val medals: String = "",
 )
 
 object UserDirectory {
@@ -105,6 +106,7 @@ object UserDirectory {
             frame = doc.getString("frame") ?: "",
             bubble = doc.getString("bubble") ?: "",
             badge = doc.getString("badge") ?: "",
+            medals = doc.getString("medals") ?: "",
         )
     }
 
@@ -126,6 +128,7 @@ object UserDirectory {
             frame = doc.getString("frame") ?: "",
             bubble = doc.getString("bubble") ?: "",
             badge = doc.getString("badge") ?: "",
+            medals = doc.getString("medals") ?: "",
         )
     }
 
