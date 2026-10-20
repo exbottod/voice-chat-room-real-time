@@ -69,6 +69,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var showLevel by remember { mutableStateOf(false) }
     var showVip by remember { mutableStateOf(false) }
     var showStore by remember { mutableStateOf(false) }
+    var showGlory by remember { mutableStateOf(false) }
     var sheetUid by remember { mutableStateOf<String?>(null) }
     var fullProfileUid by remember { mutableStateOf<String?>(null) }
     var chatWith by remember { mutableStateOf<PublicUser?>(null) }
@@ -217,6 +218,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             onVipClick = { showVip = true },
                             onLevelClick = { showLevel = true },
                             onStoreClick = { showStore = true },
+                            onGloryClick = { showGlory = true },
                         )
                     }
                 }
@@ -284,6 +286,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             if (showWallet) WalletScreen(uid = uid, wallet = wallet, onBack = { showWallet = false })
             if (showLevel) LevelScreen(user = user, profile = profile, wallet = wallet, uid = uid, onBack = { showLevel = false })
             if (showVip) VipScreen(uid = uid, wallet = wallet, onBack = { showVip = false })
+            if (showGlory) GloryMedalScreen(uid = uid, wallet = wallet, onBack = { showGlory = false })
             if (showStore) StoreScreen(uid = uid, wallet = wallet, onOpenVip = { showStore = false; showVip = true }, onBack = { showStore = false })
             commentMoment?.let {
                 MomentCommentsPanel(m = it, myUid = uid, myName = myName, onDismiss = { commentMoment = null })

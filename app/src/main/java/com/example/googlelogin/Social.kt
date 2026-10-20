@@ -345,7 +345,7 @@ fun UserProfileSheet(
                     Spacer(Modifier.height(12.dp))
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
                     Spacer(Modifier.height(12.dp))
-                    MedalRow()
+                    UserMedals(u.medals)
                     Spacer(Modifier.height(14.dp))
                     VipBanner(u)
                     Spacer(Modifier.height(8.dp))

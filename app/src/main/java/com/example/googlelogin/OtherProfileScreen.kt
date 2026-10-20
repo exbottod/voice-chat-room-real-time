@@ -157,7 +157,7 @@ fun OtherProfileScreen(
                         Text("📋", fontSize = 14.sp)
                     }
                     Spacer(Modifier.height(14.dp))
-                    MedalRow()
+                    UserMedals(u.medals)
                     Spacer(Modifier.height(10.dp))
                     UserBadges(u)
                     Spacer(Modifier.height(12.dp))

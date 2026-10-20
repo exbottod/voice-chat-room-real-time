@@ -56,7 +56,13 @@ object RoomRepo {
         )
     }
 
+    suspend fun findOwned(ownerUid: String): RoomInfo? = try {
+        db().collection("rooms").whereEqualTo("ownerUid", ownerUid).limit(1).get().await()
+            .documents.firstOrNull()?.toRoom()
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+
     suspend fun createRoom(ownerUid: String, ownerName: String, name: String, photoB64: String?): RoomInfo {
+        findOwned(ownerUid)?.let { return it }
         val ref = db().collection("rooms").document()
         val no = (10000000..99999999).random().toString()
         val data = hashMapOf<String, Any?>(

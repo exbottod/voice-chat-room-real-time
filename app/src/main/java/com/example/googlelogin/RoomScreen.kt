@@ -882,6 +882,7 @@ private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
                 u?.let { if (vipActive(it.vip, it.vipUntil)) { Spacer(Modifier.width(4.dp)); VipTag(it.vip) } }
                 findItem(u?.badge)?.let { Spacer(Modifier.width(4.dp)); StoreBadgeIcon(it, 18.dp) }
             }
+            u?.let { if (it.medals.isNotBlank()) { Spacer(Modifier.height(2.dp)); UserMedals(it.medals, 18.dp) } }
             Spacer(Modifier.height(3.dp))
             val bTier = vipBubbleTier(u?.bubble, u?.vip ?: 0, u?.vipUntil ?: 0L)
             val bAsset = if (bTier in 1..9) VipAssets.get(bTier, "bubble") else null

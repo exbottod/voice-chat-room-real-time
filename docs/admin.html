@@ -136,7 +136,7 @@ label{font-size:12px;color:var(--mut)}
   <div class="card">
     <h2>Tambah item Store</h2>
     <label>Jenis item</label>
-    <select id="stSlot" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"><option value="frame">⭕ Bingkai avatar</option><option value="entry">✨ Efek masuk</option><option value="badge">🎖️ Lencana</option></select>
+    <select id="stSlot" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"><option value="frame">⭕ Bingkai avatar</option><option value="entry">✨ Efek masuk</option><option value="badge">🎖️ Lencana</option><option value="medal">🏅 Medali (Lencana glory)</option></select>
     <label>Nama item</label><input type="text" id="stName" placeholder="Contoh: Bingkai Vietnam">
     <label>Harga (koin)</label><input type="number" id="stPrice" value="1000000" min="0">
     <label>Durasi (hari)</label><input type="number" id="stDays" value="7" min="1">
@@ -616,6 +616,7 @@ const STORE_SLOTS = {
   frame: { name: "⭕ Bingkai avatar", accept: [".svga", ".gif", ".webp", ".png"] },
   entry: { name: "✨ Efek masuk", accept: [".svga", ".gif", ".webp", ".png", ".mp4"] },
   badge: { name: "🎖️ Lencana", accept: [".svga", ".gif", ".webp", ".png"] },
+  medal: { name: "🏅 Medali", accept: [".svga", ".gif", ".webp", ".png"] },
 };
 let storeItems = [], storeUnsub = null;
 function storeStart(){

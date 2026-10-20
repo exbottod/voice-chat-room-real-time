@@ -12,3 +12,4 @@ token-worker/node_modules/
 token-worker/.wrangler/
 token-worker/.dev.vars
 build.log
+build.log
