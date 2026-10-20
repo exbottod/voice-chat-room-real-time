@@ -34,16 +34,17 @@ jobs:
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
           AGORA_TOKEN_URL: ${{ secrets.AGORA_TOKEN_URL }}
           AGORA_APP_ID: ${{ secrets.AGORA_APP_ID }}
+        shell: bash
         run: |
           if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then echo "::warning::Secret GOOGLE_WEB_CLIENT_ID kosong, login Google tidak akan berfungsi"; fi
           if [ -z "$AGORA_APP_ID" ] || [ -z "$AGORA_TOKEN_URL" ]; then echo "::warning::Secret AGORA_* kosong, fitur suara tidak akan berfungsi"; fi
-          gradle assembleRelease --no-daemon --stacktrace
+          gradle assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
 
       - name: Ringkasan error (hanya jika build gagal)
         if: failure()
         run: |
           echo "### Error build" >> "$GITHUB_STEP_SUMMARY"
-          grep -rhE "^e: |error:|What went wrong" -A3 app/build 2>/dev/null | head -60 >> "$GITHUB_STEP_SUMMARY" || true
+          grep -E "^e: |error:|What went wrong|FAILED" -A4 build.log | head -80 >> "$GITHUB_STEP_SUMMARY" || true
 
       - uses: actions/upload-artifact@v4
         with:
