@@ -8,9 +8,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -22,19 +27,28 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.9
+          cache-cleanup: on-success
 
       - name: Build release APK
         env:
           GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
           AGORA_TOKEN_URL: ${{ secrets.AGORA_TOKEN_URL }}
           AGORA_APP_ID: ${{ secrets.AGORA_APP_ID }}
-        run: gradle assembleRelease --stacktrace
+        run: |
+          if [ -z "$GOOGLE_WEB_CLIENT_ID" ]; then echo "::warning::Secret GOOGLE_WEB_CLIENT_ID kosong, login Google tidak akan berfungsi"; fi
+          if [ -z "$AGORA_APP_ID" ] || [ -z "$AGORA_TOKEN_URL" ]; then echo "::warning::Secret AGORA_* kosong, fitur suara tidak akan berfungsi"; fi
+          gradle assembleRelease --no-daemon --stacktrace
+
+      - name: Ringkasan error (hanya jika build gagal)
+        if: failure()
+        run: |
+          echo "### Error build" >> "$GITHUB_STEP_SUMMARY"
+          grep -rhE "^e: |error:|What went wrong" -A3 app/build 2>/dev/null | head -60 >> "$GITHUB_STEP_SUMMARY" || true
 
       - uses: actions/upload-artifact@v4
         with:
           name: app-apk
-          path: |
-            app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/app-release.apk
 
       - name: Publikasikan APK terbaru ke Release
         env:
@@ -42,7 +56,6 @@ jobs:
         run: |
           cp app/build/outputs/apk/release/app-release.apk REZO-CHAT-VOICE.apk
           NOTES="Build otomatis dari commit ${GITHUB_SHA::7}"
-          gh release delete-asset terbaru REZO-CHAT-VOICE-debug.apk -y 2>/dev/null || true
           if gh release view terbaru >/dev/null 2>&1; then
             gh release upload terbaru REZO-CHAT-VOICE.apk --clobber
             gh release edit terbaru --notes "$NOTES" --latest

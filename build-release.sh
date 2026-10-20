@@ -1,5 +1,4 @@
-cd /workspaces/voice-chat-room-real-time
-####!/usr/b#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
 TOOLS="$HOME/android-build"
