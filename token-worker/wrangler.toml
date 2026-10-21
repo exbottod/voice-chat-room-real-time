@@ -5,3 +5,4 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 FIREBASE_PROJECT_ID = "arboreal-cat-511705-p6"
+ADMIN_EMAIL = "developerex100@gmail.com"
