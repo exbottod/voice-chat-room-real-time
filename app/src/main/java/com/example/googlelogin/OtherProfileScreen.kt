@@ -133,8 +133,8 @@ fun OtherProfileScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(12.dp).clip(CircleShape).background(Color(0xFF2ED573)))
                         Spacer(Modifier.width(8.dp))
-                        Text(
-                            u.name, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                        VipNameText(
+                            u.name, u.vip, u.vipUntil, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
                             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
                         )
                         Spacer(Modifier.width(8.dp))
