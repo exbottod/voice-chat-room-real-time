@@ -1,6 +1,7 @@
 package com.example.googlelogin
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,13 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -139,7 +139,7 @@ fun ProfileTab(
     fun soon(label: String) =
         Toast.makeText(context, "$label segera hadir", Toast.LENGTH_SHORT).show()
 
-Column(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(PageBg)
@@ -311,7 +311,7 @@ Column(
                         Text(tr("Level user"), color = Color(0xFFB8F5EC), fontSize = 16.sp)
                         Text("LV.$level", color = Color(0xFFFFE082), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text("🛡️", fontSize = 40.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text("🛡", fontSize = 40.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
             }
 
@@ -331,10 +331,9 @@ Column(
                 MenuItem("🧰", "Alat peraga") { soon("Alat peraga") }
                 MenuItem("🏰", "Family", trailing = "Liga Peringkat Fam") { onFamilyClick() }
                 MenuItem("🏠", "CP house") { soon("CP house") }
-                MenuItem("⚙️", "Pengaturan") { onSettingsClick() }
+                MenuItem("⚙", "Pengaturan") { onSettingsClick() }
                 MenuItem("❓", "Bantuan") { soon("Bantuan") }
             }
-
             Spacer(Modifier.height(16.dp))
             OutlinedButton(
                 onClick = onSignOutClick,
@@ -346,4 +345,3 @@ Column(
         }
     }
 }
-                       
