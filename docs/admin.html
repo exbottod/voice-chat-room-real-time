@@ -452,8 +452,15 @@ async function cldUpload(file, name){
   const out = await res.json().catch(() => ({}));
   if (!res.ok || !out.url) throw new Error(out.error || ("Upload gagal (" + res.status + ")"));
   return out.url;
-}
-
+  }
+function fsCommit(b){
+  toast("Menyimpan ke database...");
+  return Promise.race([
+    b.commit(),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Firestore tidak merespons dalam 20 detik (kuota harian habis atau koneksi bermasalah). File sudah ada di Cloudinary. Coba lagi nanti.")), 20000))
+  ]);
+  }
+  
 function vipStart(){
   if (vipUnsub) return;
   vipUnsub = db.collection("vipConfig").where("meta", "==", true).onSnapshot(s => {
@@ -605,7 +612,7 @@ async function vipSave(slot){
       b.delete(col.doc(did));
       for (let i = 0; i < 8; i++) b.delete(col.doc(did + "_" + i));
     }
-    await b.commit();
+    await fsCommit(b);
     logAction({ type: "vipAsset", vip: n, slot: slot.k });
     toast("Tersimpan ✅ (file di Cloudinary, bukan database)");
     $("vfile_" + slot.k).value = "";
@@ -618,7 +625,7 @@ async function vipDelete(slot){
   try {
     const b = db.batch(); b.delete(col.doc(id)); b.delete(col.doc("data_" + id));
     for (let i = 0; i < 8; i++) b.delete(col.doc("data_" + id + "_" + i));
-    await b.commit();
+    await fsCommit(b);
     $("vurl_" + slot.k).value = "";
     toast("Dihapus ✅");
   } catch (e) { toast("Gagal: " + e.message); }
@@ -717,7 +724,7 @@ async function storeSave(c, el, btn){
     } else {
       b.set(col.doc(docId), Object.assign(base, { kind: c.kind, url: c.url || "", hasData: !!c.hasData, chunks: c.chunks || 0, updatedAt: c.updatedAt || Date.now() }));
     }
-    await b.commit();
+    await fsCommit(b);
     logAction({ type: "storeItem", id: id, slot: slot });
     toast("Tersimpan ✅");
     if (!c) {
@@ -734,7 +741,7 @@ async function storeDelete(c){
     const b = db.batch();
     b.delete(col.doc("store_" + c.id));
     for (let i = 0; i < 8; i++) b.delete(col.doc("data_store_" + c.id + "_" + i));
-    await b.commit();
+    await fsCommit(b);
     toast("Dihapus ✅");
   } catch (e) { toast("Gagal: " + e.message); }
 }
