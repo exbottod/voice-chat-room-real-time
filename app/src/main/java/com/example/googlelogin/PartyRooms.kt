@@ -108,7 +108,7 @@ fun DialogCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-fun RoomCardView(room: RoomInfo, onClick: () -> Unit) {
+fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     val bmp = remember(room.photoB64) { ProfileRepo.decodeB64(room.photoB64) }
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
@@ -136,9 +136,22 @@ fun RoomCardView(room: RoomInfo, onClick: () -> Unit) {
             ) {
                 Text("● ${room.online}", color = Color(0xFF4CAF50), fontSize = 12.sp)
             }
-            if (room.locked) {
-                Text("🔒", fontSize = 16.sp, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp))
-            }
+             if (rank in 1..3) {
+                val rb: Brush = when (rank) {
+                    1 -> GoldBrush
+                    2 -> Brush.horizontalGradient(listOf(Color(0xFFE0E0E0), Color(0xFF9E9E9E)))
+                    else -> Brush.horizontalGradient(listOf(Color(0xFFE8A064), Color(0xFFA65A2A)))
+                }
+                Text(
+                    "TOP$rank", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(rb)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+                }
         }
         Spacer(Modifier.height(6.dp))
         Text(room.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
