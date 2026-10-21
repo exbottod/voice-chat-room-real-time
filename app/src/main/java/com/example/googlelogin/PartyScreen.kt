@@ -147,7 +147,7 @@ fun PartyTab(
                 items(shown.size, key = { shown[it].id }) { i ->
                     val room = shown[i]
                     RoomCardView(room, rank = if (subTab == 1 && i < 3) i + 1 else 0, onClick = { open(room) })
-                }
+                                }
             }
         }
     }
