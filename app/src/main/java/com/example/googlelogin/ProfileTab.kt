@@ -198,8 +198,8 @@ fun ProfileTab(
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.clickable(onClick = onProfileClick)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                nick,
+                            VipNameText(
+                                nick, wallet.vip, wallet.vipUntil,
                                 color = ink,
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Medium,
