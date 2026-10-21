@@ -60,11 +60,9 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var overlay by rememberSaveable { mutableStateOf(OV_NONE) }
     var profile by remember { mutableStateOf(ProfileRepo.loadLocal(context, user.email)) }
     var userId by remember { mutableStateOf(UserDirectory.cachedId(context, uid) ?: "...") }
-
     var activeRoom by remember { mutableStateOf<RoomInfo?>(null) }
     var minimized by remember { mutableStateOf(false) }
     val myName = profile.nickname.ifBlank { user.name }
-
     var showWallet by remember { mutableStateOf(false) }
     var showLevel by remember { mutableStateOf(false) }
     var showVip by remember { mutableStateOf(false) }
@@ -92,6 +90,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         val reg = if (uid.isNotEmpty()) WalletRepo.observe(uid) { wallet = it } else null
         onDispose { reg?.remove() }
     }
+
     LaunchedEffect(uid, selected, followTick) {
         if (uid.isNotEmpty()) {
             try {
@@ -157,7 +156,75 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
     }
 
-    when (overlay) {
+    CompositionLocalProvider(LocalActions provides actions) {
+        Box(Modifier.fillMaxSize()) {
+            RoyalBackground()
+            Scaffold(
+                containerColor = Color.Transparent,
+                bottomBar = {
+                    NavigationBar(containerColor = Color(0xFF0B0B0B)) {
+                        items.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                selected = selected == index,
+                                onClick = { selected = index },
+                                icon = { Icon(item.icon, contentDescription = item.label) },
+                                label = { Text(tr(item.label)) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color.Black,
+                                    selectedTextColor = Gold,
+                                    indicatorColor = Gold,
+                                    unselectedIconColor = Color(0xFF9A9A9A),
+                                    unselectedTextColor = Color(0xFF9A9A9A),
+                                ),
+                            )
+                        }
+                    }
+                },
+            ) { padding ->
+                // Tab profil memakai header sampai ke bawah status bar, jadi tanpa padding atas.
+                val contentPadding = if (selected == 4) {
+                    PaddingValues(bottom = padding.calculateBottomPadding())
+                } else padding
+                Box(Modifier.fillMaxSize().padding(contentPadding)) {
+                    when (selected) {
+                        0 -> PartyTab(
+                            myUid = uid,
+                            myName = myName,
+                            onSearch = { overlay = OV_SEARCH },
+                            onEnterRoom = ::enterRoom,
+                        )
+                        1 -> MomentTab(
+                            myUid = uid,
+                            onPost = { overlay = OV_POST },
+                            onComments = { commentMoment = it },
+                        )
+                        2 -> FamilyTabScreen(myUid = uid, myName = myName, myAvatar = profile.avatarB64, myId = userId)
+                        3 -> ChatListTab(myUid = uid)
+                        else -> ProfileTab(
+                            user = user,
+                            profile = profile,
+                            userId = userId,
+                            onEditClick = { overlay = OV_EDIT },
+                            onInviteClick = { overlay = OV_INVITE },
+                            onSettingsClick = { overlay = OV_SETTINGS },
+                            onSignOutClick = onSignOutClick,
+                            coins = wallet.coins,
+                            following = following,
+                            fans = fans,
+                            onWalletClick = { showWallet = true },
+                            onProfileClick = { fullProfileUid = uid },
+                            wallet = wallet,
+                            onVipClick = { showVip = true },
+                            onLevelClick = { showLevel = true },
+                            onStoreClick = { showStore = true },
+                            onGloryClick = { showGlory = true },
+                            onFamilyClick = { selected = 2 },
+                        )
+                    }
+                }
+            }
+
+            when (overlay) {
                 OV_EDIT -> EditProfileScreen(
                     user = user,
                     userId = userId,
@@ -216,14 +283,17 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onBack = { chatWith = null },
                 )
             }
+
             if (showWallet) WalletScreen(uid = uid, wallet = wallet, onBack = { showWallet = false })
             if (showLevel) LevelScreen(user = user, profile = profile, wallet = wallet, uid = uid, onBack = { showLevel = false })
             if (showVip) VipScreen(uid = uid, wallet = wallet, onBack = { showVip = false })
             if (showGlory) GloryMedalScreen(uid = uid, wallet = wallet, onBack = { showGlory = false })
             if (showStore) StoreScreen(uid = uid, wallet = wallet, onOpenVip = { showStore = false; showVip = true }, onBack = { showStore = false })
+
             commentMoment?.let {
                 MomentCommentsPanel(m = it, myUid = uid, myName = myName, onDismiss = { commentMoment = null })
             }
+
             sheetUid?.let {
                 UserProfileSheet(
                     uid = it,
@@ -234,6 +304,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onOpenFull = { fullProfileUid = it; sheetUid = null },
                 )
             }
+
             fullProfileUid?.let {
                 OtherProfileScreen(
                     uid = it,
@@ -242,6 +313,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onChat = { u -> chatWith = u; fullProfileUid = null },
                 )
             }
+
             BanGate(uid = uid, onSignOut = onSignOutClick, onBanned = { if (activeRoom != null) exitRoom() })
         }
     }
