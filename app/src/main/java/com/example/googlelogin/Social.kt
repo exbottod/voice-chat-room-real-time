@@ -323,8 +323,8 @@ fun UserProfileSheet(
                     FramedAvatar(u, 96.dp)
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            u.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp,
+                        VipNameText(
+                            u.name, u.vip, u.vipUntil, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp,
                             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
                         )
                         Spacer(Modifier.width(8.dp))
