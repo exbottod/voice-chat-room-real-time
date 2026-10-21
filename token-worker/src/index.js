@@ -29,11 +29,76 @@ async function verifyFirebase(idToken, projectId) {
   if (p.aud !== projectId) throw new AuthError('aud salah');
   if (p.iss !== 'https://securetoken.google.com/' + projectId) throw new AuthError('iss salah');
   if (!p.sub) throw new AuthError('sub kosong');
-  return p.sub;
+  return p;
+}
+
+// ---------- Upload efek/frame ke Cloudinary (khusus admin) ----------
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+};
+const withCors = (res) => {
+  const h = new Headers(res.headers);
+  for (const [k, v] of Object.entries(CORS)) h.set(k, v);
+  return new Response(res.body, { status: res.status, headers: h });
+};
+const ALLOWED_EXT = { png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image', mp4: 'video', svga: 'raw' };
+const MAX_BYTES = 25 * 1024 * 1024;
+
+async function sha1Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function handleUpload(req, env) {
+  const auth = req.headers.get('Authorization') || '';
+  const p = await verifyFirebase(auth.startsWith('Bearer ') ? auth.slice(7) : '', env.FIREBASE_PROJECT_ID);
+  const admin = String(env.ADMIN_EMAIL || '').toLowerCase();
+  if (!admin || String(p.email || '').toLowerCase() !== admin || p.email_verified !== true || !p.firebase || p.firebase.sign_in_provider !== 'google.com') {
+    return json({ error: 'hanya admin' }, 403);
+  }
+  if (!env.CLOUDINARY_CLOUD || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
+    return json({ error: 'secret Cloudinary belum diisi' }, 500);
+  }
+  const form = await req.formData();
+  const file = form.get('file');
+  const name = String(form.get('name') || 'asset').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40) || 'asset';
+  if (!file || typeof file === 'string') return json({ error: 'file kosong' }, 400);
+  const ext = (file.name || '').split('.').pop().toLowerCase();
+  const type = ALLOWED_EXT[ext];
+  if (!type) return json({ error: 'format tidak didukung (png, jpg, gif, webp, mp4, svga)' }, 400);
+  if (file.size > MAX_BYTES) return json({ error: 'file terlalu besar (maks 25 MB)' }, 400);
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  const publicId = 'rezo/' + name + '_' + timestamp.toString(36) + (type === 'raw' ? '.' + ext : '');
+  // Tanda tangan: parameter diurutkan abjad (tanpa file/api_key/resource_type), lalu + API secret.
+  const signature = await sha1Hex('public_id=' + publicId + '&timestamp=' + timestamp + env.CLOUDINARY_API_SECRET);
+  const fd = new FormData();
+  fd.append('file', file, file.name);
+  fd.append('api_key', env.CLOUDINARY_API_KEY);
+  fd.append('timestamp', String(timestamp));
+  fd.append('public_id', publicId);
+  fd.append('signature', signature);
+  const res = await fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(env.CLOUDINARY_CLOUD) + '/' + type + '/upload', { method: 'POST', body: fd });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok || !out.secure_url) return json({ error: 'Cloudinary: ' + ((out.error && out.error.message) || res.status) }, 502);
+  return json({ url: out.secure_url, kind: ext === 'svga' ? 'svga' : ext === 'mp4' ? 'mp4' : 'image' });
 }
 
 export default {
   async fetch(req, env) {
+    const isUpload = new URL(req.url).pathname.replace(/\/+$/, '').endsWith('/upload');
+    if (isUpload) {
+      if (req.method === 'OPTIONS') return withCors(new Response(null, { status: 204 }));
+      if (req.method !== 'POST') return withCors(json({ error: 'POST saja' }, 405));
+      try {
+        return withCors(await handleUpload(req, env));
+      } catch (e) {
+        if (e instanceof AuthError) return withCors(json({ error: e.message }, 401));
+        return withCors(json({ error: 'server error: ' + (e && e.message) }, 500));
+      }
+    }
     if (req.method !== 'POST') return json({ error: 'POST saja' }, 405);
     try {
       const auth = req.headers.get('Authorization') || '';

@@ -436,6 +436,24 @@ function vipKind(name){ const e = vipExt(name); return e === "svga" ? "svga" : e
 function vipExtOk(slot, name){ const e = vipExt(name); return e === "" || slot.accept.split(",").includes("." + e); }
 function readAsDataURL(f){ return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
 
+/* ---------- Upload media ke Cloudinary lewat backend (Cloudflare Worker) ---------- */
+const UPLOAD_URL = "https://rezo-agora-token.bangexx01.workers.dev/upload";
+async function cldUpload(file, name){
+  const u = auth.currentUser;
+  if (!u) throw new Error("Belum login");
+  const idToken = await u.getIdToken();
+  const fd = new FormData();
+  fd.append("file", file, file.name);
+  fd.append("name", name);
+  toast("Mengunggah " + file.name + " (" + Math.round(file.size / 1024) + " KB)...");
+  let res;
+  try { res = await fetch(UPLOAD_URL, { method: "POST", headers: { Authorization: "Bearer " + idToken }, body: fd }); }
+  catch (e) { throw new Error("Tidak bisa menghubungi server upload"); }
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok || !out.url) throw new Error(out.error || ("Upload gagal (" + res.status + ")"));
+  return out.url;
+}
+
 function vipStart(){
   if (vipUnsub) return;
   vipUnsub = db.collection("vipConfig").where("meta", "==", true).onSnapshot(s => {
@@ -575,26 +593,21 @@ async function vipSave(slot){
   $("vsave_" + slot.k).disabled = true;
   try {
     const b = db.batch();
+    let finalUrl = url;
     if (f) {
       if (!vipExtOk(slot, f.name)) { toast("Format file harus " + slot.hint); return; }
-      const data = await readAsDataURL(f);
-      const CH = 900000, MAXP = 8, parts = Math.ceil(data.length / CH);
-      if (parts > MAXP) { toast("File terlalu besar (maks sekitar 5 MB). Pakai URL."); return; }
-      toast("Mengunggah " + parts + " bagian...");
-      for (let i = 0; i < parts; i++) b.set(col.doc(did + "_" + i), { meta: false, i: i, data: data.substr(i * CH, CH) });
-      for (let i = parts; i < MAXP; i++) b.delete(col.doc(did + "_" + i));
-      b.delete(col.doc(did));
-      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(f.name), url: "", hasData: true, chunks: parts, updatedAt: Date.now() });
-    } else {
-      if (!/^https?:\/\//i.test(url)) { toast("URL harus diawali http:// atau https://"); return; }
-      if (!vipExtOk(slot, url)) { toast("Format URL harus " + slot.hint); return; }
-      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(url), url: url, hasData: false, chunks: 0, updatedAt: Date.now() });
+      finalUrl = await cldUpload(f, "vip" + n + "_" + slot.k);
+    }
+    {
+      if (!/^https?:\/\//i.test(finalUrl)) { toast("URL harus diawali http:// atau https://"); return; }
+      if (!vipExtOk(slot, finalUrl)) { toast("Format URL harus " + slot.hint); return; }
+      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() });
       b.delete(col.doc(did));
       for (let i = 0; i < 8; i++) b.delete(col.doc(did + "_" + i));
     }
     await b.commit();
     logAction({ type: "vipAsset", vip: n, slot: slot.k });
-    toast("Tersimpan ✅ (app memuat saat dibuka ulang)");
+    toast("Tersimpan ✅ (file di Cloudinary, bukan database)");
     $("vfile_" + slot.k).value = "";
   } catch (e) { const u = auth.currentUser || {}; toast("Gagal: " + e.message + " | " + u.email + " | verified=" + u.emailVerified); }
   finally { const s = $("vsave_" + slot.k); if (s) s.disabled = false; }
@@ -689,21 +702,17 @@ async function storeSave(c, el, btn){
   if (btn) btn.disabled = true;
   try {
     const b = db.batch();
+    let finalUrl = url;
     if (f) {
       const e = vipExt(f.name);
       if (e && !sl.accept.includes("." + e)) { toast("Format file harus " + sl.accept.join(" ")); return; }
-      const data = await readAsDataURL(f);
-      const CH = 900000, MAXP = 8, parts = Math.ceil(data.length / CH);
-      if (parts > MAXP) { toast("File terlalu besar (maks sekitar 5 MB). Pakai URL."); return; }
-      toast("Mengunggah " + parts + " bagian...");
-      for (let i = 0; i < parts; i++) b.set(col.doc(did + "_" + i), { meta: false, i: i, data: data.substr(i * CH, CH) });
-      for (let i = parts; i < MAXP; i++) b.delete(col.doc(did + "_" + i));
-      b.set(col.doc(docId), Object.assign(base, { kind: vipKind(f.name), url: "", hasData: true, chunks: parts, updatedAt: Date.now() }));
-    } else if (url) {
-      if (!/^https?:\/\//i.test(url)) { toast("URL harus diawali http:// atau https://"); return; }
-      const e = vipExt(url);
+      finalUrl = await cldUpload(f, "store_" + id);
+    }
+    if (finalUrl) {
+      if (!/^https?:\/\//i.test(finalUrl)) { toast("URL harus diawali http:// atau https://"); return; }
+      const e = vipExt(finalUrl);
       if (e && !sl.accept.includes("." + e)) { toast("Format URL harus " + sl.accept.join(" ")); return; }
-      b.set(col.doc(docId), Object.assign(base, { kind: vipKind(url), url: url, hasData: false, chunks: 0, updatedAt: Date.now() }));
+      b.set(col.doc(docId), Object.assign(base, { kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() }));
       for (let i = 0; i < 8; i++) b.delete(col.doc(did + "_" + i));
     } else {
       b.set(col.doc(docId), Object.assign(base, { kind: c.kind, url: c.url || "", hasData: !!c.hasData, chunks: c.chunks || 0, updatedAt: c.updatedAt || Date.now() }));
