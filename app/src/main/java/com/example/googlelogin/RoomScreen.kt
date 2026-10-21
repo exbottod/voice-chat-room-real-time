@@ -514,8 +514,8 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
         }
         seatFrame?.let { FrameOverlay(it, (size.value * 1.3f).dp) }
         }
-        Text(
-            seat?.name ?: (if (index == 0) "MC" else "No.${index + 1}"),
+        VipNameByUid(
+            seat?.name ?: (if (index == 0) "MC" else "No.${index + 1}"), seat?.uid,
             color = Color(0xFFBDBDBD), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center, modifier = Modifier.width(size + 8.dp),
         )
@@ -615,7 +615,7 @@ private fun RmSeatProfile(
                 sheetFrame?.let { FrameOverlay(it, 104.dp) }
             }
             Spacer(Modifier.height(8.dp))
-            Text(seat.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+         VipNameByUid(seat.name, seat.uid, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text(tr("Lihat profil ›"), color = Gold, fontSize = 12.sp)
         }
         Spacer(Modifier.height(14.dp))
@@ -873,8 +873,8 @@ private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f, fill = false)) {
             Row(Modifier.clickable { onProfile(m.uid) }, verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    shownName, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                VipNameText(
+                    shownName, u?.vip ?: 0, u?.vipUntil ?: 0L, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 13.sp,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 160.dp),
                 )
                 Spacer(Modifier.width(6.dp))
