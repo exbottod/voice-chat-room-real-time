@@ -83,8 +83,11 @@ fun PartyTab(
     }
     val shown = when {
         subTab == 0 -> allRooms.filter { it.ownerUid == myUid }
-        filter == 0 -> allRooms.filter { it.online > 0 }.sortedByDescending { it.online }
-        else -> allRooms.filter { it.online > 0 }
+        filter == 0 -> allRooms.filter { it.pinned || it.online > 0 }
+            .sortedByDescending { it.online }
+            .sortedByDescending { if (it.pinned) it.pinnedAt.coerceAtLeast(1L) else 0L }
+        else -> allRooms.filter { it.pinned || it.online > 0 }
+            .sortedByDescending { if (it.pinned) it.pinnedAt.coerceAtLeast(1L) else 0L }
     }
 
     PullToRefreshBox(
