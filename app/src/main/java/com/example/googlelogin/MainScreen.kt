@@ -157,74 +157,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
     }
 
-    CompositionLocalProvider(LocalActions provides actions) {
-        Box(Modifier.fillMaxSize()) {
-            RoyalBackground()
-            Scaffold(
-                containerColor = Color.Transparent,
-                bottomBar = {
-                    NavigationBar(containerColor = Color(0xFF0B0B0B)) {
-                        items.forEachIndexed { index, item ->
-                            NavigationBarItem(
-                                selected = selected == index,
-                                onClick = { selected = index },
-                                icon = { Icon(item.icon, contentDescription = item.label) },
-                                label = { Text(tr(item.label)) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = Color.Black,
-                                    selectedTextColor = Gold,
-                                    indicatorColor = Gold,
-                                    unselectedIconColor = Color(0xFF9A9A9A),
-                                    unselectedTextColor = Color(0xFF9A9A9A),
-                                ),
-                            )
-                        }
-                    }
-                },
-            ) { padding ->
-                // Tab profil memakai header sampai ke bawah status bar, jadi tanpa padding atas.
-                val contentPadding = if (selected == 4) {
-                    PaddingValues(bottom = padding.calculateBottomPadding())
-                } else padding
-                Box(Modifier.fillMaxSize().padding(contentPadding)) {
-                    when (selected) {
-                        0 -> PartyTab(
-                            myUid = uid,
-                            myName = myName,
-                            onSearch = { overlay = OV_SEARCH },
-                            onEnterRoom = ::enterRoom,
-                        )
-                        1 -> MomentTab(
-                            myUid = uid,
-                            onPost = { overlay = OV_POST },
-                            onComments = { commentMoment = it },
-                        )
-                        2 -> FamilyTab()
-                        3 -> ChatListTab(myUid = uid)
-                        else -> ProfileTab(
-                            user = user,
-                            profile = profile,
-                            userId = userId,
-                            onEditClick = { overlay = OV_EDIT },
-                            onInviteClick = { overlay = OV_INVITE },
-                            onSettingsClick = { overlay = OV_SETTINGS },
-                            onSignOutClick = onSignOutClick,
-                            coins = wallet.coins,
-                            following = following,
-                            fans = fans,
-                            onWalletClick = { showWallet = true },
-                            onProfileClick = { fullProfileUid = uid },
-                            wallet = wallet,
-                            onVipClick = { showVip = true },
-                            onLevelClick = { showLevel = true },
-                            onStoreClick = { showStore = true },
-                            onGloryClick = { showGlory = true },
-                        )
-                    }
-                }
-            }
-
-            when (overlay) {
+    when (overlay) {
                 OV_EDIT -> EditProfileScreen(
                     user = user,
                     userId = userId,
