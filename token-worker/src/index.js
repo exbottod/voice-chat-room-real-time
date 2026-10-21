@@ -55,8 +55,9 @@ async function handleUpload(req, env) {
   const auth = req.headers.get('Authorization') || '';
   const p = await verifyFirebase(auth.startsWith('Bearer ') ? auth.slice(7) : '', env.FIREBASE_PROJECT_ID);
   const admin = String(env.ADMIN_EMAIL || '').toLowerCase();
-  if (!admin || String(p.email || '').toLowerCase() !== admin || p.email_verified !== true || !p.firebase || p.firebase.sign_in_provider !== 'google.com') {
-    return json({ error: 'hanya admin' }, 403);
+  const provider = p.firebase && p.firebase.sign_in_provider;
+  if (!admin || String(p.email || '').toLowerCase() !== admin || provider !== 'google.com') {
+    return json({ error: 'hanya admin (login: ' + provider + ', email: ' + (p.email || '-') + ')' }, 403);
   }
   if (!env.CLOUDINARY_CLOUD || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
     return json({ error: 'secret Cloudinary belum diisi' }, 500);
