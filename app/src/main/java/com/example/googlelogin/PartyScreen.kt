@@ -144,8 +144,9 @@ fun PartyTab(
                     EmptyBlock(if (subTab == 0) "Belum ada room milik Anda" else "Belum ada room aktif.\nTekan + untuk membuat room")
                 }
             } else {
-                items(shown, key = { it.id }) { room ->
-                    RoomCardView(room, onClick = { open(room) })
+                items(shown.size, key = { shown[it].id }) { i ->
+                    val room = shown[i]
+                    RoomCardView(room, rank = if (subTab == 1 && i < 3) i + 1 else 0, onClick = { open(room) })
                 }
             }
         }
