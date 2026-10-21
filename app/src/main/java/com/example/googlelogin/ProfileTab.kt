@@ -126,6 +126,7 @@ fun ProfileTab(
     onLevelClick: () -> Unit = {},
     onStoreClick: () -> Unit = {},
     onGloryClick: () -> Unit = {},
+    onFamilyClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -138,7 +139,7 @@ fun ProfileTab(
     fun soon(label: String) =
         Toast.makeText(context, "$label segera hadir", Toast.LENGTH_SHORT).show()
 
-    Column(
+Column(
         modifier = Modifier
             .fillMaxSize()
             .background(PageBg)
@@ -328,7 +329,7 @@ fun ProfileTab(
                 MenuItem("🎨", "Pusat kustom") { soon("Pusat kustom") }
                 MenuItem("🏪", "Store & My Item") { onStoreClick() }
                 MenuItem("🧰", "Alat peraga") { soon("Alat peraga") }
-                MenuItem("🏰", "Family", trailing = "Liga Peringkat Fam") { soon("Family") }
+                MenuItem("🏰", "Family", trailing = "Liga Peringkat Fam") { onFamilyClick() }
                 MenuItem("🏠", "CP house") { soon("CP house") }
                 MenuItem("⚙️", "Pengaturan") { onSettingsClick() }
                 MenuItem("❓", "Bantuan") { soon("Bantuan") }
@@ -345,3 +346,4 @@ fun ProfileTab(
         }
     }
 }
+                       
