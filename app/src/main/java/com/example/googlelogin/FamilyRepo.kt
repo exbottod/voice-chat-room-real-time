@@ -28,15 +28,13 @@ data class FamilyMember(
     val uid: String = "",
     val name: String = "",
     val avatarB64: String? = null,
-    val role: String = "member",
+    val role: String = "member", // owner | admin | member
     val contribution: Long = 0L,
     val joinedAt: Long = 0L,
 )
 
 data class FamilyRequest(val uid: String, val name: String, val avatarB64: String?, val createdAt: Long)
-
 data class FamilyTask(val id: String, val title: String, val desc: String, val reward: Long, val target: Long)
-
 data class FamilyEvent(val id: String, val title: String, val text: String, val createdAt: Long, val byName: String)
 
 val FAMILY_TASKS = listOf(
@@ -54,6 +52,7 @@ val FAMILY_CLASSES = listOf(
     FamilyClass("Gold", "IV", 1_500_000_000L, "Dapatkan Dolar", "Medali Kelas", "Bingkai avatar"),
 )
 
+/** Level family dari total exp. Lv.1 mulai 0, tiap level butuh ambang yang naik. */
 fun familyLevelNeed(level: Int): Long = when (level) {
     1 -> 0L
     2 -> 1_000_000L
@@ -100,13 +99,14 @@ object FamilyRepo {
         labelChangedAt = getLong("labelChangedAt") ?: 0L,
     )
 
+    /** Pantau family milik user (null kalau belum punya). */
     fun observeMy(uid: String, onChange: (Family?, Boolean) -> Unit): Reg {
         var famReg: ListenerRegistration? = null
         val memReg = userFam(uid).addSnapshotListener { snap, _ ->
             famReg?.remove()
             famReg = null
-            val fid = snap?.getString("familyId")
             if (snap == null) return@addSnapshotListener
+            val fid = snap.getString("familyId")
             if (fid.isNullOrBlank()) {
                 onChange(null, true)
             } else {
@@ -180,7 +180,7 @@ object FamilyRepo {
 
     suspend fun topFamilies(): List<Family> =
         db().collection("families").orderBy("exp", Query.Direction.DESCENDING).limit(30).get().await().documents.map { it.toFamily() }
-        
+
     suspend fun create(
         uid: String, myName: String, myAvatar: String?, name: String, label: String,
         logoB64: String?, needApproval: Boolean,
@@ -270,19 +270,21 @@ object FamilyRepo {
         fam(fid).collection("members").document(uid).update("role", role).await(); null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
-    suspend fun saveSettings(f: Family, name: String, label: String, logoB64: String?, needApproval: Boolean): String? = try {
-        val now = System.currentTimeMillis()
-        val upd = hashMapOf<String, Any?>("logoB64" to logoB64, "needApproval" to needApproval)
-        if (name != f.name) {
-            if (now - f.nameChangedAt < MONTH_MS) return "Nama family hanya dapat diubah 1 kali per bulan"
-            upd["name"] = name; upd["nameChangedAt"] = now
-        }
-        if (label != f.label) {
-            if (now - f.labelChangedAt < MONTH_MS) return "Label family hanya dapat diubah 1 kali per bulan"
-            upd["label"] = label; upd["labelChangedAt"] = now
-        }
-        fam(f.id).set(upd, SetOptions.merge()).await(); null
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
+    suspend fun saveSettings(f: Family, name: String, label: String, logoB64: String?, needApproval: Boolean): String? {
+        return try {
+            val now = System.currentTimeMillis()
+            val upd = hashMapOf<String, Any?>("logoB64" to logoB64, "needApproval" to needApproval)
+            if (name != f.name) {
+                if (now - f.nameChangedAt < MONTH_MS) return "Nama family hanya dapat diubah 1 kali per bulan"
+                upd["name"] = name; upd["nameChangedAt"] = now
+            }
+            if (label != f.label) {
+                if (now - f.labelChangedAt < MONTH_MS) return "Label family hanya dapat diubah 1 kali per bulan"
+                upd["label"] = label; upd["labelChangedAt"] = now
+            }
+            fam(f.id).set(upd, SetOptions.merge()).await(); null
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
+    }
 
     suspend fun setAnnouncement(fid: String, text: String): String? = try {
         fam(fid).update("announcement", text).await(); null
@@ -302,6 +304,7 @@ object FamilyRepo {
         fam(fid).collection("events").document(id).delete().await(); null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
+    /** Selesaikan tugas harian: tambah exp family & kontribusi anggota. Satu kali per tugas per hari. */
     suspend fun completeTask(fid: String, uid: String, t: FamilyTask): String? = try {
         val day = System.currentTimeMillis() / 86_400_000L
         val logRef = fam(fid).collection("taskLog").document("$uid-${t.id}-$day")
@@ -316,6 +319,7 @@ object FamilyRepo {
         err
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
+    /** Hapus family: hanya pemilik. Semua anggota dikeluarkan lalu dokumen dihapus. */
     suspend fun delete(fid: String): String? = try {
         val members = fam(fid).collection("members").get().await().documents
         for (chunk in members.chunked(200)) {
