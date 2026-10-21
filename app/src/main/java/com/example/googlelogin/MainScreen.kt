@@ -140,7 +140,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         StoreCatalog.start()
     }
 
-    // Item VIP (gelar, bingkai, gelembung, efek masuk) otomatis masuk My Item, termasuk VIP yang dibeli sebelumnya
+    // Item VIP otomatis masuk My Item, termasuk VIP yang dibeli sebelumnya
     LaunchedEffect(wallet.vip, wallet.vipUntil, wallet.inv.size) {
         if (uid.isNotEmpty()) LvRepo.backfillVip(uid, wallet)
     }
