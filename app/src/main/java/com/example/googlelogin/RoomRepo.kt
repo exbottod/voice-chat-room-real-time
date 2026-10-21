@@ -22,6 +22,8 @@ data class RoomInfo(
     val lockHash: String,
     val online: Int,
     val lockedSeats: List<Int> = emptyList(),
+    val pinned: Boolean = false,
+    val pinnedAt: Long = 0L,
 ) {
     val locked: Boolean get() = lockHash.isNotEmpty()
 }
@@ -53,6 +55,8 @@ object RoomRepo {
             lockHash = getString("lockHash") ?: "",
             online = (getLong("online") ?: 0L).toInt().coerceAtLeast(0),
             lockedSeats = (get("lockedSeats") as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(),
+            pinned = getBoolean("pinned") ?: false,
+            pinnedAt = getLong("pinnedAt") ?: 0L,
         )
     }
 
