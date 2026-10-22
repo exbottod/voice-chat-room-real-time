@@ -161,7 +161,6 @@ fun RoomScreen(
         }
         onDispose {
             resetDrafts()
-            MusicEngine.reset()
             a.remove()
             b.remove()
             c.remove()
@@ -361,42 +360,6 @@ fun RoomScreen(
                     onChat = { u -> seatSheet = null; appActions.openChat(u) },
                     onFollowChanged = { },
                     onOpenFull = { seatSheet = null; appActions.openFullProfile(s.uid) },
-                    topAction = if (isOwner && s.uid != myUid) {
-                        {
-                            var menu by remember { mutableStateOf(false) }
-                            Box {
-                                Text("⋮", color = GoldLight, fontSize = 26.sp, modifier = Modifier.padding(6.dp).clickable { menu = true })
-                                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Color(0xFF1E1A16)) {
-                                    DropdownMenuItem(
-                                        text = { Text(tr("Kick dari room"), color = Color(0xFFFF6B6B)) },
-                                        onClick = {
-                                            menu = false
-                                            seatSheet = null
-                                            scope.launch {
-                                                val err = RoomRepo.kickFromRoom(r.id, s.uid)
-                                                if (err != null) {
-                                                    toast(err)
-                                                } else {
-                                                    toast("${s.name} dikeluarkan dari room")
-                                                    RoomExtras.sendChat(r.id, myUid, myName, "🦾 ${s.name} dikeluarkan dari room")
-                                                }
-                                            }
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(tr("Kunci mic"), color = Color.White) },
-                                        onClick = {
-                                            menu = false
-                                            seatSheet = null
-                                            scope.launch { RoomExtras.lockSeat(r.id, idx)?.let { toast(it) } }
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        null
-                    },
                     extra = {
                         if (s.uid == myUid) {
                             ProfileSheetAction(tr("Turun Mic"), "⬇") {
@@ -405,6 +368,24 @@ fun RoomScreen(
                             }
                             ProfileSheetAction(if (s.muted) "Buka mic" else "Matikan mic", if (s.muted) "🎤" else "🔇") {
                                 scope.launch { RoomRepo.setSeatMuted(r.id, idx, !s.muted) }
+                            }
+                        }
+                        if (isOwner && s.uid != myUid) {
+                            ProfileSheetAction(tr("Kick dari room"), "🚫") {
+                                seatSheet = null
+                                scope.launch {
+                                    val err = RoomRepo.kickFromRoom(r.id, s.uid)
+                                    if (err != null) {
+                                        toast(err)
+                                    } else {
+                                        toast("${s.name} dikeluarkan dari room")
+                                        RoomExtras.sendChat(r.id, myUid, myName, "🦾 ${s.name} dikeluarkan dari room")
+                                    }
+                                }
+                            }
+                            ProfileSheetAction(tr("Kunci mic"), "🔒") {
+                                seatSheet = null
+                                scope.launch { RoomExtras.lockSeat(r.id, idx)?.let { toast(it) } }
                             }
                         }
                         ProfileSheetAction(tr("Hadiah"), "🎁") {
@@ -467,17 +448,6 @@ fun RoomScreen(
                         toast(RoomRepo.inviteSeat(r.id, idx, u.uid, u.name, u.avatarB64) ?: "${u.name} naik ke mic")
                     }
                 },
-            )
-        }
-
-        if (panel == P_MUSIC) {
-            MusicSheet(
-                roomId = r.id,
-                myUid = myUid,
-                myName = myName,
-                canPlay = mySeat != null,
-                onUnmute = { mySeat?.let { s2 -> scope.launch { RoomRepo.setSeatMuted(r.id, s2.index, false) } } },
-                onDismiss = { panel = P_NONE },
             )
         }
 
@@ -544,7 +514,6 @@ fun RoomScreen(
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    RmTool("Musik", onClick = { panel = P_MUSIC }) { Text("🎵", fontSize = 24.sp) }
                     RmTool(
                         "Bersihkan chat",
                         onClick = {
