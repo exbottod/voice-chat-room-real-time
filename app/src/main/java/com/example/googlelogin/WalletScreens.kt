@@ -20,16 +20,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.compose.foundation.text.KeyboardOptions
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 
-const val DIAMOND_PER_COIN = 2L          // 2 diamond = 1 coin
+const val DIAMOND_PER_COIN = 2L // 2 diamond = 1 coin
 const val INVITE_REWARD_COINS = 10_000_000L
-const val TOPUP_TEST_MODE = true         // true = isi coin gratis (mode uji, belum ada pembayaran)
+const val TOPUP_TEST_MODE = true // true = isi coin gratis (mode uji, belum ada pembayaran)
 
 data class Wallet(
     val coins: Long = 0L,
@@ -41,11 +44,22 @@ data class Wallet(
     val equip: Map<String, String> = emptyMap(),
     val lvClaimed: Long = 0L,
 )
-data class Gift(val id: String, val name: String, val emoji: String, val price: Long)
+
+data class Gift(
+    val id: String,
+    val name: String,
+    val emoji: String,
+    val price: Long,
+    val mediaUrl: String = "",
+    val mediaType: String = "",
+    val special: Boolean = false,
+    val jpRate: Int = 0,
+    val jpMult: Long = 0L,
+)
 
 val GIFTS = listOf(
     Gift("rose", "Mawar", "🌹", 10),
-    Gift("heart", "Hati", "❤️", 50),
+    Gift("heart", "Hati", "❤", 50),
     Gift("coffee", "Kopi", "☕", 100),
     Gift("lucky", "Lucky bag", "💰", 500),
     Gift("bear", "Bear hug", "🧸", 1200),
@@ -53,7 +67,7 @@ val GIFTS = listOf(
     Gift("raksha", "Raksha Bandhan", "🪔", 4800),
     Gift("ring", "Cincin", "💍", 20000),
     Gift("car", "Mobil sport", "🚗", 99000),
-    Gift("plane", "Pesawat", "✈️", 250000),
+    Gift("plane", "Pesawat", "✈", 250000),
     Gift("dussehra", "Dussehra", "🏹", 900000),
     Gift("dragon", "Naga emas", "🐉", 1000000),
     Gift("hdussehra", "Happy Dussehra", "🔱", 1800000),
@@ -65,6 +79,7 @@ val GIFTS = listOf(
 /** Salinan dompet terakhir di perangkat (SharedPreferences). */
 object WalletCache {
     private var prefs: android.content.SharedPreferences? = null
+
     fun init(ctx: android.content.Context) {
         if (prefs == null) prefs = ctx.applicationContext.getSharedPreferences("wallet_cache", android.content.Context.MODE_PRIVATE)
     }
@@ -77,7 +92,8 @@ object WalletCache {
                 .put("inv", org.json.JSONObject(w.inv as Map<*, *>))
                 .put("equip", org.json.JSONObject(w.equip as Map<*, *>))
             prefs?.edit()?.putString(uid, o.toString())?.apply()
-        } catch (e: Exception) { }
+        } catch (e: Exception) {
+        }
     }
 
     fun load(uid: String): Wallet? = try {
@@ -85,11 +101,44 @@ object WalletCache {
         val inv = o.optJSONObject("inv")?.let { j -> j.keys().asSequence().associateWith { j.getLong(it) } } ?: emptyMap()
         val eq = o.optJSONObject("equip")?.let { j -> j.keys().asSequence().associateWith { j.getString(it) } } ?: emptyMap()
         Wallet(
-            coins = o.optLong("coins"), diamonds = o.optLong("diamonds"), exp = o.optLong("exp"),
-            vip = o.optInt("vip"), vipUntil = o.optLong("vipUntil"), inv = inv, equip = eq,
+            coins = o.optLong("coins"),
+            diamonds = o.optLong("diamonds"),
+            exp = o.optLong("exp"),
+            vip = o.optInt("vip"),
+            vipUntil = o.optLong("vipUntil"),
+            inv = inv,
+            equip = eq,
             lvClaimed = o.optLong("lvClaimed"),
         )
-    } catch (e: Exception) { null }
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/** Baca dokumen dompet Firestore jadi Wallet (private, supaya tidak bentrok dengan fungsi serupa di file lain). */
+private fun parseWalletDoc(s: DocumentSnapshot): Wallet {
+    val inv = HashMap<String, Long>()
+    (s.get("inv") as? Map<*, *>)?.forEach { (k, v) ->
+        val key = k as? String
+        val num = (v as? Number)?.toLong()
+        if (key != null && num != null) inv[key] = num
+    }
+    val eq = HashMap<String, String>()
+    (s.get("equip") as? Map<*, *>)?.forEach { (k, v) ->
+        val key = k as? String
+        val value = v as? String
+        if (key != null && value != null) eq[key] = value
+    }
+    return Wallet(
+        coins = s.getLong("coins") ?: 0L,
+        diamonds = s.getLong("diamonds") ?: 0L,
+        exp = s.getLong("exp") ?: 0L,
+        vip = (s.getLong("vip") ?: 0L).toInt(),
+        vipUntil = s.getLong("vipUntil") ?: 0L,
+        inv = inv,
+        equip = eq,
+        lvClaimed = s.getLong("lvClaimed") ?: 0L,
+    )
 }
 
 object WalletRepo {
@@ -105,7 +154,7 @@ object WalletRepo {
         return ref(uid).addSnapshotListener { s, e ->
             if (e != null || s == null) return@addSnapshotListener // error/kuota habis: pertahankan data lama
             if (!s.exists() && s.metadata.isFromCache) return@addSnapshotListener // belum ada di cache lokal
-            val w = parseWallet(s)
+            val w = parseWalletDoc(s)
             if (s.exists()) WalletCache.save(uid, w)
             onChange(w)
         }
@@ -114,7 +163,9 @@ object WalletRepo {
     suspend fun topUp(uid: String, coins: Long): String? = try {
         ref(uid).set(hashMapOf<String, Any?>("coins" to FieldValue.increment(coins)), SetOptions.merge()).await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
         e.message ?: "Gagal isi coin"
     }
 
@@ -130,11 +181,17 @@ object WalletRepo {
             val vipLv = s.getLong("vip") ?: 0L
             val vipUntil = s.getLong("vipUntil") ?: 0L
             val boost = if (vipUntil > System.currentTimeMillis()) 100L + 5L * vipLv else 100L
-            tx.set(r, hashMapOf<String, Any?>("coins" to coins - price, "diamonds" to dia + price, "exp" to exp + price * boost / 100L), SetOptions.merge())
+            tx.set(
+                r,
+                hashMapOf<String, Any?>("coins" to coins - price, "diamonds" to dia + price, "exp" to exp + price * boost / 100L),
+                SetOptions.merge(),
+            )
             true
         }.await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
         e.message ?: "Gagal mengirim gift"
     }
 
@@ -151,7 +208,9 @@ object WalletRepo {
             true
         }.await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
         e.message ?: "Gagal menukar"
     }
 }
@@ -186,13 +245,13 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     BalanceCard("🪙", "Coin", fmtNum(wallet.coins), Modifier.weight(1f))
                     BalanceCard("💎", "Diamond", fmtNum(wallet.diamonds), Modifier.weight(1f))
                 }
-
                 Spacer(Modifier.height(20.dp))
                 Text(tr("Isi coin"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(
                     if (TOPUP_TEST_MODE) "Mode uji: coin ditambahkan gratis (pembayaran belum terhubung)."
                     else "Pembayaran belum tersedia.",
-                    color = Color(0xFF9A9A9A), fontSize = 12.sp,
+                    color = Color(0xFF9A9A9A),
+                    fontSize = 12.sp,
                 )
                 Spacer(Modifier.height(8.dp))
                 listOf(1_000L, 10_000L, 100_000L, 1_000_000L, 10_000_000L).forEach { c ->
@@ -216,7 +275,6 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         }
                     }
                 }
-
                 Spacer(Modifier.height(20.dp))
                 Text(tr("Tukar diamond ke coin"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text("$DIAMOND_PER_COIN diamond = 1 coin", color = Color(0xFF9A9A9A), fontSize = 12.sp)
@@ -243,7 +301,9 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                             if (e == null) {
                                 toast("Berhasil menukar ${fmtNum(n)} diamond")
                                 amount = ""
-                            } else toast(e)
+                            } else {
+                                toast(e)
+                            }
                         }
                     }
                 }
@@ -265,7 +325,16 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
             .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(g.emoji, fontSize = 38.sp)
+        if (g.mediaUrl.isNotBlank()) {
+            AsyncImage(
+                model = g.mediaUrl,
+                contentDescription = g.name,
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Text(g.emoji, fontSize = 38.sp)
+        }
         Text(g.name, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text("${g.price} 🪙", color = Color(0xFF8FA3A0), fontSize = 12.sp, maxLines = 1)
     }
@@ -287,6 +356,8 @@ fun GiftPanel(
     val actions = LocalActions.current
     var wallet by remember { mutableStateOf(Wallet()) }
     var tab by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) { GiftCatalog.start() }
+    val gifts = GiftCatalog.list.ifEmpty { GIFTS }
     var selected by remember { mutableStateOf(GIFTS.first().id) }
     var count by remember { mutableStateOf(1) }
     var countMenu by remember { mutableStateOf(false) }
@@ -297,7 +368,7 @@ fun GiftPanel(
         val me = seats.firstOrNull { it.uid == myUid } ?: Seat(-1, myUid, myName, myAvatarB64, false)
         listOf(me) + seats.filter { it.uid.isNotBlank() && it.uid != myUid }.sortedBy { it.index }
     }
-    val pages = remember { GIFTS.chunked(8) }
+    val pages = remember(gifts) { gifts.chunked(8) }
     val pager = rememberPagerState(pageCount = { pages.size })
     val teal = Color(0xFF2BD9C4)
 
@@ -343,7 +414,10 @@ fun GiftPanel(
                         Modifier
                             .clip(allShape)
                             .background(if (allSelected) teal else Color(0xFF16302F))
-                            .clickable { allSelected = true; picked = emptySet() }
+                            .clickable {
+                                allSelected = true
+                                picked = emptySet()
+                            }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
                         Text(tr("Semua"), color = if (allSelected) Color.Black else Color(0xFF8FA3A0), fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -368,13 +442,18 @@ fun GiftPanel(
                                                 picked = setOf(s.uid)
                                             } else {
                                                 val n = if (s.uid in picked) picked - s.uid else picked + s.uid
-                                                if (n.isEmpty()) { allSelected = true; picked = emptySet() } else picked = n
+                                                if (n.isEmpty()) {
+                                                    allSelected = true
+                                                    picked = emptySet()
+                                                } else {
+                                                    picked = n
+                                                }
                                             }
                                         },
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (bmp != null) {
-                                        Image(bitmap = bmp, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                        Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                                     } else {
                                         Text(s.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
                                     }
@@ -413,11 +492,24 @@ fun GiftPanel(
             Row(Modifier.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("🪙", fontSize = 22.sp)
                 Spacer(Modifier.width(6.dp))
-                Text(fmtNum(wallet.coins), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+                Text(
+                    fmtNum(wallet.coins),
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    tr("Topup") + " ◆", color = teal, fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { onDismiss(); actions.openWallet() },
+                    tr("Topup") + " ◆",
+                    color = teal,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable {
+                        onDismiss()
+                        actions.openWallet()
+                    },
                 )
                 Spacer(Modifier.weight(1f))
                 val pill = RoundedCornerShape(50)
@@ -433,7 +525,10 @@ fun GiftPanel(
                         }
                         DropdownMenu(expanded = countMenu, onDismissRequest = { countMenu = false }) {
                             listOf(1, 10, 66, 188, 520).forEach { c ->
-                                DropdownMenuItem(text = { Text("$c") }, onClick = { count = c; countMenu = false })
+                                DropdownMenuItem(text = { Text("$c") }, onClick = {
+                                    count = c
+                                    countMenu = false
+                                })
                             }
                         }
                     }
@@ -446,7 +541,7 @@ fun GiftPanel(
                                     Toast.makeText(context, tr("Pilih penerima dulu"), Toast.LENGTH_SHORT).show()
                                     return@clickable
                                 }
-                                val g = GIFTS.first { it.id == selected }
+                                val g = gifts.firstOrNull { it.id == selected } ?: gifts.first()
                                 val perReceiver = g.price * count
                                 val total = perReceiver * receivers.size
                                 val toText = if (allSelected) "semua mic (${receivers.size})"
@@ -457,10 +552,14 @@ fun GiftPanel(
                                     if (err == null) {
                                         PublicSync.push(myUid)
                                         RoomExtras.sendGiftMessage(roomId, myName, g, count, toText)
+                                        val jp = GiftFx.sent(roomId, myUid, myName, g, count, receivers.size)
+                                        if (jp > 0) Toast.makeText(context, "🎉 JP!! +${fmtNum(jp)} koin masuk dompet!", Toast.LENGTH_LONG).show()
                                         val rerr = GiftRankRepo.record(myUid, myName, roomId, perReceiver, receivers)
                                         Toast.makeText(context, "Gift terkirim! +${fmtNum(total)} diamond", Toast.LENGTH_SHORT).show()
                                         if (rerr != null) Toast.makeText(context, "Ranking gagal: $rerr", Toast.LENGTH_LONG).show()
-                                    } else Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                    }
                                     sending = false
                                 }
                             }
