@@ -157,10 +157,21 @@ object GiftFx {
         } ?: return null to "File tidak bisa dibaca"
         if (bytes.size > 25 * 1024 * 1024) return null to "File terlalu besar (maks 25 MB)"
         val fname = (uri.lastPathSegment ?: "asset").substringAfterLast('/')
-        val ext = fname.substringAfterLast('.', "").lowercase()
-        if (ext !in listOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "svga")) {
-            return null to "Format tidak didukung (png, jpg, gif, webp, mp4, svga)"
-        }
+var ext = fname.substringAfterLast('.', "").lowercase()
+if (ext !in listOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "svga")) {
+    ext = when (context.contentResolver.getType(uri) ?: "") {
+        "image/png" -> "png"
+        "image/jpeg" -> "jpg"
+        "image/gif" -> "gif"
+        "image/webp" -> "webp"
+        "video/mp4" -> "mp4"
+        else -> ""
+    }
+}
+if (ext !in listOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "svga")) {
+    return null to "Format tidak didukung (png, jpg, gif, webp, mp4, svga)"
+}
+        val uploadName = "gift." + (if (ext == "jpeg") "jpg" else ext)
         val boundary = "giftfx${System.currentTimeMillis()}"
         return try {
             val c = (URL(endpoint).openConnection() as HttpURLConnection).apply {
@@ -173,7 +184,7 @@ object GiftFx {
             }
             c.outputStream.use { out ->
                 out.write("--$boundary\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\ngift\r\n".toByteArray())
-                out.write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"$fname\"\r\nContent-Type: application/octet-stream\r\n\r\n".toByteArray())
+                out.write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"$uploadName\"\r\nContent-Type: application/octet-stream\r\n\r\n".toByteArray())
                 out.write(bytes)
                 out.write("\r\n--$boundary--\r\n".toByteArray())
             }
