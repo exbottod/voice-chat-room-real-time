@@ -83,13 +83,21 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private const val P_NONE = 0
+
 private const val P_POWER = 1
+
 private const val P_TOOLS = 2
+
 private const val P_MODE = 3
+
 private const val P_SETTINGS = 4
+
 private const val P_LOCK = 5
+
 private const val P_CLEAR = 6
+
 private const val P_MUSIC = 7
+
 private const val P_BLACKLIST = 8
 
 private val Teal = Color(0xFF2BD9C4)
@@ -183,7 +191,6 @@ fun RoomScreen(
             else -> onMinimize()
         }
     }
-
     val r = room?.copy(online = members.size, lockedSeats = locks.toList())
 
     Box(Modifier.fillMaxSize().blockTouches()) {
@@ -211,7 +218,7 @@ fun RoomScreen(
         LaunchedEffect(r.ownerUid) {
             if (ownerUserId == null) {
                 ownerUserId = (if (r.ownerUid == myUid) UserDirectory.cachedId(context, myUid) else UserCache.byUid(r.ownerUid)?.userId)
-                    ?: r.roomNo
+                ?: r.roomNo
             }
         }
         val mySeat = seats.values.firstOrNull { it.uid == myUid }
@@ -309,12 +316,12 @@ fun RoomScreen(
             // Bar bawah
             if (emoteOpen) {
                 RoomEmoteBar(onPick = { e ->
-                    emoteOpen = false
-                    if (mySeat == null) {
-                        toast("Naik mic dulu untuk kirim emot")
-                    } else {
-                        scope.launch { RoomExtras.sendEmote(r.id, myUid, e)?.let { toast(it) } }
-                    }
+                        emoteOpen = false
+                        if (mySeat == null) {
+                            toast("Naik mic dulu untuk kirim emot")
+                        } else {
+                            scope.launch { RoomExtras.sendEmote(r.id, myUid, e)?.let { toast(it) } }
+                        }
                 })
             }
             if (typing) {
@@ -505,6 +512,7 @@ fun RoomScreen(
         }
         GiftBanner(r.id)
         VipEntryEffect(r.id)
+        GiftFxOverlay(r.id)
 
         // Tombol power: keluar / minimalkan
         if (panel == P_POWER) {
@@ -623,7 +631,6 @@ fun RoomScreen(
                 }
             }
         }
-
         if (panel == P_MODE) RmPanel(onDismiss = { panel = P_NONE }) { RmMode(r) { panel = P_NONE } }
         if (panel == P_SETTINGS) RmPanel(onDismiss = { panel = P_NONE }) { RmSettings(r) { panel = P_NONE } }
         if (panel == P_LOCK) RmPanel(onDismiss = { panel = P_NONE }) { RmLock(r) { panel = P_NONE } }
@@ -654,14 +661,14 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
         Box(Modifier.size(size), contentAlignment = Alignment.Center) {
             Box(
                 Modifier.size(size).clip(CircleShape).background(Color(0xFF0F3D33))
-                    .then(if (seatFrame != null) Modifier else Modifier.border(2.dp, Teal, CircleShape)),
+                .then(if (seatFrame != null) Modifier else Modifier.border(2.dp, Teal, CircleShape)),
                 contentAlignment = Alignment.Center,
             ) {
                 when {
                     seat != null && bmp != null ->
-                        Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     seat != null ->
-                        Text(seat.name.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    Text(seat.name.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                     seat == null && locked -> Text("🔒", fontSize = (size.value * 0.42f).sp)
                     index == 0 -> MicIcon(true, Modifier.size(size * 0.5f), Gold)
                     else -> Text("💺", fontSize = (size.value * 0.42f).sp)
@@ -726,15 +733,15 @@ private fun RmPanel(onDismiss: () -> Unit, content: @Composable ColumnScope.() -
     ) {
         Column(
             Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
-                .background(Color(0xFF0B0B0B))
-                .blockTouches()
-                .navigationBarsPadding()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+            .background(Color(0xFF0B0B0B))
+            .blockTouches()
+            .navigationBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
             content = content,
         )
     }
@@ -879,7 +886,7 @@ private fun RmMode(r: RoomInfo, onClose: () -> Unit) {
                         n,
                         on,
                         Modifier.fillMaxWidth().height(70.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1C1C1C))
-                            .border(2.dp, if (on) Teal else Color(0xFF333333), RoundedCornerShape(10.dp)).padding(8.dp),
+                        .border(2.dp, if (on) Teal else Color(0xFF333333), RoundedCornerShape(10.dp)).padding(8.dp),
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -937,7 +944,7 @@ private fun RmSettings(r: RoomInfo, onClose: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 Modifier.size(72.dp).clip(CircleShape).background(Color(0xFF1E1E1E)).border(2.dp, Gold, CircleShape)
-                    .clickable(enabled = !busy) { photoPicker.launch(imageOnly) },
+                .clickable(enabled = !busy) { photoPicker.launch(imageOnly) },
                 contentAlignment = Alignment.Center,
             ) {
                 if (photoBmp != null) {
@@ -951,7 +958,7 @@ private fun RmSettings(r: RoomInfo, onClose: () -> Unit) {
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1E1E1E))
-                    .border(1.dp, Gold, RoundedCornerShape(12.dp)).clickable(enabled = !busy) { bgPicker.launch(imageOnly) },
+                .border(1.dp, Gold, RoundedCornerShape(12.dp)).clickable(enabled = !busy) { bgPicker.launch(imageOnly) },
                 contentAlignment = Alignment.Center,
             ) {
                 if (bgBmp != null) {
@@ -1049,19 +1056,19 @@ fun FloatingRoomBubble(room: RoomInfo, onClick: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier
-                .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
-                .size(60.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF1E1E1E))
-                .border(2.dp, Gold, CircleShape)
-                .pointerInput(Unit) {
-                    detectDragGestures { change, drag ->
-                        change.consume()
-                        x = (x + drag.x).coerceIn(0f, maxX)
-                        y = (y + drag.y).coerceIn(0f, maxY)
-                    }
+            .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
+            .size(60.dp)
+            .clip(CircleShape)
+            .background(Color(0xFF1E1E1E))
+            .border(2.dp, Gold, CircleShape)
+            .pointerInput(Unit) {
+                detectDragGestures { change, drag ->
+                    change.consume()
+                    x = (x + drag.x).coerceIn(0f, maxX)
+                    y = (y + drag.y).coerceIn(0f, maxY)
                 }
-                .clickable(onClick = onClick),
+            }
+            .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
             if (bmp != null) {
@@ -1119,7 +1126,7 @@ private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
             val bAsset = if (bTier in 1..9) VipAssets.get(bTier, "bubble") else null
             Box(
                 Modifier.widthIn(max = 280.dp).clip(RoundedCornerShape(12.dp))
-                    .then(if (bAsset == null) Modifier.background(bubbleColor(u?.bubble)) else Modifier),
+                .then(if (bAsset == null) Modifier.background(bubbleColor(u?.bubble)) else Modifier),
             ) {
                 if (bAsset != null) {
                     androidx.compose.runtime.key(bTier) {
