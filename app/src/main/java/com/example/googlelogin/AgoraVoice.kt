@@ -38,13 +38,19 @@ object AgoraVoice {
     private var engine: RtcEngine? = null
 
     @Volatile private var inChannel = false
+
     @Volatile private var roomId: String? = null
+
     @Volatile private var wantSpeaking = false
+
     @Volatile private var muteRemote = false
     private var joinJob: Job? = null
 
     private val handler = object : IRtcEngineEventHandler() {
-        override fun onError(err: Int) { Log.e(TAG, "onError $err") }
+        override fun onError(err: Int) {
+            Log.e(TAG, "onError $err")
+        }
+
         override fun onTokenPrivilegeWillExpire(token: String?) {
             val r = roomId ?: return
             scope.launch { fetchToken(r)?.let { engine?.renewToken(it) } }
@@ -53,7 +59,10 @@ object AgoraVoice {
 
     private fun ensure(ctx: Context): RtcEngine? {
         engine?.let { return it }
-        if (BuildConfig.AGORA_APP_ID.isBlank()) { Log.e(TAG, "AGORA_APP_ID kosong"); return null }
+        if (BuildConfig.AGORA_APP_ID.isBlank()) {
+            Log.e(TAG, "AGORA_APP_ID kosong")
+            return null
+        }
         return try {
             val cfg = RtcEngineConfig().apply {
                 mContext = ctx.applicationContext
@@ -66,12 +75,18 @@ object AgoraVoice {
                 it.enableAudio()
                 engine = it
             }
-        } catch (e: Exception) { Log.e(TAG, "init gagal", e); null }
+        } catch (e: Exception) {
+            Log.e(TAG, "init gagal", e)
+            null
+        }
     }
 
     private suspend fun fetchToken(channel: String): String? {
         val url = BuildConfig.AGORA_TOKEN_URL
-        if (url.isBlank()) { Log.e(TAG, "AGORA_TOKEN_URL kosong"); return null }
+        if (url.isBlank()) {
+            Log.e(TAG, "AGORA_TOKEN_URL kosong")
+            return null
+        }
         return try {
             val idToken = FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token ?: return null
             val c = (URL(url).openConnection() as HttpURLConnection).apply {
@@ -88,8 +103,11 @@ object AgoraVoice {
                 return null
             }
             JSONObject(c.inputStream.bufferedReader().readText()).getString("token")
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-            Log.e(TAG, "token error", e); null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "token error", e)
+            null
         }
     }
 
@@ -100,7 +118,10 @@ object AgoraVoice {
         roomId = id
         joinJob = scope.launch {
             val e = ensure(app) ?: return@launch
-            if (inChannel) { e.leaveChannel(); inChannel = false }
+            if (inChannel) {
+                e.leaveChannel()
+                inChannel = false
+            }
             val token = fetchToken(id) ?: return@launch
             if (roomId != id) return@launch
             val opt = ChannelMediaOptions().apply {
@@ -110,7 +131,10 @@ object AgoraVoice {
                 publishMicrophoneTrack = false
             }
             val r = e.joinChannel(token, id, 0, opt)
-            if (r != 0) { Log.e(TAG, "joinChannel gagal: $r"); return@launch }
+            if (r != 0) {
+                Log.e(TAG, "joinChannel gagal: $r")
+                return@launch
+            }
             inChannel = true
             e.muteAllRemoteAudioStreams(muteRemote)
             applyRole()
@@ -130,9 +154,15 @@ object AgoraVoice {
     }
 
     /** true = broadcaster + kirim mic; false = audience. Aman dipanggil sebelum join selesai. */
-    fun setSpeaking(on: Boolean) { wantSpeaking = on; applyRole() }
+    fun setSpeaking(on: Boolean) {
+        wantSpeaking = on
+        applyRole()
+    }
 
-    fun muteRoom(mute: Boolean) { muteRemote = mute; engine?.muteAllRemoteAudioStreams(mute) }
+    fun muteRoom(mute: Boolean) {
+        muteRemote = mute
+        engine?.muteAllRemoteAudioStreams(mute)
+    }
 
     fun leave() {
         joinJob?.cancel()
@@ -141,6 +171,61 @@ object AgoraVoice {
         muteRemote = false
         engine?.leaveChannel()
         inChannel = false
+    }
+
+    // ---------- Musik room (audio mixing) ----------
+    // replace=false: musik dicampur dengan suara mic DJ lalu dikirim ke channel,
+    // sehingga terdengar oleh SEMUA pengguna di room (bukan hanya di perangkat DJ).
+
+    /** Putar file musik. loop=true memutar berulang tanpa henti. */
+    fun startMusic(path: String, loop: Boolean): Boolean {
+        val e = engine ?: return false
+        wantSpeaking = true // pastikan role broadcaster agar musik terkirim
+        applyRole()
+        val r = e.startAudioMixing(path, false, false, if (loop) -1 else 1)
+        if (r != 0) Log.e(TAG, "startAudioMixing gagal $r")
+        return r == 0
+    }
+
+    fun stopMusic() {
+        engine?.stopAudioMixing()
+    }
+
+    fun pauseMusic() {
+        engine?.pauseAudioMixing()
+    }
+
+    fun resumeMusic() {
+        engine?.resumeAudioMixing()
+    }
+
+    fun seekMusic(ms: Long) {
+        try {
+            engine?.setAudioMixingPosition(ms.toInt())
+        } catch (e: Exception) {
+        }
+    }
+
+    /** Durasi lagu berjalan (ms), -1 kalau tidak ada. */
+    fun musicDurationMs(): Int = try {
+        engine?.getAudioMixingDuration() ?: -1
+    } catch (e: Exception) {
+        -1
+    }
+
+    /** Posisi lagu berjalan (ms). */
+    fun musicPositionMs(): Int = try {
+        engine?.getAudioMixingCurrentPosition() ?: 0
+    } catch (e: Exception) {
+        0
+    }
+
+    /** Volume musik 0..100 (terpisah dari volume mic). */
+    fun setMusicVolume(v: Int) {
+        try {
+            engine?.adjustAudioMixingVolume(v.coerceIn(0, 100))
+        } catch (e: Exception) {
+        }
     }
 }
 
@@ -161,7 +246,11 @@ fun AgoraRoomBridge(roomId: String, myUid: String) {
         val b = RoomRepo.observeSeats(roomId) { seats ->
             mySeat = seats.values.firstOrNull { it.uid == myUid }
         }
-        onDispose { a.remove(); b.remove(); AgoraVoice.leave() }
+        onDispose {
+            a.remove()
+            b.remove()
+            AgoraVoice.leave()
+        }
     }
 
     val onSeat = mySeat != null && myUid in members
