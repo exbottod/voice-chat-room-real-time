@@ -182,7 +182,7 @@ object AgoraVoice {
         val e = engine ?: return false
         wantSpeaking = true // pastikan role broadcaster agar musik terkirim
         applyRole()
-        val r = e.startAudioMixing(path, false, false, if (loop) -1 else 1)
+        val r = e.startAudioMixing(path, false, if (loop) -1 else 1)
         if (r != 0) Log.e(TAG, "startAudioMixing gagal $r")
         return r == 0
     }
