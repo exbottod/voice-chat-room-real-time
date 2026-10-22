@@ -29,7 +29,17 @@ data class RoomInfo(
 }
 
 data class Seat(val index: Int, val uid: String, val name: String, val avatarB64: String?, val muted: Boolean)
-data class RoomMsg(val id: String, val text: String, val createdAt: Long, val uid: String = "", val name: String = "", val vip: Int = 0, val vipUid: String = "", val entry: String = "")
+
+data class RoomMsg(
+    val id: String,
+    val text: String,
+    val createdAt: Long,
+    val uid: String = "",
+    val name: String = "",
+    val vip: Int = 0,
+    val vipUid: String = "",
+    val entry: String = "",
+)
 
 fun sha256(s: String): String =
     MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
@@ -63,7 +73,11 @@ object RoomRepo {
     suspend fun findOwned(ownerUid: String): RoomInfo? = try {
         db().collection("rooms").whereEqualTo("ownerUid", ownerUid).limit(1).get().await()
             .documents.firstOrNull()?.toRoom()
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
 
     suspend fun createRoom(ownerUid: String, ownerName: String, name: String, photoB64: String?): RoomInfo {
         findOwned(ownerUid)?.let { return it }
@@ -101,7 +115,8 @@ object RoomRepo {
                 val i = c.key?.toIntOrNull() ?: return@mapNotNull null
                 val uid = c.child("uid").getValue(String::class.java) ?: return@mapNotNull null
                 Seat(
-                    i, uid,
+                    i,
+                    uid,
                     c.child("name").getValue(String::class.java) ?: "",
                     c.child("avatarB64").getValue(String::class.java),
                     c.child("muted").value == true,
@@ -147,22 +162,71 @@ object RoomRepo {
     suspend fun clearMessages(roomId: String): String? = try {
         Rtdb.ref("messages/$roomId").removeValue().await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
         e.message ?: "Gagal menghapus chat"
     }
 
     suspend fun join(roomId: String, name: String, vip: Int = 0, entry: String = "") {
         try {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+            if (isBanned(roomId, uid)) return
             val me = Rtdb.ref("members/$roomId/$uid")
             me.onDisconnect().removeValue()
             me.setValue(true).await()
             Rtdb.ref("messages/$roomId").push().setValue(
-                hashMapOf<String, Any?>("text" to "$name masuk kamar", "createdAt" to System.currentTimeMillis(), "vip" to vip, "entry" to entry, "vipUid" to (if (vip > 0 || entry.isNotBlank()) uid else "")),
+                hashMapOf<String, Any?>(
+                    "text" to "$name masuk kamar",
+                    "createdAt" to System.currentTimeMillis(),
+                    "vip" to vip,
+                    "entry" to entry,
+                    "vipUid" to (if (vip > 0 || entry.isNotBlank()) uid else ""),
+                ),
             ).await()
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
         }
     }
+
+    /** Apakah user di-kick (daftar hitam) dari room ini. */
+    suspend fun isBanned(roomId: String, uid: String): Boolean = try {
+        Rtdb.ref("blacklist/$roomId/$uid").get().await().exists()
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Owner menendang user keluar room; user tidak bisa masuk lagi sampai kick-nya dibuka. null = sukses. */
+    suspend fun kickFromRoom(roomId: String, uid: String): String? = try {
+        val seats = Rtdb.ref("seats/$roomId").get().await()
+        val seatKey = seats.children.firstOrNull { it.child("uid").getValue(String::class.java) == uid }?.key
+        if (seatKey != null) Rtdb.ref("seats/$roomId/$seatKey").removeValue().await()
+        Rtdb.ref("members/$roomId/$uid").removeValue().await()
+        Rtdb.ref("blacklist/$roomId/$uid").setValue(true).await()
+        null
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        e.message ?: "Gagal menendang user"
+    }
+
+    /** Membuka kick: user boleh masuk room lagi. */
+    suspend fun unbanFromRoom(roomId: String, uid: String): String? = try {
+        Rtdb.ref("blacklist/$roomId/$uid").removeValue().await()
+        null
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        e.message ?: "Gagal membuka kick"
+    }
+
+    fun observeBlacklist(roomId: String, onChange: (Set<String>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("blacklist/$roomId")) { snap ->
+            onChange(snap.children.mapNotNull { it.key }.toSet())
+        }
 
     suspend fun leave(roomId: String, uid: String) {
         try {
@@ -175,7 +239,9 @@ object RoomRepo {
                 if (c.child("uid").getValue(String::class.java) == uid) upd[c.key!!] = null
             }
             if (upd.isNotEmpty()) base.updateChildren(upd).await()
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
         }
     }
 
@@ -200,7 +266,9 @@ object RoomRepo {
             }
             if (upd.isNotEmpty()) base.updateChildren(upd).await()
             null
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             e.message ?: "Gagal naik kursi"
         }
     }
@@ -208,7 +276,9 @@ object RoomRepo {
     suspend fun leaveSeat(roomId: String, index: Int) {
         try {
             Rtdb.ref("seats/$roomId/$index").removeValue().await()
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
         }
     }
 
@@ -222,7 +292,9 @@ object RoomRepo {
                     null
                 }
             }
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
         }
     }
 
@@ -237,7 +309,9 @@ object RoomRepo {
             }
             if (upd.isNotEmpty()) seatsRef.updateChildren(upd).await()
             null
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             e.message ?: "Gagal mengubah mic"
         }
     }
@@ -249,8 +323,31 @@ object RoomRepo {
             if (bgB64 != null) m["backgroundB64"] = bgB64
             roomRef(roomId).update(m).await()
             null
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             e.message ?: "Gagal menyimpan"
+        }
+    }
+
+    /** OWNER mengundang user yang ada di room naik ke kursi mic (otomatis pindah dari kursi lama). */
+    suspend fun inviteSeat(roomId: String, index: Int, uid: String, name: String, avatarB64: String?): String? {
+        return try {
+            if (Rtdb.ref("locks/$roomId/$index").get().await().exists()) return "Mic ini dikunci"
+            val base = Rtdb.ref("seats/$roomId")
+            val upd = HashMap<String, Any?>()
+            for (c in base.get().await().children) {
+                if (c.key != index.toString() && c.child("uid").getValue(String::class.java) == uid) upd[c.key!!] = null
+            }
+            if (upd.isNotEmpty()) base.updateChildren(upd).await()
+            Rtdb.ref("seats/$roomId/$index").setValue(
+                hashMapOf<String, Any?>("uid" to uid, "name" to name, "avatarB64" to avatarB64, "muted" to false),
+            ).await()
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.message ?: "Gagal mengundang ke mic"
         }
     }
 
@@ -258,7 +355,9 @@ object RoomRepo {
         return try {
             roomRef(roomId).update("lockHash", if (password == null) "" else sha256(password)).await()
             null
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             e.message ?: "Gagal mengubah kunci"
         }
     }
