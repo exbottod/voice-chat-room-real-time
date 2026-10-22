@@ -361,4 +361,11 @@ object RoomRepo {
             e.message ?: "Gagal mengubah kunci"
         }
     }
+        suspend fun getRoom(id: String): RoomInfo? = try {
+        db().collection("rooms").document(id).get().await().toRoom()
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+        }
 }
