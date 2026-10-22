@@ -1,7 +1,6 @@
 package com.example.googlelogin
 
 // PERSIST_PUB
-
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
@@ -66,23 +65,37 @@ object UserCache {
                     .put("vipUntil", u.vipUntil).put("frame", u.frame)
                     .put("bubble", u.bubble).put("badge", u.badge).toString(),
             ).apply()
-        } catch (e: Exception) { }
+        } catch (e: Exception) {
+        }
     }
 
     private fun disk(uid: String): PublicUser? = try {
         val o = org.json.JSONObject(sp().getString(uid, null) ?: "")
         PublicUser(
-            userId = o.optString("userId"), uid = uid, name = o.optString("name"),
-            countryCode = o.optString("countryCode", "ID"), bio = "", avatarB64 = null,
-            photoUrl = o.optString("photoUrl").ifBlank { null }, gender = o.optString("gender"),
-            exp = o.optLong("exp"), vip = o.optInt("vip"), vipUntil = o.optLong("vipUntil"),
-            frame = o.optString("frame"), bubble = o.optString("bubble"), badge = o.optString("badge"),
+            userId = o.optString("userId"),
+            uid = uid,
+            name = o.optString("name"),
+            countryCode = o.optString("countryCode", "ID"),
+            bio = "",
+            avatarB64 = null,
+            photoUrl = o.optString("photoUrl").ifBlank { null },
+            gender = o.optString("gender"),
+            exp = o.optLong("exp"),
+            vip = o.optInt("vip"),
+            vipUntil = o.optLong("vipUntil"),
+            frame = o.optString("frame"),
+            bubble = o.optString("bubble"),
+            badge = o.optString("badge"),
         )
-    } catch (e: Exception) { null }
+    } catch (e: Exception) {
+        null
+    }
 
     private suspend fun rtdb(uid: String, base: PublicUser?): PublicUser? = try {
         val s = kotlinx.coroutines.withTimeoutOrNull(6000L) { Rtdb.ref("pub/$uid").get().await() }
-        if (s == null || !s.exists()) null else {
+        if (s == null || !s.exists()) {
+            null
+        } else {
             val b = base ?: PublicUser("", uid, "", "ID", "", null, null)
             b.copy(
                 exp = (s.child("exp").value as? Number)?.toLong() ?: b.exp,
@@ -93,7 +106,11 @@ object UserCache {
                 badge = s.child("badge").getValue(String::class.java) ?: b.badge,
             )
         }
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
 
     fun peek(uid: String): PublicUser? = map[uid]?.second ?: disk(uid)
 
@@ -102,7 +119,11 @@ object UserCache {
         if (!force && c != null && System.currentTimeMillis() - c.first < 300_000) return c.second
         val fromDb = try {
             kotlinx.coroutines.withTimeoutOrNull(8000L) { UserDirectory.findByUid(uid) }
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
         if (fromDb != null) {
             map[uid] = System.currentTimeMillis() to fromDb
             save(fromDb)
@@ -244,6 +265,7 @@ fun ProfileSheetAction(label: String, icon: String, onClick: () -> Unit) {
  * Sheet profil pengguna lain. Muncul saat profil di mic / hasil pencarian diketuk.
  * Mengetuk bagian atas (avatar, nama, medali, VIP) membuka halaman profil lengkap.
  * [extra] = tombol tambahan (mis. Turun Mic, Hadiah) saat dibuka dari dalam room.
+ * [topAction] = tombol di pojok kanan atas sheet (mis. menu titik tiga: Kick dari room).
  */
 @Composable
 fun UserProfileSheet(
@@ -254,6 +276,7 @@ fun UserProfileSheet(
     onFollowChanged: () -> Unit,
     onOpenFull: () -> Unit = {},
     extra: (@Composable RowScope.() -> Unit)? = null,
+    topAction: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -264,11 +287,17 @@ fun UserProfileSheet(
     var busy by remember(uid) { mutableStateOf(false) }
 
     BackHandler(onBack = onDismiss)
+
     LaunchedEffect(uid) {
         user = UserCache.byUid(uid, force = true) ?: user
         loading = false
         if (!isMe) {
-            try { following = FollowRepo.isFollowing(myUid, uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            try {
+                following = FollowRepo.isFollowing(myUid, uid)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+            }
         }
     }
 
@@ -284,7 +313,9 @@ fun UserProfileSheet(
                     following = true
                 }
                 onFollowChanged()
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 Toast.makeText(context, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
             }
             busy = false
@@ -298,83 +329,102 @@ fun UserProfileSheet(
             onClick = onDismiss,
         ),
     ) {
-        Column(
+        Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .background(Color(0xFF0B0B0B))
-                .blockTouches()
-                .navigationBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .blockTouches(),
         ) {
-            val u = user
-            if (u == null) {
-                Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                    if (loading) CircularProgressIndicator(color = Gold)
-                    else Text(tr("Profil tidak ditemukan"), color = Color(0xFFBDBDBD))
-                }
-            } else {
-                // Bagian atas: ketuk -> halaman profil lengkap
-                Column(
-                    Modifier.fillMaxWidth().clickable(onClick = onOpenFull).padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    FramedAvatar(u, 96.dp)
-                    Spacer(Modifier.height(10.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        VipNameText(
-                            u.name, u.vip, u.vipUntil, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(flagEmoji(u.countryCode), fontSize = 22.sp)
+            Column(
+                Modifier.fillMaxWidth().navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                val u = user
+                if (u == null) {
+                    Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                        if (loading) CircularProgressIndicator(color = Gold)
+                        else Text(tr("Profil tidak ditemukan"), color = Color(0xFFBDBDBD))
                     }
-                    Spacer(Modifier.height(6.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("UID:${u.userId}", color = Color(0xFFBDBDBD), fontSize = 15.sp)
-                        Spacer(Modifier.width(8.dp))
-                        LevelBadge(userLevel(u))
-                        Spacer(Modifier.width(6.dp))
-                        GenderBadge(u.gender)
-                    }
-                    if (u.bio.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(u.bio, color = Color(0xFFE0E0E0), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
-                    Spacer(Modifier.height(12.dp))
-                    UserMedals(u.medals)
-                    Spacer(Modifier.height(14.dp))
-                    VipBanner(u)
-                    Spacer(Modifier.height(8.dp))
-                    UserBadges(u)
-                    Spacer(Modifier.height(10.dp))
-                    Text(tr("Ketuk untuk lihat profil lengkap ›"), color = Gold, fontSize = 12.sp)
-                }
-
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (extra != null) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                            extra()
+                } else {
+                    // Bagian atas: ketuk -> halaman profil lengkap
+                    Column(
+                        Modifier.fillMaxWidth().clickable(onClick = onOpenFull).padding(horizontal = 20.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        FramedAvatar(u, 96.dp)
+                        Spacer(Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            VipNameText(
+                                u.name,
+                                u.vip,
+                                u.vipUntil,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 22.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(flagEmoji(u.countryCode), fontSize = 22.sp)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("UID:${u.userId}", color = Color(0xFFBDBDBD), fontSize = 15.sp)
+                            Spacer(Modifier.width(8.dp))
+                            LevelBadge(userLevel(u))
+                            Spacer(Modifier.width(6.dp))
+                            GenderBadge(u.gender)
+                        }
+                        if (u.bio.isNotBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(u.bio, color = Color(0xFFE0E0E0), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                         Spacer(Modifier.height(12.dp))
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x33FFFFFF)))
+                        Spacer(Modifier.height(12.dp))
+                        UserMedals(u.medals)
+                        Spacer(Modifier.height(14.dp))
+                        VipBanner(u)
+                        Spacer(Modifier.height(8.dp))
+                        UserBadges(u)
+                        Spacer(Modifier.height(10.dp))
+                        Text(tr("Ketuk untuk lihat profil lengkap ›"), color = Gold, fontSize = 12.sp)
                     }
-                    if (!isMe) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            if (following) {
-                                OutlineButton(tr("Mengikuti ✓"), Modifier.weight(1f)) { if (!busy) toggleFollow() }
-                            } else {
-                                GoldButton(tr("Ikuti"), Modifier.weight(1f), enabled = !busy) { toggleFollow() }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        if (extra != null) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                extra()
                             }
-                            OutlineButton("Chat", Modifier.weight(1f)) { onChat(u) }
+                            Spacer(Modifier.height(12.dp))
                         }
-                    } else if (extra == null) {
-                        Text(tr("Ini profil kamu"), color = Color(0xFF9A9A9A))
+                        if (!isMe) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                if (following) {
+                                    OutlineButton(tr("Mengikuti ✓"), Modifier.weight(1f)) { if (!busy) toggleFollow() }
+                                } else {
+                                    GoldButton(tr("Ikuti"), Modifier.weight(1f), enabled = !busy) { toggleFollow() }
+                                }
+                                OutlineButton("Chat", Modifier.weight(1f)) { onChat(u) }
+                            }
+                        } else if (extra == null) {
+                            Text(tr("Ini profil kamu"), color = Color(0xFF9A9A9A))
+                        }
                     }
                 }
+            }
+            if (topAction != null) {
+                Box(Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 10.dp)) { topAction() }
             }
         }
     }
