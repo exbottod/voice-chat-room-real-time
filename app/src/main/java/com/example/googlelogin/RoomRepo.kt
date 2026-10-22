@@ -109,6 +109,14 @@ object RoomRepo {
     fun observeRoom(id: String, onChange: (RoomInfo?) -> Unit): ListenerRegistration =
         roomRef(id).addSnapshotListener { snap, _ -> onChange(snap?.toRoom()) }
 
+    suspend fun getRoom(id: String): RoomInfo? = try {
+        db().collection("rooms").document(id).get().await().toRoom()
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
     fun observeSeats(id: String, onChange: (Map<Int, Seat>) -> Unit): Reg =
         Rtdb.listen(Rtdb.ref("seats/$id")) { snap ->
             val list = snap.children.mapNotNull { c ->
@@ -361,11 +369,4 @@ object RoomRepo {
             e.message ?: "Gagal mengubah kunci"
         }
     }
-        suspend fun getRoom(id: String): RoomInfo? = try {
-        db().collection("rooms").document(id).get().await().toRoom()
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        null
-        }
 }
