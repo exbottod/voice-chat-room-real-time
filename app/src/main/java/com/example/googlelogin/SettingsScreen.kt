@@ -43,7 +43,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+
+/** Email akun developer yang boleh melihat menu Panel Developer. */
+private const val DEV_EMAIL = "developerex100@gmail.com"
 
 @Composable
 private fun SettingRow(label: String, value: String? = null, onClick: () -> Unit) {
@@ -80,14 +84,28 @@ fun SettingsScreen(
     var showAddEmail by remember { mutableStateOf(false) }
     var showLogout by remember { mutableStateOf(false) }
     var showLang by remember { mutableStateOf(false) }
+    var showDev by remember { mutableStateOf(false) }
     var hasPassword by remember { mutableStateOf(FirebaseSession.hasPassword()) }
 
+    // Tombol back: tutup panel yang sedang terbuka dulu, baru keluar dari Pengaturan
+    BackHandler {
+        when {
+            showDev -> showDev = false
+            showPrivacy -> showPrivacy = false
+            else -> onBack()
+        }
+    }
+
+    if (showDev) {
+        OverlayBox { DeveloperGiftPanel(onBack = { showDev = false }) }
+        return
+    }
     if (showPrivacy) {
         PrivacyScreen(onBack = { showPrivacy = false })
         return
     }
 
-    BackHandler(onBack = onBack)
+    val isDeveloper = FirebaseAuth.getInstance().currentUser?.email?.equals(DEV_EMAIL, ignoreCase = true) == true
 
     OverlayBox {
         Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
@@ -103,10 +121,15 @@ fun SettingsScreen(
                 ) {
                     if (hasPassword) {
                         Toast.makeText(context, "Login email & password sudah aktif", Toast.LENGTH_SHORT).show()
-                    } else showAddEmail = true
+                    } else {
+                        showAddEmail = true
+                    }
                 }
                 SettingRow(tr("Kebijakan privasi")) { showPrivacy = true }
                 SettingRow(tr("Bahasa"), AppLang.label()) { showLang = true }
+                if (isDeveloper) {
+                    SettingRow("Panel Developer") { showDev = true }
+                }
                 Spacer(Modifier.height(20.dp))
                 OutlinedButton(
                     onClick = { showLogout = true },
@@ -122,7 +145,10 @@ fun SettingsScreen(
     if (showLang) LanguageDialog(onDismiss = { showLang = false })
     if (showAddEmail) {
         AddEmailDialog(
-            onDone = { hasPassword = FirebaseSession.hasPassword(); showAddEmail = false },
+            onDone = {
+                hasPassword = FirebaseSession.hasPassword()
+                showAddEmail = false
+            },
             onDismiss = { showAddEmail = false },
         )
     }
@@ -131,7 +157,12 @@ fun SettingsScreen(
             onDismissRequest = { showLogout = false },
             title = { Text(tr("Keluar dari akun?")) },
             text = { Text(tr("Kamu perlu login lagi untuk memakai aplikasi.")) },
-            confirmButton = { TextButton(onClick = { showLogout = false; onSignOut() }) { Text(tr("Keluar")) } },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogout = false
+                    onSignOut()
+                }) { Text(tr("Keluar")) }
+            },
             dismissButton = { TextButton(onClick = { showLogout = false }) { Text(tr("Batal")) } },
         )
     }
@@ -146,7 +177,6 @@ private fun AddEmailDialog(onDone: () -> Unit, onDismiss: () -> Unit) {
     var pass2 by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(tr("Tambah email & password")) },
@@ -204,7 +234,9 @@ private fun AddEmailDialog(onDone: () -> Unit, onDismiss: () -> Unit) {
                                 if (err == null) {
                                     Toast.makeText(context, "Berhasil. Sekarang bisa login dengan email & password", Toast.LENGTH_LONG).show()
                                     onDone()
-                                } else error = FirebaseSession.friendlyError(err)
+                                } else {
+                                    error = FirebaseSession.friendlyError(err)
+                                }
                             }
                         }
                     }
