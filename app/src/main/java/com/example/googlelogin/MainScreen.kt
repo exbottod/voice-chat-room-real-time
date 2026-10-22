@@ -76,13 +76,19 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var following by remember { mutableStateOf(0L) }
     var fans by remember { mutableStateOf(0L) }
     var followTick by remember { mutableStateOf(0) }
-
     val actions = remember {
         AppActions(
             openProfile = { sheetUid = it },
-            openChat = { chatWith = it; sheetUid = null; fullProfileUid = null },
+            openChat = {
+                chatWith = it
+                sheetUid = null
+                fullProfileUid = null
+            },
             openWallet = { showWallet = true },
-            openFullProfile = { fullProfileUid = it; sheetUid = null },
+            openFullProfile = {
+                fullProfileUid = it
+                sheetUid = null
+            },
         )
     }
 
@@ -97,7 +103,10 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 val c = FollowRepo.counts(uid)
                 following = c.first
                 fans = c.second
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+            }
         }
     }
 
@@ -131,13 +140,16 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
         try {
             userId = UserDirectory.ensureUserId(context, uid)
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
             Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
         }
         UserDirectory.publish(context, user, profile)
         PublicSync.push(uid)
         VipAssets.load()
         StoreCatalog.start()
+        GiftCatalog.start()
     }
 
     // Item VIP otomatis masuk My Item, termasuk VIP yang dibeli sebelumnya
@@ -184,7 +196,9 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 // Tab profil memakai header sampai ke bawah status bar, jadi tanpa padding atas.
                 val contentPadding = if (selected == 4) {
                     PaddingValues(bottom = padding.calculateBottomPadding())
-                } else padding
+                } else {
+                    padding
+                }
                 Box(Modifier.fillMaxSize().padding(contentPadding)) {
                     when (selected) {
                         0 -> PartyTab(
@@ -283,37 +297,56 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onBack = { chatWith = null },
                 )
             }
-
             if (showWallet) WalletScreen(uid = uid, wallet = wallet, onBack = { showWallet = false })
             if (showLevel) LevelScreen(user = user, profile = profile, wallet = wallet, uid = uid, onBack = { showLevel = false })
             if (showVip) VipScreen(uid = uid, wallet = wallet, onBack = { showVip = false })
             if (showGlory) GloryMedalScreen(uid = uid, wallet = wallet, onBack = { showGlory = false })
-            if (showStore) StoreScreen(uid = uid, wallet = wallet, onOpenVip = { showStore = false; showVip = true }, onBack = { showStore = false })
-
+            if (showStore) {
+                StoreScreen(
+                    uid = uid,
+                    wallet = wallet,
+                    onOpenVip = {
+                        showStore = false
+                        showVip = true
+                    },
+                    onBack = { showStore = false },
+                )
+            }
             commentMoment?.let {
                 MomentCommentsPanel(m = it, myUid = uid, myName = myName, onDismiss = { commentMoment = null })
             }
-
             sheetUid?.let {
                 UserProfileSheet(
                     uid = it,
                     myUid = uid,
                     onDismiss = { sheetUid = null },
-                    onChat = { u -> chatWith = u; sheetUid = null },
+                    onChat = { u ->
+                        chatWith = u
+                        sheetUid = null
+                    },
                     onFollowChanged = { followTick++ },
-                    onOpenFull = { fullProfileUid = it; sheetUid = null },
+                    onOpenFull = {
+                        fullProfileUid = it
+                        sheetUid = null
+                    },
                 )
             }
-
             fullProfileUid?.let {
                 OtherProfileScreen(
                     uid = it,
                     myUid = uid,
                     onBack = { fullProfileUid = null },
-                    onChat = { u -> chatWith = u; fullProfileUid = null },
+                    onChat = { u ->
+                        chatWith = u
+                        fullProfileUid = null
+                    },
                 )
             }
-
+            GlobalGiftBanner(currentRoomId = activeRoom?.id) { rid ->
+                if (rid.isNotBlank()) {
+                    scope.launch { RoomRepo.getRoom(rid)?.let { enterRoom(it) } }
+                }
+            }
             BanGate(uid = uid, onSignOut = onSignOutClick, onBanned = { if (activeRoom != null) exitRoom() })
         }
     }
