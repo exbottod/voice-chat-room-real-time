@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.ServerValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -61,6 +62,7 @@ object GiftCatalog {
                     special = d.getBoolean("special") ?: false,
                     jpRate = (d.getLong("jpRate") ?: 0L).toInt(),
                     jpMult = d.getLong("jpMult") ?: 0L,
+                    cbRate = (d.getLong("cbRate") ?: 0L).toInt(),
                 )
             }
             list = GIFTS + custom
@@ -68,7 +70,7 @@ object GiftCatalog {
     }
 }
 
-/** Efek gift: kombo, JP (jackpot) gift khas, dan banner global antar room. */
+/** Efek gift: kombo, JP (jackpot) dan cashback gift khas, serta banner global antar room. */
 object GiftFx {
 
     /** Kombo: kirim gift khas lagi dalam 6 detik = kombo naik. Return jumlah kombo. */
@@ -90,17 +92,40 @@ object GiftFx {
     }
 
     /**
-     * Dipanggil SETELAH gift sukses terkirim. Mengurus kombo, JP, banner global,
-     * dan pengumuman di chat room. Return koin JP (0 kalau tidak JP).
+     * Dipanggil SETELAH gift sukses terkirim. Mengurus kombo, JP, cashback, banner
+     * global, dan pengumuman di chat room. Return (koin JP, koin cashback).
      */
-    suspend fun sent(roomId: String, uid: String, name: String, g: Gift, count: Int, receivers: Int): Long {
+    suspend fun sent(
+        roomId: String,
+        uid: String,
+        name: String,
+        g: Gift,
+        count: Int,
+        receivers: Int,
+    ): Pair<Long, Long> {
         var jpWin = 0L
+        var cbWin = 0L
         var comboN = 0
         if (g.special) {
             comboN = combo(roomId, uid)
             if (g.jpRate > 0 && (1..100).random() <= g.jpRate) {
                 jpWin = g.price * g.jpMult * count
                 WalletRepo.topUp(uid, jpWin)
+            }
+            // Cashback: gift khas memberi koin kembali sesuai persen harga (diatur di Panel Developer).
+            if (g.cbRate > 0) {
+                cbWin = g.price * count * g.cbRate / 100
+                if (cbWin > 0) {
+                    WalletRepo.topUp(uid, cbWin)
+                    Rtdb.ref("cashback/$uid/total").setValue(ServerValue.increment(cbWin))
+                    Rtdb.ref("cashback/$uid/log").push().setValue(
+                        hashMapOf<String, Any?>(
+                            "g" to g.name,
+                            "cb" to cbWin,
+                            "ts" to System.currentTimeMillis(),
+                        ),
+                    )
+                }
             }
         }
         val room = RoomRepo.getRoom(roomId)
@@ -134,7 +159,7 @@ object GiftFx {
         )
         if (comboN >= 2) sysMsg(roomId, "🔥 $name kombo x$comboN ${g.emoji}!")
         if (jpWin > 0) sysMsg(roomId, "🎉 JP! $name memenangkan jackpot ${g.emoji} +$jpWin koin!")
-        return jpWin
+        return jpWin to cbWin
     }
 
     /**
@@ -436,7 +461,7 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
 /**
  * Panel Developer: kelola katalog gift. Tambah gift dengan nama, harga, media
  * (URL mp4/gif/png/webp atau upload dari perangkat), tandai gift khas,
- * dan atur rate JP (peluang jackpot) + hadiah JP.
+ * atur rate JP (peluang jackpot) + hadiah JP, dan persen cashback.
  */
 @Composable
 fun DeveloperGiftPanel(onBack: () -> Unit) {
@@ -450,6 +475,7 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
     var special by remember { mutableStateOf(false) }
     var jpRate by remember { mutableStateOf("") }
     var jpMult by remember { mutableStateOf("") }
+    var cbRate by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<String?>(null) }
 
@@ -468,6 +494,7 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                         special = d.getBoolean("special") ?: false,
                         jpRate = (d.getLong("jpRate") ?: 0L).toInt(),
                         jpMult = d.getLong("jpMult") ?: 0L,
+                        cbRate = (d.getLong("cbRate") ?: 0L).toInt(),
                     )
                 }
             }
@@ -497,7 +524,8 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         Text(
             "Kelola hadiah gift. Media bisa URL atau upload dari perangkat (lewat Cloudinary). " +
-                "Gift khas = ada kombo dan bisa JP (jackpot) dengan peluang acak sesuai rate.",
+                "Gift khas = ada kombo dan bisa JP (jackpot) dengan peluang acak sesuai rate, " +
+                "serta bisa diberi cashback (persen harga kembali ke dompet).",
             color = Color(0xFFBDBDBD),
             fontSize = 12.sp,
         )
@@ -557,6 +585,16 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
             }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    cbRate, { cbRate = it.filter { c -> c.isDigit() } },
+                    label = { Text("Cashback (%)") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+            }
         }
         Spacer(Modifier.height(8.dp))
         OutlineButton(if (busy) "Menyimpan..." else "SIMPAN GIFT", Modifier.fillMaxWidth()) {
@@ -582,6 +620,7 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                             "special" to special,
                             "jpRate" to (jpRate.toIntOrNull() ?: 0).coerceIn(0, 100),
                             "jpMult" to (jpMult.toLongOrNull() ?: 0L),
+                            "cbRate" to (cbRate.toIntOrNull() ?: 0).coerceIn(0, 100),
                         ),
                     ).await()
                     msg = "Gift tersimpan: ${name.trim()}"
@@ -592,6 +631,7 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                     special = false
                     jpRate = ""
                     jpMult = ""
+                    cbRate = ""
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -621,12 +661,12 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        "${g.name} • ${g.price} koin" +
-                            if (g.special) " • khas (JP ${g.jpRate}% x${g.jpMult})" else "",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                    )
+                    val info = buildString {
+                        append("${g.name} • ${g.price} koin")
+                        if (g.special) append(" • khas (JP ${g.jpRate}% x${g.jpMult})")
+                        if (g.cbRate > 0) append(" • CB ${g.cbRate}%")
+                    }
+                    Text(info, color = Color.White, fontSize = 13.sp)
                     Text(
                         if (g.mediaUrl.isNotBlank()) g.mediaUrl else "emoji saja",
                         color = Color(0xFF9A9A9A),
