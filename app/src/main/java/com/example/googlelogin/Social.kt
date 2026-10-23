@@ -38,6 +38,21 @@ val LocalActions = staticCompositionLocalOf { AppActions({}, {}, {}) }
 
 fun fmtNum(n: Long): String = NumberFormat.getInstance(Locale("in", "ID")).format(n)
 
+fun fmtCompact(n: Long): String {
+    val abs = kotlin.math.abs(n)
+    return when {
+        abs < 1_000_000L -> fmtNum(n)
+        abs < 1_000_000_000L -> tail(n / 1_000_000.0) + "M"
+        abs < 1_000_000_000_000L -> tail(n / 1_000_000_000.0) + "B"
+        else -> tail(n / 1_000_000_000_000.0) + "T"
+    }
+}
+
+private fun tail(v: Double): String {
+    val s = if (v >= 100.0) String.format("%.1f", v) else String.format("%.2f", v)
+    return s.trimEnd('0').trimEnd('.')
+}
+
 fun timeAgo(ms: Long): String {
     val m = (System.currentTimeMillis() - ms) / 60000
     return when {
