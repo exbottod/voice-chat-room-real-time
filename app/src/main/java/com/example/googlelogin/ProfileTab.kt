@@ -276,7 +276,7 @@ fun ProfileTab(
                         fontWeight = FontWeight.ExtraBold,
                         fontStyle = FontStyle.Italic,
                     )
-                    Text("${fmtNum(coins)} koin", color = Color(0xFF7A4A00), fontSize = 14.sp)
+                    Text("${fmtCompact(coins)} koin", color = Color(0xFF7A4A00), fontSize = 14.sp)
                 }
             }
             Spacer(Modifier.height(8.dp))
