@@ -1,33 +1,20 @@
 package com.example.googlelogin
 
+import com.google.firebase.auth.FirebaseAuth
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -47,7 +34,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
 private val Navy = Color(0xFF1F2A44)
-private val PageBg = Color(0xFFF1F4FB)
+private val PageBg = Color(0xFF1F1F4F)
 private val Teal = Color(0xFF2FC4AE)
 
 /** Avatar bulat: prioritas foto yang diunggah, lalu foto Google, lalu inisial. */
@@ -84,10 +71,7 @@ private fun StatItem(value: String, label: String, ink: Color, modifier: Modifie
 @Composable
 private fun MenuItem(emoji: String, label: String, trailing: String? = null, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -136,41 +120,23 @@ fun ProfileTab(
     val level = levelFromExp(wallet.exp)
     val vipOn = vipActive(wallet.vip, wallet.vipUntil)
 
-    fun soon(label: String) =
-        Toast.makeText(context, "$label segera hadir", Toast.LENGTH_SHORT).show()
+    fun soon(label: String) = Toast.makeText(context, "$label segera hadir", Toast.LENGTH_SHORT).show()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PageBg)
-            .verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().background(PageBg).verticalScroll(rememberScrollState()),
     ) {
-        // ---------- Header ----------
+        // Header
         Box(Modifier.fillMaxWidth()) {
             Box(
-                Modifier
-                    .matchParentSize()
-                    .background(Brush.verticalGradient(listOf(Teal, Color(0xFF8EE0D2), PageBg))),
+                Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Teal, Color(0xFF8EE0D2), PageBg))),
             )
             if (bg != null) {
-                Image(
-                    bitmap = bg,
-                    contentDescription = null,
-                    modifier = Modifier.matchParentSize(),
-                    contentScale = ContentScale.Crop,
-                )
-                Box(
-                    Modifier
-                        .matchParentSize()
-                        .background(Brush.verticalGradient(listOf(Color(0x55000000), Color(0x22000000), PageBg))),
-                )
+                Image(bg, contentDescription = null, modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop)
             }
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) {
+            Box(
+                Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color(0x55000000), Color(0x22000000), PageBg))),
+            )
+            Column(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     Box(
                         modifier = Modifier
@@ -179,9 +145,7 @@ fun ProfileTab(
                             .background(Color.White.copy(alpha = 0.5f))
                             .clickable(onClick = onEditClick),
                         contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(Icons.Default.Edit, "Edit profil", tint = Navy, modifier = Modifier.size(22.dp))
-                    }
+                    ) { Icon(Icons.Default.Edit, "Edit profil", tint = Navy, modifier = Modifier.size(22.dp)) }
                 }
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -191,22 +155,13 @@ fun ProfileTab(
                             Modifier.clip(CircleShape).clickable(onClick = onProfileClick)
                                 .then(if (vfAsset != null) Modifier else Modifier.border(3.dp, frameBrush(activeEquip(wallet, "frame")), CircleShape))
                                 .padding(3.dp),
-                        ) {
-                            AvatarImage(user, profile, 92.dp)
-                        }
+                        ) { AvatarImage(user, profile, 92.dp) }
                         if (vfAsset != null) FrameOverlay(vfAsset, 128.dp)
                     }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.clickable(onClick = onProfileClick)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            VipNameText(
-                                nick, wallet.vip, wallet.vipUntil,
-                                color = ink,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                modifier = Modifier.weight(1f, fill = false),
-                            )
+                            VipNameText(nick, wallet.vip, wallet.vipUntil, color = ink, fontSize = 22.sp, fontWeight = FontWeight.Medium, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
                             Spacer(Modifier.width(8.dp))
                             Text(flagEmoji(profile.countryCode), fontSize = 20.sp)
                         }
@@ -219,7 +174,7 @@ fun ProfileTab(
                                 },
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("UID:$userId", color = ink.copy(alpha = 0.75f), fontSize = 15.sp)
+                                Text("UID:${userId}", color = ink.copy(alpha = 0.75f), fontSize = 15.sp)
                                 Spacer(Modifier.width(6.dp))
                                 Text("📋", fontSize = 14.sp)
                             }
@@ -227,8 +182,8 @@ fun ProfileTab(
                             LevelBadge(level)
                         }
                         Spacer(Modifier.height(6.dp))
-                        BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"))
-                        val myMedals = activeMedalIds(wallet)
+                        BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"), FamTagByUid(FirebaseAuth.getInstance().currentUser?.uid) {})
+                        val myMedals = activeMedals(wallet)
                         if (myMedals.isNotEmpty()) {
                             Spacer(Modifier.height(6.dp))
                             UserMedals(myMedals.joinToString(","), 22.dp)
@@ -251,30 +206,21 @@ fun ProfileTab(
             }
         }
 
-        // ---------- Dompet ----------
+        // Dompet
         Column(Modifier.padding(horizontal = 14.dp)) {
             val goldShape = RoundedCornerShape(14.dp)
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(104.dp)
-                    .clip(goldShape)
-                    .background(Brush.horizontalGradient(listOf(Color(0xFFE8A91C), Color(0xFFF7DA5A), Color(0xFFE8A91C))))
+                modifier = Modifier.fillMaxWidth().height(104.dp).clip(goldShape)
+                    .background(Brush.horizontalGradient(listOf(Color(0xFFE8A91C), Color(0xFF7DA5A), Color(0xFFE8A91C))))
                     .border(2.dp, Color(0xFFB8860B), goldShape)
-                    .clickable { onWalletClick() },
+                    .clickable(onClick = onWalletClick),
             ) {
                 Text("💰", fontSize = 58.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp))
                 Column(
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 28.dp),
                     horizontalAlignment = Alignment.End,
                 ) {
-                    Text(
-                        "Dompet",
-                        color = Color(0xFF7A4A00),
-                        fontSize = 38.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontStyle = FontStyle.Italic,
-                    )
+                    Text("Dompet", color = Color(0xFF7A4A00), fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     Text("${fmtNum(coins)} koin", color = Color(0xFF7A4A00), fontSize = 14.sp)
                 }
             }
@@ -282,14 +228,10 @@ fun ProfileTab(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val cardShape = RoundedCornerShape(12.dp)
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(84.dp)
-                        .clip(cardShape)
+                    modifier = Modifier.weight(1f).height(84.dp).clip(cardShape)
                         .background(Brush.horizontalGradient(listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0))))
                         .border(1.5.dp, Color(0xFFE8B923), cardShape)
-                        .clickable { onVipClick() }
-                        .padding(14.dp),
+                        .clickable(onClick = onVipClick).padding(14.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
                         Text("VIP", color = Color(0xFFFFD54F), fontSize = 16.sp)
@@ -298,50 +240,43 @@ fun ProfileTab(
                     Text("👑", fontSize = 40.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(84.dp)
-                        .clip(cardShape)
+                    modifier = Modifier.weight(1f).height(84.dp).clip(cardShape)
                         .background(Brush.horizontalGradient(listOf(Color(0xFF1FA89A), Color(0xFF0E7C86))))
                         .border(1.5.dp, Color(0xFF7FE3D6), cardShape)
-                        .clickable { onLevelClick() }
-                        .padding(14.dp),
+                        .clickable(onClick = onLevelClick).padding(14.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
-                        Text(tr("Level user"), color = Color(0xFFB8F5EC), fontSize = 16.sp)
-                        Text("LV.$level", color = Color(0xFFFFE082), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
+                        Text("Level user", color = Color(0xFFB8F5EC), fontSize = 16.sp)
+                        Text("Lv.$level", color = Color(0xFFFFE082), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text("🛡", fontSize = 40.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text("⭐", fontSize = 40.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
             }
-
-            // ---------- Menu ----------
-            Spacer(Modifier.height(12.dp))
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White)
-                    .padding(vertical = 4.dp),
-            ) {
-                MenuItem("🎁", "Undang teman dan dapatkan koin") { onInviteClick() }
-                MenuItem("⭐", "Lencana glory") { onGloryClick() }
-                MenuItem("🎨", "Pusat kustom") { soon("Pusat kustom") }
-                MenuItem("🏪", "Store & My Item") { onStoreClick() }
-                MenuItem("🧰", "Alat peraga") { soon("Alat peraga") }
-                MenuItem("🏰", "Family", trailing = "Liga Peringkat Fam") { onFamilyClick() }
-                MenuItem("🏠", "CP house") { soon("CP house") }
-                MenuItem("⚙", "Pengaturan") { onSettingsClick() }
-                MenuItem("❓", "Bantuan") { soon("Bantuan") }
-            }
-            Spacer(Modifier.height(16.dp))
-            OutlinedButton(
-                onClick = onSignOutClick,
-                modifier = Modifier.fillMaxWidth(),
-                border = BorderStroke(1.dp, Color(0xFFD9534F)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD9534F)),
-            ) { Text(tr("Keluar")) }
-            Spacer(Modifier.height(20.dp))
         }
+
+        // Menu
+        Spacer(Modifier.height(12.dp))
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(vertical = 4.dp),
+        ) {
+            MenuItem("👥", "Undang teman dan dapatkan koin") { onInviteClick() }
+            MenuItem("🏆", "Lencana glory") { onGloryClick() }
+            MenuItem("🛍️", "Pusat kustom") { soon("Pusat kustom") }
+            MenuItem("🛒", "Store & My Item") { onStoreClick() }
+            MenuItem("🎒", "Alat peraga") { soon("Alat peraga") }
+            MenuItem("👨‍👩‍👧", "Family", trailing = "Liga Peringkat Fam") { onFamilyClick() }
+            MenuItem("🏠", "CP house") { soon("CP house") }
+            MenuItem("⚙️", "Pengaturan") { onSettingsClick() }
+            MenuItem("❓", "Bantuan") { soon("Bantuan") }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        OutlinedButton(
+            onClick = onSignOutClick,
+            modifier = Modifier.fillMaxWidth(),
+            border = BorderStroke(1.dp, Color(0xFFD9534F)),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD9534F)),
+        ) { Text("Keluar") }
+        Spacer(Modifier.height(20.dp))
     }
 }
