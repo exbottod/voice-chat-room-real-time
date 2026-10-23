@@ -241,8 +241,8 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
             GoldTopBar(tr("Dompet"), onBack)
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    BalanceCard("🪙", "Coin", fmtNum(wallet.coins), Modifier.weight(1f))
-                    BalanceCard("💎", "Diamond", fmtNum(wallet.diamonds), Modifier.weight(1f))
+                BalanceCard("🪙", "Coin", fmtCompact(wallet.coins), Modifier.weight(1f))
+                BalanceCard("💎", "Diamond", fmtCompact(wallet.diamonds), Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(20.dp))
                 Text(tr("Isi coin"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -674,7 +674,7 @@ fun GiftPanel(
                 Text("🪙", fontSize = 22.sp)
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    fmtNum(wallet.coins),
+                    fmtCompact(wallet.coins),
                     color = Color.White,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
