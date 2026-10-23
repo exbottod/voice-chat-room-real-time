@@ -25,10 +25,9 @@ import kotlinx.coroutines.tasks.await
 
 data class SeatEmote(val emoji: String, val at: Long)
 
-val EMOTES = listOf("😀", "😂", "😍", "😎", "😭", "😡", "👍", "👏", "🙏", "💪", "🎉", "🔥", "❤️", "💔", "⭐", "🌹", "🍺", "🎵", "🎁", "👑")
+val EMOTES = listOf("😀", "😂", "🤣", "😍", "🥰", "😎", "😭", "😡", "🤔", "👍", "👏", "🙏", "🎉", "🔥", "💋", "😴")
 
 object RoomExtras {
-
     private fun db() = FirebaseFirestore.getInstance()
     private fun room(id: String) = db().collection("rooms").document(id)
 
@@ -37,9 +36,7 @@ object RoomExtras {
             hashMapOf<String, Any?>("text" to text, "createdAt" to System.currentTimeMillis()),
         ).await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal mengirim"
     }
 
@@ -53,9 +50,7 @@ object RoomExtras {
             ),
         ).await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal mengirim"
     }
 
@@ -67,9 +62,7 @@ object RoomExtras {
             hashMapOf<String, Any?>("emoji" to emoji, "at" to System.currentTimeMillis()),
         ).await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal mengirim emot"
     }
 
@@ -81,31 +74,24 @@ object RoomExtras {
                         it.child("emoji").getValue(String::class.java) ?: "",
                         (it.child("at").value as? Number)?.toLong() ?: 0L,
                     )
-                }
+                },
             )
         }
 
     /** Kunci mic: kursi dikosongkan dan tidak bisa dinaiki sampai dibuka owner. */
     suspend fun lockSeat(roomId: String, index: Int): String? = try {
         Rtdb.root().updateChildren(
-            hashMapOf<String, Any?>(
-                "locks/$roomId/$index" to true,
-                "seats/$roomId/$index" to null,
-            ),
+            hashMapOf<String, Any?>("locks/$roomId/$index" to true, "seats/$roomId/$index" to null),
         ).await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal mengunci mic"
     }
 
     suspend fun unlockSeat(roomId: String, index: Int): String? = try {
         Rtdb.ref("locks/$roomId/$index").removeValue().await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
         e.message ?: "Gagal membuka kunci"
     }
 }
@@ -114,18 +100,13 @@ object RoomExtras {
 fun RoomTypingBar(text: String, myFam: String = "", onTextChange: (String) -> Unit, onSend: (String) -> Unit, onClose: () -> Unit) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
-
     fun submit() {
         if (text.isNotBlank()) {
             onSend(text.trim())
             onTextChange("")
         }
     }
-
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (myFam.isNotBlank()) FamTagText(myFam)
         Spacer(Modifier.width(6.dp))
         OutlinedTextField(
@@ -133,7 +114,7 @@ fun RoomTypingBar(text: String, myFam: String = "", onTextChange: (String) -> Un
             onValueChange = { if (it.length <= 120) onTextChange(it) },
             modifier = Modifier.weight(1f).focusRequester(focus),
             singleLine = true,
-            placeholder = { Text("Ketik pesan...") },
+            placeholder = { Text(tr("Ketik pesan...")) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = { submit() }),
             shape = RoundedCornerShape(24.dp),
@@ -168,7 +149,6 @@ fun GiftBanner(roomId: String) {
     var text by remember { mutableStateOf<String?>(null) }
     var lastId by remember { mutableStateOf<String?>(null) }
     var first by remember { mutableStateOf(true) }
-
     DisposableEffect(roomId) {
         val reg = RoomRepo.observeMessages(roomId, 1) { list ->
             val last = list.lastOrNull()
@@ -182,28 +162,22 @@ fun GiftBanner(roomId: String) {
         }
         onDispose { reg.remove() }
     }
-
     LaunchedEffect(text) {
         if (text != null) {
             delay(3500)
             text = null
         }
     }
-
     val t = text
     if (t != null) {
-        Box(
-            Modifier.fillMaxWidth().statusBarsPadding().padding(top = 70.dp, start = 16.dp, end = 16.dp),
-            contentAlignment = Alignment.Center,
-        ) {
+        Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 70.dp, start = 16.dp, end = 16.dp), contentAlignment = Alignment.Center) {
             Box(
                 Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(Brush.horizontalGradient(listOf(Gold.copy(alpha = 0.9f), Color(0xFFB8860B))))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                Text(t, color = Color.Black, fontSize = 14.sp, textAlign = TextAlign.Center)
-            }
+                    .background(Brush.horizontalGradient(listOf(Color(0xFF5B2BD9), Color(0xFFC9A227))))
+                    .border(1.dp, Gold, RoundedCornerShape(50))
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+            ) { Text(t, color = Color.White, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center) }
         }
     }
 }
