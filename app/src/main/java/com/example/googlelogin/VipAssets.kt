@@ -1,5 +1,6 @@
 package com.example.googlelogin
 
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.util.Base64
@@ -15,6 +16,7 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import coil.request.ImageRequest
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -23,10 +25,12 @@ import com.opensource.svgaplayer.SVGAImageView
 import com.opensource.svgaplayer.SVGAParser
 import com.opensource.svgaplayer.SVGAVideoEntity
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.ByteBuffer
+import kotlin.coroutines.resume
 
 /** Aset VIP yang diatur dari panel developer: slot = title | frame | entry, kind = image | svga | mp4. */
 data class VipAsset(
@@ -82,7 +86,9 @@ object VipAssets {
             }
     }
 
-    suspend fun load(force: Boolean = false) { start(force) }
+    suspend fun load(force: Boolean = false) {
+        start(force)
+    }
 
     /** Ambil isi file yang di-upload dari HP (disimpan base64 di Firestore). Di-cache di memori. */
     suspend fun bytes(a: VipAsset): ByteArray? {
@@ -108,10 +114,17 @@ object VipAssets {
             }
             val s = sb.toString()
             val b = Base64.decode(s.substringAfter("base64,", s), Base64.DEFAULT)
-            try { cache.writeBytes(b) } catch (e: Exception) { }
+            try {
+                cache.writeBytes(b)
+            } catch (e: Exception) {
+            }
             blobs[key] = b
             b
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
     }
 }
 
@@ -130,6 +143,73 @@ fun vipBubbleTier(bubbleId: String?, vip: Int, until: Long): Int {
         return if (bubbleId.startsWith("vipb_")) bubbleId.removePrefix("vipb_").toIntOrNull() ?: 0 else 0
     }
     return if (vipActive(vip, until)) vip else 0
+}
+
+/**
+ * Ukur rasio lebar:tinggi aset supaya lencana/gelar panjang tidak digencet jadi kotak.
+ * Bisa: gambar (png/jpg/webp/gif) dan svga. Return null kalau tidak terukur.
+ */
+internal suspend fun measureAssetRatio(ctx: android.content.Context, a: VipAsset): Float? {
+    return when (a.kind) {
+        "svga" -> {
+            // Ambil bytes DULU (suspend), karena blok suspendCancellableCoroutine bukan suspend.
+            val data: ByteArray? = if (a.url.isBlank()) VipAssets.bytes(a) else null
+            if (a.url.isBlank() && data == null) {
+                null
+            } else {
+                suspendCancellableCoroutine<Float?> { cont ->
+                    val parser = SVGAParser(ctx)
+                    val done = object : SVGAParser.ParseCompletion {
+                        override fun onComplete(videoItem: SVGAVideoEntity) {
+                            if (cont.isActive) {
+                                cont.resume(
+                                    videoItem.videoWidth.toFloat() /
+                                        videoItem.videoHeight.coerceAtLeast(1)
+                                )
+                            }
+                        }
+
+                        override fun onError() {
+                            if (cont.isActive) cont.resume(null)
+                        }
+                    }
+                    if (a.url.isNotBlank()) {
+                        parser.decodeFromURL(java.net.URL(a.url), done)
+                    } else {
+                        parser.decodeFromInputStream(
+                            ByteArrayInputStream(data!!),
+                            "ratio_${a.n}_${a.slot}_${a.updatedAt}",
+                            done,
+                            true,
+                        )
+                    }
+                }
+            }
+        }
+        "mp4" -> null
+        else -> {
+            if (a.url.isNotBlank()) {
+                val res = coil.Coil.imageLoader(ctx).execute(
+                    ImageRequest.Builder(ctx).data(a.url).allowHardware(false).build(),
+                )
+                val d = res.drawable
+                if (d != null && d.intrinsicWidth > 0 && d.intrinsicHeight > 0) {
+                    d.intrinsicWidth.toFloat() / d.intrinsicHeight
+                } else {
+                    null
+                }
+            } else {
+                val data = VipAssets.bytes(a)
+                if (data == null) {
+                    null
+                } else {
+                    val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(data, 0, data.size, o)
+                    if (o.outWidth > 0 && o.outHeight > 0) o.outWidth.toFloat() / o.outHeight else null
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -197,7 +277,10 @@ private fun VipSvga(
                 if (!loop) {
                     callback = object : com.opensource.svgaplayer.SVGACallback {
                         override fun onPause() {}
-                        override fun onFinished() { onEnd() }
+                        override fun onFinished() {
+                            onEnd()
+                        }
+
                         override fun onRepeat() {}
                         override fun onStep(frame: Int, percentage: Double) {}
                     }
@@ -208,6 +291,7 @@ private fun VipSvga(
                         setVideoItem(videoItem)
                         startAnimation()
                     }
+
                     override fun onError() {}
                 }
                 if (a.url.isNotBlank()) {
@@ -253,8 +337,17 @@ fun VipMedia(
 @Composable
 fun VipTag(n: Int, modifier: Modifier = Modifier) {
     val a = VipAssets.get(n, "title")
-    if (a != null) VipMedia(a, modifier.size(60.dp, 24.dp), loop = true)
-    else VipTagText(n, modifier)
+    if (a == null) {
+        VipTagText(n, modifier)
+        return
+    }
+    // Gelar custom: tinggi tetap 24.dp, lebar otomatis mengikuti rasio file asli.
+    var ratio by remember(a.n, a.slot, a.updatedAt) { mutableStateOf(2.5f) }
+    val ctx = LocalContext.current
+    LaunchedEffect(a.n, a.slot, a.updatedAt) {
+        ratio = runCatching { measureAssetRatio(ctx, a) }.getOrNull() ?: 2.5f
+    }
+    VipMedia(a, modifier.height(24.dp).width((24f * ratio).dp), loop = true)
 }
 
 /** Bingkai eksklusif VIP ditumpuk di atas avatar (tidak menangkap sentuhan). */
@@ -272,7 +365,9 @@ fun VipEntryEffect(roomId: String) {
     var first by remember { mutableStateOf(true) }
     var lastId by remember { mutableStateOf<String?>(null) }
     val myUid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
+
     LaunchedEffect(Unit) { VipAssets.load() }
+
     DisposableEffect(roomId) {
         val reg = RoomRepo.observeMessages(roomId, 1) { list ->
             val last = list.lastOrNull()
@@ -290,6 +385,7 @@ fun VipEntryEffect(roomId: String) {
         }
         onDispose { reg.remove() }
     }
+
     val p = playing
     if (p != null) {
         LaunchedEffect(p) {
