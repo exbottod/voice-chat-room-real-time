@@ -112,6 +112,10 @@ fun RoomScreen(
     onMinimize: () -> Unit,
 ) {
     val context = LocalContext.current
+    var myFam by remember(myUid) { mutableStateOf("") }
+    LaunchedEffect(myUid) {
+        myFam = try { UserDirectory.findByUid(myUid)?.fam ?: "" } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { "" }
+    }
     val scope = rememberCoroutineScope()
     val appActions = LocalActions.current
 
@@ -327,6 +331,7 @@ fun RoomScreen(
             if (typing) {
                 RoomTypingBar(
                     text = draft,
+                    myFam = myFam,
                     onTextChange = { draft = it },
                     onSend = { t ->
                         sendTick++
@@ -703,6 +708,7 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
             textAlign = TextAlign.Center,
             modifier = Modifier.width(size + 8.dp),
         )
+        FamTagByUid(seat?.uid, Modifier.width(size + 8.dp))
         Text("💗 0", color = Color.White, fontSize = 11.sp)
     }
 }
