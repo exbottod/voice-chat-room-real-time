@@ -8,27 +8,26 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
-import androidx.compose.foundation.text.KeyboardOptions
-import com.google.firebase.firestore.DocumentSnapshot
+import coil.compose.AsyncImage
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
 
 const val DIAMOND_PER_COIN = 2L // 2 diamond = 1 coin
 const val INVITE_REWARD_COINS = 10_000_000L
@@ -55,6 +54,7 @@ data class Gift(
     val special: Boolean = false,
     val jpRate: Int = 0,
     val jpMult: Long = 0L,
+    val cbRate: Int = 0,
 )
 
 val GIFTS = listOf(
@@ -81,14 +81,20 @@ object WalletCache {
     private var prefs: android.content.SharedPreferences? = null
 
     fun init(ctx: android.content.Context) {
-        if (prefs == null) prefs = ctx.applicationContext.getSharedPreferences("wallet_cache", android.content.Context.MODE_PRIVATE)
+        if (prefs == null) {
+            prefs = ctx.applicationContext.getSharedPreferences("wallet_cache", android.content.Context.MODE_PRIVATE)
+        }
     }
 
     fun save(uid: String, w: Wallet) {
         try {
             val o = org.json.JSONObject()
-                .put("coins", w.coins).put("diamonds", w.diamonds).put("exp", w.exp)
-                .put("vip", w.vip).put("vipUntil", w.vipUntil).put("lvClaimed", w.lvClaimed)
+                .put("coins", w.coins)
+                .put("diamonds", w.diamonds)
+                .put("exp", w.exp)
+                .put("vip", w.vip)
+                .put("vipUntil", w.vipUntil)
+                .put("lvClaimed", w.lvClaimed)
                 .put("inv", org.json.JSONObject(w.inv as Map<*, *>))
                 .put("equip", org.json.JSONObject(w.equip as Map<*, *>))
             prefs?.edit()?.putString(uid, o.toString())?.apply()
@@ -98,8 +104,12 @@ object WalletCache {
 
     fun load(uid: String): Wallet? = try {
         val o = org.json.JSONObject(prefs?.getString(uid, null) ?: return null)
-        val inv = o.optJSONObject("inv")?.let { j -> j.keys().asSequence().associateWith { j.getLong(it) } } ?: emptyMap()
-        val eq = o.optJSONObject("equip")?.let { j -> j.keys().asSequence().associateWith { j.getString(it) } } ?: emptyMap()
+        val inv = o.optJSONObject("inv")
+            ?.let { j -> j.keys().asSequence().associateWith { j.getLong(it) } }
+            ?: emptyMap()
+        val eq = o.optJSONObject("equip")
+            ?.let { j -> j.keys().asSequence().associateWith { j.getString(it) } }
+            ?: emptyMap()
         Wallet(
             coins = o.optLong("coins"),
             diamonds = o.optLong("diamonds"),
@@ -115,32 +125,6 @@ object WalletCache {
     }
 }
 
-/** Baca dokumen dompet Firestore jadi Wallet (private, supaya tidak bentrok dengan fungsi serupa di file lain). */
-private fun parseWalletDoc(s: DocumentSnapshot): Wallet {
-    val inv = HashMap<String, Long>()
-    (s.get("inv") as? Map<*, *>)?.forEach { (k, v) ->
-        val key = k as? String
-        val num = (v as? Number)?.toLong()
-        if (key != null && num != null) inv[key] = num
-    }
-    val eq = HashMap<String, String>()
-    (s.get("equip") as? Map<*, *>)?.forEach { (k, v) ->
-        val key = k as? String
-        val value = v as? String
-        if (key != null && value != null) eq[key] = value
-    }
-    return Wallet(
-        coins = s.getLong("coins") ?: 0L,
-        diamonds = s.getLong("diamonds") ?: 0L,
-        exp = s.getLong("exp") ?: 0L,
-        vip = (s.getLong("vip") ?: 0L).toInt(),
-        vipUntil = s.getLong("vipUntil") ?: 0L,
-        inv = inv,
-        equip = eq,
-        lvClaimed = s.getLong("lvClaimed") ?: 0L,
-    )
-}
-
 object WalletRepo {
     private fun db() = FirebaseFirestore.getInstance()
     private fun ref(uid: String) = db().collection("wallets").document(uid)
@@ -154,7 +138,7 @@ object WalletRepo {
         return ref(uid).addSnapshotListener { s, e ->
             if (e != null || s == null) return@addSnapshotListener // error/kuota habis: pertahankan data lama
             if (!s.exists() && s.metadata.isFromCache) return@addSnapshotListener // belum ada di cache lokal
-            val w = parseWalletDoc(s)
+            val w = parseWallet(s)
             if (s.exists()) WalletCache.save(uid, w)
             onChange(w)
         }
@@ -183,7 +167,11 @@ object WalletRepo {
             val boost = if (vipUntil > System.currentTimeMillis()) 100L + 5L * vipLv else 100L
             tx.set(
                 r,
-                hashMapOf<String, Any?>("coins" to coins - price, "diamonds" to dia + price, "exp" to exp + price * boost / 100L),
+                hashMapOf<String, Any?>(
+                    "coins" to coins - price,
+                    "diamonds" to dia + price,
+                    "exp" to exp + price * boost / 100L,
+                ),
                 SetOptions.merge(),
             )
             true
@@ -204,7 +192,14 @@ object WalletRepo {
             val gain = diamonds / DIAMOND_PER_COIN
             if (diamonds > dia) throw IllegalStateException("Diamond tidak cukup")
             if (gain < 1) throw IllegalStateException("Minimal $DIAMOND_PER_COIN diamond")
-            tx.set(r, hashMapOf<String, Any?>("coins" to coins + gain, "diamonds" to dia - gain * DIAMOND_PER_COIN), SetOptions.merge())
+            tx.set(
+                r,
+                hashMapOf<String, Any?>(
+                    "coins" to coins + gain,
+                    "diamonds" to dia - gain * DIAMOND_PER_COIN,
+                ),
+                SetOptions.merge(),
+            )
             true
         }.await()
         null
@@ -219,7 +214,11 @@ object WalletRepo {
 private fun BalanceCard(emoji: String, label: String, value: String, modifier: Modifier) {
     val shape = RoundedCornerShape(16.dp)
     Column(
-        modifier.clip(shape).background(CardBlack.copy(alpha = 0.9f)).border(1.dp, Gold.copy(alpha = 0.4f), shape).padding(16.dp),
+        modifier
+            .clip(shape)
+            .background(CardBlack.copy(alpha = 0.9f))
+            .border(1.dp, Gold.copy(alpha = 0.4f), shape)
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(emoji, fontSize = 30.sp)
@@ -248,16 +247,23 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 Spacer(Modifier.height(20.dp))
                 Text(tr("Isi coin"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    if (TOPUP_TEST_MODE) "Mode uji: coin ditambahkan gratis (pembayaran belum terhubung)."
-                    else "Pembayaran belum tersedia.",
+                    if (TOPUP_TEST_MODE) {
+                        "Mode uji: coin ditambahkan gratis (pembayaran belum terhubung)."
+                    } else {
+                        "Pembayaran belum tersedia."
+                    },
                     color = Color(0xFF9A9A9A),
                     fontSize = 12.sp,
                 )
                 Spacer(Modifier.height(8.dp))
                 listOf(1_000L, 10_000L, 100_000L, 1_000_000L, 10_000_000L).forEach { c ->
                     Row(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(12.dp))
-                            .background(CardBlack.copy(alpha = 0.9f)).padding(horizontal = 14.dp, vertical = 8.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(CardBlack.copy(alpha = 0.9f))
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("🪙 ${fmtNum(c)} coin", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
@@ -325,18 +331,152 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
             .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (g.mediaUrl.isNotBlank()) {
-            AsyncImage(
-                model = g.mediaUrl,
-                contentDescription = g.name,
-                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Text(g.emoji, fontSize = 38.sp)
+        Box {
+            if (g.mediaUrl.isNotBlank()) {
+                AsyncImage(
+                    model = g.mediaUrl,
+                    contentDescription = g.name,
+                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Text(g.emoji, fontSize = 38.sp)
+            }
+            if (g.special) {
+                // Bulatan khas di kanan atas: tanda gift kombo + bisa JP random.
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF7A3B10))
+                        .border(1.dp, Color(0xFFFFC94D), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("⚡", fontSize = 10.sp)
+                }
+            }
         }
         Text(g.name, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text("${g.price} 🪙", color = Color(0xFF8FA3A0), fontSize = 12.sp, maxLines = 1)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("${g.price} 🪙", color = Color(0xFF8FA3A0), fontSize = 12.sp, maxLines = 1)
+            if (g.cbRate > 0) {
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "+${g.cbRate}% CB",
+                    color = Color(0xFF2BD9C4),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** Tab Cashback: total koin cashback user, daftar gift khas dengan cashback, dan riwayat. */
+@Composable
+fun CashbackTab(myUid: String) {
+    var total by remember { mutableStateOf(0L) }
+    var logs by remember { mutableStateOf<List<Triple<Long, String, Long>>>(emptyList()) }
+    val teal = Color(0xFF2BD9C4)
+
+    DisposableEffect(myUid) {
+        val reg = Rtdb.listen(Rtdb.ref("cashback/$myUid")) { s ->
+            total = s.child("total").getValue(Long::class.java) ?: 0L
+            logs = s.child("log").children
+                .mapNotNull { c ->
+                    val g = c.child("g").getValue(String::class.java) ?: return@mapNotNull null
+                    val cb = c.child("cb").getValue(Long::class.java) ?: 0L
+                    val ts = c.child("ts").getValue(Long::class.java) ?: 0L
+                    Triple(ts, g, cb)
+                }
+                .sortedByDescending { it.first }
+                .take(8)
+        }
+        onDispose { reg.remove() }
+    }
+
+    val cbGifts = remember(GiftCatalog.list) { GiftCatalog.list.filter { it.cbRate > 0 } }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .height(240.dp)
+            .padding(horizontal = 14.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("💵", fontSize = 26.sp)
+            Spacer(Modifier.width(8.dp))
+            Column {
+                Text(tr("Total cashback kamu"), color = Color(0xFF8FA3A0), fontSize = 12.sp)
+                Text("${fmtNum(total)} koin", color = teal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            tr("Gift khas dengan cashback") + ":",
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(4.dp))
+        if (cbGifts.isEmpty()) {
+            Text(
+                tr("Belum ada. Persen cashback diatur admin di Panel Developer"),
+                color = Color(0xFF8FA3A0),
+                fontSize = 12.sp,
+            )
+        } else {
+            cbGifts.forEach { g ->
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (g.mediaUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = g.mediaUrl,
+                            contentDescription = g.name,
+                            modifier = Modifier.size(30.dp).clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Text(g.emoji, fontSize = 20.sp)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        g.name,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("+${g.cbRate}%", color = teal, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        if (logs.isNotEmpty()) {
+            Text(
+                tr("Riwayat terakhir") + ":",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(4.dp))
+            logs.forEach { (ts, gname, cb) ->
+                val t = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault())
+                    .format(java.util.Date(ts))
+                Text(
+                    "💵 +${fmtNum(cb)} 🪙 • $gname • $t",
+                    color = Color(0xFFB8C8C5),
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 
@@ -356,14 +496,15 @@ fun GiftPanel(
     val actions = LocalActions.current
     var wallet by remember { mutableStateOf(Wallet()) }
     var tab by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) { GiftCatalog.start() }
-    val gifts = GiftCatalog.list.ifEmpty { GIFTS }
-    var selected by remember { mutableStateOf(GIFTS.first().id) }
+    val gifts = GiftCatalog.list
+    var selected by remember { mutableStateOf(gifts.first().id) }
     var count by remember { mutableStateOf(1) }
     var countMenu by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var allSelected by remember { mutableStateOf(initialTarget == null) }
-    var picked by remember { mutableStateOf<Set<String>>(if (initialTarget != null) setOf(initialTarget) else emptySet()) }
+    var picked by remember {
+        mutableStateOf<Set<String>>(if (initialTarget != null) setOf(initialTarget) else emptySet())
+    }
     val targets = remember(seats, myUid, myName, myAvatarB64) {
         val me = seats.firstOrNull { it.uid == myUid } ?: Seat(-1, myUid, myName, myAvatarB64, false)
         listOf(me) + seats.filter { it.uid.isNotBlank() && it.uid != myUid }.sortedBy { it.index }
@@ -378,11 +519,14 @@ fun GiftPanel(
     }
 
     Box(
-        Modifier.fillMaxSize().background(Color(0x66000000)).clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onDismiss,
-        ),
+        Modifier
+            .fillMaxSize()
+            .background(Color(0x66000000))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            ),
     ) {
         Column(
             Modifier
@@ -402,13 +546,23 @@ fun GiftPanel(
                             .background(if (tab == i) teal else Color(0xFF16302F))
                             .clickable { tab = i }
                             .padding(horizontal = 18.dp, vertical = 8.dp),
-                    ) { Text(label, color = if (tab == i) Color.Black else Color(0xFF8FA3A0), fontWeight = FontWeight.Bold) }
+                    ) {
+                        Text(
+                            label,
+                            color = if (tab == i) Color.Black else Color(0xFF8FA3A0),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(10.dp))
+
             if (tab == 0) {
                 // ---- Penerima: All + foto profil user di mic ----
-                Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     val allShape = RoundedCornerShape(50)
                     Box(
                         Modifier
@@ -420,13 +574,21 @@ fun GiftPanel(
                             }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
-                        Text(tr("Semua"), color = if (allSelected) Color.Black else Color(0xFF8FA3A0), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(
+                            tr("Semua"),
+                            color = if (allSelected) Color.Black else Color(0xFF8FA3A0),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                        )
                     }
                     Spacer(Modifier.width(10.dp))
                     if (targets.isEmpty()) {
                         Text(tr("Belum ada user di mic"), color = Color(0xFF8FA3A0), fontSize = 12.sp)
                     } else {
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
                             targets.forEach { s ->
                                 val on = (allSelected && s.index >= 0) || s.uid in picked
                                 val bmp = remember(s.avatarB64) { ProfileRepo.decodeB64(s.avatarB64) }
@@ -435,7 +597,11 @@ fun GiftPanel(
                                         .size(42.dp)
                                         .clip(CircleShape)
                                         .background(Color(0xFF16302F))
-                                        .border(if (on) 2.dp else 1.dp, if (on) teal else Color(0xFF3A4A48), CircleShape)
+                                        .border(
+                                            if (on) 2.dp else 1.dp,
+                                            if (on) teal else Color(0xFF3A4A48),
+                                            CircleShape,
+                                        )
                                         .clickable {
                                             if (allSelected) {
                                                 allSelected = false
@@ -453,9 +619,18 @@ fun GiftPanel(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     if (bmp != null) {
-                                        Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                        Image(
+                                            bitmap = bmp,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
                                     } else {
-                                        Text(s.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            s.name.take(1).uppercase(),
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                        )
                                     }
                                 }
                             }
@@ -478,16 +653,22 @@ fun GiftPanel(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     repeat(pages.size) { i ->
                         Box(
-                            Modifier.padding(3.dp).size(7.dp).clip(CircleShape)
+                            Modifier
+                                .padding(3.dp)
+                                .size(7.dp)
+                                .clip(CircleShape)
                                 .background(if (pager.currentPage == i) teal else Color(0xFF3A4A48)),
                         )
                     }
                 }
+            } else if (tab == 2) {
+                CashbackTab(myUid)
             } else {
                 Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
                     Text(tr("Segera hadir"), color = Color(0xFF8FA3A0))
                 }
             }
+
             Spacer(Modifier.height(8.dp))
             Row(Modifier.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("🪙", fontSize = 22.sp)
@@ -513,7 +694,10 @@ fun GiftPanel(
                 )
                 Spacer(Modifier.weight(1f))
                 val pill = RoundedCornerShape(50)
-                Row(Modifier.clip(pill).border(1.5.dp, teal, pill), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.clip(pill).border(1.5.dp, teal, pill),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Box {
                         Row(
                             Modifier.clickable { countMenu = true }.padding(horizontal = 16.dp, vertical = 10.dp),
@@ -525,10 +709,13 @@ fun GiftPanel(
                         }
                         DropdownMenu(expanded = countMenu, onDismissRequest = { countMenu = false }) {
                             listOf(1, 10, 66, 188, 520).forEach { c ->
-                                DropdownMenuItem(text = { Text("$c") }, onClick = {
-                                    count = c
-                                    countMenu = false
-                                })
+                                DropdownMenuItem(
+                                    text = { Text("$c") },
+                                    onClick = {
+                                        count = c
+                                        countMenu = false
+                                    },
+                                )
                             }
                         }
                     }
@@ -536,27 +723,51 @@ fun GiftPanel(
                         Modifier
                             .background(if (sending) Color(0xFF3A4A48) else teal)
                             .clickable(enabled = !sending) {
-                                val receivers = targets.filter { if (allSelected) it.index >= 0 else it.uid in picked }
+                                val receivers = targets.filter {
+                                    if (allSelected) it.index >= 0 else it.uid in picked
+                                }
                                 if (receivers.isEmpty()) {
                                     Toast.makeText(context, tr("Pilih penerima dulu"), Toast.LENGTH_SHORT).show()
                                     return@clickable
                                 }
-                                val g = gifts.firstOrNull { it.id == selected } ?: gifts.first()
+                                val g = gifts.first { it.id == selected }
                                 val perReceiver = g.price * count
                                 val total = perReceiver * receivers.size
-                                val toText = if (allSelected) "semua mic (${receivers.size})"
-                                else receivers.joinToString(", ") { it.name }
+                                val toText = if (allSelected) {
+                                    "semua mic (${receivers.size})"
+                                } else {
+                                    receivers.joinToString(", ") { it.name }
+                                }
                                 sending = true
                                 AppScope.scope.launch {
                                     val err = WalletRepo.sendGift(myUid, total)
                                     if (err == null) {
                                         PublicSync.push(myUid)
                                         RoomExtras.sendGiftMessage(roomId, myName, g, count, toText)
-                                        val jp = GiftFx.sent(roomId, myUid, myName, g, count, receivers.size)
-                                        if (jp > 0) Toast.makeText(context, "🎉 JP!! +${fmtNum(jp)} koin masuk dompet!", Toast.LENGTH_LONG).show()
+                                        val (jp, cb) = GiftFx.sent(roomId, myUid, myName, g, count, receivers.size)
+                                        if (jp > 0) {
+                                            Toast.makeText(
+                                                context,
+                                                "🎉 JP!! +${fmtNum(jp)} koin masuk dompet!",
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                        }
+                                        if (cb > 0) {
+                                            Toast.makeText(
+                                                context,
+                                                "💵 Cashback +${fmtNum(cb)} koin!",
+                                                Toast.LENGTH_LONG,
+                                            ).show()
+                                        }
                                         val rerr = GiftRankRepo.record(myUid, myName, roomId, perReceiver, receivers)
-                                        Toast.makeText(context, "Gift terkirim! +${fmtNum(total)} diamond", Toast.LENGTH_SHORT).show()
-                                        if (rerr != null) Toast.makeText(context, "Ranking gagal: $rerr", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Gift terkirim! +${fmtNum(total)} diamond",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                        if (rerr != null) {
+                                            Toast.makeText(context, "Ranking gagal: $rerr", Toast.LENGTH_LONG).show()
+                                        }
                                     } else {
                                         Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
                                     }
@@ -564,7 +775,9 @@ fun GiftPanel(
                                 }
                             }
                             .padding(horizontal = 22.dp, vertical = 10.dp),
-                    ) { Text(tr("Berikan"), color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                    ) {
+                        Text(tr("Berikan"), color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
