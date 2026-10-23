@@ -69,7 +69,6 @@ fun OtherProfileScreen(
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val isMe = uid == myUid
-
     var user by remember(uid) { mutableStateOf(UserCache.peek(uid)) }
     var loading by remember(uid) { mutableStateOf(true) }
     var counts by remember(uid) { mutableStateOf(0L to 0L) }
@@ -79,6 +78,7 @@ fun OtherProfileScreen(
     var tab by remember(uid) { mutableStateOf(0) }
 
     BackHandler(onBack = onBack)
+
     LaunchedEffect(uid) {
         user = UserCache.byUid(uid, force = true) ?: user
         loading = false
@@ -125,7 +125,6 @@ fun OtherProfileScreen(
                     .navigationBarsPadding().padding(bottom = if (isMe) 16.dp else 88.dp),
             ) {
                 Spacer(Modifier.statusBarsPadding().height(64.dp))
-
                 // Avatar + identitas
                 Column(Modifier.padding(horizontal = 20.dp)) {
                     FramedAvatar(u, 84.dp)
@@ -160,6 +159,7 @@ fun OtherProfileScreen(
                     UserMedals(u.medals)
                     Spacer(Modifier.height(10.dp))
                     UserBadges(u)
+                    if (u.fam.isNotBlank()) { Spacer(Modifier.height(6.dp)); FamTagText(u.fam) }
                     Spacer(Modifier.height(12.dp))
                     // Chip level & negara
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -168,9 +168,7 @@ fun OtherProfileScreen(
                         InfoChip(if (vipActive(u.vip, u.vipUntil)) "VIP${u.vip}" else "VIP –", Color(0xFF8E6B1F))
                     }
                 }
-
                 Spacer(Modifier.height(16.dp))
-
                 // Statistik
                 Row(
                     Modifier.padding(horizontal = 16.dp).fillMaxWidth()
@@ -181,21 +179,17 @@ fun OtherProfileScreen(
                     ProfStat("0", "Sawer", Modifier.weight(1f))
                     ProfStat("0", "Pesona", Modifier.weight(1f))
                 }
-
                 if (u.bio.isNotBlank()) {
                     Spacer(Modifier.height(14.dp))
                     Text(u.bio, color = Color(0xFFE0E0E0), fontSize = 15.sp, modifier = Modifier.padding(horizontal = 20.dp))
                 }
-
                 Spacer(Modifier.height(22.dp))
-
                 // Tab
                 Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     ProfTab("Tentang saya", tab == 0) { tab = 0 }
                     ProfTab("Momen", tab == 1) { tab = 1 }
                 }
                 Spacer(Modifier.height(16.dp))
-
                 if (tab == 0) {
                     SectionTitle("Family saya")
                     PlaceholderCard("Belum bergabung dengan family")
@@ -217,7 +211,7 @@ fun OtherProfileScreen(
                                 if (m.text.isNotBlank()) Text(m.text, color = Color.White, fontSize = 15.sp)
                                 Spacer(Modifier.height(6.dp))
                                 Text(
-                                    "${timeAgo(m.createdAt)}  ·  ❤ ${m.likes}  ·  💬 ${m.comments}",
+                                    "${timeAgo(m.createdAt)} · ❤ ${m.likes} · 💬 ${m.comments}",
                                     color = Muted, fontSize = 12.sp,
                                 )
                             }
@@ -225,7 +219,6 @@ fun OtherProfileScreen(
                     }
                 }
             }
-
             // Tombol bawah (hanya untuk pengguna lain)
             if (!isMe) {
                 Row(
@@ -243,7 +236,6 @@ fun OtherProfileScreen(
                 }
             }
         }
-
         // Bar atas: kembali + nama
         Row(
             Modifier.fillMaxWidth().statusBarsPadding().height(56.dp),
