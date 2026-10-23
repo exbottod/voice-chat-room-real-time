@@ -30,6 +30,7 @@ data class PublicUser(
     val bubble: String = "",
     val badge: String = "",
     val medals: String = "",
+    val fam: String = "",
 )
 
 object UserDirectory {
@@ -107,6 +108,7 @@ object UserDirectory {
             bubble = doc.getString("bubble") ?: "",
             badge = doc.getString("badge") ?: "",
             medals = doc.getString("medals") ?: "",
+            fam = doc.getString("fam") ?: "",
         )
     }
 
@@ -129,9 +131,20 @@ object UserDirectory {
             bubble = doc.getString("bubble") ?: "",
             badge = doc.getString("badge") ?: "",
             medals = doc.getString("medals") ?: "",
+            fam = doc.getString("fam") ?: "",
         )
     }
-
+    
+/** Simpan label family di profil publik (dipanggil saat create/join/leave family). */
+    suspend fun setFam(uid: String, fam: String): String? = try {
+        val q = db().collection("userIds").whereEqualTo("uid", uid).limit(1).get().await()
+        val doc = q.documents.firstOrNull() ?: return null
+        db().collection("userIds").document(doc.id).set(
+            hashMapOf<String, Any?>("fam" to fam), SetOptions.merge(),
+        ).await()
+        null
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
+    
     // ---------- Undangan ----------
 
     suspend fun invitedBy(uid: String): String? =
