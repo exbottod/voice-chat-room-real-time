@@ -181,6 +181,14 @@ object FamilyRepo {
     suspend fun topFamilies(): List<Family> =
         db().collection("families").orderBy("exp", Query.Direction.DESCENDING).limit(30).get().await().documents.map { it.toFamily() }
 
+     /** Ambil satu family berdasarkan id (dipakai halaman family orang lain). */
+    suspend fun getFamily(fid: String): Family? =
+        fam(fid).get().await().toFamily()
+
+    /** FamilyId milik uid saat ini (null = belum punya family). */
+    suspend fun myFamilyId(uid: String): String? =
+        userFam(uid).get().await().getString("familyId")
+        
     suspend fun create(
         uid: String, myName: String, myAvatar: String?, name: String, label: String,
         logoB64: String?, needApproval: Boolean,
@@ -212,6 +220,7 @@ object FamilyRepo {
             tx.set(userFam(uid), hashMapOf("familyId" to newRef.id))
             null
         }.await()
+        if (err == null) UserDirectory.setFam(uid, name)
         err
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message ?: "Gagal membuat family" }
 
@@ -234,6 +243,7 @@ object FamilyRepo {
             }
             null
         }.await()
+        if (err == null) UserDirectory.setFam(uid, fam(fid).get().await().getString("name") ?: "")
         err
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message ?: "Gagal bergabung" }
 
@@ -249,6 +259,7 @@ object FamilyRepo {
             tx.set(userFam(r.uid), hashMapOf("familyId" to fid))
             null
         }.await()
+        if (err == null) UserDirectory.setFam(r.uid, fam(fid).get().await().getString("name") ?: "")
         err
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
@@ -261,7 +272,9 @@ object FamilyRepo {
             b.delete(fam(fid).collection("members").document(uid))
             b.update(fam(fid), "memberCount", FieldValue.increment(-1))
             b.delete(userFam(uid))
-        }.await(); null
+        }.await()
+        UserDirectory.setFam(uid, "")
+        null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
     suspend fun kick(fid: String, uid: String): String? = leave(fid, uid)
