@@ -3,10 +3,16 @@ package com.example.googlelogin
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -88,10 +94,24 @@ fun entryAssetOf(m: RoomMsg): VipAsset? {
     return if (m.vip in 1..9) VipAssets.get(m.vip, "entry") else null
 }
 
-/** Ikon lencana: gambar/svga dari store, atau emoji untuk lencana bawaan. */
+/**
+ * Ikon lencana: gambar/svga dari store, atau emoji untuk lencana bawaan.
+ * Tinggi selalu 'size', lebar otomatis mengikuti rasio file asli,
+ * jadi lencana panjang (mis. SVIP9) tampil utuh tanpa mengecil tergencet.
+ */
 @Composable
 fun StoreBadgeIcon(item: StoreItem, size: Dp = 22.dp) {
     val a = item.asset
-    if (a != null) key(a.updatedAt) { VipMedia(a, Modifier.size(size), loop = true) }
-    else Text(item.emoji, fontSize = (size.value * 0.82f).sp)
+    if (a == null) {
+        Text(item.emoji, fontSize = (size.value * 0.82f).sp)
+        return
+    }
+    key(a.updatedAt) {
+        var ratio by remember(a.n, a.slot, a.updatedAt) { mutableStateOf(1f) }
+        val ctx = LocalContext.current
+        LaunchedEffect(a.n, a.slot, a.updatedAt) {
+            ratio = runCatching { measureAssetRatio(ctx, a) }.getOrNull() ?: 1f
+        }
+        VipMedia(a, Modifier.height(size).width((size.value * ratio).dp), loop = true)
+    }
 }
