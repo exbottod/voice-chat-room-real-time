@@ -162,10 +162,9 @@ internal suspend fun measureAssetRatio(ctx: android.content.Context, a: VipAsset
                     val done = object : SVGAParser.ParseCompletion {
                         override fun onComplete(videoItem: SVGAVideoEntity) {
                             if (cont.isActive) {
-                                cont.resume(
-                                    videoItem.videoWidth.toFloat() /
-                                        videoItem.videoHeight.coerceAtLeast(1)
-                                )
+                                val w = videoItem.videoSize.width
+                                val h = videoItem.videoSize.height
+                                cont.resume(if (h > 0.0) (w / h).toFloat() else null)
                             }
                         }
 
