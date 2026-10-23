@@ -328,6 +328,7 @@ fun VipMedia(
             imageLoader = rememberVipLoader(),
             modifier = modifier,
             contentScale = contentScale,
+            filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
         )
     }
 }
