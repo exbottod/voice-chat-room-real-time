@@ -72,6 +72,7 @@ object GiftCatalog {
 
 /** Efek gift: kombo, JP (jackpot) dan cashback gift khas, serta banner global antar room. */
 object GiftFx {
+
     /** Kombo: kirim gift khas lagi dalam 6 detik = kombo naik. Return jumlah kombo. */
     suspend fun combo(roomId: String, uid: String): Int {
         var out = 1
@@ -128,6 +129,7 @@ object GiftFx {
             }
         }
         val room = RoomRepo.getRoom(roomId)
+
         // Efek layar penuh untuk semua orang di room (mp4/gif/svga) atau emoji besar.
         Rtdb.ref("giftFx/$roomId").push().setValue(
             hashMapOf<String, Any?>(
@@ -168,6 +170,7 @@ object GiftFx {
         val base = BuildConfig.AGORA_TOKEN_URL
         if (base.isBlank()) return null to "AGORA_TOKEN_URL belum diatur"
         val endpoint = base.substringBeforeLast('/') + "/upload"
+
         // Tiket login selalu segar.
         val idToken = try {
             FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()?.token
@@ -176,6 +179,7 @@ object GiftFx {
         } catch (e: Exception) {
             null
         } ?: return null to "Sesi login bermasalah, coba login ulang"
+
         val bytes = try {
             context.contentResolver.openInputStream(uri)?.use { s -> s.readBytes() }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -183,7 +187,9 @@ object GiftFx {
         } catch (e: Exception) {
             null
         } ?: return null to "File tidak bisa dibaca"
+
         if (bytes.size > 25 * 1024 * 1024) return null to "File terlalu besar (maks 25 MB)"
+
         // URI dari galeri sering tanpa ekstensi (mis. ".../images/100123"), jadi
         // tentukan format dari tipe MIME bila nama file tidak punya ekstensi.
         val allowed = listOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "svga")
@@ -204,6 +210,7 @@ object GiftFx {
         }
         val uploadName = "gift." + (if (ext == "jpeg") "jpg" else ext)
         val boundary = "giftfx${System.currentTimeMillis()}"
+
         // Coba 2x: koneksi seluler kadang putus di tengah pengiriman.
         var res: Pair<String?, String?> = null to null
         for (attempt in 1..2) {
@@ -283,6 +290,7 @@ private data class GlobalBannerData(
 fun GiftFxOverlay(roomId: String) {
     var fx by remember { mutableStateOf<GlobalBannerData?>(null) }
     var lastKey by remember { mutableStateOf<String?>(null) }
+
     DisposableEffect(roomId) {
         var isInit = true
         val reg = Rtdb.listen(Rtdb.ref("giftFx/$roomId").limitToLast(1)) { snap ->
@@ -313,13 +321,16 @@ fun GiftFxOverlay(roomId: String) {
         }
         onDispose { reg.remove() }
     }
+
     val d = fx
     if (d == null) return
     val big = d.jp || d.combo >= 2 || d.mediaUrl.isNotBlank()
+
     LaunchedEffect(d.ts) {
         delay(if (big) 8000L else 3000L)
         fx = null
     }
+
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (d.mediaUrl.isNotBlank()) {
             VipMedia(
@@ -368,20 +379,11 @@ private fun kindOf(url: String): String {
 @Composable
 fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
     var data by remember { mutableStateOf<GlobalBannerData?>(null) }
-    var lastTs by remember { mutableStateOf<Long?>(null) }
+
     DisposableEffect(Unit) {
         val reg = Rtdb.listen(Rtdb.ref("giftBanner")) { snap ->
             if (!snap.exists()) {
                 data = null
-                return@listen
-            }
-            val ts = snap.child("ts").getValue(Long::class.java) ?: 0L
-            val prev = lastTs
-            lastTs = ts
-            // Banner lama tidak muncul saat buka ulang app: snapshot pertama hanya dicatat.
-            if (prev == null || ts == prev || System.currentTimeMillis() - ts > 30_000) {
-                if (prev == null) return@listen
-                if (ts != prev) data = null
                 return@listen
             }
             data = GlobalBannerData(
@@ -399,14 +401,17 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
         }
         onDispose { reg.remove() }
     }
+
     LaunchedEffect(data?.ts) {
         if (data != null) {
-            delay(3000)
+            delay(10000)
             data = null
         }
     }
+
     val d = data
     if (d == null || d.roomId.isBlank() || d.roomId == currentRoomId) return
+
     Box(
         Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp),
         contentAlignment = Alignment.TopCenter,
@@ -639,6 +644,7 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
             Spacer(Modifier.height(6.dp))
             Text(t, color = Color(0xFF7CE38B), fontSize = 12.sp)
         }
+
         Spacer(Modifier.height(20.dp))
         Text("Gift kustom (${gifts.size}):", color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Spacer(Modifier.height(6.dp))
