@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun FamTagText(fam: String, modifier: Modifier = Modifier) {
     Text(
-        "🏷️ $fam",
+        "\uD83E\uDEE1 $fam",
         color = GoldLight,
         fontSize = 10.sp,
         fontWeight = FontWeight.Bold,
