@@ -678,8 +678,105 @@ private fun RequestsScreen(list: List<FamilyRequest>, isAdmin: Boolean, onBack: 
     }
 }
 
+/** Ranking family dari tab Party: layar penuh, tidak perlu punya family. */
 @Composable
-private fun FamilyRankScreen(myFamilyId: String, onBack: () -> Unit) {
+fun FamilyRankDialog(myUid: String, onDismiss: () -> Unit, onOpenFamily: (String) -> Unit = {}) {
+    var myFamilyId by remember { mutableStateOf("") }
+    DisposableEffect(myUid) {
+        val r = if (myUid.isNotEmpty()) FamilyRepo.observeMy(myUid) { f, _ -> myFamilyId = f?.id ?: "" } else null
+        onDispose { r?.remove() }
+    }
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        FamilyRankScreen(myFamilyId = myFamilyId, onBack = onDismiss, onOpenFamily = onOpenFamily)
+    }
+}
+
+@Composable
+fun FamilyProfileDialog(
+    fid: String,
+    myUid: String,
+    myName: String,
+    myAvatar: String?,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var f by remember(fid) { mutableStateOf<Family?>(null) }
+    var members by remember(fid) { mutableStateOf<List<FamilyMember>>(emptyList()) }
+    var myFid by remember(fid) { mutableStateOf<String?>(null) }
+    var busy by remember(fid) { mutableStateOf(false) }
+
+    BackHandler(onBack = onDismiss)
+    LaunchedEffect(fid) {
+        f = try { FamilyRepo.getFamily(fid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+        myFid = try { FamilyRepo.myFamilyId(myUid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+    }
+    DisposableEffect(fid) {
+        val reg = FamilyRepo.observeMembers(fid) { members = it }
+        onDispose { reg.remove() }
+    }
+    OverlayBox {
+        Column(Modifier.fillMaxSize()) {
+            GoldTopBar("Profil Family", onDismiss)
+            val fam = f
+            if (fam == null) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Memuat...", color = Color(0xFF8A8A8A)) }
+            } else {
+                LazyColumn(Modifier.weight(1f).fillMaxSize().padding(horizontal = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                        FamilyLogo(fam.logoB64, 92.dp)
+                        Spacer(Modifier.height(10.dp))
+                        Text(fam.name, color = GoldLight, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("ID:${fam.numId} · 🛡 ${fam.label}", color = Color(0xFF9AB5B0), fontSize = 13.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Lv ${familyLevel(fam.exp)} · ${familyClassOf(fam.exp).roman}", color = Color.White, fontSize = 13.sp)
+                            Text("${fmtNum(fam.exp)} EXP", color = Color(0xFFFFD54F), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("${fam.memberCount} anggota", color = Color.White, fontSize = 13.sp)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        if (myFid.isNullOrBlank()) {
+                            if (fam.needApproval) OutlineButton(if (busy) "Mengirim..." else "Ajukan Bergabung") { busy = true; scope.launch {
+                                val e = FamilyRepo.join(fam.id, myUid, myName, myAvatar); busy = false                               
+                                Toast.makeText(context, if (e == null) "Berhasil bergabung" else if (e == "REQUEST_SENT") "Permintaan dikirim" else e, Toast.LENGTH_SHORT).show()
+                                if (e == null) onDismiss()
+                            } }
+                            else YellowButton(if (busy) "..." else "Gabung Family", enabled = !busy) { busy = true; scope.launch {
+                                val e = FamilyRepo.join(fam.id, myUid, myName, myAvatar); busy = false
+                                Toast.makeText(context, if (e == null) "Berhasil bergabung" else e, Toast.LENGTH_SHORT).show()
+                                if (e == null) onDismiss()
+                            } }
+                        } else {
+                            Text(if (myFid == fam.id) "Ini family kamu" else "Kamu sudah tergabung di family lain", color = Color(0xFFBDBDBD), fontSize = 12.sp)
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text("Anggota (${members.size})", color = GoldLight, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    items(members.size) { i ->
+                        val m = members[i]
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(CardBlack).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            MemberAvatar(m.avatarB64, m.name, 40.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(m.name, color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(if (m.uid == fam.ownerUid) "Owner" else m.role, color = Color(0xFF9AB5B0), fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(20.dp)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FamilyRankScreen(myFamilyId: String, onBack: () -> Unit, onOpenFamily: (String) -> Unit = {}) {                         
     var list by remember { mutableStateOf<List<Family>?>(null) }
     LaunchedEffect(Unit) { list = try { FamilyRepo.topFamilies() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() } }
     SubPage("Liga Peringkat Fam", onBack) {
@@ -691,7 +788,8 @@ private fun FamilyRankScreen(myFamilyId: String, onBack: () -> Unit) {
                 val f = l[i]
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp))
-                        .background(if (f.id == myFamilyId) Color(0xFF2A3A20) else CardBlack).padding(10.dp),
+                        .background(if (f.id == myFamilyId) Color(0xFF2A3A20) else CardBlack)
+                        .clickable { onOpenFamily(f.id) }.padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(when (i) { 0 -> "🥇"; 1 -> "🥈"; 2 -> "🥉"; else -> "${i + 1}" }, color = Color.White, fontSize = 20.sp, modifier = Modifier.width(40.dp), textAlign = TextAlign.Center)
