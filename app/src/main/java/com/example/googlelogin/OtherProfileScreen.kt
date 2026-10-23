@@ -160,6 +160,7 @@ fun OtherProfileScreen(
                     UserMedals(u.medals)
                     Spacer(Modifier.height(10.dp))
                     UserBadges(u)
+                    if (u.fam.isNotBlank()) { Spacer(Modifier.height(6.dp)); FamTagText(u.fam) }
                     Spacer(Modifier.height(12.dp))
                     // Chip level & negara
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
