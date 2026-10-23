@@ -27,12 +27,12 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import java.net.HttpURLConnection
-import java.net.URL
-import org.json.JSONObject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Katalog gift: gift default (hardcode) + gift kustom dari koleksi Firestore "gifts"
@@ -40,8 +40,7 @@ import kotlinx.coroutines.tasks.await
  */
 object GiftCatalog {
     var list by mutableStateOf<List<Gift>>(emptyList())
-    private set
-
+        private set
     private var started = false
 
     fun start() {
@@ -78,7 +77,11 @@ object GiftFx {
         Rtdb.tx(Rtdb.ref("giftCombo/$roomId/$uid")) { d ->
             val t = d.child("t").getValue(Long::class.java) ?: 0L
             val now = System.currentTimeMillis()
-            out = if (now - t < 6000L) (d.child("c").getValue(Long::class.java) ?: 0L).toInt() + 1 else 1
+            out = if (now - t < 6000L) {
+                (d.child("c").getValue(Long::class.java) ?: 0L).toInt() + 1
+            } else {
+                1
+            }
             d.child("c").setValue(out.toLong())
             d.child("t").setValue(now)
             null
@@ -101,6 +104,7 @@ object GiftFx {
             }
         }
         val room = RoomRepo.getRoom(roomId)
+
         // Efek layar penuh untuk semua orang di room (mp4/gif/svga) atau emoji besar.
         Rtdb.ref("giftFx/$roomId").push().setValue(
             hashMapOf<String, Any?>(
@@ -141,13 +145,16 @@ object GiftFx {
         val base = BuildConfig.AGORA_TOKEN_URL
         if (base.isBlank()) return null to "AGORA_TOKEN_URL belum diatur"
         val endpoint = base.substringBeforeLast('/') + "/upload"
+
+        // Tiket login selalu segar.
         val idToken = try {
-            FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+            FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()?.token
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
             null
         } ?: return null to "Sesi login bermasalah, coba login ulang"
+
         val bytes = try {
             context.contentResolver.openInputStream(uri)?.use { s -> s.readBytes() }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -155,48 +162,72 @@ object GiftFx {
         } catch (e: Exception) {
             null
         } ?: return null to "File tidak bisa dibaca"
+
         if (bytes.size > 25 * 1024 * 1024) return null to "File terlalu besar (maks 25 MB)"
+
+        // URI dari galeri sering tanpa ekstensi (mis. ".../images/100123"), jadi
+        // tentukan format dari tipe MIME bila nama file tidak punya ekstensi.
+        val allowed = listOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "svga")
         val fname = (uri.lastPathSegment ?: "asset").substringAfterLast('/')
-var ext = fname.substringAfterLast('.', "").lowercase()
-if (ext !in listOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "svga")) {
-    ext = when (context.contentResolver.getType(uri) ?: "") {
-        "image/png" -> "png"
-        "image/jpeg" -> "jpg"
-        "image/gif" -> "gif"
-        "image/webp" -> "webp"
-        "video/mp4" -> "mp4"
-        else -> ""
-    }
-}
-if (ext !in listOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "svga")) {
-    return null to "Format tidak didukung (png, jpg, gif, webp, mp4, svga)"
-}
+        var ext = fname.substringAfterLast('.', "").lowercase()
+        if (ext !in allowed) {
+            ext = when (context.contentResolver.getType(uri) ?: "") {
+                "image/png" -> "png"
+                "image/jpeg" -> "jpg"
+                "image/gif" -> "gif"
+                "image/webp" -> "webp"
+                "video/mp4" -> "mp4"
+                else -> ""
+            }
+        }
+        if (ext !in allowed) {
+            return null to "Format tidak didukung (png, jpg, gif, webp, mp4, svga)"
+        }
         val uploadName = "gift." + (if (ext == "jpeg") "jpg" else ext)
         val boundary = "giftfx${System.currentTimeMillis()}"
-        return try {
-            val c = (URL(endpoint).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 30000
-                readTimeout = 120000
-                doOutput = true
-                setRequestProperty("Authorization", "Bearer $idToken")
-                setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+
+        // Coba 2x: koneksi seluler kadang putus di tengah pengiriman.
+        var res: Pair<String?, String?> = null to null
+        for (attempt in 1..2) {
+            res = try {
+                val c = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 30000
+                    readTimeout = 120000
+                    doOutput = true
+                    setRequestProperty("Authorization", "Bearer $idToken")
+                    setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+                }
+                c.outputStream.use { out ->
+                    out.write("--$boundary\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\ngift\r\n".toByteArray())
+                    out.write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"$uploadName\"\r\nContent-Type: application/octet-stream\r\n\r\n".toByteArray())
+                    out.write(bytes)
+                    out.write("\r\n--$boundary--\r\n".toByteArray())
+                }
+                val code = c.responseCode
+                // errorStream bisa null saat server menolak tanpa isi, jadi jangan sampai error aslinya tertelan.
+                val stream = if (code in 200..299) c.inputStream else c.errorStream
+                val body = stream?.use { it.readBytes() }?.toString(Charsets.UTF_8) ?: ""
+                val o = try {
+                    JSONObject(body)
+                } catch (e: Exception) {
+                    JSONObject()
+                }
+                val u = o.optString("url")
+                if (u.isNotBlank()) {
+                    u to null
+                } else {
+                    null to o.optString("error").ifBlank { "Upload gagal (HTTP $code)" }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null to "Upload gagal: ${e.message ?: "koneksi bermasalah"}"
             }
-            c.outputStream.use { out ->
-                out.write("--$boundary\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\ngift\r\n".toByteArray())
-                out.write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"$uploadName\"\r\nContent-Type: application/octet-stream\r\n\r\n".toByteArray())
-                out.write(bytes)
-                out.write("\r\n--$boundary--\r\n".toByteArray())
-            }
-            val body = (if (c.responseCode in 200..299) c.inputStream else c.errorStream).use { it.readBytes() }.toString(Charsets.UTF_8)
-            val o = JSONObject(body)
-            val u = o.optString("url")
-            if (u.isNotBlank()) u to null else null to o.optString("error").ifBlank { "Upload gagal" }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            null to "Upload gagal: ${e.message}"
+            if (res.first != null) break
+            if (attempt == 1) delay(2000)
         }
+        return res
     }
 
     private suspend fun sysMsg(roomId: String, text: String) {
@@ -234,16 +265,17 @@ private data class GlobalBannerData(
 fun GiftFxOverlay(roomId: String) {
     var fx by remember { mutableStateOf<GlobalBannerData?>(null) }
     var lastKey by remember { mutableStateOf<String?>(null) }
+
     DisposableEffect(roomId) {
         var isInit = true
         val reg = Rtdb.listen(Rtdb.ref("giftFx/$roomId").limitToLast(1)) { snap ->
             val c = snap.children.lastOrNull()
-            val ts = (c?.child("ts")?.getValue(Long::class.java) ?: 0L)
+            val ts = c?.child("ts")?.getValue(Long::class.java) ?: 0L
             val key = c?.key
             // Pesan pertama saat membuka room: abaikan kalau sudah lebih dari 8 detik.
             if (isInit) {
                 isInit = false
-                if (ts > System.currentTimeMillis() - 8000L) lastKey = null else lastKey = key
+                lastKey = if (ts > System.currentTimeMillis() - 8000L) null else key
                 return@listen
             }
             if (c != null && key != null && key != lastKey) {
@@ -264,13 +296,16 @@ fun GiftFxOverlay(roomId: String) {
         }
         onDispose { reg.remove() }
     }
+
     val d = fx
     if (d == null) return
     val big = d.jp || d.combo >= 2 || d.mediaUrl.isNotBlank()
+
     LaunchedEffect(d.ts) {
         delay(if (big) 8000L else 3000L)
         fx = null
     }
+
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (d.mediaUrl.isNotBlank()) {
             VipMedia(
@@ -284,8 +319,12 @@ fun GiftFxOverlay(roomId: String) {
             Text(d.emoji, fontSize = if (big) 120.sp else 64.sp)
         }
         Column(
-            Modifier.align(Alignment.BottomCenter).padding(bottom = 60.dp)
-            .clip(RoundedCornerShape(50)).background(Color(0xCC101010)).padding(horizontal = 16.dp, vertical = 8.dp),
+            Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 60.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xCC101010))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val text = buildString {
@@ -315,6 +354,7 @@ private fun kindOf(url: String): String {
 @Composable
 fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
     var data by remember { mutableStateOf<GlobalBannerData?>(null) }
+
     DisposableEffect(Unit) {
         val reg = Rtdb.listen(Rtdb.ref("giftBanner")) { snap ->
             if (!snap.exists()) {
@@ -336,26 +376,32 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
         }
         onDispose { reg.remove() }
     }
+
     LaunchedEffect(data?.ts) {
         if (data != null) {
             delay(10000)
             data = null
         }
     }
+
     val d = data
     if (d == null || d.roomId.isBlank() || d.roomId == currentRoomId) return
-    Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp), contentAlignment = Alignment.TopCenter) {
+
+    Box(
+        Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp),
+        contentAlignment = Alignment.TopCenter,
+    ) {
         Box(
             Modifier
-            .clip(RoundedCornerShape(50))
-            .background(
-                Brush.horizontalGradient(
-                    if (d.jp) listOf(Color(0xFFFF6A00), Gold) else listOf(Color(0xFF5B2BD9), Color(0xFFC9A227)),
-                ),
-            )
-            .border(1.dp, Gold, RoundedCornerShape(50))
-            .clickable { onOpenRoom(d.roomId) }
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+                .clip(RoundedCornerShape(50))
+                .background(
+                    Brush.horizontalGradient(
+                        if (d.jp) listOf(Color(0xFFFF6A00), Gold) else listOf(Color(0xFF5B2BD9), Color(0xFFC9A227)),
+                    ),
+                )
+                .border(1.dp, Gold, RoundedCornerShape(50))
+                .clickable { onOpenRoom(d.roomId) }
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (d.mediaUrl.isNotBlank()) {
@@ -374,7 +420,14 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
                     if (d.combo >= 2) append(" • kombo x${d.combo}")
                     append(" • ${d.roomName} ›")
                 }
-                Text(text, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -406,7 +459,8 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                 gifts = snap.documents.mapNotNull { d ->
                     val n = d.getString("name") ?: return@mapNotNull null
                     Gift(
-                        id = d.id, name = n,
+                        id = d.id,
+                        name = n,
                         emoji = d.getString("emoji") ?: "🎁",
                         price = d.getLong("price") ?: 0L,
                         mediaUrl = d.getString("mediaUrl") ?: "",
@@ -443,24 +497,44 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         Text(
             "Kelola hadiah gift. Media bisa URL atau upload dari perangkat (lewat Cloudinary). " +
-            "Gift khas = ada kombo dan bisa JP (jackpot) dengan peluang acak sesuai rate.",
-            color = Color(0xFFBDBDBD), fontSize = 12.sp,
+                "Gift khas = ada kombo dan bisa JP (jackpot) dengan peluang acak sesuai rate.",
+            color = Color(0xFFBDBDBD),
+            fontSize = 12.sp,
         )
         Spacer(Modifier.height(12.dp))
-        OutlinedTextField(name, { name = it }, label = { Text("Nama gift") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(
+            name, { name = it },
+            label = { Text("Nama gift") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(emoji, { emoji = it }, label = { Text("Emoji") }, modifier = Modifier.width(90.dp), singleLine = true)
+            OutlinedTextField(
+                emoji, { emoji = it },
+                label = { Text("Emoji") },
+                modifier = Modifier.width(90.dp),
+                singleLine = true,
+            )
             OutlinedTextField(
                 price, { price = it.filter { c -> c.isDigit() } },
-                label = { Text("Harga (koin)") }, modifier = Modifier.weight(1f), singleLine = true,
+                label = { Text("Harga (koin)") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
         }
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(url, { url = it }, label = { Text("URL media (mp4/gif/png/webp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(
+            url, { url = it },
+            label = { Text("URL media (mp4/gif/png/webp)") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
         Spacer(Modifier.height(8.dp))
-        OutlineButton("Upload dari perangkat", Modifier.fillMaxWidth()) { if (!busy) picker.launch("*/*") }
+        OutlineButton("Upload dari perangkat", Modifier.fillMaxWidth()) {
+            if (!busy) picker.launch("*/*")
+        }
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(special, { special = it })
@@ -470,12 +544,16 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     jpRate, { jpRate = it.filter { c -> c.isDigit() } },
-                    label = { Text("Peluang JP (%)") }, modifier = Modifier.weight(1f), singleLine = true,
+                    label = { Text("Peluang JP (%)") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
                 OutlinedTextField(
                     jpMult, { jpMult = it.filter { c -> c.isDigit() } },
-                    label = { Text("JP hadiah (x harga)") }, modifier = Modifier.weight(1f), singleLine = true,
+                    label = { Text("JP hadiah (x harga)") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
             }
@@ -491,7 +569,9 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
             busy = true
             scope.launch {
                 try {
-                    val id = name.lowercase().replace(Regex("[^a-z0-9]"), "").ifBlank { "gift${System.currentTimeMillis()}" }
+                    val id = name.lowercase()
+                        .replace(Regex("[^a-z0-9]"), "")
+                        .ifBlank { "gift${System.currentTimeMillis()}" }
                     FirebaseFirestore.getInstance().collection("gifts").document(id).set(
                         hashMapOf<String, Any?>(
                             "name" to name.trim(),
@@ -505,7 +585,13 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                         ),
                     ).await()
                     msg = "Gift tersimpan: ${name.trim()}"
-                    name = ""; emoji = ""; price = ""; url = ""; special = false; jpRate = ""; jpMult = ""
+                    name = ""
+                    emoji = ""
+                    price = ""
+                    url = ""
+                    special = false
+                    jpRate = ""
+                    jpMult = ""
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -518,26 +604,41 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
             Spacer(Modifier.height(6.dp))
             Text(t, color = Color(0xFF7CE38B), fontSize = 12.sp)
         }
+
         Spacer(Modifier.height(20.dp))
         Text("Gift kustom (${gifts.size}):", color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Spacer(Modifier.height(6.dp))
         gifts.forEach { g ->
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (g.mediaUrl.isNotBlank()) {
-                    AsyncImage(g.mediaUrl, null, Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                    AsyncImage(
+                        g.mediaUrl, null,
+                        Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
                 } else {
                     Text(g.emoji, fontSize = 26.sp)
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "${g.name} • ${g.price} koin" + if (g.special) " • khas (JP ${g.jpRate}% x${g.jpMult})" else "",
-                        color = Color.White, fontSize = 13.sp,
+                        "${g.name} • ${g.price} koin" +
+                            if (g.special) " • khas (JP ${g.jpRate}% x${g.jpMult})" else "",
+                        color = Color.White,
+                        fontSize = 13.sp,
                     )
-                    Text(if (g.mediaUrl.isNotBlank()) g.mediaUrl else "emoji saja", color = Color(0xFF9A9A9A), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        if (g.mediaUrl.isNotBlank()) g.mediaUrl else "emoji saja",
+                        color = Color(0xFF9A9A9A),
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 Text(
-                    "Hapus", color = Color(0xFFFF8A8A), fontSize = 12.sp,
+                    "Hapus",
+                    color = Color(0xFFFF8A8A),
+                    fontSize = 12.sp,
                     modifier = Modifier.clickable(enabled = !busy) {
                         scope.launch {
                             try {
