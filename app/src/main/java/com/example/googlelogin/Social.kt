@@ -1,5 +1,6 @@
 package com.example.googlelogin
 
+// PERSIST_PUB
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
@@ -33,7 +34,7 @@ class AppActions(
     val openFullProfile: (String) -> Unit = {},
 )
 
-val LocalActions = staticCompositionLocalOf { AppActions({}, {}) {} }
+val LocalActions = staticCompositionLocalOf { AppActions({}, {}, {}) }
 
 fun fmtNum(n: Long): String = NumberFormat.getInstance(Locale("in", "ID")).format(n)
 
@@ -59,12 +60,13 @@ object UserCache {
             sp().edit().putString(
                 u.uid,
                 org.json.JSONObject().put("userId", u.userId).put("name", u.name)
-                    .put("countryCode", u.countryCode).put("photourl", u.photourl ?: "")
+                    .put("countryCode", u.countryCode).put("photoUrl", u.photoUrl ?: "")
                     .put("gender", u.gender).put("exp", u.exp).put("vip", u.vip)
                     .put("vipUntil", u.vipUntil).put("frame", u.frame)
                     .put("bubble", u.bubble).put("badge", u.badge).put("fam", u.fam).toString(),
             ).apply()
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+        }
     }
 
     private fun disk(uid: String): PublicUser? = try {
@@ -76,7 +78,7 @@ object UserCache {
             countryCode = o.optString("countryCode", "ID"),
             bio = "",
             avatarB64 = null,
-            photourl = o.optString("photourl").ifBlank { null },
+            photoUrl = o.optString("photoUrl").ifBlank { null },
             gender = o.optString("gender"),
             exp = o.optLong("exp"),
             vip = o.optInt("vip"),
@@ -92,8 +94,9 @@ object UserCache {
 
     private suspend fun rtdb(uid: String, base: PublicUser?): PublicUser? = try {
         val s = kotlinx.coroutines.withTimeoutOrNull(6000L) { Rtdb.ref("pub/$uid").get().await() }
-        if (s == null || !s.exists()) null
-        else {
+        if (s == null || !s.exists()) {
+            null
+        } else {
             val b = base ?: PublicUser("", uid, "", "ID", "", null, null)
             b.copy(
                 exp = (s.child("exp").value as? Number)?.toLong() ?: b.exp,
@@ -114,7 +117,7 @@ object UserCache {
 
     suspend fun byUid(uid: String, force: Boolean = false): PublicUser? {
         val c = map[uid]
-        if (force && c != null && System.currentTimeMillis() - c.first < 300_000) return c.second
+        if (!force && c != null && System.currentTimeMillis() - c.first < 300_000) return c.second
         val fromDb = try {
             kotlinx.coroutines.withTimeoutOrNull(8000L) { UserDirectory.findByUid(uid) }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -129,7 +132,7 @@ object UserCache {
         }
         val base = c?.second ?: disk(uid)
         val r = rtdb(uid, base) ?: base
-        if (r != null) map[uid] = System.currentTimeMillis() - 240_000L to r
+        if (r != null) map[uid] = (System.currentTimeMillis() - 240_000L) to r
         return r
     }
 }
@@ -157,9 +160,9 @@ object FollowRepo {
 
     /** Pair(mengikuti, fans) */
     suspend fun counts(uid: String): Pair<Long, Long> {
-        val db = db()
-        val following = db.collection("follows").whereEqualTo("followerUid", uid).count().get(AggregateSource.SERVER).await().count
-        val fans = db.collection("follows").whereEqualTo("targetUid", uid).count().get(AggregateSource.SERVER).await().count
+        val c = db().collection("follows")
+        val following = c.whereEqualTo("followerUid", uid).count().get(AggregateSource.SERVER).await().count
+        val fans = c.whereEqualTo("targetUid", uid).count().get(AggregateSource.SERVER).await().count
         return following to fans
     }
 }
@@ -170,7 +173,8 @@ fun PublicAvatar(u: PublicUser?, size: Dp, fallback: String = "?", modifier: Mod
     val base = modifier.size(size).clip(CircleShape)
     when {
         bmp != null -> Image(bmp, null, base, contentScale = ContentScale.Crop)
-        u != null && !u.photourl.isNullOrBlank() -> AsyncImage(model = u.photourl, contentDescription = null, modifier = base, contentScale = ContentScale.Crop)
+        u != null && !u.photoUrl.isNullOrBlank() ->
+            AsyncImage(model = u.photoUrl, contentDescription = null, modifier = base, contentScale = ContentScale.Crop)
         else -> Box(base.background(Color(0xFF263238)), contentAlignment = Alignment.Center) {
             Text(
                 (u?.name ?: fallback).take(1).uppercase(),
@@ -206,7 +210,7 @@ fun LevelBadge(level: Int, modifier: Modifier = Modifier) {
     ) { Text("Lv $level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
 }
 
-/** Deretan medal. Slot kosong sekarang; isi daftar [medals] nanti (emoji / label). */
+/** Deretan medali. Slot kosong sekarang; isi daftar [medals] nanti (emoji / label). */
 @Composable
 fun MedalRow(medals: List<String> = emptyList(), slots: Int = 8) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
@@ -254,12 +258,15 @@ fun ProfileSheetAction(label: String, icon: String, onClick: () -> Unit) {
     Column(Modifier.clickable(onClick = onClick).padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(icon, fontSize = 28.sp)
         Spacer(Modifier.height(4.dp))
-        Text(label, color = Color(0xFFDDDDDD), fontSize = 12.sp)
+        Text(label, color = Color(0xFFD0D0D0), fontSize = 12.sp)
     }
 }
 
 /**
- * Sheet profil pengguna lain.
+ * Sheet profil pengguna lain. Muncul saat profil di mic / hasil pencarian diketuk.
+ * Mengetuk bagian atas (avatar, nama, medali, VIP) membuka halaman profil lengkap.
+ * [extra] = tombol tambahan (mis. Turun Mic, Hadiah) saat dibuka dari dalam room.
+ * [topAction] = tombol di pojok kanan atas sheet (mis. menu titik tiga: Kick dari room).
  */
 @Composable
 fun UserProfileSheet(
@@ -290,7 +297,8 @@ fun UserProfileSheet(
                 following = FollowRepo.isFollowing(myUid, uid)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+            }
         }
     }
 
@@ -338,7 +346,7 @@ fun UserProfileSheet(
                 if (u == null) {
                     Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                         if (loading) CircularProgressIndicator(color = Gold)
-                        else Text("Profil tidak ditemukan", color = Color(0xFFBDBDBD))
+                        else Text(tr("Profil tidak ditemukan"), color = Color(0xFFBDBDBD))
                     }
                 } else {
                     // Bagian atas: ketuk -> halaman profil lengkap
@@ -350,9 +358,14 @@ fun UserProfileSheet(
                         Spacer(Modifier.height(10.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             VipNameText(
-                                u.name, u.vip, u.vipUntil,
-                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                u.name,
+                                u.vip,
+                                u.vipUntil,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 22.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false),
                             )
                             Spacer(Modifier.width(8.dp))
@@ -360,7 +373,7 @@ fun UserProfileSheet(
                         }
                         Spacer(Modifier.height(6.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("UID:${u.userId}", color = Color(0xFFFDBDBD), fontSize = 15.sp)
+                            Text("UID:${u.userId}", color = Color(0xFFBDBDBD), fontSize = 15.sp)
                             Spacer(Modifier.width(8.dp))
                             LevelBadge(userLevel(u))
                             Spacer(Modifier.width(6.dp))
@@ -379,10 +392,9 @@ fun UserProfileSheet(
                         Spacer(Modifier.height(8.dp))
                         UserBadges(u)
                         Spacer(Modifier.height(10.dp))
-                        Text("Ketuk untuk lihat profil lengkap >", color = Gold, fontSize = 12.sp)
-                        Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
+                        Text(tr("Ketuk untuk lihat profil lengkap ›"), color = Gold, fontSize = 12.sp)
                     }
-
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0x22FFFFFF)))
                     Column(
                         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -392,27 +404,28 @@ fun UserProfileSheet(
                                 Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment = Alignment.CenterVertically,
-                            ) { extra() }
+                            ) {
+                                extra()
+                            }
                             Spacer(Modifier.height(12.dp))
                         }
                         if (!isMe) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 if (following) {
-                                    OutlineButton("Mengikuti ✓", Modifier.weight(1f)) { if (!busy) toggleFollow() }
+                                    OutlineButton(tr("Mengikuti ✓"), Modifier.weight(1f)) { if (!busy) toggleFollow() }
                                 } else {
-                                    GoldButton("Ikuti", Modifier.weight(1f), enabled = !busy) { toggleFollow() }
+                                    GoldButton(tr("Ikuti"), Modifier.weight(1f), enabled = !busy) { toggleFollow() }
                                 }
                                 OutlineButton("Chat", Modifier.weight(1f)) { onChat(u) }
                             }
                         } else if (extra == null) {
-                            Text("Ini profil kamu", color = Color(0xFF9A9A9A))
+                            Text(tr("Ini profil kamu"), color = Color(0xFF9A9A9A))
                         }
                     }
-
-                    if (topAction != null) {
-                        Box(Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 10.dp)) { topAction() }
-                    }
                 }
+            }
+            if (topAction != null) {
+                Box(Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 10.dp)) { topAction() }
             }
         }
     }
