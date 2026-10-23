@@ -379,11 +379,21 @@ private fun kindOf(url: String): String {
 @Composable
 fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
     var data by remember { mutableStateOf<GlobalBannerData?>(null) }
+    var lastTs by remember { mutableStateOf<Long?>(null) }
 
     DisposableEffect(Unit) {
         val reg = Rtdb.listen(Rtdb.ref("giftBanner")) { snap ->
             if (!snap.exists()) {
                 data = null
+                return@listen
+            }
+            val ts = snap.child("ts").getValue(Long::class.java) ?: 0L
+            val prev = lastTs
+            lastTs = ts
+            // Banner lama tidak muncul saat buka ulang app: snapshot pertama hanya dicatat.
+            if (prev == null || ts == prev || System.currentTimeMillis() - ts > 30_000) {
+                if (prev == null) return@listen
+                if (ts != prev) data = null
                 return@listen
             }
             data = GlobalBannerData(
@@ -404,7 +414,7 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
 
     LaunchedEffect(data?.ts) {
         if (data != null) {
-            delay(10000)
+            delay(3000)
             data = null
         }
     }
