@@ -906,7 +906,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                     Modifier.fillMaxWidth().background(Color(0x66000000)).navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("\uD83E\uDE99 ${fmtNum(wallet.coins)}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text("\uD83E\uDE99 ${fmtCompact(wallet.coins)}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.weight(1f))
                     val cur = sel
                     val owned = cur != null && (wallet.inv[cur.id] ?: 0L) > now
