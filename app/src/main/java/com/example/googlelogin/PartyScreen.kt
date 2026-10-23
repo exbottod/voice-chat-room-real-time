@@ -73,6 +73,8 @@ fun PartyTab(
     var showCreate by remember { mutableStateOf(false) }
     var lockedRoom by remember { mutableStateOf<RoomInfo?>(null) }
     var showRank by remember { mutableStateOf(false) }
+    var showFamilyRank by remember { mutableStateOf(false) }
+    var famProfile by remember { mutableStateOf<String?>(null) }
     var refreshKey by remember { mutableStateOf(0) }
     var refreshing by remember { mutableStateOf(false) }
     val refreshScope = rememberCoroutineScope()
@@ -130,7 +132,7 @@ fun PartyTab(
             if (subTab == 1) {
                 item(span = { GridItemSpan(maxLineSpan) }) { BannerPager() }
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    RankRow(onClick = { if (it == "Top Sawer") showRank = true else soon("$it segera hadir") })
+                    RankRow(onClick = { when (it) { "Top Sawer" -> showRank = true; "Family" -> showFamilyRank = true; else -> soon("$it segera hadir") } })
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     PrizeBar(onClick = { soon("Undian hadiah segera hadir") })
@@ -162,6 +164,14 @@ fun PartyTab(
         )
     }
     if (showRank) TopRankDialog(onDismiss = { showRank = false })
+    if (showFamilyRank) FamilyRankDialog(
+        myUid = myUid,
+        onDismiss = { showFamilyRank = false },
+        onOpenFamily = { showFamilyRank = false; famProfile = it },
+    )
+    famProfile?.let { fid ->
+        FamilyProfileDialog(fid = fid, myUid = myUid, myName = myName, myAvatar = null, onDismiss = { famProfile = null })
+    }
     lockedRoom?.let { r ->
         PasswordDialog(r, onDismiss = { lockedRoom = null }, onOk = { lockedRoom = null; onEnterRoom(r) })
     }
