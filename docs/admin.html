@@ -656,6 +656,7 @@ const STORE_SLOTS = {
   medal: { name: "🏅 Medali", accept: [".svga", ".gif", ".webp", ".png"] },
 };
 let storeItems = [], storeUnsub = null;
+let pendingFiles = {}; // file yang dipilih tidak hilang saat kartu di-render ulang
 function storeStart(){
   if (storeUnsub) return;
   storeUnsub = db.collection("vipConfig").where("store", "==", true).onSnapshot(s => {
@@ -705,7 +706,7 @@ function renderStore(){
     storePreview(prev, c);
     const el = { name: card.querySelector(".f-name"), price: card.querySelector(".f-price"), days: card.querySelector(".f-days"),
       order: card.querySelector(".f-order"), url: card.querySelector(".f-url"), file: card.querySelector(".f-file") };
-    el.file.onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile(prev, f); };
+    el.file.onchange = ev => { const f = ev.target.files[0]; if (f) { pendingFiles[c.id] = f; vipPreviewFile(prev, f); } };
     const saveBtn = card.querySelector(".f-save");
     saveBtn.onclick = () => storeSave(c, el, saveBtn);
     card.querySelector(".f-del").onclick = () => storeDelete(c);
@@ -718,7 +719,7 @@ async function storeSave(c, el, btn){
   if (!(price >= 0)) return toast("Harga tidak valid");
   if (!(days >= 1)) return toast("Durasi minimal 1 hari");
   const slot = c ? c.slot : el.slot.value, sl = STORE_SLOTS[slot];
-  const url = el.url.value.trim(), f = el.file.files[0];
+  const url = el.url.value.trim(), f = (c ? pendingFiles[c.id] : null) || el.file.files[0];
   if (!c && !url && !f) return toast("Isi URL atau pilih file");
   const id = c ? c.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const col = db.collection("vipConfig"), docId = "store_" + id, did = "data_store_" + id;
@@ -747,6 +748,7 @@ async function storeSave(c, el, btn){
     }
     await fsCommit(b);
     logAction({ type: "storeItem", id: id, slot: slot });
+    if (c) delete pendingFiles[c.id];
     toast("Tersimpan ✅");
     if (!c) {
       el.name.value = ""; el.url.value = ""; el.file.value = "";
