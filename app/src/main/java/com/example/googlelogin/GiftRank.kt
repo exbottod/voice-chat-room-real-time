@@ -38,7 +38,7 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
-data class RankEntry(val id: String, val name: String, val total: Long)
+data class RankEntry(val id: String, val name: String, val total: Long, val hidden: Boolean = false)
 
 /** Periode ranking memakai zona waktu UTC+7 (Asia/Jakarta). */
 object RankPeriod {
@@ -134,13 +134,31 @@ object GiftRankRepo {
         }
     }
 
-    suspend fun top(col: String, periodKey: String, limit: Int = 30): List<RankEntry> =
-        db().collection(col).whereEqualTo("period", periodKey).limit(300).get().await()
+    suspend fun top(col: String, periodKey: String, limit: Int = 30): List<RankEntry> {
+        val raw = db().collection(col).whereEqualTo("period", periodKey).limit(300).get().await()
             .documents
             .map { RankEntry(it.getString("subject") ?: "", it.getString("name") ?: "", it.getLong("total") ?: 0L) }
             .filter { it.id.isNotEmpty() && it.total > 0 }
             .sortedByDescending { it.total }
             .take(limit)
+        // Hide ranking records (SVIP6): yang mengaktifkan tampil misterius di daftar.
+        val uids = raw.map { it.id }.filter { it.length > 10 }.distinct()
+        val pubByUid = HashMap<String, PublicUser>()
+        try {
+            for (chunk in uids.chunked(30)) {
+                db().collection("userIds").whereIn("uid", chunk).get().await().documents.forEach { d ->
+                    val pub = UserDirectory.toPublic(d)
+                    if (pub.uid.isNotEmpty()) pubByUid[pub.uid] = pub
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        return raw.map { e ->
+            val pub = pubByUid[e.id]
+            if (pub != null && vipActive(pub.vip, pub.vipUntil) && pub.vip >= 6 && pub.svipOn("hideRanking")) {
+                e.copy(name = "Mysterious", hidden = true)
+            } else e
+        }
+    }
 }
 
 fun fmtRank(n: Long): String {
@@ -188,6 +206,11 @@ fun TopRankDialog(onDismiss: () -> Unit, initialTab: Int = 1) {
 
 @Composable
 private fun RkAvatar(col: String, e: RankEntry, size: Dp, ring: Color) {
+    // Hide ranking records: foto profil misterius (hacker + kilau putih).
+    if (e.hidden) {
+        MysteryAvatar(size)
+        return
+    }
     var b64 by remember(col, e.id) { mutableStateOf<String?>(null) }
     LaunchedEffect(col, e.id) { b64 = loadRankAvatar(col, e.id) }
     val bmp = remember(b64) { ProfileRepo.decodeB64(b64) }
@@ -230,7 +253,7 @@ private fun RkTopOne(col: String, e: RankEntry) {
                 .padding(horizontal = 28.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(e.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (e.hidden) MysteryName(20.sp) else Text(e.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             RkCoin(e.total, 26.sp)
         }
     }
@@ -255,7 +278,7 @@ private fun RkShield(col: String, e: RankEntry, rank: Int, c1: Color, c2: Color,
             ) { Text("$rank", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
         }
         Spacer(Modifier.height(8.dp))
-        Text(e.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (e.hidden) MysteryName(15.sp) else Text(e.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(4.dp))
         RkCoin(e.total, 18.sp)
     }
@@ -277,7 +300,7 @@ private fun RkRow(col: String, e: RankEntry, rank: Int) {
         Text("$rank", color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
         RkAvatar(col, e, 52.dp, GoldDark)
         Spacer(Modifier.width(12.dp))
-        Text(e.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        if (e.hidden) { MysteryName(16.sp); Spacer(Modifier.weight(1f)) } else Text(e.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         RkCoin(e.total, 16.sp)
     }
 }
@@ -306,10 +329,14 @@ private fun RkMine(col: String, e: RankEntry?, index: Int, modifier: Modifier) {
         }
         Column(Modifier.weight(1f)) {
             Text(tr("Peringkat kamu"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Text(
-                if (e != null) e.name else tr("Belum ada di ranking periode ini"),
-                color = Color(0xFFD9C7A8), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
+            if (e != null && e.hidden) {
+                MysteryName(12.sp)
+            } else {
+                Text(
+                    if (e != null) e.name else tr("Belum ada di ranking periode ini"),
+                    color = Color(0xFFD9C7A8), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         if (e != null) RkCoin(e.total, 16.sp)
     }
