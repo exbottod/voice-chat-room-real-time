@@ -1118,7 +1118,7 @@ private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
                 }
                 findItem(u?.badge)?.let {
                     Spacer(Modifier.width(4.dp))
-                    StoreBadgeIcon(it, 18.dp)
+                    StoreBadgeIcon(it, 24.dp)
                 }
             }
             u?.let {
