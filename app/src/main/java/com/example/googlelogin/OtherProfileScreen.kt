@@ -197,7 +197,7 @@ fun OtherProfileScreen(
                 }
                 Spacer(Modifier.height(16.dp))
 
-                if (tab == 0)  
+                if (tab == 0)  {
                     SectionTitle("Family saya")
                     if (u.fam.isNotBlank()) FamCard(u.fam)
                     else PlaceholderCard("Belum bergabung dengan family")                    
