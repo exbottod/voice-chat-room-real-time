@@ -233,7 +233,7 @@ fun ProfileTab(
                         val myMedals = activeMedalIds(wallet)
                         if (myMedals.isNotEmpty()) {
                             Spacer(Modifier.height(6.dp))
-                            UserMedals(myMedals.joinToString(","), 22.dp)
+                            UserMedals(myMedals.joinToString(","), 32.dp)
                         }
                     }
                 }
