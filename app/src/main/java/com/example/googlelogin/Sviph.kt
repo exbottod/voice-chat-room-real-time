@@ -2,9 +2,9 @@ package com.example.googlelogin
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateColor
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -13,7 +13,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 /** Daftar privilege SVIP. Membeli SVIP n otomatis membuka semua baris minVip <= n. */
 data class SvipPriv(
@@ -203,13 +203,14 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                                 Text(priv.desc, color = Color(0xFF9E9E9E), fontSize = 13.sp)
                             }
                             if (priv.arrow) {
-                                Text("›", color = Color(0xFF9E9E9E), fontSize = 26.sp,
+                                Text(
+                                    "›", color = Color(0xFF9E9E9E), fontSize = 26.sp,
                                     modifier = Modifier.clickable(enabled = unlocked) { editAd = true }
-                                        .padding(horizontal = 10.dp))
+                                        .padding(horizontal = 10.dp),
+                                )
                             } else {
                                 ToggleGold(on = on, enabled = unlocked, onChange = { v ->
                                     toggles = toggles + (priv.key to v)
-                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { }
                                     AppScope.scope.launch {
                                         val err = SvipRepo.set(uid, priv.key, v)
                                         if (err != null) Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
@@ -218,8 +219,7 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                             }
                         }
                         if (i < SVIP_PRIVS.lastIndex) {
-
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF333333)))
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF333333)))
                         }
                     }
                 }
@@ -240,7 +240,7 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                     OutlinedTextField(
                         value = txt,
                         onValueChange = { txt = it },
-                        placeholder = { Text("Tulis iklanmu…") },                        
+                        placeholder = { Text("Tulis iklanmu…") },
                     )
                 }
             },
