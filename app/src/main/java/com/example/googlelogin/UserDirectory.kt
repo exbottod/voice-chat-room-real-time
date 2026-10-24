@@ -90,6 +90,28 @@ object UserDirectory {
         }
     }
 
+    /** Ubah dokumen koleksi userIds menjadi PublicUser (dipakai masking ranking). */
+    fun toPublic(doc: com.google.firebase.firestore.DocumentSnapshot): PublicUser = PublicUser(
+        userId = doc.id,
+        uid = doc.getString("uid") ?: "",
+        name = doc.getString("name") ?: "Pengguna ${doc.id}",
+        countryCode = doc.getString("countryCode") ?: "ID",
+        bio = doc.getString("bio") ?: "",
+        avatarB64 = doc.getString("avatarB64"),
+        photoUrl = doc.getString("photoUrl"),
+        gender = doc.getString("gender") ?: "",
+        exp = doc.getLong("exp") ?: 0L,
+        vip = (doc.getLong("vip") ?: 0L).toInt(),
+        vipUntil = doc.getLong("vipUntil") ?: 0L,
+        frame = doc.getString("frame") ?: "",
+        bubble = doc.getString("bubble") ?: "",
+        badge = doc.getString("badge") ?: "",
+        medals = doc.getString("medals") ?: "",
+        fam = doc.getString("fam") ?: "",
+        svip = doc.getString("svip") ?: "",
+        ad = doc.getString("ad") ?: "",
+    )
+
     /** Cari pengguna berdasarkan ID. null = tidak ditemukan. */
     suspend fun find(id: String): PublicUser? {
         val doc = db().collection("userIds").document(id.trim()).get().await()
