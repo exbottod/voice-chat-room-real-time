@@ -197,14 +197,15 @@ fun OtherProfileScreen(
                 }
                 Spacer(Modifier.height(16.dp))
 
-                if (tab == 0) {
+                if (tab == 0)  
                     SectionTitle("Family saya")
-                    PlaceholderCard("Belum bergabung dengan family")
+                    if (u.fam.isNotBlank()) FamCard(u.fam)
+                    else PlaceholderCard("Belum bergabung dengan family")                    
                     Spacer(Modifier.height(18.dp))
                     SectionTitle("Penjaga saya")
                     PlaceholderCard("Belum memiliki penjaga")
                 } else {
-                    val list = moments
+                val list = moments
                     when {
                         list == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(color = Gold)
@@ -314,4 +315,26 @@ private fun PlaceholderCard(text: String) {
             .clip(shape).background(Color(0x22FFFFFF)).border(1.dp, Gold.copy(alpha = 0.25f), shape),
         contentAlignment = Alignment.Center,
     ) { Text(text, color = Muted, fontSize = 14.sp) }
+}
+
+@Composable
+private fun FamCard(fam: String) {
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(90.dp)
+            .clip(shape).background(Color(0x22FFFFFF)).border(1.dp, Gold.copy(alpha = 0.25f), shape)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(56.dp).clip(RoundedCornerShape(14.dp))
+                .background(Brush.horizontalGradient(listOf(Gold, GoldDark))),
+            contentAlignment = Alignment.Center,
+        ) { Text("🏰", fontSize = 26.sp) }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(fam, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("Bergabung dengan family ini", color = Color(0xFFE0E0E0), fontSize = 13.sp)
+        }
+    }
 }
