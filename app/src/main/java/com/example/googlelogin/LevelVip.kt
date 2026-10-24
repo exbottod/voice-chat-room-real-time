@@ -929,7 +929,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         Text("Belum ada item.\nBeli di Store atau beli VIP untuk mendapatkan item.", color = Color.White, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     }
                     mine.forEach { (item, exp) ->
-                        val used = wallet.equip[item.slot] == item.id
+                        val used = if (item.slot == "badge") item.id in activeMedalIds(wallet) else wallet.equip[item.slot] == item.id
                         Row(
                             Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp)).background(Color(0x55000000)).padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
