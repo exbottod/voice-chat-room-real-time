@@ -291,7 +291,7 @@ fun BadgeRow(vip: Int, until: Long, badge: String, modifier: Modifier = Modifier
     if (!on && b == null) return
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         if (on) VipTag(vip)
-        if (b != null) StoreBadgeIcon(b, 22.dp)
+        if (b != null) StoreBadgeIcon(b, 30.dp)
     }
 }
 
