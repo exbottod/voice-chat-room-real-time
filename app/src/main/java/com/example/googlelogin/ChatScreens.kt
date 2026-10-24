@@ -1,5 +1,6 @@
 package com.example.googlelogin
 
+import android.media.RingtoneManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
@@ -77,6 +78,13 @@ object ChatRepo {
             }
 
     suspend fun send(me: String, myName: String, myId: String, other: PublicUser, text: String): String? {
+        // Avoid disturbing (SVIP2): hanya orang yang DIA ikuti boleh kirim pesan padanya.
+        if (other.svipOn("avoidDisturbing") && vipActive(other.vip, other.vipUntil) && other.vip >= 2) {
+            val ok = try {
+                FollowRepo.isFollowing(other.uid, me)
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false }
+            if (!ok) return "User ini mengaktifkan Avoid disturbing (hanya menerima pesan dari orang yang dia ikuti)"
+        }
         return try {
             val ref = db().collection("chats").document(chatId(me, other.uid))
             val now = System.currentTimeMillis()
@@ -170,6 +178,21 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
     LaunchedEffect(msgs.size) { if (msgs.isNotEmpty()) listState.animateScrollToItem(msgs.size - 1) }
     BackHandler(onBack = onBack)
 
+    // Mute ringtone (SVIP1): bunyi notifikasi saat pesan masuk, kecuali di-mute.
+    var prevCount by remember { mutableStateOf(-1) }
+    LaunchedEffect(msgs.size) {
+        val last = msgs.lastOrNull()
+        if (last != null && last.from != myUid && prevCount > 0 && msgs.size > prevCount) {
+            if (!SvipRepo.myOn(myUid, "muteRingtone", 1)) {
+                try {
+                    val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                    RingtoneManager.getRingtone(context, uri)?.play()
+                } catch (e: Exception) { }
+            }
+        }
+        prevCount = msgs.size
+    }
+
     fun send() {
         val t = text.trim()
         if (t.isEmpty()) return
@@ -195,6 +218,18 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
                     Spacer(Modifier.width(10.dp))
                     Text(other.name, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
+            }
+            // Personal Ads (SVIP1): iklan pribadi pemilik profil tampil di kotak masuk.
+            if (other.ad.isNotBlank()) {
+                Text(
+                    "📢 ${other.ad}",
+                    color = Color(0xFFFFE082),
+                    fontSize = 13.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(10.dp)).background(Color(0x22FFC107)).padding(10.dp),
+                )
             }
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth(),
