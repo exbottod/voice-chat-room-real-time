@@ -5,11 +5,13 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateColor
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,7 +46,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -100,6 +104,18 @@ object SvipRepo {
         throw e
     } catch (e: Exception) {
         e.message ?: "Gagal"
+    }
+
+    /** Apakah user INI (uid) mengaktifkan privilege dan SVIP-nya masih aktif. */
+    suspend fun myOn(uid: String, key: String, minVip: Int): Boolean = try {
+        val doc = ref(uid).get().await()
+        val v = (doc.getLong("vip") ?: 0L).toInt()
+        vipActive(v, doc.getLong("vipUntil") ?: 0L) && v >= minVip &&
+            (doc.get("svip") as? Map<*, *>)?.get(key) == true
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
     }
 
     /** Simpan iklan pribadi (Personal ADs). */
@@ -256,30 +272,36 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
     }
 }
 
-/** Foto profil misterius: bulat gelap dengan kilau emas berjalan. */
+/** Foto profil misterius: foto hacker bertanda tanya, kilau putih berjalan, bingkai putih berkilau. */
 @Composable
 fun MysteryAvatar(size: Dp) {
     val t = rememberInfiniteTransition(label = "ma")
     val x by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = LinearEasing)), label = "mx")
-    val glow by t.animateColor(Color(0xFF7A5A00), Color(0xFFFFE082), infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "mg")
+    val glow by t.animateColor(Color(0xFF9E9E9E), Color(0xFFFFFFFF), infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "mg")
     Box(
-        Modifier.size(size).clip(CircleShape).background(Color(0xFF141210))
+        Modifier.size(size).clip(CircleShape)
             .border(2.dp, glow, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
+        Image(
+            painter = painterResource(R.drawable.mystery_avatar),
+            contentDescription = "Misterius",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.matchParentSize(),
+        )
+        // Kilau putih menyapu dari kiri ke kanan, berulang terus.
         Box(
             Modifier.matchParentSize().background(
                 Brush.linearGradient(
                     0f to Color.Transparent,
-                    (x * 0.6f) to Color(0x66FFD54F),
-                    (x * 0.6f + 0.05f) to Color(0xCCFFF3C4),
-                    (x * 0.6f + 0.1f) to Color(0x66FFD54F),
+                    (x * 0.6f) to Color(0x66FFFFFF),
+                    (x * 0.6f + 0.05f) to Color(0xCCFFFFFF),
+                    (x * 0.6f + 0.1f) to Color(0x66FFFFFF),
                     (x * 0.6f + 0.15f) to Color.Transparent,
                     1f to Color.Transparent,
                 )
             )
         )
-        Text("🕵️", fontSize = (size.value * 0.4f).sp)
     }
 }
 
@@ -297,4 +319,26 @@ fun MysteryName(fontSize: TextUnit = 20.sp) {
         color = c,
         style = TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color(0xFF000000), androidx.compose.ui.geometry.Offset(1f, 1f), 3f)),
     )
+}
+
+/** Riwayat pengunjung profil (fitur Hide visit records SVIP5). */
+object VisitRepo {
+    private fun db() = FirebaseFirestore.getInstance()
+    private fun logs(uid: String) = db().collection("visits").document(uid).collection("logs")
+
+    /** Catat kunjungan visitor ke profil owner. */
+    suspend fun record(ownerUid: String, visitorUid: String) {
+        try {
+            logs(ownerUid).document(visitorUid)
+                .set(hashMapOf("uid" to visitorUid, "at" to System.currentTimeMillis())).await()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+
+    /** Pengunjung terbaru profil (avatar + nama). */
+    suspend fun recent(ownerUid: String, limit: Long = 12): List<PublicUser> = try {
+        logs(ownerUid)
+            .orderBy("at", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit).get().await().documents
+            .mapNotNull { d -> d.getString("uid")?.let { UserDirectory.findByUid(it) } }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
 }
