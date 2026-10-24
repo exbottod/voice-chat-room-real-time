@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
-const val MAX_MEDALS = 10
+const val MAX_MEDALS = 999
 
 /** Daftar id medal dari string "vipt_3,sx_abc,badge_star". */
 fun medalIdList(csv: String?): List<String> =
@@ -181,8 +181,6 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
         when {
             !e.owned -> buying = e.ci
             e.id in worn -> save(worn - e.id)
-            worn.size >= MAX_MEDALS ->
-                Toast.makeText(context, "Slot medali penuh (maks $MAX_MEDALS)", Toast.LENGTH_SHORT).show()
             else -> save(worn + e.id)
         }
     }
