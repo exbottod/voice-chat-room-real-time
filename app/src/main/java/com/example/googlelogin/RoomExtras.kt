@@ -107,7 +107,7 @@ fun RoomTypingBar(text: String, myFam: String = "", onTextChange: (String) -> Un
         }
     }
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (myFam.isNotBlank()) FamTagText(myFam)
+        if (myFam.isNotBlank()) FamTag3D(myFam)
         Spacer(Modifier.width(6.dp))
         OutlinedTextField(
             value = text,
