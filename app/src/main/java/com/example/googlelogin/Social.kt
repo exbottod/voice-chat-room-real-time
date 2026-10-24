@@ -387,6 +387,9 @@ fun UserProfileSheet(
                             Text(flagEmoji(u.countryCode), fontSize = 22.sp)
                         }
                         Spacer(Modifier.height(6.dp))
+                        FamTag3D(u.fam)
+
+                        Spacer(Modifier.height(6.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("UID:${u.userId}", color = Color(0xFFBDBDBD), fontSize = 15.sp)
                             Spacer(Modifier.width(8.dp))
