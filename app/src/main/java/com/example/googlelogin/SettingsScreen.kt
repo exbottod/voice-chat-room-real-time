@@ -85,6 +85,7 @@ fun SettingsScreen(
     var showLogout by remember { mutableStateOf(false) }
     var showLang by remember { mutableStateOf(false) }
     var showDev by remember { mutableStateOf(false) }
+    var showSvip by remember { mutableStateOf(false) }
     var hasPassword by remember { mutableStateOf(FirebaseSession.hasPassword()) }
 
     // Tombol back: tutup panel yang sedang terbuka dulu, baru keluar dari Pengaturan
@@ -92,6 +93,7 @@ fun SettingsScreen(
         when {
             showDev -> showDev = false
             showPrivacy -> showPrivacy = false
+            showSvip -> showSvip = false
             else -> onBack()
         }
     }
@@ -104,8 +106,11 @@ fun SettingsScreen(
         PrivacyScreen(onBack = { showPrivacy = false })
         return
     }
-
-    val isDeveloper = FirebaseAuth.getInstance().currentUser?.email?.equals(DEV_EMAIL, ignoreCase = true) == true
+     if (showSvip) {
+        OverlayBox { SvipSettingsScreen(uid = FirebaseAuth.getInstance().currentUser?.uid ?: "", onBack = { showSvip = false }) }
+        return
+    }
+       val isDeveloper = FirebaseAuth.getInstance().currentUser?.email?.equals(DEV_EMAIL, ignoreCase = true) == true
 
     OverlayBox {
         Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
@@ -127,6 +132,7 @@ fun SettingsScreen(
                 }
                 SettingRow(tr("Kebijakan privasi")) { showPrivacy = true }
                 SettingRow(tr("Bahasa"), AppLang.label()) { showLang = true }
+                SettingRow("SVIP Settings") { showSvip = true }
                 if (isDeveloper) {
                     SettingRow("Panel Developer") { showDev = true }
                 }
