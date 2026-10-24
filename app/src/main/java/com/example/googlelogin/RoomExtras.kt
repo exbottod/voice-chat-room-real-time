@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -147,6 +148,10 @@ fun RoomEmoteBar(onPick: (String) -> Unit) {
 @Composable
 fun GiftBanner(roomId: String) {
     var text by remember { mutableStateOf<String?>(null) }
+    // Hide top gift banners (SVIP1): sembunyikan banner gift di bagian atas.
+    var hideBanner by remember { mutableStateOf(false) }
+    val myUid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
+    LaunchedEffect(myUid) { if (myUid.isNotEmpty()) hideBanner = SvipRepo.myOn(myUid, "hideGiftBanner", 1) }
     var lastId by remember { mutableStateOf<String?>(null) }
     var first by remember { mutableStateOf(true) }
     DisposableEffect(roomId) {
@@ -169,7 +174,7 @@ fun GiftBanner(roomId: String) {
         }
     }
     val t = text
-    if (t != null) {
+    if (t != null && !hideBanner) {
         Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 70.dp, start = 16.dp, end = 16.dp), contentAlignment = Alignment.Center) {
             Box(
                 Modifier
