@@ -100,18 +100,17 @@ fun entryAssetOf(m: RoomMsg): VipAsset? {
  * jadi lencana panjang (mis. SVIP9) tampil utuh tanpa mengecil tergencet.
  */
 @Composable
-fun StoreBadgeIcon(item: StoreItem, size: Dp = 22.dp) {
+fun StoreBadgeIcon(item: StoreItem, size: Dp = 24.dp) {
     val a = item.asset
     if (a == null) {
         Text(item.emoji, fontSize = (size.value * 0.82f).sp)
         return
     }
-    key(a.updatedAt) {
-        var ratio by remember(a.n, a.slot, a.updatedAt) { mutableStateOf(1f) }
-        val ctx = LocalContext.current
-        LaunchedEffect(a.n, a.slot, a.updatedAt) {
-            ratio = runCatching { measureAssetRatio(ctx, a) }.getOrNull() ?: 1f
-        }
-        VipMedia(a, Modifier.height(size).width((size.value * ratio).dp), loop = true)
+    
+    var ratio by remember(a.n, a.slot, a.updatedAt) { mutableStateOf(2.5f) }
+    val ctx = LocalContext.current
+    LaunchedEffect(a.n, a.slot, a.updatedAt) {
+        ratio = runCatching { measureAssetRatio(ctx, a) }.getOrNull() ?: 2.5f
     }
+    VipMedia(a, Modifier.height(size).width((size.value * ratio).dp), loop = true)
 }
