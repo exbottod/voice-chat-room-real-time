@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 private data class NavItem(val label: String, val icon: ImageVector)
 
@@ -147,6 +148,17 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
         UserDirectory.publish(context, user, profile)
         PublicSync.push(uid)
+        // Status online (SVIP5 Hide Online Status): online = true selama app hidup,
+        // otomatis false saat app mati. Hide Online = tidak menulis status sama sekali.
+        try {
+            val s = Rtdb.ref("status/$uid")
+            if (SvipRepo.myOn(uid, "hideOnline", 5)) {
+                s.removeValue()
+            } else {
+                s.onDisconnect().setValue(false)
+                s.setValue(true).await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         VipAssets.load()
         StoreCatalog.start()
         GiftCatalog.start()
