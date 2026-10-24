@@ -986,7 +986,13 @@ object PublicSync {
     suspend fun push(uid: String) {
         try {
             val db = FirebaseFirestore.getInstance()
-            val w = parseWallet(db.collection("wallets").document(uid).get().await())
+            val snap = db.collection("wallets").document(uid).get().await()
+            val w = parseWallet(snap)
+            // FIX: privilege SVIP harus ikut tersinkron ke profil publik.
+            val svipCsv = (snap.get("svip") as? Map<*, *>)
+                ?.entries?.filter { it.key is String && it.value == true }
+                ?.joinToString(",") { it.key as String } ?: ""
+            val ad = snap.getString("svipAd") ?: ""
             val data = hashMapOf<String, Any?>(
                 "uid" to uid,
                 "exp" to w.exp,
@@ -996,6 +1002,8 @@ object PublicSync {
                 "bubble" to activeEquip(w, "bubble"),
                 "badge" to activeEquip(w, "badge"),
                 "medals" to activeMedalIds(w).joinToString(","),
+                "svip" to svipCsv,
+                "ad" to ad,
             )
             val key = data.toString()
             if (lastKey[uid] == key) return
@@ -1005,6 +1013,7 @@ object PublicSync {
                         "exp" to w.exp, "vip" to w.vip.toLong(), "vipUntil" to w.vipUntil,
                         "frame" to activeEquip(w, "frame"), "bubble" to activeEquip(w, "bubble"),
                         "badge" to activeEquip(w, "badge"),
+                        "svip" to svipCsv,
                     ),
                 ).await()
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
