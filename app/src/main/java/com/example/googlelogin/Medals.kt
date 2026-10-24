@@ -79,7 +79,7 @@ fun MedalIcon(id: String, size: Dp, tagModifier: Modifier = Modifier) {
 
 /** Deretan medal kecil (di bawah nama, di chat room, di profil). Kosong = tidak menampilkan apa-apa. */
 @Composable
-fun UserMedals(csv: String?, size: Dp = 24.dp, modifier: Modifier = Modifier) {
+fun UserMedals(csv: String?, size: Dp = 32.dp, modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) { StoreCatalog.start(); VipAssets.load() }
     val ids = medalIdList(csv).take(MAX_MEDALS).filter { it.startsWith("vipt_") || findItem(it) != null }
     if (ids.isEmpty()) return
