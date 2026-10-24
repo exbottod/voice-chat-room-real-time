@@ -78,6 +78,11 @@ fun familyClassOf(exp: Long): FamilyClass {
 object FamilyRepo {
     private fun db() = FirebaseFirestore.getInstance()
     private fun fam(id: String) = db().collection("families").document(id)
+    /** Cari family dari nama (untuk label family di profil & room). */
+    suspend fun findByName(name: String): Family? = try {
+        db().collection("families").whereEqualTo("name", name).limit(1).get().await()
+            .documents.firstOrNull()?.toFamily()
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
     private fun userFam(uid: String) = db().collection("familyMembers").document(uid)
 
     const val MONTH_MS = 30L * 24 * 60 * 60 * 1000
