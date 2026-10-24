@@ -225,6 +225,23 @@ function toB64(file){
   });
 }
 
+ async function badgeToPng(file){
+  // Paksa lencana ke rasio 192:32 (6:1). Disimpan 4x (768x128) supaya tajam.
+  const img = await new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => { URL.revokeObjectURL(i.src); res(i); };
+    i.onerror = rej;
+    i.src = URL.createObjectURL(file);
+  });
+  const W = 768, H = 128, c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const s = Math.min(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
+  g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+  const blob = await new Promise(r => c.toBlob(r, "image/png"));
+  return new File([blob], "badge_192x32.png", { type: "image/png" });
+} 
+
 $("btnSave").onclick = async () => {
   if (!imgB64) return;
   const link = $("link").value.trim();
@@ -713,7 +730,11 @@ async function storeSave(c, el, btn){
     if (f) {
       const e = vipExt(f.name);
       if (e && !sl.accept.includes("." + e)) { toast("Format file harus " + sl.accept.join(" ")); return; }
-      finalUrl = await cldUpload(f, "store_" + id);
+      let f2 = f;
+      if (slot === "badge" && !/\.(gif|svga)$/i.test(f.name)) {
+        try { f2 = await badgeToPng(f); } catch (e) { return toast("Gambar lencana tidak bisa dibaca"); }
+      }
+      finalUrl = await cldUpload(f2, "store_" + id);
     }
     if (finalUrl) {
       if (!/^https?:\/\//i.test(finalUrl)) { toast("URL harus diawali http:// atau https://"); return; }
