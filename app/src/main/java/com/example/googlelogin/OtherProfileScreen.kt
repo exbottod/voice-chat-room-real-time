@@ -28,7 +28,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,6 +79,13 @@ fun OtherProfileScreen(
     var busy by remember(uid) { mutableStateOf(false) }
     var moments by remember(uid) { mutableStateOf<List<Moment>?>(null) }
     var tab by remember(uid) { mutableStateOf(0) }
+    var online by remember(uid) { mutableStateOf(false) }
+
+    // Status online live dari RTDB (fitur SVIP5 Hide Online Status).
+    DisposableEffect(uid) {
+        val reg = Rtdb.listen(Rtdb.ref("status/$uid")) { s -> online = s.value == true }
+        onDispose { reg.remove() }
+    }
 
     BackHandler(onBack = onBack)
     LaunchedEffect(uid) {
@@ -87,6 +96,12 @@ fun OtherProfileScreen(
             try { following = FollowRepo.isFollowing(myUid, uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         }
         moments = try { MomentRepo.byUid(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
+        // Hide visit records (SVIP5): kunjungan tidak dicatat kalau aktif.
+        if (!isMe && user != null) {
+            try {
+                if (!SvipRepo.myOn(myUid, "hideVisits", 5)) VisitRepo.record(uid, myUid)
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        }
     }
 
     fun toggleFollow() {
@@ -120,6 +135,8 @@ fun OtherProfileScreen(
                 else Text(tr("Profil tidak ditemukan"), color = Color(0xFFBDBDBD))
             }
         } else {
+            // FIX Hide my profile (SVIP6): orang lain melihat profil misterius.
+            val hidden = !isMe && u.svipOn("hideProfile") && vipActive(u.vip, u.vipUntil) && u.vip >= 6
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                     .navigationBarsPadding().padding(bottom = if (isMe) 16.dp else 88.dp),
@@ -128,21 +145,25 @@ fun OtherProfileScreen(
 
                 // Avatar + identitas
                 Column(Modifier.padding(horizontal = 20.dp)) {
-                    FramedAvatar(u, 84.dp)
+                    if (hidden) MysteryAvatar(84.dp) else FramedAvatar(u, 84.dp)
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(12.dp).clip(CircleShape).background(Color(0xFF2ED573)))
+                        Box(Modifier.size(12.dp).clip(CircleShape).background(if (hidden || !online) Color(0xFF555555) else Color(0xFF2ED573)))
                         Spacer(Modifier.width(8.dp))
-                        VipNameText(
-                            u.name, u.vip, u.vipUntil, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        GenderBadge(u.gender)
-                        Spacer(Modifier.width(6.dp))
-                        LevelBadge(userLevel(u))
-                        Spacer(Modifier.width(6.dp))
-                        Text(flagEmoji(u.countryCode), fontSize = 22.sp)
+                        if (hidden) {
+                            MysteryName(24.sp)
+                        } else {
+                            VipNameText(
+                                u.name, u.vip, u.vipUntil, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            GenderBadge(u.gender)
+                            Spacer(Modifier.width(6.dp))
+                            LevelBadge(userLevel(u))
+                            Spacer(Modifier.width(6.dp))
+                            Text(flagEmoji(u.countryCode), fontSize = 22.sp)
+                        }
                     }
                     Spacer(Modifier.height(6.dp))
                     Row(
@@ -157,14 +178,16 @@ fun OtherProfileScreen(
                         Text("📋", fontSize = 14.sp)
                     }
                     Spacer(Modifier.height(14.dp))
-                    UserMedals(u.medals)
-                    Spacer(Modifier.height(10.dp))
-                    UserBadges(u)
-                    if (u.fam.isNotBlank()) { Spacer(Modifier.height(6.dp)); FamTag3D(u.fam) }
+                    if (!hidden) {
+                        UserMedals(u.medals)
+                        Spacer(Modifier.height(10.dp))
+                        UserBadges(u)
+                        if (u.fam.isNotBlank()) { Spacer(Modifier.height(6.dp)); FamTag3D(u.fam) }
+                    }
                     Spacer(Modifier.height(12.dp))
                     // Chip level & negara
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        InfoChip("Lv ${userLevel(u)}", Color(0xFF6A3DE8))
+                        InfoChip(if (hidden) "Lv ?" else "Lv ${userLevel(u)}", Color(0xFF6A3DE8))
                         InfoChip("${flagEmoji(u.countryCode)} ${ProfileRepo.countryName(u.countryCode)}", Color(0xFF2B6CB0))
                         InfoChip(if (vipActive(u.vip, u.vipUntil)) "VIP${u.vip}" else "VIP –", Color(0xFF8E6B1F))
                     }
@@ -177,13 +200,13 @@ fun OtherProfileScreen(
                     Modifier.padding(horizontal = 16.dp).fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp)).background(Color(0x33FFFFFF)).padding(vertical = 14.dp),
                 ) {
-                    ProfStat(fmtNum(counts.first), "Mengikuti", Modifier.weight(1f))
-                    ProfStat(fmtNum(counts.second), "Fans", Modifier.weight(1f))
-                    ProfStat("0", "Sawer", Modifier.weight(1f))
-                    ProfStat("0", "Pesona", Modifier.weight(1f))
+                    ProfStat(if (hidden) "?" else fmtNum(counts.first), "Mengikuti", Modifier.weight(1f))
+                    ProfStat(if (hidden) "?" else fmtNum(counts.second), "Fans", Modifier.weight(1f))
+                    ProfStat(if (hidden) "?" else "0", "Sawer", Modifier.weight(1f))
+                    ProfStat(if (hidden) "?" else "0", "Pesona", Modifier.weight(1f))
                 }
 
-                if (u.bio.isNotBlank()) {
+                if (!hidden && u.bio.isNotBlank()) {
                     Spacer(Modifier.height(14.dp))
                     Text(u.bio, color = Color(0xFFE0E0E0), fontSize = 15.sp, modifier = Modifier.padding(horizontal = 20.dp))
                 }
@@ -204,6 +227,36 @@ fun OtherProfileScreen(
                     Spacer(Modifier.height(18.dp))
                     SectionTitle("Penjaga saya")
                     PlaceholderCard("Belum memiliki penjaga")
+                    if (isMe) {
+                        Spacer(Modifier.height(18.dp))
+                        SectionTitle("Pengunjung profil")
+                        var visitors by remember { mutableStateOf<List<PublicUser>?>(null) }
+                        LaunchedEffect(uid) { visitors = VisitRepo.recent(uid) }
+                        val vs = visitors
+                        when {
+                            vs == null -> PlaceholderCard("Memuat pengunjung...")
+                            vs.isEmpty() -> PlaceholderCard("Belum ada pengunjung")
+                            else -> Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                vs.forEach { v ->
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.width(56.dp),
+                                    ) {
+                                        PublicAvatarFramed(v, 44.dp, v.name)
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            v.name.take(8), color = Muted, fontSize = 11.sp,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 } else {
                 val list = moments
                     when {
