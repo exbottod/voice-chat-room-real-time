@@ -160,6 +160,13 @@ object FollowRepo {
         db().collection("follows").document(docId(me, target)).get().await().exists()
 
     suspend fun follow(me: String, target: String) {
+        // Can't be followed (SVIP3): user yang mengaktifkan tidak bisa diikuti.
+        val pub = try {
+            UserDirectory.findByUid(target)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+        if (pub != null && vipActive(pub.vip, pub.vipUntil) && pub.vip >= 3 && pub.svipOn("cantFollow")) {
+            throw IllegalStateException("User ini mengaktifkan Can't be followed")
+        }
         db().collection("follows").document(docId(me, target)).set(
             hashMapOf<String, Any?>(
                 "followerUid" to me,
