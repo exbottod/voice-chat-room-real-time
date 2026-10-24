@@ -31,6 +31,8 @@ data class PublicUser(
     val badge: String = "",
     val medals: String = "",
     val fam: String = "",
+    val svip: String = "",
+    val ad: String = "",
 )
 
 object UserDirectory {
@@ -109,6 +111,8 @@ object UserDirectory {
             badge = doc.getString("badge") ?: "",
             medals = doc.getString("medals") ?: "",
             fam = doc.getString("fam") ?: "",
+            svip = doc.getString("svip") ?: "",
+            ad = doc.getString("ad") ?: "",
         )
     }
 
