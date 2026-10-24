@@ -180,6 +180,8 @@ object RoomRepo {
         try {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
             if (isBanned(roomId, uid)) return
+            // Invisible in rooms (SVIP7): masuk room tanpa terlihat sampai naik mic.
+            if (SvipRepo.myOn(uid, "invisibleRoom", 7)) return
             val me = Rtdb.ref("members/$roomId/$uid")
             me.onDisconnect().removeValue()
             me.setValue(true).await()
@@ -208,17 +210,26 @@ object RoomRepo {
     }
 
     /** Owner menendang user keluar room; user tidak bisa masuk lagi sampai kick-nya dibuka. null = sukses. */
-    suspend fun kickFromRoom(roomId: String, uid: String): String? = try {
+    suspend fun kickFromRoom(roomId: String, uid: String): String? {
+        // FIX Anti Kick (SVIP5): user yang mengaktifkan tidak bisa ditendang.
+        val pub = try {
+            UserDirectory.findByUid(uid)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+        if (pub != null && vipActive(pub.vip, pub.vipUntil) && pub.vip >= 5 && pub.svipOn("antiKick")) {
+            return "User ini mengaktifkan Anti Kick"
+        }
+        return try {
         val seats = Rtdb.ref("seats/$roomId").get().await()
         val seatKey = seats.children.firstOrNull { it.child("uid").getValue(String::class.java) == uid }?.key
         if (seatKey != null) Rtdb.ref("seats/$roomId/$seatKey").removeValue().await()
         Rtdb.ref("members/$roomId/$uid").removeValue().await()
         Rtdb.ref("blacklist/$roomId/$uid").setValue(true).await()
         null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        e.message ?: "Gagal menendang user"
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.message ?: "Gagal menendang user"
+        }
     }
 
     /** Membuka kick: user boleh masuk room lagi. */
@@ -342,6 +353,11 @@ object RoomRepo {
     suspend fun inviteSeat(roomId: String, index: Int, uid: String, name: String, avatarB64: String?): String? {
         return try {
             if (Rtdb.ref("locks/$roomId/$index").get().await().exists()) return "Mic ini dikunci"
+            // FIX Anti Go After (SVIP3): user yang mengaktifkan tidak bisa diundang ke mic.
+            val pub = UserDirectory.findByUid(uid)
+            if (pub != null && vipActive(pub.vip, pub.vipUntil) && pub.vip >= 3 && pub.svipOn("antiGoAfter")) {
+                return "User ini mengaktifkan Anti Go After"
+            }
             val base = Rtdb.ref("seats/$roomId")
             val upd = HashMap<String, Any?>()
             for (c in base.get().await().children) {
