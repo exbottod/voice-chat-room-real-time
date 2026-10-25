@@ -28,7 +28,9 @@ import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.ServerValue
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
@@ -215,6 +217,7 @@ object GiftFx {
         var res: Pair<String?, String?> = null to null
         for (attempt in 1..2) {
             res = try {
+                withContext(Dispatchers.IO) {
                 val c = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 30000
@@ -244,10 +247,11 @@ object GiftFx {
                 } else {
                     null to o.optString("error").ifBlank { "Upload gagal (HTTP $code)" }
                 }
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                null to "Upload gagal: ${e.message ?: "koneksi bermasalah"}"
+                null to "Upload gagal: ${e.message ?: e.javaClass.simpleName}"
             }
             if (res.first != null) break
             if (attempt == 1) delay(2000)
