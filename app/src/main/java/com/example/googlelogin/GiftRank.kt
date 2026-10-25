@@ -195,12 +195,12 @@ private suspend fun loadRankAvatar(col: String, id: String): String? {
 }
 
 @Composable
-fun TopRankDialog(onDismiss: () -> Unit, initialTab: Int = 1) {
+fun TopRankDialog(onDismiss: () -> Unit, initialTab: Int = 1, onOpenRoom: (String) -> Unit = {}) {
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        TopRankContent(onDismiss, initialTab)
+        TopRankContent(onDismiss, initialTab, onOpenRoom)
     }
 }
 
@@ -239,9 +239,14 @@ private fun RkCoin(total: Long, size: TextUnit) {
 }
 
 @Composable
-private fun RkTopOne(col: String, e: RankEntry) {
+private fun RkTopOne(col: String, e: RankEntry, onOpenRoom: (String) -> Unit = {}) {
+    val actions = LocalActions.current
     val plate = RoundedCornerShape(16.dp)
-    Column(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        Modifier.fillMaxWidth().padding(top = 14.dp)
+            .clickable { if (col == GiftRankRepo.COL_ROOM) onOpenRoom(e.id) else actions.openFullProfile(e.id) },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text("👑", fontSize = 44.sp)
         RkAvatar(col, e, 104.dp, Gold)
         Spacer(Modifier.height(10.dp))
@@ -260,10 +265,11 @@ private fun RkTopOne(col: String, e: RankEntry) {
 }
 
 @Composable
-private fun RkShield(col: String, e: RankEntry, rank: Int, c1: Color, c2: Color, modifier: Modifier) {
+private fun RkShield(col: String, e: RankEntry, rank: Int, c1: Color, c2: Color, modifier: Modifier, onOpenRoom: (String) -> Unit = {}) {
+    val actions = LocalActions.current
     val shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp, bottomStart = 36.dp, bottomEnd = 36.dp)
     Column(
-        modifier
+        modifier.clickable { if (col == GiftRankRepo.COL_ROOM) onOpenRoom(e.id) else actions.openFullProfile(e.id) }
             .clip(shape)
             .background(Brush.verticalGradient(listOf(c1, c2)))
             .border(2.dp, GoldDark, shape)
@@ -285,13 +291,15 @@ private fun RkShield(col: String, e: RankEntry, rank: Int, c1: Color, c2: Color,
 }
 
 @Composable
-private fun RkRow(col: String, e: RankEntry, rank: Int) {
+private fun RkRow(col: String, e: RankEntry, rank: Int, onOpenRoom: (String) -> Unit = {}) {
+    val actions = LocalActions.current
     val shape = RoundedCornerShape(14.dp)
     Row(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clip(shape)
+            .clickable { if (col == GiftRankRepo.COL_ROOM) onOpenRoom(e.id) else actions.openFullProfile(e.id) }
             .background(Color(0xCC2A0A0A))
             .border(1.dp, Gold.copy(alpha = 0.35f), shape)
             .padding(12.dp),
@@ -306,10 +314,12 @@ private fun RkRow(col: String, e: RankEntry, rank: Int) {
 }
 
 @Composable
-private fun RkMine(col: String, e: RankEntry?, index: Int, modifier: Modifier) {
+private fun RkMine(col: String, e: RankEntry?, index: Int, modifier: Modifier, onOpenRoom: (String) -> Unit = {}) {
+    val actions = LocalActions.current
     val shape = RoundedCornerShape(16.dp)
     Row(
         modifier
+            .clickable(enabled = e != null) { e?.let { if (col == GiftRankRepo.COL_ROOM) onOpenRoom(it.id) else actions.openFullProfile(it.id) } }
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp)
             .clip(shape)
@@ -343,7 +353,7 @@ private fun RkMine(col: String, e: RankEntry?, index: Int, modifier: Modifier) {
 }
 
 @Composable
-private fun TopRankContent(onBack: () -> Unit, initialTab: Int) {
+private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (String) -> Unit) {
     var tab by remember { mutableStateOf(initialTab) }   // 0 Kamar, 1 Sawer, 2 Pesona
     var period by remember { mutableStateOf(0) }          // 0 Harian, 1 Mingguan, 2 Bulanan
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -455,26 +465,26 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int) {
                         }
                     }
                 } else {
-                    item { RkTopOne(col, entries[0]) }
+                    item { RkTopOne(col, entries[0], onOpenRoom) }
                     if (entries.size > 1) {
                         item {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                RkShield(col, entries[1], 2, Color(0xFF2B5FA8), Color(0xFF10264A), Modifier.weight(1f))
+                                RkShield(col, entries[1], 2, Color(0xFF2B5FA8), Color(0xFF10264A), Modifier.weight(1f), onOpenRoom)
                                 if (entries.size > 2) {
-                                    RkShield(col, entries[2], 3, Color(0xFF8E4A2B), Color(0xFF3A160A), Modifier.weight(1f))
+                                    RkShield(col, entries[2], 3, Color(0xFF8E4A2B), Color(0xFF3A160A), Modifier.weight(1f), onOpenRoom)
                                 } else {
                                     Spacer(Modifier.weight(1f))
                                 }
                             }
                         }
                     }
-                    itemsIndexed(entries.drop(3)) { i, e -> RkRow(col, e, i + 4) }
+                    itemsIndexed(entries.drop(3)) { i, e -> RkRow(col, e, i + 4, onOpenRoom) }
                 }
             }
         }
         if (!loading && col != GiftRankRepo.COL_ROOM) {
             val mine = entries.indexOfFirst { it.id == myUid }
-            RkMine(col, entries.getOrNull(mine), mine, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+            RkMine(col, entries.getOrNull(mine), mine, Modifier.align(Alignment.BottomCenter).navigationBarsPadding(), onOpenRoom)
         }
     }
 }
