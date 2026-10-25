@@ -78,7 +78,8 @@ object UserCache {
                     .put("countryCode", u.countryCode).put("photoUrl", u.photoUrl ?: "")
                     .put("gender", u.gender).put("exp", u.exp).put("vip", u.vip)
                     .put("vipUntil", u.vipUntil).put("frame", u.frame)
-                    .put("bubble", u.bubble).put("badge", u.badge).put("fam", u.fam).toString(),
+                    .put("bubble", u.bubble).put("badge", u.badge).put("fam", u.fam)
+                    .put("svip", u.svip).put("ad", u.ad).toString(),
             ).apply()
         } catch (e: Exception) {
         }
@@ -102,6 +103,8 @@ object UserCache {
             bubble = o.optString("bubble"),
             badge = o.optString("badge"),
             fam = o.optString("fam"),
+            svip = o.optString("svip"),
+            ad = o.optString("ad"),
         )
     } catch (e: Exception) {
         null
@@ -120,6 +123,8 @@ object UserCache {
                 frame = s.child("frame").getValue(String::class.java) ?: b.frame,
                 bubble = s.child("bubble").getValue(String::class.java) ?: b.bubble,
                 badge = s.child("badge").getValue(String::class.java) ?: b.badge,
+                svip = s.child("svip").getValue(String::class.java) ?: b.svip,
+                ad = s.child("ad").getValue(String::class.java) ?: b.ad,
             )
         }
     } catch (e: kotlinx.coroutines.CancellationException) {
