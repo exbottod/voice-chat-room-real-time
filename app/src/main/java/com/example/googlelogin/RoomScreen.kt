@@ -73,6 +73,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -351,11 +352,16 @@ fun RoomScreen(
                     Spacer(Modifier.width(10.dp))
                     RmRoundBtn({ emoteOpen = !emoteOpen }) { Text("😊", fontSize = 20.sp) }
                     Spacer(Modifier.weight(1f))
-                    RmRoundBtn({ giftTarget = null; giftOpen = true; emoteOpen = false }) { Text("🎁", fontSize = 20.sp) }
+                    RmRoundBtn({ giftTarget = null; giftOpen = true; emoteOpen = false }) {
+                        Image(painterResource(R.drawable.ic_room_gift), null, Modifier.size(24.dp), contentScale = ContentScale.Fit)
+                    }
                     Spacer(Modifier.weight(1f))
                     if (mySeat != null) {
                         RmRoundBtn({ scope.launch { RoomRepo.setSeatMuted(r.id, mySeat.index, !mySeat.muted) } }) {
-                            MicIcon(on = !mySeat.muted, modifier = Modifier.size(24.dp), color = if (mySeat.muted) Color(0xFF9A9A9A) else Gold)
+                            Image(
+                                painterResource(if (mySeat.muted) R.drawable.ic_mute_mic else R.drawable.ic_open_mic),
+                                null, Modifier.size(24.dp), contentScale = ContentScale.Fit,
+                            )
                         }
                         Spacer(Modifier.width(10.dp))
                     }
@@ -552,7 +558,9 @@ fun RoomScreen(
                     ) { Text(if (roomMuted) "🔇" else "🔊", fontSize = 24.sp) }
                     if (isOwner) {
                         RmTool("Mode kamar", onClick = { panel = P_MODE }) { GridIcon(Modifier.size(26.dp)) }
-                        RmTool("Pengaturan", onClick = { panel = P_SETTINGS }) { Text("⚙", fontSize = 24.sp) }
+                        RmTool("Pengaturan", onClick = { panel = P_SETTINGS }) {
+                            Image(painterResource(R.drawable.ic_settings), null, Modifier.size(24.dp), contentScale = ContentScale.Fit)
+                        }
                         RmTool(if (r.locked) "Kamar terkunci" else "Kamar umum", onClick = { panel = P_LOCK }) {
                             Icon(Icons.Default.Lock, null, tint = GoldLight)
                         }
@@ -561,6 +569,9 @@ fun RoomScreen(
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     RmTool("Musik", onClick = { panel = P_MUSIC }) { Text("🎵", fontSize = 24.sp) }
+                    RmTool("Game", onClick = { panel = P_NONE; toast("Game segera hadir") }) {
+                        Image(painterResource(R.drawable.ic_room_game), null, Modifier.size(26.dp), contentScale = ContentScale.Fit)
+                    }
                     RmTool(
                         "Bersihkan chat",
                         onClick = {
@@ -677,15 +688,18 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                     Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     seat != null ->
                     Text(seat.name.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                    seat == null && locked -> Text("🔒", fontSize = (size.value * 0.42f).sp)
-                    index == 0 -> MicIcon(true, Modifier.size(size * 0.5f), Gold)
-                    else -> Text("💺", fontSize = (size.value * 0.42f).sp)
+                    seat == null && locked ->
+                        Image(painterResource(R.drawable.ic_lock_mic), null, Modifier.size(size * 0.42f), contentScale = ContentScale.Fit)
+                    index == 0 ->
+                        Image(painterResource(R.drawable.ic_seat_mic), null, Modifier.size(size * 0.5f), contentScale = ContentScale.Fit)
+                    else ->
+                        Image(painterResource(R.drawable.ic_seat_mic), null, Modifier.size(size * 0.42f), contentScale = ContentScale.Fit)
                 }
                 if (seat != null && seat.muted) {
                     Box(
                         Modifier.align(Alignment.BottomEnd).size(20.dp).clip(CircleShape).background(Color(0xCC000000)),
                         contentAlignment = Alignment.Center,
-                    ) { MicIcon(false, Modifier.size(13.dp)) }
+                    ) { Image(painterResource(R.drawable.ic_mute_mic), null, Modifier.size(12.dp), contentScale = ContentScale.Fit) }
                 }
             }
             seatFrame?.let { FrameOverlay(it, (size.value * 1.3f).dp) }
