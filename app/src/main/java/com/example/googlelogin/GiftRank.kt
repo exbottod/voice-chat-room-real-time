@@ -20,6 +20,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -205,12 +206,33 @@ fun TopRankDialog(onDismiss: () -> Unit, initialTab: Int = 1, onOpenRoom: (Strin
 }
 
 @Composable
-private fun RkAvatar(col: String, e: RankEntry, size: Dp, ring: Color) {
+private fun RkAvatar(col: String, e: RankEntry, size: Dp, ring: Color, rank: Int = 0) {
     // Hide ranking records: foto profil misterius (hacker + kilau putih).
     if (e.hidden) {
         MysteryAvatar(size)
         return
     }
+    // Bingkai khusus TOP 1-4 sawer (drawable kustom admin).
+    val frameRes = if (col == GiftRankRepo.COL_SAWER && rank in 1..4) {
+        listOf(R.drawable.ic_rank_frame_1, R.drawable.ic_rank_frame_2, R.drawable.ic_rank_frame_3, R.drawable.ic_rank_frame_4)[rank - 1]
+    } else {
+        0
+    }
+    if (frameRes != 0) {
+        Box(Modifier.size(size * 1.32f), contentAlignment = Alignment.Center) {
+            RkAvatarInner(col, e, size, ring)
+            Image(
+                painterResource(frameRes), null,
+                Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
+            )
+        }
+        return
+    }
+    RkAvatarInner(col, e, size, ring)
+}
+
+@Composable
+private fun RkAvatarInner(col: String, e: RankEntry, size: Dp, ring: Color) {
     var b64 by remember(col, e.id) { mutableStateOf<String?>(null) }
     LaunchedEffect(col, e.id) { b64 = loadRankAvatar(col, e.id) }
     val bmp = remember(b64) { ProfileRepo.decodeB64(b64) }
@@ -248,7 +270,7 @@ private fun RkTopOne(col: String, e: RankEntry, onOpenRoom: (String) -> Unit = {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("👑", fontSize = 44.sp)
-        RkAvatar(col, e, 104.dp, Gold)
+        RkAvatar(col, e, 104.dp, Gold, 1)
         Spacer(Modifier.height(10.dp))
         Column(
             Modifier
@@ -277,7 +299,7 @@ private fun RkShield(col: String, e: RankEntry, rank: Int, c1: Color, c2: Color,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
-            RkAvatar(col, e, 72.dp, GoldLight)
+            RkAvatar(col, e, 72.dp, GoldLight, rank)
             Box(
                 Modifier.align(Alignment.BottomEnd).size(24.dp).clip(CircleShape).background(GoldBrush),
                 contentAlignment = Alignment.Center,
@@ -306,7 +328,7 @@ private fun RkRow(col: String, e: RankEntry, rank: Int, onOpenRoom: (String) -> 
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("$rank", color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
-        RkAvatar(col, e, 52.dp, GoldDark)
+        RkAvatar(col, e, 52.dp, GoldDark, rank)
         Spacer(Modifier.width(12.dp))
         if (e.hidden) { MysteryName(16.sp); Spacer(Modifier.weight(1f)) } else Text(e.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         RkCoin(e.total, 16.sp)
