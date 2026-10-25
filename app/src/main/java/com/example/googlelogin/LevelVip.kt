@@ -2,7 +2,6 @@ package com.example.googlelogin
 
 // PERSIST_PUB
 
-import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
@@ -131,21 +130,6 @@ fun activeEquip(w: Wallet, slot: String): String {
     return if ((w.inv[id] ?: 0L) > System.currentTimeMillis()) id else ""
 }
 
-/**
- * ON/OFF efek masuk room. Sakelar ada di My Item; tersimpan lokal di HP
- * sehingga tetap berfungsi walau kuota database habis.
- */
-object EntryFx {
-    fun on(context: Context): Boolean =
-        context.getSharedPreferences("fx_prefs", Context.MODE_PRIVATE).getBoolean("entry_on", true)
-
-    fun set(context: Context, isOn: Boolean) =
-        context.getSharedPreferences("fx_prefs", Context.MODE_PRIVATE).edit().putBoolean("entry_on", isOn).apply()
-}
-
-/** Item efek masuk yang benar-benar dipakai saat masuk room (kosong kalau dimatikan). */
-fun activeEquipEntry(context: Context, w: Wallet): String =
-    if (EntryFx.on(context)) activeEquip(w, "entry") else ""
 
 fun frameBrush(id: String?): Brush {
     val c = findItem(id)?.color
@@ -216,7 +200,8 @@ object LvRepo {
                     put("frame", "vipf_$tier")
                     val cur = w.equip
                     if (cur["bubble"].isNullOrBlank() || cur["bubble"]!!.startsWith("vipb_")) put("bubble", "vipb_$tier")
-                    if (cur["entry"].isNullOrBlank() || cur["entry"]!!.startsWith("vipe_")) put("entry", "vipe_$tier")
+                    val curEntry = cur["entry"]
+                    if (curEntry == null || (curEntry.isNotBlank() && curEntry.startsWith("vipe_"))) put("entry", "vipe_$tier")
                 },
             ),
             SetOptions.merge(),
@@ -939,27 +924,6 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                 }
             } else {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp).navigationBarsPadding()) {
-                    // Sakelar ON/OFF efek masuk room (tersimpan lokal di HP).
-                    var entryOn by remember { mutableStateOf(EntryFx.on(context)) }
-                    Row(
-                        Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp)).background(Color(0x55000000)).padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("\uD83D\uDC51", fontSize = 22.sp)
-                        Spacer(Modifier.width(10.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("Efek masuk room", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            Text(
-                                if (entryOn) "AKTIF: efek masuk dimainkan saat kamu masuk room"
-                                else "NONAKTIF: kamu masuk room tanpa efek",
-                                color = Color(0xFFD0F5EF), fontSize = 12.sp,
-                            )
-                        }
-                        ToggleGold(on = entryOn, enabled = true, onChange = { v ->
-                            EntryFx.set(context, v)
-                            entryOn = v
-                        })
-                    }
                     val mine = wallet.inv.filter { it.value > now }.mapNotNull { (id, exp) -> findItem(id)?.let { it to exp } }
                         .sortedWith(compareBy<Pair<StoreItem, Long>>({ it.first.slot }, { it.first.id }))
                     if (mine.isEmpty()) {
@@ -980,10 +944,6 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                 if (item.vip > 0) Text("Dari VIP${item.vip}", color = vipColor(item.vip), fontSize = 12.sp)
                             }
                             if (item.slot == "medal") Text("Atur di Lencana glory", color = Color(0xFFD0F5EF), fontSize = 12.sp)
-                            else if (item.slot == "entry") Text(
-                                if (EntryFx.on(context)) "Otomatis \u00B7 aktif" else "Otomatis \u00B7 dimatikan",
-                                color = Color(0xFFD0F5EF), fontSize = 13.sp,
-                            )
                             else if (item.slot == "title") Text("Otomatis", color = Color(0xFFD0F5EF), fontSize = 13.sp)
                             else GoldPill(if (used) "Lepas" else "Pakai") {
                                 AppScope.scope.launch {
