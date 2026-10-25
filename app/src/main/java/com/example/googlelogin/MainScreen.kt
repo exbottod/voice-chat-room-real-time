@@ -31,12 +31,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-private data class NavItem(val label: String, val icon: ImageVector)
+// Icon tab memakai drawable: ganti file PNG di res/drawable untuk ubah tampilannya.
+private data class NavItem(val label: String, val icon: Int)
 
 private const val OV_NONE = 0
 private const val OV_EDIT = 1
@@ -50,11 +52,11 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val items = listOf(
-        NavItem("Party", Icons.Default.Home),
-        NavItem("Moment", Icons.Default.Star),
-        NavItem("Family", Icons.Default.Favorite),
-        NavItem("Pesan", Icons.Default.Email),
-        NavItem("Saya", Icons.Default.Person),
+        NavItem("Party", R.drawable.ic_tab_party),
+        NavItem("Moment", R.drawable.ic_tab_moment),
+        NavItem("Family", R.drawable.ic_tab_family),
+        NavItem("Pesan", R.drawable.ic_tab_pesan),
+        NavItem("Saya", R.drawable.ic_tab_saya),
     )
     val uid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
     var selected by rememberSaveable { mutableStateOf(0) }
@@ -71,6 +73,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var showGlory by remember { mutableStateOf(false) }
     var sheetUid by remember { mutableStateOf<String?>(null) }
     var fullProfileUid by remember { mutableStateOf<String?>(null) }
+    var followList by remember { mutableStateOf<Pair<String, String>?>(null) }
     var chatWith by remember { mutableStateOf<PublicUser?>(null) }
     var commentMoment by remember { mutableStateOf<Moment?>(null) }
     var wallet by remember { mutableStateOf(Wallet()) }
@@ -193,7 +196,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             NavigationBarItem(
                                 selected = selected == index,
                                 onClick = { selected = index },
-                                icon = { Icon(item.icon, contentDescription = item.label) },
+                                icon = { Icon(painterResource(item.icon), contentDescription = item.label, tint = Color.Unspecified) },
                                 label = { Text(tr(item.label)) },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = Color.Black,
@@ -247,6 +250,8 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             onStoreClick = { showStore = true },
                             onGloryClick = { showGlory = true },
                             onFamilyClick = { selected = 2 },
+                            onFansClick = { followList = uid to FOLLOW_MODE_FANS },
+                            onFollowingClick = { followList = uid to FOLLOW_MODE_FOLLOWING },
                         )
                     }
                 }
@@ -354,6 +359,21 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                         chatWith = u
                         fullProfileUid = null
                     },
+                    onFansClick = { followList = it to FOLLOW_MODE_FANS },
+                    onFollowingClick = { followList = it to FOLLOW_MODE_FOLLOWING },
+                    onEnterLiveRoom = { rid ->
+                        fullProfileUid = null
+                        scope.launch { RoomRepo.getRoom(rid)?.let { enterRoom(it) } }
+                    },
+                )
+            }
+            followList?.let { (fUid, fMode) ->
+                FollowListScreen(
+                    uid = fUid,
+                    mode = fMode,
+                    myUid = uid,
+                    onBack = { followList = null },
+                    onOpenUser = { fullProfileUid = it },
                 )
             }
             GlobalGiftBanner(currentRoomId = activeRoom?.id) { rid ->
