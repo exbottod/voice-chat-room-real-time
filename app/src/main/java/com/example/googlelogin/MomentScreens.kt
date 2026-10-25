@@ -7,6 +7,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gesture.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
@@ -144,6 +146,44 @@ private fun MomentCard(m: Moment, myUid: String, onComments: (Moment) -> Unit) {
     LaunchedEffect(m.id) { liked = try { MomentRepo.isLiked(m.id, myUid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false } }
     val photo = remember(m.photoB64) { ProfileRepo.decodeB64(m.photoB64) }
     val shape = RoundedCornerShape(16.dp)
+    var viewPhoto by remember { mutableStateOf(false) }
+
+    // Review foto full screen: ketuk foto momen untuk memperbesar.
+    if (viewPhoto && photo != null) {
+        Dialog(
+            onDismissRequest = { viewPhoto = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            var zoom by remember { mutableStateOf(1f) }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.96f))
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, _, z, _ ->
+                            zoom = (zoom * z).coerceIn(1f, 6f)
+                        }
+                    }
+                    .clickable { viewPhoto = false },
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    photo, null,
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { scaleX = zoom; scaleY = zoom }
+                        .clickable { viewPhoto = false },
+                    contentScale = ContentScale.Fit,
+                )
+                Text(
+                    tr("Ketuk untuk menutup"),
+                    color = Color(0xFF9A9A9A),
+                    fontSize = 13.sp,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                )
+            }
+        }
+    }
 
     Column(
         Modifier
@@ -169,7 +209,11 @@ private fun MomentCard(m: Moment, myUid: String, onComments: (Moment) -> Unit) {
             Spacer(Modifier.height(10.dp))
             Image(
                 photo, null,
-                Modifier.fillMaxWidth().heightIn(max = 380.dp).clip(RoundedCornerShape(12.dp)),
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 380.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { viewPhoto = true },
                 contentScale = ContentScale.Crop,
             )
         }
