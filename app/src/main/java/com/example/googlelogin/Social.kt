@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.LocalTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.*
 import coil.compose.AsyncImage
 import com.google.firebase.firestore.AggregateSource
@@ -298,9 +298,7 @@ fun LevelBadge(level: Int, modifier: Modifier = Modifier, height: Dp = 22.dp) {
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             softWrap = false,
-            style = LocalTextStyle.current.copy(
-                shadow = Shadow(color = Color.Black.copy(alpha = 0.65f), blurRadius = 2f),
-            ),
+            style = TextStyle(shadow = Shadow(color = Color.Black.copy(alpha = 0.65f), blurRadius = 2f)),
         )
     }
 }
@@ -565,7 +563,7 @@ fun FollowListScreen(
         val mu = HashMap<String, Boolean>()
         for (id in ids) {
             try {
-                um[id] = UserCache.byUid(id)
+                UserCache.byUid(id)?.let { um[id] = it }
                 fm[id] = FollowRepo.fansCount(id)
                 if (myUid.isNotEmpty() && id != myUid) {
                     iv[id] = FollowRepo.isFollowing(myUid, id)
