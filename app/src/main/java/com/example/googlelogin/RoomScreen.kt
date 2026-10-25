@@ -708,7 +708,6 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
             textAlign = TextAlign.Center,
             modifier = Modifier.width(size + 8.dp),
         )
-        FamTagByUid(seat?.uid, Modifier.width(size + 8.dp))
         Text("💗 0", color = Color.White, fontSize = 11.sp)
     }
 }
