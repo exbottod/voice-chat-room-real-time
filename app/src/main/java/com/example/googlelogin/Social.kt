@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.*
 import androidx.compose.material3.*
@@ -16,10 +17,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.LocalTextStyle
 import androidx.compose.ui.unit.*
 import coil.compose.AsyncImage
 import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.NumberFormat
@@ -185,6 +190,26 @@ object FollowRepo {
         db().collection("follows").document(docId(me, target)).delete().await()
     }
 
+    /** Daftar uid yang diikuti (terbaru dulukan). Limit default 30 untuk hemat kuota. */
+    suspend fun listFollowing(uid: String, limit: Long = 30): List<String> = try {
+        db().collection("follows").whereEqualTo("followerUid", uid)
+            .orderBy("createdAt", Query.Direction.DESCENDING).limit(limit).get().await()
+            .documents.mapNotNull { it.getString("targetUid")?.ifBlank { null } }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
+
+    /** Daftar uid pengikut / fans (terbaru dulukan). Limit default 30 untuk hemat kuota. */
+    suspend fun listFans(uid: String, limit: Long = 30): List<String> = try {
+        db().collection("follows").whereEqualTo("targetUid", uid)
+            .orderBy("createdAt", Query.Direction.DESCENDING).limit(limit).get().await()
+            .documents.mapNotNull { it.getString("followerUid")?.ifBlank { null } }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
+
+    /** Jumlah fans seorang user (untuk baris daftar). */
+    suspend fun fansCount(uid: String): Long = try {
+        db().collection("follows").whereEqualTo("targetUid", uid)
+            .count().get(AggregateSource.SERVER).await().count
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { 0L }
+
     /** Pair(mengikuti, fans) */
     suspend fun counts(uid: String): Pair<Long, Long> {
         val c = db().collection("follows")
@@ -203,12 +228,23 @@ fun PublicAvatar(u: PublicUser?, size: Dp, fallback: String = "?", modifier: Mod
         u != null && !u.photoUrl.isNullOrBlank() ->
             AsyncImage(model = u.photoUrl, contentDescription = null, modifier = base, contentScale = ContentScale.Crop)
         else -> Box(base.background(Color(0xFF263238)), contentAlignment = Alignment.Center) {
-            Text(
-                (u?.name ?: fallback).take(1).uppercase(),
-                color = GoldLight,
-                fontWeight = FontWeight.Bold,
-                fontSize = (size.value * 0.4f).sp,
-            )
+            when (u?.gender) {
+                // Foto profil default cowo / cewek saat awal daftar akun (belum upload foto).
+                "M" -> Image(
+                    painterResource(R.drawable.ic_default_avatar_male), null,
+                    Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
+                )
+                "F" -> Image(
+                    painterResource(R.drawable.ic_default_avatar_female), null,
+                    Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
+                )
+                else -> Text(
+                    (u?.name ?: fallback).take(1).uppercase(),
+                    color = GoldLight,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = (size.value * 0.4f).sp,
+                )
+            }
         }
     }
 }
@@ -226,15 +262,47 @@ fun PublicAvatarFramed(u: PublicUser?, size: Dp, fallback: String = "?", modifie
 /** Level pengguna dihitung dari exp (1-250). */
 fun userLevel(u: PublicUser?): Int = levelFromExp(u?.exp ?: 0L)
 
+/** Drawable badge level sesuai rentang level (1-4, 5-9, dst. s.d. 200-250). */
+fun levelBadgeRes(level: Int): Int = when {
+    level <= 4 -> R.drawable.ic_level_1_4
+    level <= 9 -> R.drawable.ic_level_5_9
+    level <= 14 -> R.drawable.ic_level_10_14
+    level <= 20 -> R.drawable.ic_level_15_20
+    level <= 30 -> R.drawable.ic_level_21_30
+    level <= 39 -> R.drawable.ic_level_31_39
+    level <= 49 -> R.drawable.ic_level_40_49
+    level <= 69 -> R.drawable.ic_level_50_69
+    level <= 99 -> R.drawable.ic_level_70_99
+    level <= 119 -> R.drawable.ic_level_100_119
+    level <= 169 -> R.drawable.ic_level_120_169
+    level <= 199 -> R.drawable.ic_level_170_199
+    else -> R.drawable.ic_level_200_250
+}
+
 @Composable
-fun LevelBadge(level: Int, modifier: Modifier = Modifier) {
-    Box(
-        modifier
-            .clip(RoundedCornerShape(50))
-            .background(levelBrush(level))
-            .padding(horizontal = 10.dp, vertical = 3.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text("Lv $level", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+fun LevelBadge(level: Int, modifier: Modifier = Modifier, height: Dp = 22.dp) {
+    // Angka level digambar DI DALAM icon badge, pas di tengah,
+    // jadi tulisan level tidak pernah keluar dari batas icon level.
+    Box(modifier.height(height), contentAlignment = Alignment.Center) {
+        Image(
+            painterResource(levelBadgeRes(level)),
+            null,
+            Modifier.fillMaxHeight(),
+            contentScale = ContentScale.Fit,
+        )
+        // Hanya angka level saja (1, 50, 120), pas di tengah icon.
+        Text(
+            "$level",
+            color = Color.White,
+            fontSize = (height.value * 0.45f).sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            softWrap = false,
+            style = LocalTextStyle.current.copy(
+                shadow = Shadow(color = Color.Black.copy(alpha = 0.65f), blurRadius = 2f),
+            ),
+        )
+    }
 }
 
 /** Deretan medali. Slot kosong sekarang; isi daftar [medals] nanti (emoji / label). */
@@ -459,4 +527,211 @@ fun UserProfileSheet(
             }
         }
     }
+}
+
+// ===== Layar daftar Fans / Mengikuti =====
+const val FOLLOW_MODE_FANS = "fans"
+const val FOLLOW_MODE_FOLLOWING = "following"
+
+/**
+ * Daftar Fans atau Mengikuti. Klik user untuk langsung masuk ke halaman profilnya.
+ * Desain terang: latar putih, nama hitam tebal, detail abu-abu, tombol pill kuning.
+ */
+@Composable
+fun FollowListScreen(
+    uid: String,
+    mode: String,
+    myUid: String,
+    onBack: () -> Unit,
+    onOpenUser: (String) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var list by remember(uid, mode) { mutableStateOf<List<String>?>(null) }
+    var users by remember(uid, mode) { mutableStateOf<Map<String, PublicUser>>(emptyMap()) }
+    var fansN by remember(uid, mode) { mutableStateOf<Map<String, Long>>(emptyMap()) }
+    var iFollowMap by remember(uid, mode) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var mutualMap by remember(uid, mode) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var busy by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(uid, mode) {
+        list = if (mode == FOLLOW_MODE_FANS) FollowRepo.listFans(uid) else FollowRepo.listFollowing(uid)
+    }
+    LaunchedEffect(list) {
+        val ids = list ?: return@LaunchedEffect
+        val um = HashMap<String, PublicUser>()
+        val fm = HashMap<String, Long>()
+        val iv = HashMap<String, Boolean>()
+        val mu = HashMap<String, Boolean>()
+        for (id in ids) {
+            try {
+                um[id] = UserCache.byUid(id)
+                fm[id] = FollowRepo.fansCount(id)
+                if (myUid.isNotEmpty() && id != myUid) {
+                    iv[id] = FollowRepo.isFollowing(myUid, id)
+                    mu[id] = FollowRepo.isFollowing(id, myUid)
+                } else {
+                    iv[id] = true
+                    mu[id] = true
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            }
+        }
+        users = um
+        fansN = fm
+        iFollowMap = iv
+        mutualMap = mu
+    }
+    BackHandler { onBack() }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .statusBarsPadding(),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().height(56.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "\u2039", color = Color.Black, fontSize = 30.sp,
+                modifier = Modifier.clickable(onClick = onBack).padding(horizontal = 16.dp),
+            )
+            Text(
+                tr(if (mode == FOLLOW_MODE_FANS) "Semua fans" else "Semua mengikuti"),
+                color = Color.Black, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+            )
+        }
+        HorizontalDivider(color = Color(0xFFF2F2F2))
+        when {
+            list == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFFFDD835))
+            }
+            list!!.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(tr(if (mode == FOLLOW_MODE_FANS) "Belum ada fans" else "Belum mengikuti siapa pun"), color = Color(0xFF9E9E9E))
+            }
+            else -> LazyColumn(Modifier.fillMaxSize()) {
+                items(list!!, key = { it }) { id ->
+                    FollowRow(
+                        u = users[id],
+                        fans = fansN[id],
+                        iFollow = iFollowMap[id],
+                        mutual = mutualMap[id],
+                        busy = busy == id,
+                        onClick = { onOpenUser(id) },
+                        onToggle = {
+                            if (myUid.isEmpty() || id == myUid) return@FollowRow
+                            val fol = iFollowMap[id] == true
+                            busy = id
+                            scope.launch {
+                                val err = try {
+                                    if (fol) {
+                                        FollowRepo.unfollow(myUid, id)
+                                    } else {
+                                        FollowRepo.follow(myUid, id)
+                                    }
+                                    null
+                                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+                                    e.message ?: "Gagal"
+                                }
+                                busy = null
+                                if (err == null) {
+                                    iFollowMap = iFollowMap.toMutableMap().also { it[id] = !fol }
+                                } else {
+                                    Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Satu baris user pada daftar Fans/Mengikuti. */
+@Composable
+private fun FollowRow(
+    u: PublicUser?,
+    fans: Long?,
+    iFollow: Boolean?,
+    mutual: Boolean?,
+    busy: Boolean,
+    onClick: () -> Unit,
+    onToggle: () -> Unit,
+) {
+    val hidden = u != null && u.svipOn("hideProfile") && vipActive(u.vip, u.vipUntil) && u.vip >= 6
+    val name = when {
+        u == null -> "..."
+        hidden -> tr("Pengguna Misterius")
+        u.name.isBlank() -> u.userId
+        else -> u.name
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val b64 = if (hidden) null else u?.avatarB64
+        val bmp = remember(b64) { ProfileRepo.decodeB64(b64) }
+        val photo = if (hidden) null else u?.photoUrl
+        Box(
+            Modifier
+                .size(54.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFEEEEEE))
+                .border(1.dp, Color(0xFFE0E0E0), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                bmp != null -> Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                !photo.isNullOrBlank() -> AsyncImage(photo, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                u != null -> Text(
+                    name.take(1).uppercase(),
+                    color = Color(0xFF757575), fontWeight = FontWeight.Bold, fontSize = 20.sp,
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                name, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "Kota ${ProfileRepo.countryName(u?.countryCode ?: "")} \u00b7 Fans ${fans ?: "-"}",
+                color = Color(0xFF757575), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        when {
+            iFollow == true && mutual == true ->
+                Text(tr("Saling mengikuti"), color = Color(0xFF9E9E9E), fontSize = 13.sp)
+            iFollow == true ->
+                FollowPill(tr("Mengikuti"), busy) { onToggle() }
+            else ->
+                FollowPill(tr("Ikuti"), busy) { onToggle() }
+        }
+    }
+    HorizontalDivider(color = Color(0xFFF2F2F2))
+}
+
+/** Tombol pill kuning seperti pada desain. */
+@Composable
+private fun FollowPill(text: String, busy: Boolean, onClick: () -> Unit) {
+    Text(
+        text,
+        color = Color.Black,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (busy) Color(0xFFF0F0F0) else Color(0xFFFDD835))
+            .clickable(enabled = !busy, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 7.dp),
+    )
 }
