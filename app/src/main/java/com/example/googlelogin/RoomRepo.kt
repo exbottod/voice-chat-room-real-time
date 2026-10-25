@@ -151,6 +151,11 @@ object RoomRepo {
             )
         }
 
+    /** Room tempat user sedang berada; null jika tidak sedang live. */
+    suspend fun liveRoomOf(uid: String): String? = try {
+        Rtdb.ref("live/$uid").get().await().getValue(String::class.java)?.ifBlank { null }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+
     fun observeAllOnline(onChange: (Map<String, Int>) -> Unit): Reg =
         Rtdb.listen(Rtdb.ref("members")) { snap ->
             onChange(snap.children.associate { (it.key ?: "") to it.childrenCount.toInt() })
@@ -185,6 +190,10 @@ object RoomRepo {
             val me = Rtdb.ref("members/$roomId/$uid")
             me.onDisconnect().removeValue()
             me.setValue(true).await()
+            // Penanda "sedang live di room ini" untuk badge LIVE di halaman profil.
+            val live = Rtdb.ref("live/$uid")
+            live.onDisconnect().removeValue()
+            live.setValue(roomId).await()
             Rtdb.ref("messages/$roomId").push().setValue(
                 hashMapOf<String, Any?>(
                     "text" to "$name masuk kamar",
@@ -223,6 +232,7 @@ object RoomRepo {
         val seatKey = seats.children.firstOrNull { it.child("uid").getValue(String::class.java) == uid }?.key
         if (seatKey != null) Rtdb.ref("seats/$roomId/$seatKey").removeValue().await()
         Rtdb.ref("members/$roomId/$uid").removeValue().await()
+        Rtdb.ref("live/$uid").removeValue().await()
         Rtdb.ref("blacklist/$roomId/$uid").setValue(true).await()
         null
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -252,6 +262,7 @@ object RoomRepo {
             val me = Rtdb.ref("members/$roomId/$uid")
             me.onDisconnect().cancel()
             me.removeValue().await()
+            Rtdb.ref("live/$uid").removeValue().await()
             val base = Rtdb.ref("seats/$roomId")
             val upd = HashMap<String, Any?>()
             for (c in base.get().await().children) {
