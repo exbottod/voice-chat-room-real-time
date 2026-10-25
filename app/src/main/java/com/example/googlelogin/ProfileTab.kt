@@ -343,24 +343,17 @@ fun ProfileTab(
                     .background(Color.White)
                     .padding(vertical = 4.dp),
             ) {
-                MenuItem("🎁", "Undang teman dan dapatkan koin", icon = R.drawable.ic_invite_coins) { onInviteClick() }
-                MenuItem("⭐", "Lencana glory") { onGloryClick() }
-                MenuItem("🎨", "Pusat kustom") { soon("Pusat kustom") }
-                MenuItem("🏪", "Store & My Item", icon = R.drawable.ic_store_myitem) { onStoreClick() }
-                MenuItem("🧰", "Alat peraga") { soon("Alat peraga") }
-                MenuItem("🏰", "Family", trailing = "Liga Peringkat Fam", icon = R.drawable.ic_family_saya) { onFamilyClick() }
-                MenuItem("🏠", "CP house") { soon("CP house") }
-                MenuItem("⚙", "Pengaturan", icon = R.drawable.ic_settings) { onSettingsClick() }
-                MenuItem("❓", "Bantuan") { soon("Bantuan") }
+                MenuItem("🎁", tr("Undang teman dan dapatkan koin"), icon = R.drawable.ic_invite_coins) { onInviteClick() }
+                MenuItem("⭐", tr("Lencana glory")) { onGloryClick() }
+                MenuItem("🎨", tr("Pusat kustom")) { soon(tr("Pusat kustom")) }
+                MenuItem("🏪", tr("Store & My Item"), icon = R.drawable.ic_store_myitem) { onStoreClick() }
+                MenuItem("🧰", tr("Alat peraga")) { soon(tr("Alat peraga")) }
+                MenuItem("🏰", tr("Family"), trailing = tr("Liga Peringkat Fam"), icon = R.drawable.ic_family_saya) { onFamilyClick() }
+                MenuItem("🏠", tr("CP house")) { soon(tr("CP house")) }
+                MenuItem("⚙", tr("Pengaturan"), icon = R.drawable.ic_settings) { onSettingsClick() }
+                MenuItem("❓", tr("Bantuan")) { soon(tr("Bantuan")) }
             }
-            Spacer(Modifier.height(16.dp))
-            OutlinedButton(
-                onClick = onSignOutClick,
-                modifier = Modifier.fillMaxWidth(),
-                border = BorderStroke(1.dp, Color(0xFFD9534F)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD9534F)),
-            ) { Text(tr("Keluar")) }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
