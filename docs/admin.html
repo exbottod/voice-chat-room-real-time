@@ -109,6 +109,9 @@ label{font-size:12px;color:var(--mut)}
         <input type="number" id="coinAmt" inputmode="numeric" placeholder="contoh: 500">
         <button class="btn" id="coinSend">Kirim coin</button>
         <hr>
+        <label>Reset coin user ini menjadi 0</label>
+        <button class="btn bad" id="coinReset">Reset coin user ini</button>
+        <hr>
         <label>Jumlah exp level (minus untuk mengurangi)</label>
         <input type="number" id="expAmt" inputmode="numeric" placeholder="contoh: 5000000">
         <button class="btn" id="expSend">Kirim exp</button>
@@ -119,6 +122,12 @@ label{font-size:12px;color:var(--mut)}
         <input type="number" id="vipDays" inputmode="numeric" value="30">
         <button class="btn" id="vipSet">Set VIP</button>
       </div>
+    </div>
+    <div class="card">
+      <h2>Reset coin semua user</h2>
+      <p class="muted">Membuat saldo coin SEMUA user menjadi 0. Diamond dan exp tidak disentuh. Tidak bisa dibatalkan.</p>
+      <div id="resetAllInfo" class="muted"></div>
+      <button class="btn bad" id="coinResetAll">Reset coin SEMUA user</button>
     </div>
   </div>
 </div>
@@ -376,6 +385,48 @@ function startBan(){
     });
   }, e => { $("banList").textContent = e.code === "permission-denied" ? "Ditolak rules Firestore. Pastikan rules sudah di-Publish dan isAdmin() memakai email Anda." : "Gagal memuat: " + e.message; });
 }
+
+/* ---------- Reset coin ---------- */
+$("coinReset").onclick = async () => {
+  if (!foundCoin) return;
+  if (!confirm("Reset coin " + foundCoin.name + " (ID " + foundCoin.id + ") menjadi 0?")) return;
+  $("coinReset").disabled = true;
+  try {
+    await db.collection("wallets").doc(foundCoin.uid).set({ coins: 0 }, { merge: true });
+    logAction({ type: "coinReset", targetId: foundCoin.id, uid: foundCoin.uid, from: "panel" });
+    toast("Berhasil ✅ coin user ini direset ke 0");
+    await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("coinReset").disabled = false;
+};
+
+$("coinResetAll").onclick = async () => {
+  const snap = await db.collection("wallets").get();
+  const total = snap.size, kena = snap.docs.filter(d => (d.data().coins || 0) !== 0).length;
+  const kata = prompt("RESET SEMUA COIN\n" + kena + " dari " + total + " wallet punya coin.\nKetik RESET huruf kapital untuk konfirmasi:");
+  if (kata !== "RESET") return;
+  if (!confirm("Yakin reset coin " + kena + " user menjadi 0? TIDAK BISA DIBATALKAN.")) return;
+  $("coinResetAll").disabled = true;
+  $("resetAllInfo").textContent = "Sedang memproses...";
+  try {
+    const docs = snap.docs.filter(d => (d.data().coins || 0) !== 0);
+    let done = 0;
+    for (let i = 0; i < docs.length; i += 400) {
+      const b = db.batch();
+      docs.slice(i, i + 400).forEach(d => b.set(d.ref, { coins: 0 }, { merge: true }));
+      await b.commit();
+      done += Math.min(400, docs.length - i);
+      $("resetAllInfo").textContent = "Sedang memproses... " + done + "/" + docs.length;
+    }
+    logAction({ type: "coinResetAll", count: done });
+    toast("Selesai ✅ coin " + done + " wallet direset ke 0");
+    $("resetAllInfo").textContent = "Selesai: " + done + " wallet direset.";
+  } catch (e) {
+    toast("Gagal: " + e.message);
+    $("resetAllInfo").textContent = "Gagal: " + e.message;
+  }
+  $("coinResetAll").disabled = false;
+};
 
 /* ---------- Kirim coin ---------- */
 async function showCoinUser(){
