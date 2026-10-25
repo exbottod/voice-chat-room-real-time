@@ -148,6 +148,8 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
         UserDirectory.publish(context, user, profile)
         PublicSync.push(uid)
+        // SVIP offline: sinkronkan toggle yang tersimpan lokal saat kuota/koneksi kembali.
+        try { SvipRepo.resync(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         // Status online (SVIP5 Hide Online Status): online = true selama app hidup,
         // otomatis false saat app mati. Hide Online = tidak menulis status sama sekali.
         try {
