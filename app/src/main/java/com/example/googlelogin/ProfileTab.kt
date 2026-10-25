@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,15 +76,22 @@ fun AvatarImage(user: UserProfile, profile: ProfileData, size: Dp, modifier: Mod
 }
 
 @Composable
-private fun StatItem(value: String, label: String, ink: Color, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StatItem(
+    value: String,
+    label: String,
+    ink: Color,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+) {
+    val m = if (onClick != null) modifier.clickable(onClick = onClick) else modifier
+    Column(m, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, color = ink, fontSize = 26.sp, fontWeight = FontWeight.Medium)
         Text(label, color = ink.copy(alpha = 0.7f), fontSize = 14.sp)
     }
 }
 
 @Composable
-private fun MenuItem(emoji: String, label: String, trailing: String? = null, onClick: () -> Unit) {
+private fun MenuItem(emoji: String, label: String, trailing: String? = null, icon: Int = 0, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -97,7 +105,16 @@ private fun MenuItem(emoji: String, label: String, trailing: String? = null, onC
                 .clip(RoundedCornerShape(12.dp))
                 .background(Brush.verticalGradient(listOf(Color(0xFFFFE082), Color(0xFFFFB300)))),
             contentAlignment = Alignment.Center,
-        ) { Text(emoji, fontSize = 20.sp) }
+        ) {
+            if (icon != 0) {
+                Image(
+                    painterResource(icon), null,
+                    Modifier.fillMaxSize().padding(3.dp), contentScale = ContentScale.Fit,
+                )
+            } else {
+                Text(emoji, fontSize = 20.sp)
+            }
+        }
         Spacer(Modifier.width(14.dp))
         Text(label, color = Navy, fontSize = 17.sp, modifier = Modifier.weight(1f))
         if (trailing != null) {
@@ -128,6 +145,8 @@ fun ProfileTab(
     onStoreClick: () -> Unit = {},
     onGloryClick: () -> Unit = {},
     onFamilyClick: () -> Unit = {},
+    onFansClick: () -> Unit = {},
+    onFollowingClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -243,9 +262,9 @@ fun ProfileTab(
                 }
                 Spacer(Modifier.height(22.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    StatItem(fmtNum(following), "Mengikuti", ink, Modifier.weight(1f))
+                    StatItem(fmtNum(following), "Mengikuti", ink, Modifier.weight(1f), onFollowingClick)
                     Box(Modifier.width(1.dp).height(36.dp).background(ink.copy(alpha = 0.25f)))
-                    StatItem(fmtNum(fans), "Fans", ink, Modifier.weight(1f))
+                    StatItem(fmtNum(fans), "Fans", ink, Modifier.weight(1f), onFansClick)
                     Box(Modifier.width(1.dp).height(36.dp).background(ink.copy(alpha = 0.25f)))
                     StatItem("0", "Pesona", ink, Modifier.weight(1f))
                 }
@@ -324,14 +343,14 @@ fun ProfileTab(
                     .background(Color.White)
                     .padding(vertical = 4.dp),
             ) {
-                MenuItem("🎁", "Undang teman dan dapatkan koin") { onInviteClick() }
+                MenuItem("🎁", "Undang teman dan dapatkan koin", icon = R.drawable.ic_invite_coins) { onInviteClick() }
                 MenuItem("⭐", "Lencana glory") { onGloryClick() }
                 MenuItem("🎨", "Pusat kustom") { soon("Pusat kustom") }
-                MenuItem("🏪", "Store & My Item") { onStoreClick() }
+                MenuItem("🏪", "Store & My Item", icon = R.drawable.ic_store_myitem) { onStoreClick() }
                 MenuItem("🧰", "Alat peraga") { soon("Alat peraga") }
-                MenuItem("🏰", "Family", trailing = "Liga Peringkat Fam") { onFamilyClick() }
+                MenuItem("🏰", "Family", trailing = "Liga Peringkat Fam", icon = R.drawable.ic_family_saya) { onFamilyClick() }
                 MenuItem("🏠", "CP house") { soon("CP house") }
-                MenuItem("⚙", "Pengaturan") { onSettingsClick() }
+                MenuItem("⚙", "Pengaturan", icon = R.drawable.ic_settings) { onSettingsClick() }
                 MenuItem("❓", "Bantuan") { soon("Bantuan") }
             }
             Spacer(Modifier.height(16.dp))
