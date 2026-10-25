@@ -37,11 +37,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import android.graphics.ImageDecoder
+import android.graphics.drawable.AnimatedImageDrawable
+import android.os.Build
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -154,10 +171,16 @@ fun OtherProfileScreen(
         }
     }
 
+    // Status misterius dihitung sejak awal supaya latar animasi raja bisa tampil full screen.
+    val uBg = user
+    val hidden = !isMe && uBg != null && uBg.svipOn("hideProfile") && vipActive(uBg.vip, uBg.vipUntil) && uBg.vip >= 6
+
     Box(
         Modifier.fillMaxSize().blockTouches()
             .background(Brush.verticalGradient(listOf(PageTop, PageBottom))),
     ) {
+        // Profil misterius: latar animasi raja full screen (zoom pelan + kilau emas).
+        if (hidden) KingBg()
         val u = user
         if (u == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -165,8 +188,6 @@ fun OtherProfileScreen(
                 else Text(tr("Profil tidak ditemukan"), color = Color(0xFFBDBDBD))
             }
         } else {
-            // FIX Hide my profile (SVIP6): orang lain melihat profil misterius.
-            val hidden = !isMe && u.svipOn("hideProfile") && vipActive(u.vip, u.vipUntil) && u.vip >= 6
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                     .navigationBarsPadding().padding(bottom = if (isMe) 16.dp else 88.dp),
@@ -433,6 +454,56 @@ private fun FamCard(fam: String) {
         Column {
             Text(fam, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("Bergabung dengan family ini", color = Color(0xFFE0E0E0), fontSize = 13.sp)
+        }
+    }
+}
+
+/**
+ * Latar animasi raja untuk profil misterius: singa mengaung hidup (dua frame
+ * dipertukaran halus: tenang -> mengaung -> tenang), zoom pelan + kilau emas.
+ */
+@Composable
+private fun KingBg() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        // GIF singa mengaung full screen 9:16 (animasi asli, halus).
+        KingGifLayer(Modifier.fillMaxSize())
+        // lapisan gelap tipis supaya teks tetap terbaca
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(listOf(Color(0x80121212), Color(0x40121212), Color(0x80121212))),
+            ),
+        )
+    }
+}
+
+/** Pemutar GIF animasi full screen (ImageDecoder, Android 9+). */
+@Composable
+private fun KingGifLayer(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val drawable = remember {
+        try {
+            (ImageDecoder.decodeDrawable(
+                ImageDecoder.createSource(context.resources, R.drawable.king_anim),
+            ) as? AnimatedImageDrawable)?.apply {
+                repeatCount = AnimatedImageDrawable.REPEAT_INFINITE
+                start()
+            }
+        } catch (e: Exception) { null }
+    }
+    if (drawable == null) return
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val dw = drawable.intrinsicWidth.coerceAtLeast(1)
+        val dh = drawable.intrinsicHeight.coerceAtLeast(1)
+        val s = maxOf(w / dw, h / dh)
+        drawIntoCanvas { c ->
+            c.save()
+            c.scale(s, s)
+            c.translate((w / s - dw) / 2f, (h / s - dh) / 2f)
+            drawable.setBounds(0, 0, dw, dh)
+            drawable.draw(c.nativeCanvas)
+            c.restore()
         }
     }
 }
