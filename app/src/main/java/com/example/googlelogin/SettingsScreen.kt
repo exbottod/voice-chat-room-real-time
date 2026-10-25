@@ -86,6 +86,7 @@ fun SettingsScreen(
     var showLang by remember { mutableStateOf(false) }
     var showDev by remember { mutableStateOf(false) }
     var showSvip by remember { mutableStateOf(false) }
+    var showAbout by remember { mutableStateOf(false) }
     var hasPassword by remember { mutableStateOf(FirebaseSession.hasPassword()) }
 
     // Tombol back: tutup panel yang sedang terbuka dulu, baru keluar dari Pengaturan
@@ -94,6 +95,7 @@ fun SettingsScreen(
             showDev -> showDev = false
             showPrivacy -> showPrivacy = false
             showSvip -> showSvip = false
+            showAbout -> showAbout = false
             else -> onBack()
         }
     }
@@ -104,6 +106,10 @@ fun SettingsScreen(
     }
     if (showPrivacy) {
         PrivacyScreen(onBack = { showPrivacy = false })
+        return
+    }
+    if (showAbout) {
+        OverlayBox { AboutScreen(onBack = { showAbout = false }) }
         return
     }
      if (showSvip) {
@@ -133,6 +139,7 @@ fun SettingsScreen(
                 SettingRow(tr("Kebijakan privasi")) { showPrivacy = true }
                 SettingRow(tr("Bahasa"), AppLang.label()) { showLang = true }
                 SettingRow("SVIP Settings") { showSvip = true }
+                SettingRow("Tentang Rezo Chat Voice", appVersionName()) { showAbout = true }
                 if (isDeveloper) {
                     SettingRow("Panel Developer") { showDev = true }
                 }
