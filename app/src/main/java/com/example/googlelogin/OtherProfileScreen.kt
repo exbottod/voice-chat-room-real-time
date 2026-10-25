@@ -85,6 +85,9 @@ fun OtherProfileScreen(
     myUid: String,
     onBack: () -> Unit,
     onChat: (PublicUser) -> Unit,
+    onFansClick: () -> Unit = {},
+    onFollowingClick: () -> Unit = {},
+    onEnterLiveRoom: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -172,6 +175,14 @@ fun OtherProfileScreen(
         }
     }
 
+    // Room tempat user ini sedang berada (untuk badge LIVE).
+    var liveRoomId by remember(uid) { mutableStateOf<String?>(null) }
+    LaunchedEffect(uid) {
+        liveRoomId = try {
+            RoomRepo.liveRoomOf(uid)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+    }
+
     // Status misterius dihitung sejak awal supaya latar animasi raja bisa tampil full screen.
     val uBg = user
     val hidden = !isMe && uBg != null && uBg.svipOn("hideProfile") && vipActive(uBg.vip, uBg.vipUntil) && uBg.vip >= 6
@@ -255,8 +266,14 @@ fun OtherProfileScreen(
                     Modifier.padding(horizontal = 16.dp).fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp)).background(Color(0x33FFFFFF)).padding(vertical = 14.dp),
                 ) {
-                    ProfStat(if (hidden) "?" else fmtNum(counts.first), "Mengikuti", Modifier.weight(1f))
-                    ProfStat(if (hidden) "?" else fmtNum(counts.second), "Fans", Modifier.weight(1f))
+                    ProfStat(
+                        if (hidden) "?" else fmtNum(counts.first), "Mengikuti", Modifier.weight(1f),
+                        if (hidden || isMe) null else onFollowingClick,
+                    )
+                    ProfStat(
+                        if (hidden) "?" else fmtNum(counts.second), "Fans", Modifier.weight(1f),
+                        if (hidden || isMe) null else onFansClick,
+                    )
                     ProfStat(if (hidden) "?" else "0", "Sawer", Modifier.weight(1f))
                     ProfStat(if (hidden) "?" else "0", "Pesona", Modifier.weight(1f))
                 }
@@ -379,6 +396,27 @@ fun OtherProfileScreen(
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
+
+        // Badge LIVE di kanan atas: tampil saat user sedang ada di room.
+        // Klik untuk langsung masuk ke room tempat dia online.
+        liveRoomId?.let { rid ->
+            Row(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, end = 14.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xFFE53935))
+                    .border(1.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(50))
+                    .clickable { onEnterLiveRoom(rid) }
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(6.dp).clip(CircleShape).background(Color.White))
+                Spacer(Modifier.width(5.dp))
+                Text("LIVE", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 
@@ -391,8 +429,9 @@ private fun InfoChip(text: String, color: Color) {
 }
 
 @Composable
-private fun ProfStat(value: String, label: String, modifier: Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+private fun ProfStat(value: String, label: String, modifier: Modifier, onClick: (() -> Unit)? = null) {
+    val m = if (onClick != null) modifier.clickable(onClick = onClick) else modifier
+    Column(m, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         Spacer(Modifier.height(2.dp))
         Text(label, color = Muted, fontSize = 13.sp)
