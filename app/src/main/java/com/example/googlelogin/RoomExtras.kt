@@ -18,6 +18,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
 import com.google.firebase.auth.FirebaseAuth
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -26,7 +28,32 @@ import kotlinx.coroutines.tasks.await
 
 data class SeatEmote(val emoji: String, val at: Long)
 
-val EMOTES = listOf("😀", "😂", "🤣", "😍", "🥰", "😎", "😭", "😡", "🤔", "👍", "👏", "🙏", "🎉", "🔥", "💋", "😴")
+/** Emote kustom yang di-upload dari panel developer (gif/png/jpg). */
+data class RoomEmote(val id: String, val name: String, val url: String, val order: Int = 0)
+
+/** Daftar emote kustom. Cache 5 menit supaya hemat kuota Firestore. */
+object RoomEmotes {
+    private const val TTL = 5 * 60_000L
+    private var cache: List<RoomEmote>? = null
+    private var loadedAt = 0L
+
+    suspend fun load(force: Boolean = false): List<RoomEmote> {
+        val c = cache
+        if (!force && c != null && System.currentTimeMillis() - loadedAt < TTL) return c
+        return try {
+            val snap = FirebaseFirestore.getInstance().collection("vipConfig")
+                .whereEqualTo("slot", "emote").get().await()
+            val list = snap.documents.mapNotNull { d ->
+                val url = d.getString("url") ?: return@mapNotNull null
+                RoomEmote(d.getString("id") ?: d.id, d.getString("name") ?: "", url, (d.getLong("order") ?: 0L).toInt())
+            }.sortedWith(compareBy({ it.order }, { it.id }))
+            cache = list
+            loadedAt = System.currentTimeMillis()
+            list
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { c ?: emptyList() }
+    }
+}
+
 
 object RoomExtras {
     private fun db() = FirebaseFirestore.getInstance()
@@ -113,7 +140,9 @@ fun RoomTypingBar(text: String, myFam: String = "", onTextChange: (String) -> Un
         OutlinedTextField(
             value = text,
             onValueChange = { if (it.length <= 120) onTextChange(it) },
-            modifier = Modifier.weight(1f).focusRequester(focus),
+            // Gelembung chat tinggi tetap 64dp supaya tidak "menciut" saat mengetik,
+            // dan teks punya jarak lega ke garis luar gelembung.
+            modifier = Modifier.weight(1f).focusRequester(focus).height(64.dp),
             singleLine = true,
             placeholder = { Text(tr("Ketik pesan...")) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -127,7 +156,7 @@ fun RoomTypingBar(text: String, myFam: String = "", onTextChange: (String) -> Un
 }
 
 @Composable
-fun RoomEmoteBar(onPick: (String) -> Unit) {
+fun RoomEmoteBar(emotes: List<RoomEmote> = emptyList(), onPick: (String) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -138,8 +167,14 @@ fun RoomEmoteBar(onPick: (String) -> Unit) {
             .padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        EMOTES.forEach { e ->
-            Text(e, fontSize = 28.sp, modifier = Modifier.clickable { onPick(e) }.padding(4.dp))
+        // Hanya emote kustom dari panel developer (gif/png/jpg); emote bawaan dihapus.
+        emotes.forEach { em ->
+            AsyncImage(
+                model = em.url,
+                contentDescription = em.name.ifBlank { "emote" },
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(34.dp).clickable { onPick(em.url) }.padding(2.dp),
+            )
         }
     }
 }
