@@ -163,7 +163,13 @@ fun PartyTab(
             onCreated = { showCreate = false; onEnterRoom(it) },
         )
     }
-    if (showRank) TopRankDialog(onDismiss = { showRank = false })
+    if (showRank) TopRankDialog(
+        onDismiss = { showRank = false },
+        onOpenRoom = { rid ->
+            showRank = false
+            refreshScope.launch { RoomRepo.getRoom(rid)?.let(onEnterRoom) }
+        },
+    )
     if (showFamilyRank) FamilyRankDialog(
         myUid = myUid,
         onDismiss = { showFamilyRank = false },
