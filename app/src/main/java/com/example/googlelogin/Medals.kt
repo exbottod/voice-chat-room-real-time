@@ -2,6 +2,7 @@ package com.example.googlelogin
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,9 +36,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -195,10 +198,18 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     "\u2039", color = Color.White, fontSize = 34.sp,
                     modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 8.dp),
                 )
-                Text(
-                    "Medali kehormatan", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                // Icon lencana glory kustom di header tab page.
+                Row(
+                    Modifier.align(Alignment.Center),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Image(
+                        painterResource(R.drawable.ic_glory_medal), null,
+                        Modifier.size(30.dp), contentScale = ContentScale.Fit,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Medali kehormatan", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                }
             }
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 14.dp),
