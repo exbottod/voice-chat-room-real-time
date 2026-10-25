@@ -1,5 +1,6 @@
 package com.example.googlelogin
 
+import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColor
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.launch
@@ -90,42 +92,139 @@ fun svipKeys(csv: String?): Set<String> =
 /** Apakah user publik ini mengaktifkan privilege svip tertentu. */
 fun PublicUser.svipOn(key: String): Boolean = key in svipKeys(svip)
 
+/**
+ * Cache SVIP lokal di perangkat (SharedPreferences).
+ * Panel SVIP tetap hidup walau kuota database habis / offline;
+ * perubahan disinkronkan otomatis begitu koneksi/kuota kembali.
+ */
+object SvipLocal {
+    private fun sp() = FirebaseApp.getInstance().applicationContext
+        .getSharedPreferences("svip_local", Context.MODE_PRIVATE)
+
+    fun keys(uid: String): Set<String> = sp().getStringSet("k_$uid", emptySet()) ?: emptySet()
+    fun on(uid: String, key: String): Boolean = key in keys(uid)
+    fun csv(uid: String): String = keys(uid).joinToString(",")
+
+    fun save(uid: String, key: String, isOn: Boolean) {
+        val cur = keys(uid).toMutableSet()
+        if (isOn) cur.add(key) else cur.remove(key)
+        sp().edit().putStringSet("k_$uid", cur).putBoolean("dirty_$uid", true).apply()
+    }
+
+    fun saveAll(uid: String, csv: String) {
+        val set = csv.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        sp().edit().putStringSet("k_$uid", set).apply()
+    }
+
+    fun dirty(uid: String): Boolean = sp().getBoolean("dirty_$uid", false)
+    fun clearDirty(uid: String) { sp().edit().putBoolean("dirty_$uid", false).apply() }
+
+    fun ad(uid: String): String = sp().getString("ad_$uid", "") ?: ""
+    fun saveAd(uid: String, ad: String) { sp().edit().putString("ad_$uid", ad).putBoolean("dirty_$uid", true).apply() }
+
+    fun vip(uid: String): Pair<Int, Long> {
+        val p = sp()
+        val v = p.getInt("vip_$uid", -1)
+        return if (v >= 0) v to p.getLong("vipUntil_$uid", 0L) else 0 to 0L
+    }
+    fun saveVip(uid: String, vip: Int, until: Long) {
+        sp().edit().putInt("vip_$uid", vip).putLong("vipUntil_$uid", until).apply()
+    }
+}
+
 object SvipRepo {
     private fun db() = FirebaseFirestore.getInstance()
     private fun ref(uid: String) = db().collection("wallets").document(uid)
 
-    /** Simpan toggle privilege (wallet svip.<key>), lalu sinkronkan ke profil publik. */
-    suspend fun set(uid: String, key: String, on: Boolean): String? = try {
-        ref(uid).set(hashMapOf<String, Any?>("svip" to hashMapOf(key to on)), SetOptions.merge()).await()
-        PublicSync.push(uid)
-        null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        e.message ?: "Gagal"
+    /**
+     * Tulis status SVIP ke profil publik RTDB (pub/{uid}). Kuota RTDB terpisah dari
+     * Firestore, jadi walau kuota Firestore habis status tetap tersimpan publik dan
+     * bisa dibaca orang lain lewat jalur cadangan RTDB.
+     */
+    private suspend fun rtdbPub(uid: String) {
+        try {
+            Rtdb.ref("pub/$uid").updateChildren(
+                mapOf("svip" to SvipLocal.csv(uid), "ad" to SvipLocal.ad(uid)),
+            ).await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
     }
 
-    /** Apakah user INI (uid) mengaktifkan privilege dan SVIP-nya masih aktif. */
-    suspend fun myOn(uid: String, key: String, minVip: Int): Boolean = try {
-        val doc = ref(uid).get().await()
-        val v = (doc.getLong("vip") ?: 0L).toInt()
-        vipActive(v, doc.getLong("vipUntil") ?: 0L) && v >= minVip &&
-            (doc.get("svip") as? Map<*, *>)?.get(key) == true
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        false
+    /**
+     * Simpan toggle privilege. Selalu ditulis ke cache lokal dulu (berhasil walau
+     * kuota database habis / offline), lalu dicoba kirim ke server. Kalau server
+     * gagal, nilai lokal tetap dipakai dan otomatis disinkronkan lain waktu.
+     */
+    suspend fun set(uid: String, key: String, on: Boolean): String? {
+        SvipLocal.save(uid, key, on)
+        return try {
+            ref(uid).set(hashMapOf<String, Any?>("svip" to hashMapOf(key to on)), SetOptions.merge()).await()
+            SvipLocal.clearDirty(uid)
+            try { PublicSync.push(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Kuota Firestore habis: tetap tersimpan publik lewat RTDB (kuota terpisah),
+            // dan tetap disinkronkan ke Firestore otomatis saat kuota kembali.
+            rtdbPub(uid)
+            null
+        }
     }
 
-    /** Simpan iklan pribadi (Personal ADs). */
-    suspend fun setAd(uid: String, ad: String): String? = try {
-        ref(uid).set(hashMapOf<String, Any?>("svipAd" to ad.trim().take(120)), SetOptions.merge()).await()
-        PublicSync.push(uid)
-        null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        e.message ?: "Gagal"
+    /** Sinkronkan ulang perubahan lokal yang belum masuk server (dipanggil saat app dibuka). */
+    suspend fun resync(uid: String) {
+        if (!SvipLocal.dirty(uid)) return
+        try {
+            val data = hashMapOf<String, Any?>(
+                "svip" to SVIP_PRIVS.associate { it.key to SvipLocal.on(uid, it.key) },
+                "svipAd" to SvipLocal.ad(uid),
+            )
+            ref(uid).set(data, SetOptions.merge()).await()
+            SvipLocal.clearDirty(uid)
+            PublicSync.push(uid)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+
+    /** Apakah user INI (uid) mengaktifkan privilege dan SVIP-nya masih aktif.
+     *  Kalau database tidak bisa dibaca (kuota habis/offline), pakai cache lokal. */
+    suspend fun myOn(uid: String, key: String, minVip: Int): Boolean {
+        try {
+            val doc = ref(uid).get().await()
+            val v = (doc.getLong("vip") ?: 0L).toInt()
+            val until = doc.getLong("vipUntil") ?: 0L
+            SvipLocal.saveVip(uid, v, until)
+            val m = (doc.get("svip") as? Map<*, *>)
+            if (m != null) SvipLocal.saveAll(uid, m.entries.filter { it.value == true }.joinToString(",") { it.key as String })
+            val ad = doc.getString("svipAd")
+            if (ad != null) SvipLocal.saveAd(uid, ad)
+            return vipActive(v, until) && v >= minVip && m?.get(key) == true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val lv = SvipLocal.vip(uid)
+            return vipActive(lv.first, lv.second) && lv.first >= minVip && SvipLocal.on(uid, key)
+        }
+    }
+
+    /** Simpan iklan pribadi (Personal ADs); lokal dulu, server best-effort. */
+    suspend fun setAd(uid: String, ad: String): String? {
+        SvipLocal.saveAd(uid, ad.trim().take(120))
+        return try {
+            ref(uid).set(hashMapOf<String, Any?>("svipAd" to ad.trim().take(120)), SetOptions.merge()).await()
+            SvipLocal.clearDirty(uid)
+            try { PublicSync.push(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Kuota Firestore habis: iklan tetap tersimpan publik lewat RTDB.
+            rtdbPub(uid)
+            null
+        }
     }
 }
 
@@ -160,11 +259,13 @@ fun SvipBadge(n: Int) {
 fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
-    var vip by remember { mutableStateOf(0) }
-    var vipUntil by remember { mutableStateOf(0L) }
-    var toggles by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var myAd by remember { mutableStateOf("") }
-    var loaded by remember { mutableStateOf(false) }
+    // Cache lokal: panel langsung tampil walau kuota database habis / offline.
+    val locVip = remember(uid) { SvipLocal.vip(uid) }
+    var vip by remember(uid) { mutableStateOf(locVip.first) }
+    var vipUntil by remember(uid) { mutableStateOf(locVip.second) }
+    var toggles by remember(uid) { mutableStateOf(SvipLocal.keys(uid).associateWith { true }) }
+    var myAd by remember(uid) { mutableStateOf(SvipLocal.ad(uid)) }
+    var loaded by remember(uid) { mutableStateOf(false) }
     var editAd by remember { mutableStateOf(false) }
 
     LaunchedEffect(uid) {
@@ -175,9 +276,15 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
             val m = doc.get("svip") as? Map<*, *>
             toggles = m?.mapNotNull { (k, v) -> if (k is String && v == true) k to true else null }?.toMap() ?: emptyMap()
             myAd = doc.getString("svipAd") ?: ""
+            // segarkan cache lokal supaya tetap mutakhir
+            SvipLocal.saveVip(uid, vip, vipUntil)
+            if (m != null) SvipLocal.saveAll(uid, m.entries.filter { it.value == true }.joinToString(",") { it.key as String })
+            SvipLocal.saveAd(uid, myAd)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
-        } catch (e: Exception) { }
+        } catch (e: Exception) {
+            // database tidak terbaca (kuota habis/offline): lanjut pakai cache lokal
+        }
         loaded = true
     }
 
