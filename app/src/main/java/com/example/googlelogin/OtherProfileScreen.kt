@@ -72,7 +72,9 @@ fun OtherProfileScreen(
     val scope = rememberCoroutineScope()
     val isMe = uid == myUid
 
-    var user by remember(uid) { mutableStateOf(UserCache.peek(uid)) }
+    // FIX Anonymous: profil orang lain jangan dirender dari cache lama (svip bisa basi),
+    // tunggu data segar supaya status Hide my profile pasti terbaca.
+    var user by remember(uid) { mutableStateOf(if (isMe) UserCache.peek(uid) else null) }
     var loading by remember(uid) { mutableStateOf(true) }
     var counts by remember(uid) { mutableStateOf(0L to 0L) }
     var following by remember(uid) { mutableStateOf(false) }
