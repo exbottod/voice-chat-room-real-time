@@ -294,7 +294,7 @@ fun LevelBadge(level: Int, modifier: Modifier = Modifier, height: Dp = 22.dp) {
         Text(
             "$level",
             color = Color.White,
-            fontSize = (height.value * 0.45f).sp,
+            fontSize = (height.value * 0.6f).sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             softWrap = false,
