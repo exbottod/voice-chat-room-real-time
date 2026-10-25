@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 private val PageTop = Color(0xFF1E3D38)
 private val PageBottom = Color(0xFF0A1514)
@@ -95,6 +96,16 @@ fun OtherProfileScreen(
     BackHandler(onBack = onBack)
     LaunchedEffect(uid) {
         user = UserCache.byUid(uid, force = true) ?: user
+        // FIX Anonymous: svip cadangan dari RTDB pub/{uid} kalau dokumen Firestore
+        // userIds belum sinkron, supaya status Hide my profile pasti terbaca.
+        try {
+            val u3 = user
+            if (u3 != null && u3.svip.isBlank()) {
+                val s = Rtdb.ref("pub/$uid").get().await()
+                val csv = s.child("svip").getValue(String::class.java) ?: ""
+                if (csv.isNotBlank()) user = u3.copy(svip = csv)
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         loading = false
         try { counts = FollowRepo.counts(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         if (!isMe) {
