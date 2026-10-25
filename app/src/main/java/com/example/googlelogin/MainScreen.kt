@@ -121,7 +121,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         minimized = false
         scope.launch {
             if (old != null) RoomRepo.leave(old.id, uid)
-            RoomRepo.join(room.id, myName, if (vipActive(wallet.vip, wallet.vipUntil)) wallet.vip else 0, activeEquipEntry(context, wallet))
+            RoomRepo.join(room.id, myName, if (vipActive(wallet.vip, wallet.vipUntil)) wallet.vip else 0, activeEquip(wallet, "entry"))
         }
     }
 
