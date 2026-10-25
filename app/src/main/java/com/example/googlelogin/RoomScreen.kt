@@ -63,6 +63,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -135,6 +136,8 @@ fun RoomScreen(
     var giftOpen by remember { mutableStateOf(false) }
     var giftTarget by remember { mutableStateOf<String?>(null) }
     var emotes by remember { mutableStateOf<Map<String, SeatEmote>>(emptyMap()) }
+    var customEmotes by remember { mutableStateOf<List<RoomEmote>>(emptyList()) }
+    LaunchedEffect(roomId) { customEmotes = RoomEmotes.load() }
     var draft by remember { mutableStateOf("") }
     var profileUid by remember { mutableStateOf<String?>(null) }
     var clearedAt by remember { mutableStateOf(0L) }
@@ -319,7 +322,7 @@ fun RoomScreen(
 
             // Bar bawah
             if (emoteOpen) {
-                RoomEmoteBar(onPick = { e ->
+                RoomEmoteBar(emotes = customEmotes, onPick = { e ->
                         emoteOpen = false
                         if (mySeat == null) {
                             toast("Naik mic dulu untuk kirim emot")
@@ -678,17 +681,6 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                     index == 0 -> MicIcon(true, Modifier.size(size * 0.5f), Gold)
                     else -> Text("💺", fontSize = (size.value * 0.42f).sp)
                 }
-                var emoteShow by remember { mutableStateOf(false) }
-                LaunchedEffect(emote?.at) {
-                    if (emote != null && abs(System.currentTimeMillis() - emote.at) < 20000) {
-                        emoteShow = true
-                        delay(3000)
-                        emoteShow = false
-                    }
-                }
-                if (emoteShow && emote != null) {
-                    Text(emote.emoji, fontSize = (size.value * 0.6f).sp, modifier = Modifier.align(Alignment.Center))
-                }
                 if (seat != null && seat.muted) {
                     Box(
                         Modifier.align(Alignment.BottomEnd).size(20.dp).clip(CircleShape).background(Color(0xCC000000)),
@@ -697,6 +689,29 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                 }
             }
             seatFrame?.let { FrameOverlay(it, (size.value * 1.3f).dp) }
+            // Emote digambar SETELAH bingkai supaya tampil di depan frame,
+            // bukan di belakangnya.
+            var emoteShow by remember { mutableStateOf(false) }
+            LaunchedEffect(emote?.at) {
+                if (emote != null && abs(System.currentTimeMillis() - emote.at) < 20000) {
+                    emoteShow = true
+                    delay(3000)
+                    emoteShow = false
+                }
+            }
+            if (emoteShow && emote != null) {
+                if (emote.emoji.startsWith("http")) {
+                    // Emote kustom (gif/png/jpg): seukuran foto profil di mic.
+                    AsyncImage(
+                        model = emote.emoji,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.align(Alignment.Center).size(size),
+                    )
+                } else {
+                    Text(emote.emoji, fontSize = (size.value * 0.6f).sp, modifier = Modifier.align(Alignment.Center))
+                }
+            }
         }
         VipNameByUid(
             seat?.name ?: (if (index == 0) "MC" else "No.${index + 1}"),
