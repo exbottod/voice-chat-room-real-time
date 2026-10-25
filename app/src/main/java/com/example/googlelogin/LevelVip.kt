@@ -390,7 +390,8 @@ fun LevelScreen(user: UserProfile, profile: ProfileData, wallet: Wallet, uid: St
                     .background(Brush.verticalGradient(listOf(Color(0xFF4FE8D0), Color(0xFF22B7A3))))
                     .border(2.dp, Color(0x6642F5DC), RoundedCornerShape(26.dp)).padding(16.dp),
             ) {
-                Text("🛡️", fontSize = 84.sp, modifier = Modifier.align(Alignment.TopEnd))
+                // Icon level besar (lencana kustom) pengganti perisai emoji.
+                LevelBadge(level, Modifier.align(Alignment.TopEnd), height = 76.dp)
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AvatarImage(user, profile, 62.dp)
@@ -506,7 +507,7 @@ fun LevelScreen(user: UserProfile, profile: ProfileData, wallet: Wallet, uid: St
                         Spacer(Modifier.height(8.dp))
                         Box(Modifier.size(12.dp).clip(CircleShape).background(if (reached) Color(0xFF2FE6D0) else Color(0xFF5E8F8A)))
                         Spacer(Modifier.height(10.dp))
-                        LevelBadge(lo.coerceAtMost(MAX_LEVEL))
+                        LevelBadge(lo.coerceAtMost(MAX_LEVEL), height = 46.dp)
                     }
                 }
             }
