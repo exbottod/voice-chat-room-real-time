@@ -219,7 +219,7 @@ private fun RkAvatar(col: String, e: RankEntry, size: Dp, ring: Color, rank: Int
         0
     }
     if (frameRes != 0) {
-        Box(Modifier.size(size * 1.45f), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(size * 1.75f), contentAlignment = Alignment.Center) {
             RkAvatarInner(col, e, size, ring)
             Image(
                 painterResource(frameRes), null,
