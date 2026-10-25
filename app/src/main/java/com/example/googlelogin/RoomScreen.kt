@@ -679,8 +679,13 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
     Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(size), contentAlignment = Alignment.Center) {
             Box(
-                Modifier.size(size).clip(CircleShape).background(Color(0xFF0F3D33))
-                .then(if (seatFrame != null) Modifier else Modifier.border(2.dp, Teal, CircleShape)),
+                Modifier.size(size).clip(CircleShape)
+                .then(
+                    if (seat != null) {
+                        if (seatFrame != null) Modifier.background(Color(0xFF0F3D33))
+                        else Modifier.background(Color(0xFF0F3D33)).border(2.dp, Teal, CircleShape)
+                    } else Modifier
+                ),
                 contentAlignment = Alignment.Center,
             ) {
                 when {
@@ -689,11 +694,11 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                     seat != null ->
                     Text(seat.name.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                     seat == null && locked ->
-                        Image(painterResource(R.drawable.ic_lock_mic), null, Modifier.size(size * 0.42f), contentScale = ContentScale.Fit)
+                        Image(painterResource(R.drawable.ic_lock_mic), null, Modifier.size(size * 0.8f), contentScale = ContentScale.Fit)
                     index == 0 ->
-                        Image(painterResource(R.drawable.ic_seat_mic), null, Modifier.size(size * 0.5f), contentScale = ContentScale.Fit)
+                        Image(painterResource(R.drawable.ic_seat_mic), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     else ->
-                        Image(painterResource(R.drawable.ic_seat_mic), null, Modifier.size(size * 0.42f), contentScale = ContentScale.Fit)
+                        Image(painterResource(R.drawable.ic_seat_mic), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 }
                 if (seat != null && seat.muted) {
                     Box(
