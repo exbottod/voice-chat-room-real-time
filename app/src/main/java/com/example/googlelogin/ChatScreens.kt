@@ -54,7 +54,7 @@ object ChatRepo {
                         ChatSummary(
                             id = d.id,
                             otherUid = other,
-                            otherName = names?.get(other) as? String ?: "Pengguna",
+                            otherName = names?.get(other) as? String ?: tr("Pengguna"),
                             otherId = ids?.get(other) as? String ?: "",
                             lastText = d.getString("lastText") ?: "",
                             lastAt = d.getLong("lastAt") ?: 0L,
@@ -83,7 +83,7 @@ object ChatRepo {
             val ok = try {
                 FollowRepo.isFollowing(other.uid, me)
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false }
-            if (!ok) return "User ini mengaktifkan Avoid disturbing (hanya menerima pesan dari orang yang dia ikuti)"
+            if (!ok) return tr("User ini mengaktifkan Avoid disturbing (hanya menerima pesan dari orang yang dia ikuti)")
         }
         return try {
             val ref = db().collection("chats").document(chatId(me, other.uid))
@@ -104,7 +104,7 @@ object ChatRepo {
             b.commit().await()
             null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-            e.message ?: "Gagal mengirim"
+            e.message ?: tr("Gagal mengirim")
         }
     }
 }
@@ -149,7 +149,7 @@ fun ChatListTab(myUid: String) {
         if (chats.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "Belum ada pesan.\nBuka profil seseorang lalu tekan Chat.",
+                    tr("Belum ada pesan.\nBuka profil seseorang lalu tekan Chat."),
                     color = Color(0xFF8A8A8A), textAlign = TextAlign.Center,
                 )
             }
@@ -256,7 +256,7 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
                 OutlinedTextField(
                     value = text,
                     onValueChange = { if (it.length <= 500) text = it },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).heightIn(min = 64.dp),
                     placeholder = { Text(tr("Tulis pesan...")) },
                     maxLines = 3,
                     shape = RoundedCornerShape(24.dp),

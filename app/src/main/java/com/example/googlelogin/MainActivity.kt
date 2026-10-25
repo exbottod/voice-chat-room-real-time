@@ -16,6 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.LayoutDirection
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -74,9 +77,14 @@ class MainActivity : ComponentActivity() {
         AppLang.load(this)
         WalletCache.init(this)
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
-                Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
-                    AppRoot()
+            // Bahasa Arab: layout kanan-ke-kiri (RTL).
+            CompositionLocalProvider(
+                LocalLayoutDirection provides if (AppLang.code == AppLang.AR) LayoutDirection.Rtl else LayoutDirection.Ltr
+            ) {
+                MaterialTheme(colorScheme = darkColorScheme()) {
+                    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+                        AppRoot()
+                    }
                 }
             }
         }

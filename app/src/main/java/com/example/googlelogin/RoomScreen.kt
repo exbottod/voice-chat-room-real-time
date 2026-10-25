@@ -443,7 +443,7 @@ fun RoomScreen(
                     Text(if (idx == 0) "Kursi MC masih kosong" else "Kursi No.${idx + 1} masih kosong", color = Color(0xFFBDBDBD))
                     if (seatLocked) {
                         Spacer(Modifier.height(8.dp))
-                        Text("🔒 Mic ini dikunci", color = Gold)
+                        Text(tr("🔒 Mic ini dikunci"), color = Gold)
                     }
                     Spacer(Modifier.height(16.dp))
                     if (seatLocked) {
