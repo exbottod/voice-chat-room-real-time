@@ -52,7 +52,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -156,6 +156,20 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn" id="stAdd">Tambah ke Store</button>
   </div>
   <div id="stList"></div>
+</div>
+
+<div id="tab-emote" class="hide">
+    <div class="card">
+      <h2>Tambah emote room</h2>
+      <p class="muted">Emote tampil di tab emot room, seukuran foto profil di mic dan di depan bingkai VIP.</p>
+      <label>Nama emote (opsional)</label><input type="text" id="emName" placeholder="Contoh: Tawa REZO">
+      <label>Urutan (angka kecil tampil lebih dulu)</label><input type="number" id="emOrder" value="0">
+      <div class="prev" id="emPrev">Pratinjau</div>
+      <label>URL (gif, png, jpg)</label><input type="text" id="emUrl" placeholder="https://...">
+      <label>atau pilih file dari HP (maks sekitar 5 MB)</label><input type="file" id="emFile" accept=".gif,.png,.jpg,.jpeg">
+      <button class="btn" id="emAdd">Tambah emote</button>
+    </div>
+    <div id="emList"></div>
 </div>
 
 <div id="tab-user" class="hide">
@@ -306,9 +320,10 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+  ["banner", "ban", "coin", "user", "vip", "store", "emote"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
+  if (t.dataset.t === "emote") emoteStart();
 });
 
 async function lookup(raw){
@@ -821,6 +836,77 @@ async function storeDelete(c){
 }
 $("stAdd").onclick = () => storeSave(null, { slot: $("stSlot"), name: $("stName"), price: $("stPrice"), days: $("stDays"), order: $("stOrder"), url: $("stUrl"), file: $("stFile") }, $("stAdd"));
 $("stFile").onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile($("stPrev"), f); };
+
+// ===== Emote room (gif/png/jpg) =====
+let emoteItems = [], emoteUnsub = null;
+const EMOTE_ACCEPT = [".gif", ".png", ".jpg", ".jpeg"];
+function emoteStart(){
+  if (emoteUnsub) return;
+  emoteUnsub = db.collection("vipConfig").where("slot", "==", "emote").onSnapshot(s => {
+    emoteItems = s.docs.map(d => Object.assign({ _did: d.id }, d.data()));
+    renderEmotes();
+  }, e => { $("emList").textContent = "Gagal memuat: " + e.message; });
+}
+function renderEmotes(){
+  const box = $("emList"); box.textContent = "";
+  const items = emoteItems.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+  if (!items.length) { box.textContent = "Belum ada emote kustom."; return; }
+  items.forEach(c => {
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = '<h2></h2><div class="prev"></div>' +
+      '<label>Nama</label><input type="text" class="e-name">' +
+      '<label>Urutan</label><input type="number" class="e-order">' +
+      '<button class="btn e-save">Simpan perubahan</button> <button class="btn e-del" style="background:#7a1f1f;color:#fff">Hapus</button>';
+    card.querySelector("h2").textContent = "Emote \u2014 " + (c.name || c.id);
+    card.querySelector(".e-name").value = c.name || "";
+    card.querySelector(".e-order").value = c.order || 0;
+    const prev = card.querySelector(".prev");
+    if ((c.url || "").match(/\.(gif|jpe?g|png)$/i) || c.kind === "image") prev.innerHTML = '<img src="' + c.url + '" style="max-width:120px;max-height:120px;border-radius:10px">';
+    else prev.textContent = c.url || "";
+    card.querySelector(".e-save").onclick = async ev => {
+      const name = card.querySelector(".e-name").value.trim();
+      const order = parseInt(card.querySelector(".e-order").value, 10) || 0;
+      ev.target.disabled = true;
+      try {
+        await db.collection("vipConfig").doc(c._did).set({ name: name, order: order, updatedAt: Date.now() }, { merge: true });
+        toast("Tersimpan \u2705");
+      } catch (e) { toast("Gagal: " + e.message); }
+      ev.target.disabled = false;
+    };
+    card.querySelector(".e-del").onclick = async () => {
+      if (!confirm("Hapus emote ini?")) return;
+      try { await db.collection("vipConfig").doc(c._did).delete(); toast("Dihapus \u2705"); }
+      catch (e) { toast("Gagal: " + e.message); }
+    };
+    box.appendChild(card);
+  });
+}
+$("emFile").onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile($("emPrev"), f); };
+$("emAdd").onclick = async () => {
+  const name = $("emName").value.trim();
+  const order = parseInt($("emOrder").value, 10) || 0;
+  const url = $("emUrl").value.trim();
+  const f = $("emFile").files[0];
+  if (!url && !f) return toast("Isi URL atau pilih file");
+  try {
+    let finalUrl = url;
+    if (f) {
+      const e = vipExt(f.name);
+      if (e && !EMOTE_ACCEPT.includes("." + e)) return toast("Format file harus gif, png, atau jpg");
+      finalUrl = await cldUpload(f, "emote_" + Date.now().toString(36));
+    }
+    if (!/^https?:\/\//i.test(finalUrl)) return toast("URL harus diawali http:// atau https://");
+    const e2 = vipExt(finalUrl);
+    if (e2 && !EMOTE_ACCEPT.includes("." + e2)) return toast("Format URL harus gif, png, atau jpg");
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    await db.collection("vipConfig").doc("emote_" + id).set({
+      slot: "emote", meta: false, store: false, id: id, name: name,
+      kind: "image", url: finalUrl, order: order, hasData: false, chunks: 0, updatedAt: Date.now(),
+    });
+    $("emName").value = ""; $("emUrl").value = ""; $("emFile").value = ""; $("emPrev").textContent = "Pratinjau";
+    toast("Emote ditambahkan \u2705");
+  } catch (e) { toast("Gagal: " + e.message); }
+};
 
 function goFind(tab, inputId, btnId, id){
   document.querySelector('.tab[data-t="' + tab + '"]').click();
