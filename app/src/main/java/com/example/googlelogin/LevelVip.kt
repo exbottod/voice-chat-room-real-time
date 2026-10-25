@@ -993,6 +993,15 @@ object PublicSync {
                 ?.entries?.filter { it.key is String && it.value == true }
                 ?.joinToString(",") { it.key as String } ?: ""
             val ad = snap.getString("svipAd") ?: ""
+            // FIX family: isi ulang label family dari data family asli setiap sinkronisasi,
+            // supaya owner/anggota lama juga tampil lencana & "family saya"-nya.
+            var famName = ""
+            try {
+                val fid = db.collection("familyMembers").document(uid).get().await().getString("familyId") ?: ""
+                if (fid.isNotBlank()) {
+                    famName = db.collection("families").document(fid).get().await().getString("name") ?: ""
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
             val data = hashMapOf<String, Any?>(
                 "uid" to uid,
                 "exp" to w.exp,
@@ -1004,6 +1013,7 @@ object PublicSync {
                 "medals" to activeMedalIds(w).joinToString(","),
                 "svip" to svipCsv,
                 "ad" to ad,
+                "fam" to famName,
             )
             val key = data.toString()
             if (lastKey[uid] == key) return
