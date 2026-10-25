@@ -222,7 +222,7 @@ private fun rememberVipLoader(): ImageLoader {
 }
 
 @Composable
-private fun VipVideo(a: VipAsset, data: ByteArray?, modifier: Modifier, loop: Boolean, onEnd: () -> Unit) {
+private fun VipVideo(a: VipAsset, data: ByteArray?, modifier: Modifier, loop: Boolean, onEnd: () -> Unit, sound: Boolean) {
     val ctx = LocalContext.current
     val uri: Uri? = remember(a.n, a.slot, a.updatedAt, data) {
         if (a.url.isNotBlank()) {
@@ -243,7 +243,9 @@ private fun VipVideo(a: VipAsset, data: ByteArray?, modifier: Modifier, loop: Bo
                 setVideoURI(uri)
                 setOnPreparedListener { mp ->
                     mp.isLooping = loop
-                    mp.setVolume(0f, 0f)
+                    // Efek masuk bisa bersuara; aset lain (bingkai/gelar) tetap diam.
+                    val vol = if (sound) 1f else 0f
+                    mp.setVolume(vol, vol)
                     start()
                 }
                 setOnCompletionListener { onEnd() }
@@ -313,6 +315,7 @@ fun VipMedia(
     loop: Boolean = true,
     contentScale: ContentScale = ContentScale.Fit,
     onEnd: () -> Unit = {},
+    sound: Boolean = false,
 ) {
     val data by produceState<ByteArray?>(null, a.n, a.slot, a.updatedAt) {
         value = if (a.hasData) VipAssets.bytes(a) else null
@@ -320,7 +323,7 @@ fun VipMedia(
     val remote = a.url.isNotBlank()
     if (!remote && data == null) return
     when (a.kind) {
-        "mp4" -> VipVideo(a, data, modifier, loop, onEnd)
+        "mp4" -> VipVideo(a, data, modifier, loop, onEnd, sound)
         "svga" -> VipSvga(a, data, modifier, loop, contentScale, onEnd)
         else -> AsyncImage(
             model = if (remote) a.url else ByteBuffer.wrap(data!!),
@@ -399,6 +402,7 @@ fun VipEntryEffect(roomId: String) {
                 loop = false,
                 contentScale = ContentScale.Crop,
                 onEnd = { playing = null },
+                sound = true,
             )
         }
     }
