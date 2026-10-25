@@ -82,6 +82,9 @@ fun OtherProfileScreen(
     var moments by remember(uid) { mutableStateOf<List<Moment>?>(null) }
     var tab by remember(uid) { mutableStateOf(0) }
     var online by remember(uid) { mutableStateOf(false) }
+    var famFid by remember(uid) { mutableStateOf<String?>(null) }
+    var famOpen by remember { mutableStateOf(false) }
+    var myName by remember { mutableStateOf("") }
 
     // Status online live dari RTDB (fitur SVIP5 Hide Online Status).
     DisposableEffect(uid) {
@@ -98,6 +101,20 @@ fun OtherProfileScreen(
             try { following = FollowRepo.isFollowing(myUid, uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         }
         moments = try { MomentRepo.byUid(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
+        // FIX family: baca label family langsung dari data family asli.
+        // Owner/anggota lama yang profilnya belum tersinkron tetap tampil family-nya.
+        try {
+            val u2 = user
+            if (u2 == null || u2.fam.isBlank() || famFid == null) {
+                val fid = FamilyRepo.myFamilyId(uid)
+                if (!fid.isNullOrBlank()) {
+                    famFid = fid
+                    val f = FamilyRepo.getFamily(fid)
+                    if (f != null && f.name.isNotBlank()) user = (u2 ?: user)?.copy(fam = f.name)
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        myName = try { UserCache.byUid(myUid)?.name ?: "" } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { "" }
         // Hide visit records (SVIP5): kunjungan tidak dicatat kalau aktif.
         if (!isMe && user != null) {
             try {
@@ -184,7 +201,10 @@ fun OtherProfileScreen(
                         UserMedals(u.medals)
                         Spacer(Modifier.height(10.dp))
                         UserBadges(u)
-                        if (u.fam.isNotBlank()) { Spacer(Modifier.height(6.dp)); FamTag3D(u.fam) }
+                        if (u.fam.isNotBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Box(Modifier.clickable(enabled = famFid != null) { famOpen = true }) { FamTag3D(u.fam) }
+                        }
                     }
                     Spacer(Modifier.height(12.dp))
                     // Chip level & negara
@@ -224,8 +244,9 @@ fun OtherProfileScreen(
 
                 if (tab == 0)  {
                     SectionTitle("Family saya")
-                    if (u.fam.isNotBlank()) FamCard(u.fam)
-                    else PlaceholderCard("Belum bergabung dengan family")                    
+                    if (u.fam.isNotBlank()) {
+                        Box(Modifier.clickable(enabled = famFid != null) { famOpen = true }) { FamCard(u.fam) }
+                    } else PlaceholderCard("Belum bergabung dengan family")                    
                     Spacer(Modifier.height(18.dp))
                     SectionTitle("Penjaga saya")
                     PlaceholderCard("Belum memiliki penjaga")
@@ -299,6 +320,17 @@ fun OtherProfileScreen(
                     OutlineButton("Chat", Modifier.weight(1f)) { onChat(u) }
                 }
             }
+        }
+
+        // FIX family: dialog profil family saat label/kartu family diklik.
+        if (famOpen && famFid != null) {
+            FamilyProfileDialog(
+                fid = famFid!!,
+                myUid = myUid,
+                myName = myName,
+                myAvatar = null,
+                onDismiss = { famOpen = false },
+            )
         }
 
         // Bar atas: kembali + nama
