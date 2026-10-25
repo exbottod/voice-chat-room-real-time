@@ -233,7 +233,7 @@ fun RoomScreen(
         val roomBmp = remember(r.photoB64) { ProfileRepo.decodeB64(r.photoB64) }
         val cols = micColumns(r.micCount)
         val rows = (r.micCount + cols - 1) / cols
-        val seatSize = if (cols == 4) 64.dp else 54.dp
+        val seatSize = if (cols == 4) 54.dp else 48.dp
         val listState = rememberLazyListState()
         val visible = messages.filter { clearedAt == 0L || it.createdAt > clearedAt }
         val total = visible.size + (if (r.announcement.isNotBlank()) 1 else 0)
@@ -694,7 +694,7 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
                     seat != null ->
                     Text(seat.name.take(1).uppercase(), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                     seat == null && locked ->
-                        Image(painterResource(R.drawable.ic_lock_mic), null, Modifier.size(size * 0.8f), contentScale = ContentScale.Fit)
+                        Image(painterResource(R.drawable.ic_lock_mic), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     index == 0 ->
                         Image(painterResource(R.drawable.ic_seat_mic), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     else ->
