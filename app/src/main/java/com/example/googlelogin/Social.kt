@@ -280,7 +280,7 @@ fun levelBadgeRes(level: Int): Int = when {
 }
 
 @Composable
-fun LevelBadge(level: Int, modifier: Modifier = Modifier, height: Dp = 22.dp) {
+fun LevelBadge(level: Int, modifier: Modifier = Modifier, height: Dp = 18.dp) {
     // Angka level digambar DI DALAM icon badge, pas di tengah,
     // jadi tulisan level tidak pernah keluar dari batas icon level.
     Box(modifier.height(height), contentAlignment = Alignment.Center) {
