@@ -516,7 +516,7 @@ fun VipEntryEffect(roomId: String) {
             // Banner efek masuk: di ATAS layar, digambar SETELAH efek jadi tampil di depannya.
             // Ukuran banner TETAP sesuai file aslinya (tidak diperbesar selebar layar).
             if (b != null || br != null) {
-                val painter = remember(br) { if (br != null) painterResource(br) else null }
+                val painter = if (br != null) painterResource(br) else null
                 val density = LocalDensity.current
                 val bSize = remember(painter, density) {
                     val ins = painter?.intrinsicSize
@@ -524,13 +524,12 @@ fun VipEntryEffect(roomId: String) {
                         with(density) { DpSize(ins.width.toDp(), ins.height.toDp()) }
                     } else DpSize(320.dp, 90.dp)
                 }
-                Box(
+                BoxWithConstraints(
                     Modifier.align(Alignment.TopCenter).fillMaxWidth()
-                        .statusBarsPadding().padding(top = 4.dp)
-                        .graphicsLayer { translationX = slide.value * size.width },
+                        .statusBarsPadding().padding(top = 4.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(Modifier.size(bSize)) {
+                    Box(Modifier.size(bSize).offset(x = maxWidth * slide.value)) {
                         if (b != null) {
                             VipMedia(b, Modifier.fillMaxSize(), loop = true, contentScale = ContentScale.Fit)
                         } else {
