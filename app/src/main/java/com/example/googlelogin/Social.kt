@@ -116,7 +116,7 @@ object UserCache {
     }
 
     private suspend fun rtdb(uid: String, base: PublicUser?): PublicUser? = try {
-        val s = kotlinx.coroutines.withTimeoutOrNull(6000L) { Rtdb.ref("pub/$uid").get().await() }
+        val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("pub/$uid").get().await() }
         if (s == null || !s.exists()) {
             null
         } else {
@@ -143,8 +143,9 @@ object UserCache {
     suspend fun byUid(uid: String, force: Boolean = false): PublicUser? {
         val c = map[uid]
         if (!force && c != null && System.currentTimeMillis() - c.first < 300_000) return c.second
-        val fromDb = try {
-            kotlinx.coroutines.withTimeoutOrNull(8000L) { UserDirectory.findByUid(uid) }
+        // Kuota Firestore habis: langsung pakai RTDB / cache, jangan tunggu Firestore gagal.
+        val fromDb = if (QuotaGuard.isDown()) null else try {
+            kotlinx.coroutines.withTimeoutOrNull(3000L) { UserDirectory.findByUid(uid) }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -394,7 +395,7 @@ fun UserProfileSheet(
     BackHandler(onBack = onDismiss)
 
     LaunchedEffect(uid) {
-        user = UserCache.byUid(uid, force = true) ?: user
+        user = UserCache.byUid(uid) ?: user
         loading = false
         if (!isMe) {
             try {

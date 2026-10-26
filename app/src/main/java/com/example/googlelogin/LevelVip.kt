@@ -209,7 +209,7 @@ object LvRepo {
         if (curBn == null || (curBn.isNotBlank() && curBn.startsWith("vipbn_"))) eq.put("banner", "vipbn_$tier")
         patch.put("equip", eq)
         val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        QuotaGuard.notifyOnce()
+        QuotaGuard.markDown()
         WalletRepo.emitBackup(uid, bk.toWallet())
         return null
     }
@@ -222,7 +222,7 @@ object LvRepo {
         val patch = org.json.JSONObject().put("coins", w.coins - item.price)
         patch.put("inv", org.json.JSONObject().put(item.id, base + item.days * 86_400_000L))
         val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        QuotaGuard.notifyOnce()
+        QuotaGuard.markDown()
         WalletRepo.emitBackup(uid, bk.toWallet())
         return null
     }
@@ -235,19 +235,22 @@ object LvRepo {
         for (l in (w.lvClaimed + 1)..lvl) gain += l * LEVEL_REWARD_PER_LV
         val patch = org.json.JSONObject().put("coins", w.coins + gain).put("lvClaimed", lvl)
         val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        QuotaGuard.notifyOnce()
+        QuotaGuard.markDown()
         WalletRepo.emitBackup(uid, bk.toWallet())
         return null
     }
     // ================= AKHIR TANAMAN CADANGAN =================
 
     /** Beli / perpanjang / upgrade VIP. Otomatis menambah item VIP ke My Item. */
-    suspend fun buyVip(uid: String, tier: Int): String? = try {
+    suspend fun buyVip(uid: String, tier: Int): String? {
+        if (QuotaGuard.isDown()) return buyVipBackup(uid, tier)
+        return try {
         fsBuyVip(uid, tier)
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
         if (QuotaGuard.isExhausted(e)) buyVipBackup(uid, tier) else (e.message ?: "Gagal beli VIP")
+    }
     }
 
     private suspend fun fsBuyVip(uid: String, tier: Int): String? = txRun("Gagal beli VIP") { tx ->
@@ -283,12 +286,15 @@ object LvRepo {
         )
     }
 
-    suspend fun buyItem(uid: String, item: StoreItem): String? = try {
+    suspend fun buyItem(uid: String, item: StoreItem): String? {
+        if (QuotaGuard.isDown()) return buyItemBackup(uid, item)
+        return try {
         fsBuyItem(uid, item)
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
         if (QuotaGuard.isExhausted(e)) buyItemBackup(uid, item) else (e.message ?: "Gagal membeli item")
+    }
     }
 
     private suspend fun fsBuyItem(uid: String, item: StoreItem): String? = txRun("Gagal membeli item") { tx ->
@@ -320,7 +326,7 @@ object LvRepo {
                     org.json.JSONObject().put("equip", org.json.JSONObject().put(slot, id)),
                 )
                 if (bk == null) return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-                QuotaGuard.notifyOnce()
+                QuotaGuard.markDown()
                 WalletRepo.emitBackup(uid, bk.toWallet())
                 null
             } else {
@@ -361,12 +367,15 @@ object LvRepo {
     }
 
     /** Klaim hadiah koin untuk semua level yang belum diambil. */
-    suspend fun claimLevel(uid: String): String? = try {
+    suspend fun claimLevel(uid: String): String? {
+        if (QuotaGuard.isDown()) return claimLevelBackup(uid)
+        return try {
         fsClaimLevel(uid)
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
         if (QuotaGuard.isExhausted(e)) claimLevelBackup(uid) else (e.message ?: "Gagal klaim")
+    }
     }
 
     private suspend fun fsClaimLevel(uid: String): String? = txRun("Gagal klaim") { tx ->

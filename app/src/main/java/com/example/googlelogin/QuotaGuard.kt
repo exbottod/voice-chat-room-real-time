@@ -40,6 +40,27 @@ object QuotaGuard {
         return false
     }
 
+    // Tanda kuota sedang habis. Selama tanda ini aktif, transaksi store/wallet
+    // LANGSUNG diproses di server cadangan tanpa mencoba Firestore dulu
+    // (percobaan Firestore saat kuota habis lama ~30 detik karena diulang berkali-kali).
+    // Tanda hangus sendiri setelah 30 menit / saat Firestore kembali sehat.
+    @Volatile
+    private var downUntil = 0L
+
+    /** Tandai kuota habis (sekaligus tampilkan toast, maks 1x/menit). */
+    fun markDown() {
+        downUntil = System.currentTimeMillis() + 30 * 60_000L
+        notifyOnce()
+    }
+
+    /** Apakah kuota sedang habis? Transaksi sebaiknya langsung ke server cadangan. */
+    fun isDown(): Boolean = downUntil > System.currentTimeMillis()
+
+    /** Firestore sehat lagi: transaksi kembali normal ke Firestore. */
+    fun markUp() {
+        downUntil = 0L
+    }
+
     /** Toast "kuota habis" sekali per 60 detik, biar tidak spam. */
     fun notifyOnce() {
         val ctx = appContext ?: return
