@@ -52,7 +52,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -172,6 +172,14 @@ label{font-size:12px;color:var(--mut)}
     <div id="emList"></div>
 </div>
 
+<div id="tab-bg" class="hide">
+    <div class="card">
+      <h2>Background tab home</h2>
+      <p class="muted">Atur latar belakang tiap tab aplikasi: Default (kerajaan), Gambar (upload, full screen), atau Gradien (2 warna). Perubahan langsung tampil di semua user.</p>
+    </div>
+    <div id="bgList"></div>
+</div>
+
 <div id="tab-user" class="hide">
     <div class="card">
       <h2>Daftar user terdaftar</h2>
@@ -219,6 +227,7 @@ auth.onAuthStateChanged(u => {
   $("who").textContent = "Masuk sebagai " + u.email;
   show("panel");
   startBan();
+  bgStart();
   unsub = db.collection("banners").orderBy("order").onSnapshot(renderList, e => { $("list").textContent = "Gagal memuat: " + e.message; });
 });
 
@@ -320,7 +329,7 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
@@ -944,6 +953,74 @@ $("userLoad").onclick = async () => {
     box.textContent = e.code === "permission-denied" ? "Ditolak rules Firestore. Pastikan rules sudah di-Publish dan isAdmin() memakai email Anda." : "Gagal: " + e.message;
   }
 };
+</script>
+<script>
+
+// ===== Background tab =====
+const BG_TABS = [["party","Tab Party"],["moment","Tab Moment"],["family","Tab Family"],["pesan","Tab Pesan"],["saya","Tab Saya"]];
+let bgState = {};
+function bgHex(v, def){ return /^#[0-9a-fA-F]{6}$/.test(v||"") ? v : def; }
+function bgRender(){
+  const host = $("bgList"); if (!host) return;
+  host.innerHTML = "";
+  BG_TABS.forEach(([k, title]) => {
+    const c = bgState[k] || { mode: "default", url: "", c1: "#1A0B2E", c2: "#0B0B0B" };
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = "<h2>" + title + "</h2>" +
+      "<label>Mode</label><select id='bgMode_" + k + "'>" +
+      "<option value='default'>Default (kerajaan)</option>" +
+      "<option value='image'>Gambar upload</option>" +
+      "<option value='gradient'>Gradien 2 warna</option></select>" +
+      "<div id='bgImg_" + k + "'><label>URL gambar (png/jpg/webp/gif)</label>" +
+      "<input type='text' id='bgUrl_" + k + "' placeholder='https://...'>" +
+      "<label>atau upload file dari HP</label><input type='file' id='bgFile_" + k + "' accept='image/*'>" +
+      "<img id='bgPrev_" + k + "' style='max-width:100%;max-height:140px;border-radius:10px;margin-top:8px;display:none'></div>" +
+      "<div id='bgGrad_" + k + "'><label>Warna atas</label><input type='color' id='bgC1_" + k + "'>" +
+      "<label>Warna bawah</label><input type='color' id='bgC2_" + k + "'></div>" +
+      "<div style='height:10px'></div><button class='btn' id='bgSave_" + k + "'>Simpan " + title + "</button>";
+    host.appendChild(card);
+    const modeSel = $("bgMode_" + k), urlIn = $("bgUrl_" + k), prev = $("bgPrev_" + k);
+    modeSel.value = c.mode || "default";
+    urlIn.value = c.url || "";
+    $("bgC1_" + k).value = bgHex(c.c1, "#1a0b2e");
+    $("bgC2_" + k).value = bgHex(c.c2, "#0b0b0b");
+    if (urlIn.value) { prev.src = urlIn.value; prev.style.display = "block"; }
+    const upd = () => {
+      const m = modeSel.value;
+      $("bgImg_" + k).style.display = m === "image" ? "" : "none";
+      $("bgGrad_" + k).style.display = m === "gradient" ? "" : "none";
+    };
+    modeSel.onchange = upd; upd();
+    $("bgFile_" + k).onchange = async e => {
+      const f = e.target.files[0]; if (!f) return;
+      try {
+        const u = await cldUpload(f, "tabbg_" + k);
+        urlIn.value = u; prev.src = u; prev.style.display = "block";
+        toast("Gambar terupload. Tekan Simpan.");
+      } catch (err) { toast(err.message); }
+    };
+    $("bgSave_" + k).onclick = async () => {
+      const btn = $("bgSave_" + k); btn.disabled = true;
+      try {
+        await db.collection("vipConfig").doc("tabbg").set(
+          { [k]: { mode: modeSel.value, url: urlIn.value.trim(), c1: $("bgC1_" + k).value, c2: $("bgC2_" + k).value, ts: Date.now() } },
+          { merge: true }
+        );
+        toast(title + " tersimpan ✅");
+      } catch (err) { toast("Gagal: " + err.message); }
+      btn.disabled = false;
+    };
+  });
+}
+function bgStart(){
+  if (bgStart.on) return; bgStart.on = true;
+  db.collection("vipConfig").doc("tabbg").onSnapshot(d => {
+    const o = d.data() || {};
+    BG_TABS.forEach(([k]) => { if (o[k]) bgState[k] = o[k]; });
+    bgRender();
+  }, e => { $("bgList").textContent = "Gagal memuat: " + e.message; });
+}
 </script>
 <script src="rooms.js"></script>
 </body></html>
