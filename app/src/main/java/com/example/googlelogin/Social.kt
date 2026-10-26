@@ -83,7 +83,7 @@ object UserCache {
                     .put("countryCode", u.countryCode).put("photoUrl", u.photoUrl ?: "")
                     .put("gender", u.gender).put("exp", u.exp).put("vip", u.vip)
                     .put("vipUntil", u.vipUntil).put("frame", u.frame)
-                    .put("bubble", u.bubble).put("badge", u.badge).put("fam", u.fam)
+                    .put("bubble", u.bubble).put("badge", u.badge).put("fam", u.fam).put("medals", u.medals)
                     .put("svip", u.svip).put("ad", u.ad).toString(),
             ).apply()
         } catch (e: Exception) {
@@ -108,6 +108,7 @@ object UserCache {
             bubble = o.optString("bubble"),
             badge = o.optString("badge"),
             fam = o.optString("fam"),
+            medals = o.optString("medals"),
             svip = o.optString("svip"),
             ad = o.optString("ad"),
         )
@@ -140,6 +141,22 @@ object UserCache {
 
     fun peek(uid: String): PublicUser? = map[uid]?.second ?: disk(uid)
 
+    /** Gabungkan: kalau data baru kosong untuk frame/lencana/vip tapi data lama ada, pertahankan yang lama.
+     *  Mencegah frame & lencana "hilang lagi" saat sumber data (RTDB/Firestore) sedang lambat/kosong. */
+    private fun keepGood(new: PublicUser, old: PublicUser?): PublicUser {
+        if (old == null) return new
+        return new.copy(
+            frame = new.frame.ifBlank { old.frame },
+            badge = new.badge.ifBlank { old.badge },
+            bubble = new.bubble.ifBlank { old.bubble },
+            medals = new.medals.ifBlank { old.medals },
+            vip = if (new.vip == 0 && vipActive(old.vip, old.vipUntil)) old.vip else new.vip,
+            vipUntil = if (new.vip == 0 && vipActive(old.vip, old.vipUntil)) old.vipUntil else new.vipUntil,
+            svip = new.svip.ifBlank { old.svip },
+            fam = new.fam.ifBlank { old.fam },
+        )
+    }
+
     suspend fun byUid(uid: String, force: Boolean = false): PublicUser? {
         val c = map[uid]
         if (!force && c != null && System.currentTimeMillis() - c.first < 300_000) return c.second
@@ -151,14 +168,20 @@ object UserCache {
         } catch (e: Exception) {
             null
         }
+        val prev = c?.second ?: disk(uid)
         if (fromDb != null) {
-            map[uid] = System.currentTimeMillis() to fromDb
-            save(fromDb)
-            return fromDb
+            val good = keepGood(fromDb, prev)
+            map[uid] = System.currentTimeMillis() to good
+            save(good)
+            return good
         }
-        val base = c?.second ?: disk(uid)
-        val r = rtdb(uid, base) ?: base
-        if (r != null) map[uid] = (System.currentTimeMillis() - 240_000L) to r
+        val base = prev
+        val fresh = rtdb(uid, base)
+        val r = if (fresh != null) keepGood(fresh, base) else base
+        if (r != null) {
+            map[uid] = (System.currentTimeMillis() - 240_000L) to r
+            if (fresh != null) save(r)
+        }
         return r
     }
 }
@@ -395,6 +418,20 @@ fun UserProfileSheet(
     BackHandler(onBack = onDismiss)
 
     LaunchedEffect(uid) {
+        if (isMe) {
+            // Profil sendiri: equip dari wallet lokal/cadangan dipakai langsung, tanpa nunggu jaringan.
+            val w = WalletCache.load(uid)
+            val u0 = user
+            if (w != null && u0 != null) {
+                user = u0.copy(
+                    frame = activeEquip(w, "frame").ifBlank { u0.frame },
+                    badge = activeEquip(w, "badge").ifBlank { u0.badge },
+                    bubble = activeEquip(w, "bubble").ifBlank { u0.bubble },
+                    vip = if (w.vip > 0) w.vip else u0.vip,
+                    vipUntil = if (w.vip > 0) w.vipUntil else u0.vipUntil,
+                )
+            }
+        }
         user = UserCache.byUid(uid) ?: user
         loading = false
         if (!isMe) {

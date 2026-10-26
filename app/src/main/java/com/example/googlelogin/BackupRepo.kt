@@ -97,7 +97,10 @@ object BackupRepo {
     }
 
     private suspend fun token(): String? = try {
-        FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()?.token
+        // Tiket login dikunci (cache) dulu: refresh paksa setiap transaksi bisa
+        // kena limit Firebase Auth dan transaksi cadangan jadi gagal terus.
+        FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+            ?: FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()?.token
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {

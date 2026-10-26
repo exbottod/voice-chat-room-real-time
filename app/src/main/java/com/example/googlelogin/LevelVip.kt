@@ -1134,10 +1134,31 @@ object PublicSync {
     private val docIds = HashMap<String, String>()
     private val lastKey = HashMap<String, String>()
 
+    /** Kuota Firestore habis: dorong frame/lencana ke RTDB dari wallet cache / server cadangan,
+     *  supaya profil publik (room, kursi) tetap lengkap dan tidak kosong. */
+    private suspend fun pushFromCache(uid: String) {
+        try {
+            val w = WalletCache.load(uid) ?: BackupRepo.base(uid)?.toWallet() ?: return
+            val frame = activeEquip(w, "frame")
+            val badge = activeEquip(w, "badge")
+            if (frame.isBlank() && badge.isBlank() && w.vip == 0) return // jangan timpa dengan data kosong
+            Rtdb.ref("pub/$uid").updateChildren(
+                hashMapOf<String, Any?>(
+                    "exp" to w.exp, "vip" to w.vip.toLong(), "vipUntil" to w.vipUntil,
+                    "frame" to frame, "bubble" to activeEquip(w, "bubble"), "badge" to badge,
+                ),
+            ).await()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+
     suspend fun push(uid: String) {
+        if (QuotaGuard.isDown()) { pushFromCache(uid); return }
         try {
             val db = FirebaseFirestore.getInstance()
-            val snap = db.collection("wallets").document(uid).get().await()
+            val snap = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                db.collection("wallets").document(uid).get().await()
+            }
+            if (snap == null) { pushFromCache(uid); return }
             val w = parseWallet(snap)
             // FIX: privilege SVIP harus ikut tersinkron ke profil publik.
             val svipCsv = (snap.get("svip") as? Map<*, *>)
@@ -1186,6 +1207,8 @@ object PublicSync {
             }
             db.collection("userIds").document(id).set(data, SetOptions.merge()).await()
             lastKey[uid] = key
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            if (QuotaGuard.isExhausted(e)) { QuotaGuard.markDown(); pushFromCache(uid) }
+        }
     }
 }

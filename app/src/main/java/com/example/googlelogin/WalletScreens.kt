@@ -276,7 +276,7 @@ object WalletRepo {
 
     private suspend fun sendGiftBackup(uid: String, price: Long): String? {
         val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        if (w.coins < price) return "Coin tidak cukup. Tekan Topup"
+        if (w.coins < price) return "Coin tidak cukup (saldo cadangan: ${w.coins}). Tekan Topup"
         val boost = if (w.vipUntil > System.currentTimeMillis()) 100L + 5L * w.vip else 100L
         val patch = org.json.JSONObject()
             .put("coins", w.coins - price)
