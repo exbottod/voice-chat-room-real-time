@@ -269,6 +269,11 @@ object RoomRepo {
                 if (c.child("uid").getValue(String::class.java) == uid) upd[c.key!!] = null
             }
             if (upd.isNotEmpty()) base.updateChildren(upd).await()
+            // Poin mic ikut di-reset saat user turun kursi, supaya
+            // orang yang duduk berikutnya tidak mewarisi poin lama.
+            for (k in upd.keys) {
+                Rtdb.ref("micPoints/$roomId/$k").removeValue()
+            }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -306,6 +311,7 @@ object RoomRepo {
     suspend fun leaveSeat(roomId: String, index: Int) {
         try {
             Rtdb.ref("seats/$roomId/$index").removeValue().await()
+            Rtdb.ref("micPoints/$roomId/$index").removeValue()
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {

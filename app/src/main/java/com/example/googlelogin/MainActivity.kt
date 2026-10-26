@@ -1,6 +1,7 @@
 package com.example.googlelogin
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -67,8 +68,25 @@ class SessionStore(context: Context) {
     fun clear() = prefs.edit().clear().apply()
 }
 
+/**
+ * Deep link room: rezo://room/<roomId> (dari fitur bagikan room).
+ * Kalau link dibuka dan app sudah terpasang, otomatis masuk room setelah login.
+ */
+object RoomDeepLink {
+    var pendingRoomId by mutableStateOf<String?>(null)
+        private set
+
+    fun parse(intent: Intent?) {
+        val d = intent?.data ?: return
+        if (d.scheme == "rezo" && d.host == "room") {
+            pendingRoomId = d.pathSegments.firstOrNull()
+        }
+    }
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        RoomDeepLink.parse(intent)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -88,6 +106,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        RoomDeepLink.parse(intent)
     }
 }
 

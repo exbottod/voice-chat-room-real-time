@@ -137,6 +137,16 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         scope.launch { RoomRepo.leave(r.id, uid) }
     }
 
+    // Deep link "bagikan room" (rezo://room/<id>): otomatis masuk room
+    // saat link dibuka dan user sudah login.
+    LaunchedEffect(RoomDeepLink.pendingRoomId) {
+        val rid = RoomDeepLink.pendingRoomId ?: return@LaunchedEffect
+        RoomDeepLink.pendingRoomId = null
+        if (activeRoom == null) {
+            RoomRepo.getRoom(rid)?.let { enterRoom(it) }
+        }
+    }
+
     // Muat profil dari Firestore, pastikan ID pengguna (mulai 100000) ada, lalu publikasikan.
     LaunchedEffect(uid) {
         // Katalog (gift/store/VIP) dimuat PALING AWAL, tidak bergantung proses lain,

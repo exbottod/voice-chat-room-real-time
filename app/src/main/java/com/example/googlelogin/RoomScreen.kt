@@ -1,5 +1,6 @@
 package com.example.googlelogin
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -125,6 +126,9 @@ fun RoomScreen(
     var members by remember { mutableStateOf<Set<String>>(emptySet()) }
     var locks by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var rawSeats by remember { mutableStateOf<Map<Int, Seat>>(emptyMap()) }
+    var micPoints by remember { mutableStateOf<Map<Int, Long>>(emptyMap()) }
+    var followed by remember { mutableStateOf(false) }
+    var showRank by remember { mutableStateOf(false) }
     val seats = rawSeats.filterValues { it.uid in members }
     var messages by remember { mutableStateOf<List<RoomMsg>>(emptyList()) }
     var panel by remember { mutableStateOf(P_NONE) }
@@ -164,6 +168,16 @@ fun RoomScreen(
         clearedAt = System.currentTimeMillis()
         val a = RoomRepo.observeRoom(roomId) { room = it }
         val b = RoomRepo.observeSeats(roomId) { rawSeats = it }
+        // Status follow room (RTDB, hemat kuota Firestore).
+        val freg = Rtdb.listen(Rtdb.ref("followRooms/" + myUid + "/" + roomId)) { snap ->
+            followed = snap.exists()
+        }
+        // Poin mic (RTDB): tampil real-time di bawah tiap kursi.
+        val mp = Rtdb.listen(Rtdb.ref("micPoints/" + roomId)) { snap ->
+            micPoints = snap.children.associate { c ->
+                (c.key?.toIntOrNull() ?: -1) to (c.getValue(Long::class.java) ?: 0L)
+            }
+        }
         val c = RoomRepo.observeMessages(roomId) { messages = it }
         val d = RoomExtras.observeEmotes(roomId) { emotes = it }
         val e1 = RoomRepo.observeMembers(roomId) { members = it }
@@ -184,6 +198,8 @@ fun RoomScreen(
             d.remove()
             e1.remove()
             e2.remove()
+            mp.remove()
+            freg.remove()
             f.remove()
         }
     }
@@ -266,6 +282,35 @@ fun RoomScreen(
                     }
                     Spacer(Modifier.width(10.dp))
                 }
+                Spacer(Modifier.width(6.dp))
+                // Follow room: simpan di RTDB.
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x66000000))
+                        .clickable {
+                            val nf = !followed
+                            followed = nf
+                            scope.launch {
+                                try {
+                                    if (nf) Rtdb.ref("followRooms/" + myUid + "/" + roomId).setValue(true)
+                                    else Rtdb.ref("followRooms/" + myUid + "/" + roomId).removeValue()
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    throw e
+                                } catch (e: Exception) { }
+                            }
+                            toast(if (nf) "Room diikuti" else "Batal mengikuti room")
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (followed) "✓" else "+",
+                        color = if (followed) Teal else Gold,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
                 Spacer(Modifier.weight(1f))
                 Text(
                     "👤 ${r.online}",
@@ -274,11 +319,53 @@ fun RoomScreen(
                     modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x66000000)).padding(horizontal = 12.dp, vertical = 6.dp),
                 )
                 Spacer(Modifier.width(8.dp))
+                // Bagikan room: link membuka app langsung ke room ini.
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x66000000))
+                        .clickable {
+                            val shareText =
+                                "Ayo ngobrol bareng di room " + r.name + " di REZO CHAT VOICE! \uD83D\uDD25\n" +
+                                "\nSudah punya aplikasinya? Buka langsung roomnya:\nrezo://room/" + roomId + "\n" +
+                                "\nBelum punya? Download APK-nya di:\nhttps://github.com/exbottod/voice-chat-room-real-time/releases"
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                            }
+                            context.startActivity(Intent.createChooser(send, "Bagikan room"))
+                        },
+                    contentAlignment = Alignment.Center,
+                ) { Text("🔗", fontSize = 16.sp) }
+                Spacer(Modifier.width(8.dp))
                 Box(
                     Modifier.size(40.dp).clip(CircleShape).background(Color(0x66000000)).clickable { panel = P_POWER },
                     contentAlignment = Alignment.Center,
                 ) { PowerIcon(Modifier.size(20.dp)) }
             }
+
+            // Peringkat room: baris kecil di bawah nama room.
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0x66000000))
+                    .clickable { showRank = true }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Image(
+                    painterResource(R.drawable.ic_glory_medal), null,
+                    Modifier.size(16.dp), contentScale = ContentScale.Fit,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Peringkat room", color = GoldLight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                Text("🏆 Top room ›", color = Color(0xFFBDBDBD), fontSize = 11.sp)
+            }
+            Spacer(Modifier.height(6.dp))
 
             // Kursi mic
             Column(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -294,6 +381,7 @@ fun RoomScreen(
                                         seatSize,
                                         locked = r.lockedSeats.contains(i),
                                         emote = seats[i]?.uid?.let { emotes[it] },
+                                        points = micPoints[i] ?: 0L,
                                     ) { seatSheet = i }
                                 }
                             }
@@ -529,6 +617,10 @@ fun RoomScreen(
         GiftFxOverlay(r.id)
 
         // Tombol power: keluar / minimalkan
+        if (showRank) {
+            TopRankDialog(onDismiss = { showRank = false }, initialTab = 0, onOpenRoom = {})
+        }
+
         if (panel == P_POWER) {
             Dialog(onDismissRequest = { panel = P_NONE }) {
                 DialogCard {
@@ -568,6 +660,18 @@ fun RoomScreen(
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (isOwner) {
+                        RmTool(
+                            "Clear poin mic",
+                            onClick = {
+                                panel = P_NONE
+                                scope.launch {
+                                    Rtdb.ref("micPoints/" + r.id).removeValue()
+                                    toast("Poin mic dihapus")
+                                }
+                            },
+                        ) { Text("💗", fontSize = 24.sp) }
+                    }
                     RmTool("Musik", onClick = { panel = P_MUSIC }) { Text("🎵", fontSize = 24.sp) }
                     RmTool("Game", onClick = { panel = P_NONE; toast("Game segera hadir") }) {
                         Image(painterResource(R.drawable.ic_room_game), null, Modifier.size(26.dp), contentScale = ContentScale.Fit)
@@ -668,7 +772,7 @@ private fun RmAvatar(bmp: ImageBitmap?, fallback: String, size: Dp) {
 }
 
 @Composable
-private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = false, emote: SeatEmote? = null, onClick: () -> Unit) {
+private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = false, emote: SeatEmote? = null, points: Long = 0L, onClick: () -> Unit) {
     val bmp = remember(seat?.avatarB64) { ProfileRepo.decodeB64(seat?.avatarB64) }
     var seatUser by remember(seat?.uid) { mutableStateOf(seat?.uid?.let { UserCache.peek(it) }) }
     LaunchedEffect(seat?.uid) {
@@ -742,7 +846,7 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
             textAlign = TextAlign.Center,
             modifier = Modifier.width(size + 8.dp),
         )
-        Text("💗 0", color = Color.White, fontSize = 11.sp)
+        Text("💗 " + fmtCompact(points), color = Color.White, fontSize = 11.sp)
     }
 }
 
