@@ -2,6 +2,7 @@ package com.example.googlelogin
 
 import android.content.Context
 import android.widget.Toast
+import com.google.firebase.firestore.FirebaseFirestoreException
 
 /**
  * Pendeteksi kuota harian Firestore habis (RESOURCE_EXHAUSTED / quota exceeded).
@@ -24,6 +25,10 @@ object QuotaGuard {
         var t = e
         repeat(6) {
             if (t == null) return false
+            // Deteksi paling akurat: kode error resmi Firestore.
+            if (t is FirebaseFirestoreException &&
+                t.code == FirebaseFirestoreException.Code.RESOURCE_EXHAUSTED
+            ) return true
             val m = t.message ?: t.toString()
             if (m.contains("RESOURCE_EXHAUSTED", true) ||
                 m.contains("quota exceeded", true) ||
