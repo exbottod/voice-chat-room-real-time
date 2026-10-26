@@ -49,6 +49,59 @@
         ".write": "auth != null && auth.uid === $uid"
       }
     },
+    "blacklist": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null"
+        }
+      }
+    },
+    "giftBanner": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "giftFx": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$fxId": {
+          ".validate": "!newData.exists() || (newData.child('ts').isNumber() && newData.child('count').isNumber())"
+        }
+      }
+    },
+    "giftCombo": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "cashback": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "music": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "status": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "live": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
     "micPoints": {
       "$roomId": {
         ".read": "auth != null",
