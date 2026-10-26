@@ -9,9 +9,12 @@ val agoraAppId: String =
     System.getenv("AGORA_APP_ID")?.takeIf { it.isNotBlank() }
         ?: (project.findProperty("agoraAppId") as String? ?: "")
 
+// URL worker (token Agora + upload). Urutan: secret/env, gradle.properties, lalu nilai bawaan.
+// Nilai bawaan memastikan upload gift tidak gagal walau secret kosong.
 val agoraTokenUrl: String =
     System.getenv("AGORA_TOKEN_URL")?.takeIf { it.isNotBlank() }
-        ?: (project.findProperty("agoraTokenUrl") as String? ?: "")
+        ?: (project.findProperty("agoraTokenUrl") as String?)?.takeIf { it.isNotBlank() }
+        ?: "https://rezo-agora-token.bangexx01.workers.dev"
 
 val googleWebClientId: String =
     System.getenv("GOOGLE_WEB_CLIENT_ID")?.takeIf { it.isNotBlank() }
