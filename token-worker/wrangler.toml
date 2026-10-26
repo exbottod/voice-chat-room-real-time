@@ -6,3 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 FIREBASE_PROJECT_ID = "arboreal-cat-511705-p6"
 ADMIN_EMAIL = "developerex100@gmail.com"
+
+# Database cadangan wallet (KV). Jalankan sekali:
+#   npx wrangler kv namespace create BKW
+# lalu isi id namespace di bawah ini.
+[[kv_namespaces]]
+binding = "BKW"
+id = "466ef5aa49264d159d804adda346b7a3"
