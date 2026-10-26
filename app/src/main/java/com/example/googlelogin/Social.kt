@@ -126,6 +126,13 @@ object UserCache {
         } else {
             val b = base ?: PublicUser("", uid, "", "ID", "", null, null)
             b.copy(
+                // PROFIL UTAMA SEKARANG DI REALTIME DATABASE: nama, ID, bio, negara,
+                // gender ikut dibaca dari RTDB pub supaya profil tampil instan.
+                userId = s.child("id").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: b.userId,
+                name = s.child("name").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: b.name,
+                countryCode = s.child("cc").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: b.countryCode,
+                bio = s.child("bio").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: b.bio,
+                gender = s.child("gender").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: b.gender,
                 exp = (s.child("exp").value as? Number)?.toLong() ?: b.exp,
                 vip = (s.child("vip").value as? Number)?.toInt() ?: b.vip,
                 vipUntil = (s.child("vipUntil").value as? Number)?.toLong() ?: b.vipUntil,
@@ -155,7 +162,9 @@ object UserCache {
      *  OtherProfile supaya tidak loading lama saat kuota Firestore habis. */
     fun meLocal(uid: String): PublicUser? {
         return try {
-            val email = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: return null
+            val cu = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser ?: return null
+            val email = cu.email ?: return null
+            val photoUrl = cu.photoUrl?.toString()
             val ctx = com.google.firebase.FirebaseApp.getInstance().applicationContext
             val d = ProfileRepo.loadLocal(ctx, email)
             val w = WalletCache.load(uid)
@@ -166,7 +175,7 @@ object UserCache {
                 countryCode = d.countryCode,
                 bio = d.bio,
                 avatarB64 = d.avatarB64,
-                photoUrl = null,
+                photoUrl = photoUrl,
                 gender = d.gender,
                 exp = w?.exp ?: 0L,
                 vip = w?.vip ?: 0,
@@ -190,6 +199,11 @@ object UserCache {
             // FIX avatar: jangan buang foto lama kalau data baru tidak membawanya.
             avatarB64 = new.avatarB64 ?: old.avatarB64,
             photoUrl = new.photoUrl ?: old.photoUrl,
+            userId = new.userId.ifBlank { old.userId },
+            name = new.name.ifBlank { old.name },
+            countryCode = new.countryCode.ifBlank { old.countryCode },
+            bio = new.bio.ifBlank { old.bio },
+            gender = new.gender.ifBlank { old.gender },
             frame = new.frame.ifBlank { old.frame },
             badge = new.badge.ifBlank { old.badge },
             bubble = new.bubble.ifBlank { old.bubble },
@@ -204,7 +218,32 @@ object UserCache {
     suspend fun byUid(uid: String, force: Boolean = false): PublicUser? {
         val c = map[uid]
         if (!force && c != null && System.currentTimeMillis() - c.first < 300_000) return c.second
-        // Kuota Firestore habis: langsung pakai RTDB / cache, jangan tunggu Firestore gagal.
+        val prev = c?.second ?: disk(uid)
+
+        // PROFIL SENDIRI: instan dari data lokal, tanpa jaringan sama sekali.
+        val me = try {
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        } catch (e: Exception) { null }
+        if (uid == me) {
+            val local = meLocal(uid)
+            if (local != null) {
+                val fresh = rtdb(uid, local)
+                val good = if (fresh != null) keepGood(fresh, local) else local
+                map[uid] = System.currentTimeMillis() to good
+                save(good)
+                return good
+            }
+        }
+
+        // PROFIL ORANG LAIN: UTAMA dari Realtime Database (cepat, kuota lega).
+        // Firestore hanya dipakai kalau pub RTDB belum lengkap (nama/ID kosong).
+        val fresh = rtdb(uid, prev)
+        if (fresh != null && fresh.name.isNotBlank() && fresh.userId.isNotBlank()) {
+            val good = keepGood(fresh, prev)
+            map[uid] = System.currentTimeMillis() to good
+            save(good)
+            return good
+        }
         val fromDb = if (QuotaGuard.isDown()) null else try {
             kotlinx.coroutines.withTimeoutOrNull(3000L) { UserDirectory.findByUid(uid) }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -212,15 +251,13 @@ object UserCache {
         } catch (e: Exception) {
             null
         }
-        val prev = c?.second ?: disk(uid)
         if (fromDb != null) {
-            val good = keepGood(fromDb, prev)
+            val good = keepGood(fromDb, prev ?: fresh)
             map[uid] = System.currentTimeMillis() to good
             save(good)
             return good
         }
         val base = prev
-        val fresh = rtdb(uid, base)
         val r = if (fresh != null) keepGood(fresh, base) else base
         if (r != null) {
             map[uid] = (System.currentTimeMillis() - 240_000L) to r

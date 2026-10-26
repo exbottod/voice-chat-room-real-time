@@ -1141,7 +1141,10 @@ object PublicSync {
             val w = WalletCache.load(uid) ?: BackupRepo.base(uid)?.toWallet() ?: return
             val frame = activeEquip(w, "frame")
             val badge = activeEquip(w, "badge")
-            if (frame.isBlank() && badge.isBlank() && w.vip == 0) return // jangan timpa dengan data kosong
+            // PROFIL UTAMA DI RTDB: nama/ID/bio/negara/gender/foto ikut disinkronkan
+            // supaya profil tampil instan tanpa menunggu Firestore.
+            val me = UserCache.meLocal(uid)
+            if (me == null && frame.isBlank() && badge.isBlank() && w.vip == 0) return // jangan timpa dengan data kosong
             Rtdb.ref("pub/$uid").updateChildren(
                 hashMapOf<String, Any?>(
                     "exp" to w.exp, "vip" to w.vip.toLong(), "vipUntil" to w.vipUntil,
@@ -1153,7 +1156,14 @@ object PublicSync {
                     "ad" to SvipLocal.ad(uid),
                     "svip" to SvipLocal.csv(uid),
                     // FIX avatar: foto ikut ke RTDB pub supaya chat room tetap tampil saat kuota habis.
-                    "av" to (UserCache.meLocal(uid)?.avatarB64 ?: ""),
+                    "av" to (me?.avatarB64 ?: ""),
+                    // PROFIL UTAMA DI RTDB: data identitas ikut ke pub.
+                    "name" to (me?.name ?: ""),
+                    "id" to (me?.userId ?: ""),
+                    "cc" to (me?.countryCode ?: "ID"),
+                    "bio" to (me?.bio ?: ""),
+                    "gender" to (me?.gender ?: ""),
+                    "photo" to (me?.photoUrl ?: ""),
                 ),
             ).await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
@@ -1168,6 +1178,7 @@ object PublicSync {
             }
             if (snap == null) { pushFromCache(uid); return }
             val w = parseWallet(snap)
+            val me = UserCache.meLocal(uid)
             // FIX: privilege SVIP harus ikut tersinkron ke profil publik.
             val svipCsv = (snap.get("svip") as? Map<*, *>)
                 ?.entries?.filter { it.key is String && it.value == true }
@@ -1194,6 +1205,9 @@ object PublicSync {
                 "svip" to svipCsv,
                 "ad" to ad,
                 "fam" to famName,
+                // kalau profil (nama/bio) berubah, pub RTDB harus ikut diperbarui
+                "name" to (me?.name ?: ""),
+                "bio" to (me?.bio ?: ""),
             )
             val key = data.toString()
             if (lastKey[uid] == key) return
@@ -1208,7 +1222,15 @@ object PublicSync {
                         "medals" to activeMedalIds(w).joinToString(","),
                         "fam" to famName,
                         "ad" to ad,
-                        "av" to (UserCache.meLocal(uid)?.avatarB64 ?: ""),
+                        "av" to (me?.avatarB64 ?: ""),
+                        // PROFIL UTAMA DI RTDB: data identitas ikut ke pub
+                        // supaya pembacaan profil tidak bergantung Firestore.
+                        "name" to (me?.name ?: ""),
+                        "id" to (me?.userId ?: ""),
+                        "cc" to (me?.countryCode ?: "ID"),
+                        "bio" to (me?.bio ?: ""),
+                        "gender" to (me?.gender ?: ""),
+                        "photo" to (me?.photoUrl ?: ""),
                     ),
                 ).await()
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
