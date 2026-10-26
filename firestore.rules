@@ -119,7 +119,7 @@ service cloud.firestore {
       // Pemilik boleh edit; user lain hanya boleh mengubah penghitung like/komentar.
       allow update: if signedIn() && (
         resource.data.uid == request.auth.uid
-        || resource.data.diff(resource.data).affectedKeys().hasOnly(['likeCount', 'commentCount'])
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeCount', 'commentCount'])
       );
       allow delete: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
 
