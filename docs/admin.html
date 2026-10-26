@@ -480,7 +480,14 @@ $("coinSend").onclick = async () => {
     logAction({ type: "coin", targetId: foundCoin.id, uid: foundCoin.uid, amount: n });
     toast("Berhasil ✅ " + (n > 0 ? "+" : "") + n + " coin");
     $("coinAmt").value = ""; await showCoinUser();
-  } catch (e) { toast("Gagal: " + e.message); }
+  } catch (e) {
+    // Kuota Firestore habis: kirim lewat database cadangan (server KV).
+    try {
+      await bkAdmin(foundCoin.uid, { op: "add", add: { coins: n } });
+      toast("Berhasil via server cadangan ✅ " + (n > 0 ? "+" : "") + n + " coin (masuk ke Firestore otomatis saat kuota pulih)");
+      $("coinAmt").value = ""; await showCoinUser();
+    } catch (e2) { toast("Gagal: " + e.message + " | cadangan: " + e2.message); }
+  }
   $("coinSend").disabled = false;
 };
 
@@ -495,7 +502,14 @@ $("expSend").onclick = async () => {
     logAction({ type: "exp", targetId: foundCoin.id, uid: foundCoin.uid, amount: n });
     toast("Berhasil ✅ " + (n > 0 ? "+" : "") + n + " exp (tampil ke orang lain setelah user buka app)");
     $("expAmt").value = ""; await showCoinUser();
-  } catch (e) { toast("Gagal: " + e.message); }
+  } catch (e) {
+    // Kuota Firestore habis: kirim lewat database cadangan (server KV).
+    try {
+      await bkAdmin(foundCoin.uid, { op: "add", add: { exp: n } });
+      toast("Berhasil via server cadangan ✅ " + (n > 0 ? "+" : "") + n + " exp (masuk ke Firestore otomatis saat kuota pulih)");
+      $("expAmt").value = ""; await showCoinUser();
+    } catch (e2) { toast("Gagal: " + e.message + " | cadangan: " + e2.message); }
+  }
   $("expSend").disabled = false;
 };
 $("vipSet").onclick = async () => {
@@ -530,6 +544,17 @@ function readAsDataURL(f){ return new Promise((res, rej) => { const r = new File
 
 /* ---------- Upload media ke Cloudinary lewat backend (Cloudflare Worker) ---------- */
 const UPLOAD_URL = "https://rezo-agora-token.bangexx01.workers.dev/upload";
+/* Server database cadangan (KV) saat kuota Firestore habis. */
+const BACKUP_URL = "https://rezo-agora-token.bangexx01.workers.dev";
+async function bkAdmin(uid, payload){
+  const u = auth.currentUser;
+  if (!u) throw new Error("Belum login");
+  const idToken = await u.getIdToken();
+  const res = await fetch(BACKUP_URL + "/w-admin", { method: "POST", headers: { Authorization: "Bearer " + idToken, "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ uid }, payload)) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || ("HTTP " + res.status));
+  return out;
+}
 async function cldUpload(file, name){
   const u = auth.currentUser;
   if (!u) throw new Error("Belum login");
