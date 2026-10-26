@@ -36,7 +36,51 @@ object StoreCatalog {
     private val items = mutableStateMapOf<String, CatalogItem>()
     private var reg: ListenerRegistration? = null
 
+    // Katalog disimpan juga di perangkat. Saat app dibuka / Firestore lambat
+    // (kuota habis), frame & lencana kustom tetap langsung tampil tanpa nunggu.
+    private fun sp() = com.google.firebase.FirebaseApp.getInstance().applicationContext
+        .getSharedPreferences("store_catalog", android.content.Context.MODE_PRIVATE)
+    private var diskLoaded = false
+
+    private fun saveDisk(all: Collection<CatalogItem>) {
+        try {
+            val arr = org.json.JSONArray()
+            for (it in all) arr.put(
+                org.json.JSONObject()
+                    .put("id", it.id).put("slot", it.slot).put("name", it.name)
+                    .put("price", it.price).put("days", it.days).put("order", it.order)
+                    .put("kind", it.asset.kind).put("url", it.asset.url)
+                    .put("hasData", it.asset.hasData).put("updatedAt", it.asset.updatedAt)
+                    .put("chunks", it.asset.chunks),
+            )
+            sp().edit().putString("catalog", arr.toString()).apply()
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun loadDisk() {
+        if (diskLoaded) return
+        diskLoaded = true
+        try {
+            val arr = org.json.JSONArray(sp().getString("catalog", "[]"))
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val id = o.getString("id")
+                items[id] = CatalogItem(
+                    id, o.getString("slot"), o.getString("name"),
+                    o.optLong("price"), o.optLong("days", 7L).coerceAtLeast(1L), o.optLong("order"),
+                    VipAsset(
+                        0, "st_$id", o.optString("kind", "image"), o.optString("url"),
+                        o.optBoolean("hasData"), o.optLong("updatedAt"), o.optInt("chunks"),
+                    ),
+                )
+            }
+        } catch (e: Exception) {
+        }
+    }
+
     fun start(force: Boolean = false) {
+        loadDisk()
         if (reg != null && !force) return
         reg?.remove()
         reg = FirebaseFirestore.getInstance().collection("vipConfig")
@@ -70,6 +114,7 @@ object StoreCatalog {
                 }
                 items.clear()
                 items.putAll(fresh)
+                saveDisk(fresh.values)
             }
     }
 
