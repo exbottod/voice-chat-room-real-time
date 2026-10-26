@@ -100,7 +100,6 @@ object UserCache {
             name = o.optString("name"),
             countryCode = o.optString("countryCode", "ID"),
             bio = "",
-            avatarB64 = null,
             photoUrl = o.optString("photoUrl").ifBlank { null },
             gender = o.optString("gender"),
             avatarB64 = o.optString("avatarB64").ifBlank { null },
