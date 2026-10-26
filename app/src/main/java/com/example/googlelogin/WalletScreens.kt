@@ -213,23 +213,28 @@ object WalletRepo {
         }
     }
 
-    suspend fun topUp(uid: String, coins: Long): String? = try {
-        ref(uid).set(hashMapOf<String, Any?>("coins" to FieldValue.increment(coins)), SetOptions.merge()).await()
-        null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        if (QuotaGuard.isExhausted(e)) {
-            // Kuota habis: coin tetap masuk lewat server cadangan.
-            val w = BackupRepo.base(uid)
-                ?: run { QuotaGuard.notifyOnce(); return "Server cadangan tidak bisa dihubungi. Coba lagi nanti." }
-            val bk = BackupRepo.put(org.json.JSONObject().put("coins", w.coins + coins))
-                ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-            QuotaGuard.notifyOnce()
-            emitBackup(uid, bk.toWallet())
+    suspend fun topUp(uid: String, coins: Long): String? {
+        return try {
+            ref(uid).set(hashMapOf<String, Any?>("coins" to FieldValue.increment(coins)), SetOptions.merge()).await()
             null
-        } else {
-            e.message ?: "Gagal isi coin"
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (QuotaGuard.isExhausted(e)) {
+                // Kuota habis: coin tetap masuk lewat server cadangan.
+                val w = BackupRepo.base(uid)
+                if (w == null) {
+                    QuotaGuard.notifyOnce()
+                    return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+                }
+                val bk = BackupRepo.put(org.json.JSONObject().put("coins", w.coins + coins))
+                if (bk == null) return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+                QuotaGuard.notifyOnce()
+                emitBackup(uid, bk.toWallet())
+                null
+            } else {
+                e.message ?: "Gagal isi coin"
+            }
         }
     }
 
@@ -281,7 +286,8 @@ object WalletRepo {
         return null
     }
 
-    suspend fun exchange(uid: String, diamonds: Long): String? = try {
+    suspend fun exchange(uid: String, diamonds: Long): String? {
+        return try {
         val r = ref(uid)
         db().runTransaction { tx ->
             val s = tx.get(r)
@@ -316,12 +322,13 @@ object WalletRepo {
                 .put("diamonds", w.diamonds - gain * DIAMOND_PER_COIN)
             val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
             emitBackup(uid, bk.toWallet())
-            null
-        } else {
-            e.message ?: "Gagal menukar"
+                null
+            } else {
+                e.message ?: "Gagal menukar"
+            }
         }
     }
-}
+    }
 
 @Composable
 private fun BalanceCard(emoji: String, label: String, value: String, modifier: Modifier) {

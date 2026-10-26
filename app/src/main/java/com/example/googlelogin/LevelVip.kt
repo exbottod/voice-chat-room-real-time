@@ -307,20 +307,25 @@ object LvRepo {
         )
     }
 
-    suspend fun equip(uid: String, slot: String, id: String): String? = try {
-        ref(uid).set(hashMapOf<String, Any?>("equip" to hashMapOf(slot to id)), SetOptions.merge()).await()
-        null
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-        if (QuotaGuard.isExhausted(e)) {
-            // Kuota habis: simpan status Pakai/Lepas di server cadangan.
-            val bk = BackupRepo.put(
-                org.json.JSONObject().put("equip", org.json.JSONObject().put(slot, id)),
-            ) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-            QuotaGuard.notifyOnce()
-            WalletRepo.emitBackup(uid, bk.toWallet())
+    suspend fun equip(uid: String, slot: String, id: String): String? {
+        return try {
+            ref(uid).set(hashMapOf<String, Any?>("equip" to hashMapOf(slot to id)), SetOptions.merge()).await()
             null
-        } else {
-            e.message ?: "Gagal"
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (QuotaGuard.isExhausted(e)) {
+                // Kuota habis: simpan status Pakai/Lepas di server cadangan.
+                val bk = BackupRepo.put(
+                    org.json.JSONObject().put("equip", org.json.JSONObject().put(slot, id)),
+                )
+                if (bk == null) return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+                QuotaGuard.notifyOnce()
+                WalletRepo.emitBackup(uid, bk.toWallet())
+                null
+            } else {
+                e.message ?: "Gagal"
+            }
         }
     }
 
