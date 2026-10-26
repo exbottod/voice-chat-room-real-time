@@ -497,7 +497,12 @@ fun GiftPanel(
     var wallet by remember { mutableStateOf(Wallet()) }
     var tab by remember { mutableStateOf(0) }
     val gifts = GiftCatalog.list
-    var selected by remember { mutableStateOf(gifts.first().id) }
+    var selected by remember { mutableStateOf(gifts.firstOrNull()?.id ?: "") }
+
+    // Jaga selected tetap valid saat daftar gift berubah / masih kosong.
+    LaunchedEffect(gifts) {
+        if (gifts.none { it.id == selected }) selected = gifts.firstOrNull()?.id ?: ""
+    }
     var count by remember { mutableStateOf(1) }
     var countMenu by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
@@ -638,27 +643,34 @@ fun GiftPanel(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(240.dp)) { p ->
-                    Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
-                        pages[p].chunked(4).forEach { row ->
-                            Row(Modifier.fillMaxWidth().weight(1f)) {
-                                row.forEach { g ->
-                                    GiftCell(g, selected == g.id, Modifier.weight(1f)) { selected = g.id }
+                if (pages.isEmpty()) {
+                    // Daftar gift kosong / belum termuat: jangan crash.
+                    Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
+                        Text("Belum ada gift", color = Color(0xFF8FA3A0), fontSize = 14.sp)
+                    }
+                } else {
+                    HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(240.dp)) { p ->
+                        Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
+                            pages[p].chunked(4).forEach { row ->
+                                Row(Modifier.fillMaxWidth().weight(1f)) {
+                                    row.forEach { g ->
+                                        GiftCell(g, selected == g.id, Modifier.weight(1f)) { selected = g.id }
+                                    }
+                                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                                 }
-                                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                             }
                         }
                     }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    repeat(pages.size) { i ->
-                        Box(
-                            Modifier
-                                .padding(3.dp)
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(if (pager.currentPage == i) teal else Color(0xFF3A4A48)),
-                        )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                        repeat(pages.size) { i ->
+                            Box(
+                                Modifier
+                                    .padding(3.dp)
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(if (pager.currentPage == i) teal else Color(0xFF3A4A48)),
+                            )
+                        }
                     }
                 }
             } else if (tab == 2) {
@@ -730,7 +742,7 @@ fun GiftPanel(
                                     Toast.makeText(context, tr("Pilih penerima dulu"), Toast.LENGTH_SHORT).show()
                                     return@clickable
                                 }
-                                val g = gifts.first { it.id == selected }
+                                val g = gifts.firstOrNull { it.id == selected } ?: return@clickable
                                 val perReceiver = g.price * count
                                 val total = perReceiver * receivers.size
                                 val toText = if (allSelected) {
