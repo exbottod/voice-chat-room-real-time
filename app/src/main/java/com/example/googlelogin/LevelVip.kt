@@ -175,11 +175,82 @@ object LvRepo {
         db().runTransaction { tx -> block(tx); true }.await()
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        // Kuota Firestore habis: teruskan agar pemanggil beralih ke server cadangan.
+        if (QuotaGuard.isExhausted(e)) throw e
         e.message ?: fallback
     }
 
-    /** Beli / perpanjang / upgrade VIP. Otomatis menambah 3 item VIP ke My Item. */
-    suspend fun buyVip(uid: String, tier: Int): String? = txRun("Gagal beli VIP") { tx ->
+    // ================= TANAMAN CADANGAN (Cloudflare Worker + KV) =================
+    // Dipakai otomatis saat kuota harian Firestore habis, supaya beli VIP,
+    // beli item, equip, klaim level dan lainnya tetap bisa jalan.
+
+    private suspend fun buyVipBackup(uid: String, tier: Int): String? {
+        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+        val now = System.currentTimeMillis()
+        val active = vipActive(w.vip, w.vipUntil)
+        if (active && w.vip > tier) return "VIP${w.vip} kamu masih aktif"
+        val price = vipPrice(tier)
+        if (w.coins < price) return "Coin tidak cukup. Tekan Topup"
+        val until = (if (active && w.vip == tier) w.vipUntil else now) + VIP_DAYS * 86_400_000L
+        val patch = org.json.JSONObject()
+            .put("coins", w.coins - price)
+            .put("vip", tier)
+            .put("vipUntil", until)
+        val inv = org.json.JSONObject()
+        for (i in vipItems(tier)) inv.put(i.id, until)
+        patch.put("inv", inv)
+        val eq = org.json.JSONObject()
+        eq.put("frame", "vipf_$tier")
+        val curB = w.equip["bubble"]
+        if (curB.isNullOrBlank() || curB.startsWith("vipb_")) eq.put("bubble", "vipb_$tier")
+        val curE = w.equip["entry"]
+        if (curE == null || (curE.isNotBlank() && curE.startsWith("vipe_"))) eq.put("entry", "vipe_$tier")
+        val curBn = w.equip["banner"]
+        if (curBn == null || (curBn.isNotBlank() && curBn.startsWith("vipbn_"))) eq.put("banner", "vipbn_$tier")
+        patch.put("equip", eq)
+        val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+        QuotaGuard.notifyOnce()
+        WalletRepo.emitBackup(uid, bk.toWallet())
+        return null
+    }
+
+    private suspend fun buyItemBackup(uid: String, item: StoreItem): String? {
+        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+        if (w.coins < item.price) return "Coin tidak cukup. Tekan Topup"
+        val now = System.currentTimeMillis()
+        val base = maxOf(now, w.inv[item.id] ?: 0L)
+        val patch = org.json.JSONObject().put("coins", w.coins - item.price)
+        patch.put("inv", org.json.JSONObject().put(item.id, base + item.days * 86_400_000L))
+        val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+        QuotaGuard.notifyOnce()
+        WalletRepo.emitBackup(uid, bk.toWallet())
+        return null
+    }
+
+    private suspend fun claimLevelBackup(uid: String): String? {
+        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+        val lvl = levelFromExp(w.exp)
+        if (lvl <= w.lvClaimed) return "Belum ada hadiah level untuk diklaim"
+        var gain = 0L
+        for (l in (w.lvClaimed + 1)..lvl) gain += l * LEVEL_REWARD_PER_LV
+        val patch = org.json.JSONObject().put("coins", w.coins + gain).put("lvClaimed", lvl)
+        val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+        QuotaGuard.notifyOnce()
+        WalletRepo.emitBackup(uid, bk.toWallet())
+        return null
+    }
+    // ================= AKHIR TANAMAN CADANGAN =================
+
+    /** Beli / perpanjang / upgrade VIP. Otomatis menambah item VIP ke My Item. */
+    suspend fun buyVip(uid: String, tier: Int): String? = try {
+        fsBuyVip(uid, tier)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        if (QuotaGuard.isExhausted(e)) buyVipBackup(uid, tier) else (e.message ?: "Gagal beli VIP")
+    }
+
+    private suspend fun fsBuyVip(uid: String, tier: Int): String? = txRun("Gagal beli VIP") { tx ->
         val r = ref(uid)
         val w = parseWallet(tx.get(r))
         val now = System.currentTimeMillis()
@@ -212,7 +283,15 @@ object LvRepo {
         )
     }
 
-    suspend fun buyItem(uid: String, item: StoreItem): String? = txRun("Gagal membeli item") { tx ->
+    suspend fun buyItem(uid: String, item: StoreItem): String? = try {
+        fsBuyItem(uid, item)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        if (QuotaGuard.isExhausted(e)) buyItemBackup(uid, item) else (e.message ?: "Gagal membeli item")
+    }
+
+    private suspend fun fsBuyItem(uid: String, item: StoreItem): String? = txRun("Gagal membeli item") { tx ->
         val r = ref(uid)
         val w = parseWallet(tx.get(r))
         if (w.coins < item.price) throw IllegalStateException("Coin tidak cukup. Tekan Topup")
@@ -232,10 +311,20 @@ object LvRepo {
         ref(uid).set(hashMapOf<String, Any?>("equip" to hashMapOf(slot to id)), SetOptions.merge()).await()
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-        e.message ?: "Gagal"
+        if (QuotaGuard.isExhausted(e)) {
+            // Kuota habis: simpan status Pakai/Lepas di server cadangan.
+            val bk = BackupRepo.put(
+                org.json.JSONObject().put("equip", org.json.JSONObject().put(slot, id)),
+            ) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+            QuotaGuard.notifyOnce()
+            WalletRepo.emitBackup(uid, bk.toWallet())
+            null
+        } else {
+            e.message ?: "Gagal"
+        }
     }
 
-    /** Lengkapi item VIP (gelar, bingkai, gelembung, efek masuk) kalau ada yang belum masuk My Item. */
+    /** Lengkapi item VIP (gelar, bingkai, gelembung, efek masuk, banner) kalau ada yang belum masuk My Item. */
     suspend fun backfillVip(uid: String, w: Wallet) {
         if (!vipActive(w.vip, w.vipUntil)) return
         val missing = vipItems(w.vip).filter { (w.inv[it.id] ?: 0L) < w.vipUntil }
@@ -245,11 +334,37 @@ object LvRepo {
                 hashMapOf<String, Any?>("inv" to missing.associate { it.id to w.vipUntil }),
                 SetOptions.merge(),
             ).await()
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Kuota habis: lengkapi item di server cadangan.
+            if (QuotaGuard.isExhausted(e)) {
+                try {
+                    val bk = BackupRepo.base(uid)
+                    if (bk != null && vipActive(bk.vip, bk.vipUntil)) {
+                        val bkMissing = vipItems(bk.vip).filter { (bk.inv[it.id] ?: 0L) < bk.vipUntil }
+                        if (bkMissing.isNotEmpty()) {
+                            val inv = org.json.JSONObject()
+                            for (i in bkMissing) inv.put(i.id, bk.vipUntil)
+                            BackupRepo.put(org.json.JSONObject().put("inv", inv))
+                        }
+                    }
+                } catch (e2: Exception) {
+                }
+            }
+        }
     }
 
     /** Klaim hadiah koin untuk semua level yang belum diambil. */
-    suspend fun claimLevel(uid: String): String? = txRun("Gagal klaim") { tx ->
+    suspend fun claimLevel(uid: String): String? = try {
+        fsClaimLevel(uid)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        if (QuotaGuard.isExhausted(e)) claimLevelBackup(uid) else (e.message ?: "Gagal klaim")
+    }
+
+    private suspend fun fsClaimLevel(uid: String): String? = txRun("Gagal klaim") { tx ->
         val r = ref(uid)
         val w = parseWallet(tx.get(r))
         val lvl = levelFromExp(w.exp)

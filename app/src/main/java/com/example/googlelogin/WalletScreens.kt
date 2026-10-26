@@ -134,14 +134,82 @@ object WalletRepo {
      * Pantau dompet. Data terakhir yang berhasil dibaca disimpan di perangkat, jadi kalau
      * kuota Firestore habis / offline, frame, VIP, dan item tetap tampil (tidak dikosongkan).
      */
+    // ---------- Server cadangan (Cloudflare Worker + KV) ----------
+    private val backupCbs = java.util.concurrent.CopyOnWriteArrayList<(String, Wallet) -> Unit>()
+    @Volatile private var lastBkCheck = 0L
+
+    /** Dipanggil setelah transaksi berhasil di server cadangan: langsung perbarui tampilan. */
+    fun emitBackup(uid: String, w: Wallet) {
+        try { WalletCache.save(uid, w) } catch (e: Exception) { }
+        backupCbs.forEach { try { it(uid, w) } catch (e: Exception) { } }
+    }
+
+    /** Saat Firestore sehat lagi: pindahkan transaksi era "kuota habis"
+     *  dari server cadangan ke Firestore sekali per menit. */
+    private fun syncBackup(uid: String, s: com.google.firebase.firestore.DocumentSnapshot) {
+        val now = System.currentTimeMillis()
+        if (now - lastBkCheck < 60_000L) return
+        lastBkCheck = now
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                val bk = BackupRepo.get() ?: return@launch
+                val fsBkAt = s.getLong("bkSyncedAt") ?: 0L
+                if (bk.ver <= 0L || bk.updatedAt <= fsBkAt) return@launch
+                // Gabung inv: masa aktif paling lama menang.
+                val invPatch = HashMap<String, Any?>()
+                for ((k, v) in bk.inv) invPatch[k] = v
+                (s.get("inv") as? Map<*, *>)?.forEach { (k, v) ->
+                    if (k is String && v is Number) {
+                        val old = (invPatch[k] as? Long) ?: 0L
+                        if (v.toLong() > old) invPatch[k] = v.toLong()
+                    }
+                }
+                ref(uid).set(
+                    hashMapOf<String, Any?>(
+                        "coins" to bk.coins, "diamonds" to bk.diamonds, "exp" to bk.exp,
+                        "vip" to bk.vip, "vipUntil" to bk.vipUntil, "lvClaimed" to bk.lvClaimed,
+                        "inv" to invPatch, "equip" to bk.equip, "bkSyncedAt" to bk.updatedAt,
+                    ),
+                    SetOptions.merge(),
+                ).await()
+            } catch (e: Exception) { }
+        }
+    }
+
     fun observe(uid: String, onChange: (Wallet) -> Unit): ListenerRegistration {
         WalletCache.load(uid)?.let(onChange)
-        return ref(uid).addSnapshotListener { s, e ->
-            if (e != null || s == null) return@addSnapshotListener // error/kuota habis: pertahankan data lama
+        val cb: (String, Wallet) -> Unit = { u, w -> if (u == uid) onChange(w) }
+        backupCbs.add(cb)
+        val reg = ref(uid).addSnapshotListener { s, e ->
+            if (e != null) {
+                // Kuota Firestore habis: tampilkan wallet dari server cadangan.
+                if (QuotaGuard.isExhausted(e)) {
+                    QuotaGuard.notifyOnce()
+                    kotlinx.coroutines.GlobalScope.launch {
+                        try {
+                            val bk = BackupRepo.base(uid) ?: return@launch
+                            if (bk.coins > 0 || bk.vip > 0 || bk.inv.isNotEmpty()) {
+                                emitBackup(uid, bk.toWallet())
+                            }
+                        } catch (e2: Exception) { }
+                    }
+                }
+                return@addSnapshotListener // error/kuota habis: pertahankan data lama
+            }
+            if (s == null) return@addSnapshotListener
             if (!s.exists() && s.metadata.isFromCache) return@addSnapshotListener // belum ada di cache lokal
             val w = parseWallet(s)
-            if (s.exists()) WalletCache.save(uid, w)
+            if (s.exists()) {
+                WalletCache.save(uid, w)
+                syncBackup(uid, s)
+            }
             onChange(w)
+        }
+        return object : ListenerRegistration {
+            override fun remove() {
+                reg.remove()
+                backupCbs.remove(cb)
+            }
         }
     }
 
@@ -152,10 +220,17 @@ object WalletRepo {
         throw e
     } catch (e: Exception) {
         if (QuotaGuard.isExhausted(e)) {
+            // Kuota habis: coin tetap masuk lewat server cadangan.
+            val w = BackupRepo.base(uid)
+                ?: run { QuotaGuard.notifyOnce(); return "Server cadangan tidak bisa dihubungi. Coba lagi nanti." }
+            val bk = BackupRepo.put(org.json.JSONObject().put("coins", w.coins + coins))
+                ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
             QuotaGuard.notifyOnce()
-            "Kuota harian habis, coin belum masuk. Coba lagi besok."
-        } else
-        e.message ?: "Gagal isi coin"
+            emitBackup(uid, bk.toWallet())
+            null
+        } else {
+            e.message ?: "Gagal isi coin"
+        }
     }
 
     /** Kirim gift: coin berkurang, diamond pengirim bertambah sebanyak harga gift. */
@@ -186,10 +261,24 @@ object WalletRepo {
         throw e
     } catch (e: Exception) {
         if (QuotaGuard.isExhausted(e)) {
+            // Kuota habis: gift tetap terkirim, coin dipotong di server cadangan.
             QuotaGuard.notifyOnce()
-            "Kuota harian habis, gift belum terkirim. Coba lagi besok."
+            sendGiftBackup(uid, price)
         } else
         e.message ?: "Gagal mengirim gift"
+    }
+
+    private suspend fun sendGiftBackup(uid: String, price: Long): String? {
+        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+        if (w.coins < price) return "Coin tidak cukup. Tekan Topup"
+        val boost = if (w.vipUntil > System.currentTimeMillis()) 100L + 5L * w.vip else 100L
+        val patch = org.json.JSONObject()
+            .put("coins", w.coins - price)
+            .put("diamonds", w.diamonds + price)
+            .put("exp", w.exp + price * boost / 100L)
+        val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+        emitBackup(uid, bk.toWallet())
+        return null
     }
 
     suspend fun exchange(uid: String, diamonds: Long): String? = try {
@@ -215,7 +304,22 @@ object WalletRepo {
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
-        e.message ?: "Gagal menukar"
+        if (QuotaGuard.isExhausted(e)) {
+            // Kuota habis: tukar diamond lewat server cadangan.
+            QuotaGuard.notifyOnce()
+            val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+            val gain = diamonds / DIAMOND_PER_COIN
+            if (diamonds > w.diamonds) return "Diamond tidak cukup"
+            if (gain < 1) return "Minimal $DIAMOND_PER_COIN diamond"
+            val patch = org.json.JSONObject()
+                .put("coins", w.coins + gain)
+                .put("diamonds", w.diamonds - gain * DIAMOND_PER_COIN)
+            val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
+            emitBackup(uid, bk.toWallet())
+            null
+        } else {
+            e.message ?: "Gagal menukar"
+        }
     }
 }
 

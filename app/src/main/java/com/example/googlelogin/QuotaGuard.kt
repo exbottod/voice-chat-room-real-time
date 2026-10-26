@@ -14,7 +14,7 @@ object QuotaGuard {
     var appContext: Context? = null
         private set
 
-    private const val MSG = "Kuota harian habis. Sebagian data tampil dari cache, coba lagi besok."
+    private const val MSG = "Kuota Firestore habis. Transaksi store diproses lewat server cadangan."
 
     fun init(ctx: Context) {
         appContext = ctx
