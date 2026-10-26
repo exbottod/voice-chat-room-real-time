@@ -187,9 +187,16 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
     }
 
+    // Muat config background tab: cache lokal dulu (instan), lalu refresh RTDB.
+    LaunchedEffect(Unit) {
+        TabBgs.loadLocal(context)
+        TabBgs.refresh()
+    }
+
     CompositionLocalProvider(LocalActions provides actions) {
         Box(Modifier.fillMaxSize()) {
-            RoyalBackground()
+            // Background mengikuti tab yang sedang aktif (diatur dari Panel Developer).
+            TabBackground(items[selected].label.lowercase())
             Scaffold(
                 containerColor = Color.Transparent,
                 bottomBar = {
@@ -198,7 +205,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             NavigationBarItem(
                                 selected = selected == index,
                                 onClick = { selected = index },
-                                icon = { Icon(painterResource(item.icon), contentDescription = item.label, Modifier.size(45.dp), tint = Color.Unspecified) },
+                                icon = { Icon(painterResource(item.icon), contentDescription = item.label, Modifier.size(30.dp), tint = Color.Unspecified) },
                                 label = { Text(tr(item.label)) },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = Color.Black,
