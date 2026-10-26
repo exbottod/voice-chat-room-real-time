@@ -63,6 +63,7 @@ object VipAssets {
             .addSnapshotListener { snap, e ->
                 if (e != null) {
                     lastError = e.message ?: e.toString()
+                    QuotaGuard.handle(e)
                     return@addSnapshotListener
                 }
                 if (snap == null) return@addSnapshotListener
@@ -123,6 +124,7 @@ object VipAssets {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
+            QuotaGuard.handle(e)
             null
         }
     }

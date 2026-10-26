@@ -50,7 +50,12 @@ object GiftCatalog {
         if (started) return
         started = true
         if (list.isEmpty()) list = GIFTS
-        FirebaseFirestore.getInstance().collection("gifts").addSnapshotListener { snap, _ ->
+        FirebaseFirestore.getInstance().collection("gifts").addSnapshotListener { snap, e ->
+            if (e != null) {
+                // Kuota Firestore habis: gift bawaan tetap tampil, kasih tahu user.
+                QuotaGuard.handle(e)
+                return@addSnapshotListener
+            }
             if (snap == null) return@addSnapshotListener
             val custom = snap.documents.mapNotNull { d ->
                 val name = d.getString("name") ?: return@mapNotNull null

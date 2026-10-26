@@ -50,7 +50,10 @@ object RoomEmotes {
             cache = list
             loadedAt = System.currentTimeMillis()
             list
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { c ?: emptyList() }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            QuotaGuard.handle(e)
+            c ?: emptyList()
+        }
     }
 }
 

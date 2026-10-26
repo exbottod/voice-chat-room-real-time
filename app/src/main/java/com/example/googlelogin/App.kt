@@ -13,6 +13,11 @@ import coil.decode.ImageDecoderDecoder
  * foto profil, dsb.) otomatis memutar GIF animasi.
  */
 class App : Application(), ImageLoaderFactory {
+    override fun onCreate() {
+        super.onCreate()
+        QuotaGuard.init(this)
+    }
+
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
             .components {
