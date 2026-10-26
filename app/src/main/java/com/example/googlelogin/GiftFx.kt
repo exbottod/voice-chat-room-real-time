@@ -171,7 +171,15 @@ object GiftFx {
     suspend fun uploadMedia(context: android.content.Context, uri: Uri): Pair<String?, String?> {
         val base = BuildConfig.AGORA_TOKEN_URL
         if (base.isBlank()) return null to "AGORA_TOKEN_URL belum diatur"
-        val endpoint = base.substringBeforeLast('/') + "/upload"
+        // Bentuk endpoint aman untuk semua format URL worker:
+        //   https://x.workers.dev, https://x.workers.dev/, https://x.workers.dev/token
+        val trimmed = base.trim().trimEnd('/')
+        val root = if (trimmed.endsWith("/token") || trimmed.endsWith("/upload")) {
+            trimmed.substringBeforeLast('/')
+        } else {
+            trimmed
+        }
+        val endpoint = "$root/upload"
 
         // Tiket login selalu segar.
         val idToken = try {
