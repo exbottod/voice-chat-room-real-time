@@ -152,8 +152,8 @@ object WalletRepo {
     } catch (e: Exception) {
         if (QuotaGuard.isExhausted(e)) {
             QuotaGuard.notifyOnce()
-            return "Kuota harian habis, coin belum masuk. Coba lagi besok."
-        }
+            "Kuota harian habis, coin belum masuk. Coba lagi besok."
+        } else
         e.message ?: "Gagal isi coin"
     }
 
@@ -186,8 +186,8 @@ object WalletRepo {
     } catch (e: Exception) {
         if (QuotaGuard.isExhausted(e)) {
             QuotaGuard.notifyOnce()
-            return "Kuota harian habis, gift belum terkirim. Coba lagi besok."
-        }
+            "Kuota harian habis, gift belum terkirim. Coba lagi besok."
+        } else
         e.message ?: "Gagal mengirim gift"
     }
 
