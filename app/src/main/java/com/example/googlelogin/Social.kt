@@ -84,7 +84,9 @@ object UserCache {
                     .put("gender", u.gender).put("exp", u.exp).put("vip", u.vip)
                     .put("vipUntil", u.vipUntil).put("frame", u.frame)
                     .put("bubble", u.bubble).put("badge", u.badge).put("fam", u.fam).put("medals", u.medals)
-                    .put("svip", u.svip).put("ad", u.ad).toString(),
+                    .put("svip", u.svip).put("ad", u.ad)
+                    // FIX avatar hilang saat kuota habis: foto ikut disimpan di cache disk.
+                    .put("avatarB64", u.avatarB64 ?: "").toString(),
             ).apply()
         } catch (e: Exception) {
         }
@@ -101,6 +103,7 @@ object UserCache {
             avatarB64 = null,
             photoUrl = o.optString("photoUrl").ifBlank { null },
             gender = o.optString("gender"),
+            avatarB64 = o.optString("avatarB64").ifBlank { null },
             exp = o.optLong("exp"),
             vip = o.optInt("vip"),
             vipUntil = o.optLong("vipUntil"),
@@ -129,8 +132,14 @@ object UserCache {
                 frame = s.child("frame").getValue(String::class.java) ?: b.frame,
                 bubble = s.child("bubble").getValue(String::class.java) ?: b.bubble,
                 badge = s.child("badge").getValue(String::class.java) ?: b.badge,
+                medals = s.child("medals").getValue(String::class.java)?.ifBlank { b.medals } ?: b.medals,
+                fam = s.child("fam").getValue(String::class.java)?.ifBlank { b.fam } ?: b.fam,
                 svip = s.child("svip").getValue(String::class.java) ?: b.svip,
                 ad = s.child("ad").getValue(String::class.java) ?: b.ad,
+                // FIX avatar: foto profil ikut dibaca dari RTDB pub (field "av")
+                // supaya avatar tetap tampil saat kuota Firestore habis.
+                avatarB64 = s.child("av").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: b.avatarB64,
+                photoUrl = s.child("photo").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: b.photoUrl,
             )
         }
     } catch (e: kotlinx.coroutines.CancellationException) {
@@ -141,11 +150,46 @@ object UserCache {
 
     fun peek(uid: String): PublicUser? = map[uid]?.second ?: disk(uid)
 
+    /** Profil SENDIRI instan dari data lokal (profil + wallet cache + SVIP lokal),
+     *  TANPA jaringan sama sekali. Dipakai saat membuka profil sendiri di room /
+     *  OtherProfile supaya tidak loading lama saat kuota Firestore habis. */
+    fun meLocal(uid: String): PublicUser? {
+        return try {
+            val email = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: return null
+            val ctx = com.google.firebase.FirebaseApp.getInstance().applicationContext
+            val d = ProfileRepo.loadLocal(ctx, email)
+            val w = WalletCache.load(uid)
+            PublicUser(
+                userId = userIdFrom(email),
+                uid = uid,
+                name = d.nickname,
+                countryCode = d.countryCode,
+                bio = d.bio,
+                avatarB64 = d.avatarB64,
+                photoUrl = null,
+                gender = d.gender,
+                exp = w?.exp ?: 0L,
+                vip = w?.vip ?: 0,
+                vipUntil = w?.vipUntil ?: 0L,
+                frame = w?.let { activeEquip(it, "frame") } ?: "",
+                bubble = w?.let { activeEquip(it, "bubble") } ?: "",
+                badge = w?.let { activeEquip(it, "badge") } ?: "",
+                medals = w?.let { activeMedalIds(it).joinToString(",") } ?: "",
+                fam = "",
+                svip = SvipLocal.csv(uid),
+                ad = SvipLocal.ad(uid),
+            )
+        } catch (e: Exception) { null }
+    }
+
     /** Gabungkan: kalau data baru kosong untuk frame/lencana/vip tapi data lama ada, pertahankan yang lama.
      *  Mencegah frame & lencana "hilang lagi" saat sumber data (RTDB/Firestore) sedang lambat/kosong. */
     private fun keepGood(new: PublicUser, old: PublicUser?): PublicUser {
         if (old == null) return new
         return new.copy(
+            // FIX avatar: jangan buang foto lama kalau data baru tidak membawanya.
+            avatarB64 = new.avatarB64 ?: old.avatarB64,
+            photoUrl = new.photoUrl ?: old.photoUrl,
             frame = new.frame.ifBlank { old.frame },
             badge = new.badge.ifBlank { old.badge },
             bubble = new.bubble.ifBlank { old.bubble },
@@ -410,7 +454,7 @@ fun UserProfileSheet(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val isMe = uid == myUid
-    var user by remember(uid) { mutableStateOf(UserCache.peek(uid)) }
+    var user by remember(uid) { mutableStateOf(UserCache.peek(uid) ?: if (isMe) UserCache.meLocal(uid) else null) }
     var loading by remember(uid) { mutableStateOf(true) }
     var following by remember(uid) { mutableStateOf(false) }
     var busy by remember(uid) { mutableStateOf(false) }

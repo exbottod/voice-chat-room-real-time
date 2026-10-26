@@ -96,7 +96,7 @@ fun OtherProfileScreen(
 
     // FIX Anonymous: profil orang lain jangan dirender dari cache lama (svip bisa basi),
     // tunggu data segar supaya status Hide my profile pasti terbaca.
-    var user by remember(uid) { mutableStateOf(if (isMe) UserCache.peek(uid) else null) }
+    var user by remember(uid) { mutableStateOf(if (isMe) UserCache.peek(uid) ?: UserCache.meLocal(uid) else null) }
     var loading by remember(uid) { mutableStateOf(true) }
     var counts by remember(uid) { mutableStateOf(0L to 0L) }
     var following by remember(uid) { mutableStateOf(false) }
@@ -116,42 +116,83 @@ fun OtherProfileScreen(
 
     BackHandler(onBack = onBack)
     LaunchedEffect(uid) {
-        user = UserCache.byUid(uid, force = true) ?: user
-        // FIX Anonymous: svip cadangan dari RTDB pub/{uid} kalau dokumen Firestore
-        // userIds belum sinkron, supaya status Hide my profile pasti terbaca.
+        // 1) Tampilkan profil secepat mungkin: cache lokal langsung, lalu data segar
+        //    (UserCache sudah punya timeout + jalur cadangan RTDB saat kuota Firestore habis).
+        if (user == null) user = UserCache.peek(uid)
+        if (user != null) loading = false
+        // Profil sendiri: pakai cache (tanpa force) supaya seketika; orang lain: data segar.
+        val fresh = kotlinx.coroutines.withTimeoutOrNull(if (isMe) 2000L else 5000L) {
+            try { UserCache.byUid(uid, force = !isMe) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+        }
+        user = fresh ?: user
+        // svip cadangan dari RTDB pub/{uid} (kuota terpisah dari Firestore).
         try {
             val u3 = user
             if (u3 != null && u3.svip.isBlank()) {
-                val s = Rtdb.ref("pub/$uid").get().await()
-                val csv = s.child("svip").getValue(String::class.java) ?: ""
+                val s = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("pub/$uid").get().await() }
+                val csv = s?.child("svip")?.getValue(String::class.java) ?: ""
                 if (csv.isNotBlank()) user = u3.copy(svip = csv)
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         loading = false
-        try { counts = FollowRepo.counts(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-        if (!isMe) {
-            try { following = FollowRepo.isFollowing(myUid, uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-        }
-        moments = try { MomentRepo.byUid(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
-        // FIX family: baca label family langsung dari data family asli.
-        // Owner/anggota lama yang profilnya belum tersinkron tetap tampil family-nya.
-        try {
-            val u2 = user
-            if (u2 == null || u2.fam.isBlank() || famFid == null) {
-                val fid = FamilyRepo.myFamilyId(uid)
-                if (!fid.isNullOrBlank()) {
-                    famFid = fid
-                    val f = FamilyRepo.getFamily(fid)
-                    if (f != null && f.name.isNotBlank()) user = (u2 ?: user)?.copy(fam = f.name)
+
+        // 2) Data pelengkap diambil PARALEL, masing-masing dibatasi waktu,
+        //    supaya satu yang lambat/gagal (kuota habis) tidak menahan yang lain.
+        kotlinx.coroutines.coroutineScope {
+            launch {
+                if (QuotaGuard.isDown()) return@launch
+                try {
+                    kotlinx.coroutines.withTimeoutOrNull(4000L) { FollowRepo.counts(uid) }?.let { counts = it }
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+                    if (QuotaGuard.isExhausted(e)) QuotaGuard.markDown()
                 }
             }
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-        myName = try { UserCache.byUid(myUid)?.name ?: "" } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { "" }
-        // Hide visit records (SVIP5): kunjungan tidak dicatat kalau aktif.
-        if (!isMe && user != null) {
-            try {
-                if (!SvipRepo.myOn(myUid, "hideVisits", 5)) VisitRepo.record(uid, myUid)
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            launch {
+                if (isMe || QuotaGuard.isDown()) return@launch
+                try {
+                    kotlinx.coroutines.withTimeoutOrNull(4000L) { FollowRepo.isFollowing(myUid, uid) }?.let { following = it }
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+                    if (QuotaGuard.isExhausted(e)) QuotaGuard.markDown()
+                }
+            }
+            launch {
+                moments = if (QuotaGuard.isDown()) emptyList() else try {
+                    kotlinx.coroutines.withTimeoutOrNull(5000L) { MomentRepo.byUid(uid) } ?: emptyList()
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+                    if (QuotaGuard.isExhausted(e)) QuotaGuard.markDown()
+                    emptyList()
+                }
+            }
+            launch {
+                // Family: label dari profil publik (fam) sudah ada; baca data asli hanya kalau Firestore sehat.
+                if (QuotaGuard.isDown()) return@launch
+                try {
+                    val u2 = user
+                    if (u2 == null || u2.fam.isBlank() || famFid == null) {
+                        val fid = kotlinx.coroutines.withTimeoutOrNull(4000L) { FamilyRepo.myFamilyId(uid) }
+                        if (!fid.isNullOrBlank()) {
+                            famFid = fid
+                            val f = kotlinx.coroutines.withTimeoutOrNull(4000L) { FamilyRepo.getFamily(fid) }
+                            if (f != null && f.name.isNotBlank()) user = (u2 ?: user)?.copy(fam = f.name)
+                        }
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+                    if (QuotaGuard.isExhausted(e)) QuotaGuard.markDown()
+                }
+            }
+            launch {
+                myName = try {
+                    kotlinx.coroutines.withTimeoutOrNull(4000L) { UserCache.byUid(myUid)?.name } ?: ""
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { "" }
+            }
+            launch {
+                // Hide visit records (SVIP5): kunjungan tidak dicatat kalau aktif.
+                if (!isMe && user != null && !QuotaGuard.isDown()) {
+                    try {
+                        if (!SvipRepo.myOn(myUid, "hideVisits", 5)) VisitRepo.record(uid, myUid)
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+                }
+            }
         }
     }
 

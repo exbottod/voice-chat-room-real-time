@@ -1146,6 +1146,14 @@ object PublicSync {
                 hashMapOf<String, Any?>(
                     "exp" to w.exp, "vip" to w.vip.toLong(), "vipUntil" to w.vipUntil,
                     "frame" to frame, "bubble" to activeEquip(w, "bubble"), "badge" to badge,
+                    // FIX lencana/family hilang saat kuota habis: medals, fam, ad, svip ikut
+                    // tersimpan di RTDB pub supaya profil tetap tampil lengkap.
+                    "medals" to activeMedalIds(w).joinToString(","),
+                    "fam" to (UserCache.peek(uid)?.fam ?: ""),
+                    "ad" to SvipLocal.ad(uid),
+                    "svip" to SvipLocal.csv(uid),
+                    // FIX avatar: foto ikut ke RTDB pub supaya chat room tetap tampil saat kuota habis.
+                    "av" to (UserCache.meLocal(uid)?.avatarB64 ?: ""),
                 ),
             ).await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
@@ -1196,6 +1204,11 @@ object PublicSync {
                         "frame" to activeEquip(w, "frame"), "bubble" to activeEquip(w, "bubble"),
                         "badge" to activeEquip(w, "badge"),
                         "svip" to svipCsv,
+                        // FIX lencana: medals + fam + ad ikut ke RTDB pub.
+                        "medals" to activeMedalIds(w).joinToString(","),
+                        "fam" to famName,
+                        "ad" to ad,
+                        "av" to (UserCache.meLocal(uid)?.avatarB64 ?: ""),
                     ),
                 ).await()
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }

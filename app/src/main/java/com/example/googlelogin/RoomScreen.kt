@@ -412,7 +412,7 @@ fun RoomScreen(
                 }
                 items(visible, key = { it.id }) { m ->
                     if (m.uid.isNotEmpty()) {
-                        RmChatRow(m) { uid -> profileUid = uid }
+                        RmChatRow(m, myUid) { uid -> profileUid = uid }
                     } else {
                         RmMsgBox(m.text, if (m.text.startsWith("🎁")) Gold else Color.White)
                     }
@@ -1239,9 +1239,13 @@ fun FloatingRoomBubble(room: RoomInfo, onClick: () -> Unit) {
 
 /** Baris chat publik: avatar, nama, level, lalu isi pesan. Klik avatar/nama untuk buka profil. */
 @Composable
-private fun RmChatRow(m: RoomMsg, onProfile: (String) -> Unit) {
-    var u by remember(m.uid) { mutableStateOf(UserCache.peek(m.uid)) }
-    LaunchedEffect(m.uid) { if (u == null) u = UserCache.byUid(m.uid) }
+private fun RmChatRow(m: RoomMsg, myUid: String, onProfile: (String) -> Unit) {
+    // FIX avatar kosong di chat room: pesan SENDIRI langsung pakai profil lokal
+    // (foto, nama, frame, level) tanpa nunggu jaringan; orang lain dari cache.
+    var u by remember(m.uid) {
+        mutableStateOf(UserCache.peek(m.uid) ?: if (m.uid == myUid) UserCache.meLocal(m.uid) else null)
+    }
+    LaunchedEffect(m.uid) { if (u == null || u?.avatarB64 == null) u = UserCache.byUid(m.uid) ?: u }
     val shownName = u?.name?.takeIf { it.isNotBlank() } ?: m.name
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         PublicAvatarFramed(u, 38.dp, fallback = shownName, modifier = Modifier.clickable { onProfile(m.uid) })
