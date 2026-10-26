@@ -145,7 +145,7 @@ object SvipRepo {
         try {
             // Server cadangan RTDB: simpan toggle + iklan + level SVIP supaya
             // panel SVIP tetap hidup walau kuota Firestore habis.
-            val data = HashMap<String, Any?>("svip" to SvipLocal.csv(uid), "ad" to SvipLocal.ad(uid))
+            val data = hashMapOf<String, Any?>("svip" to SvipLocal.csv(uid), "ad" to SvipLocal.ad(uid))
             val lv = SvipLocal.vip(uid)
             if (lv.first > 0) {
                 data["vip"] = lv.first.toLong()
