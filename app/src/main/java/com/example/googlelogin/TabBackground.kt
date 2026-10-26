@@ -119,6 +119,7 @@ object TabBgs {
             throw e
         } catch (e: Exception) {
             // Offline / limit: tetap pakai cache lokal.
+            QuotaGuard.handle(e)
         }
     }
 

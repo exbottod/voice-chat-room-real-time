@@ -150,6 +150,10 @@ object WalletRepo {
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
+        if (QuotaGuard.isExhausted(e)) {
+            QuotaGuard.notifyOnce()
+            return "Kuota harian habis, coin belum masuk. Coba lagi besok."
+        }
         e.message ?: "Gagal isi coin"
     }
 
@@ -180,6 +184,10 @@ object WalletRepo {
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
+        if (QuotaGuard.isExhausted(e)) {
+            QuotaGuard.notifyOnce()
+            return "Kuota harian habis, gift belum terkirim. Coba lagi besok."
+        }
         e.message ?: "Gagal mengirim gift"
     }
 

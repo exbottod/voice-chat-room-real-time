@@ -42,7 +42,11 @@ object StoreCatalog {
         reg = FirebaseFirestore.getInstance().collection("vipConfig")
             .whereEqualTo("store", true)
             .addSnapshotListener { snap, e ->
-                if (e != null || snap == null) return@addSnapshotListener
+                if (e != null) {
+                    QuotaGuard.handle(e)
+                    return@addSnapshotListener
+                }
+                if (snap == null) return@addSnapshotListener
                 val fresh = HashMap<String, CatalogItem>()
                 for (d in snap.documents) {
                     val id = d.getString("id") ?: continue
