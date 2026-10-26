@@ -209,6 +209,7 @@ object RoomRepo {
             Rtdb.ref("messages/$roomId").push().setValue(
                 hashMapOf<String, Any?>(
                     "text" to "$name masuk kamar",
+                    "name" to name,
                     "createdAt" to System.currentTimeMillis(),
                     "vip" to vip,
                     "entry" to entry,

@@ -11,6 +11,8 @@ import android.os.Build
 import android.util.Base64
 import android.widget.VideoView
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -413,6 +415,7 @@ fun VipEntryEffect(roomId: String) {
     var banner by remember { mutableStateOf<VipAsset?>(null) }
     var bannerRes by remember { mutableStateOf<Int?>(null) }
     var bannerName by remember { mutableStateOf<String?>(null) }
+    var bannerUid by remember { mutableStateOf<String?>(null) }
     var first by remember { mutableStateOf(true) }
     var lastId by remember { mutableStateOf<String?>(null) }
     var pending by remember { mutableStateOf<RoomMsg?>(null) }
@@ -426,6 +429,13 @@ fun VipEntryEffect(roomId: String) {
 
     // Pesan masuk dengan item sx_ yang belum ketemu di katalog (katalog masih
     // termuat / offline): coba lagi sampai ketemu supaya efeknya konsisten.
+    // Nama user untuk banner: dari pesan, atau dari cache profil bila pesan tanpa nama.
+    fun msgName(m: RoomMsg): String {
+        if (m.name.isNotBlank()) return m.name
+        val n = UserCache.peek(m.vipUid)?.name
+        return if (!n.isNullOrBlank()) n else ""
+    }
+
     LaunchedEffect(pending) {
         val m = pending ?: return@LaunchedEffect
         repeat(15) {
@@ -435,7 +445,8 @@ fun VipEntryEffect(roomId: String) {
                 playing = a
                 banner = b
                 bannerRes = if (b != null) null else bannerResOf(m)
-                bannerName = m.name.takeIf { it.isNotBlank() }
+                bannerName = msgName(m).takeIf { it.isNotBlank() }
+                bannerUid = m.vipUid.takeIf { it.isNotBlank() }
                 return@LaunchedEffect
             }
             delay(400)
@@ -458,7 +469,8 @@ fun VipEntryEffect(roomId: String) {
                         playing = a
                         banner = b
                         bannerRes = if (b != null) null else br
-                        bannerName = last.name.takeIf { it.isNotBlank() }
+                        bannerName = msgName(last).takeIf { it.isNotBlank() }
+                        bannerUid = last.vipUid.takeIf { it.isNotBlank() }
                     } else if (last.entry.startsWith("sx_") || last.banner.startsWith("sx_")) pending = last
                 }
             } else if (last != null && last.id != lastId) {
@@ -470,7 +482,8 @@ fun VipEntryEffect(roomId: String) {
                     playing = a
                     banner = b
                     bannerRes = if (b != null) null else br
-                    bannerName = last.name.takeIf { it.isNotBlank() }
+                    bannerName = msgName(last).takeIf { it.isNotBlank() }
+                        bannerUid = last.vipUid.takeIf { it.isNotBlank() }
                 } else if (last.entry.startsWith("sx_") || last.banner.startsWith("sx_")) pending = last
             }
         }
@@ -500,6 +513,7 @@ fun VipEntryEffect(roomId: String) {
                 banner = null
                 bannerRes = null
                 bannerName = null
+                bannerUid = null
             }
         }
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -535,6 +549,19 @@ fun VipEntryEffect(roomId: String) {
                         } else {
                             Image(painter!!, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         }
+                    // Foto profil user dipasang di ujung kiri banner (di atas bola emas).
+                    val bu = bannerUid?.let { UserCache.peek(it) }
+                    if (bu != null) {
+                        val av = (bSize.height.value * 0.75f).dp
+                        Box(
+                            Modifier.align(Alignment.CenterStart)
+                                .padding(start = (bSize.height.value * 0.09f).dp)
+                                .size(av + 4.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, Color(0xFFFFE9A0), CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) { PublicAvatar(bu, av) }
+                    }
                     // Nama user tampil DI DEPAN banner (overlay di tengahnya).
                     val nm = bannerName
                     if (!nm.isNullOrBlank()) {
