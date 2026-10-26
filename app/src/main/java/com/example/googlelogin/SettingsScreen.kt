@@ -85,6 +85,7 @@ fun SettingsScreen(
     var showLogout by remember { mutableStateOf(false) }
     var showLang by remember { mutableStateOf(false) }
     var showDev by remember { mutableStateOf(false) }
+    var showDevBg by remember { mutableStateOf(false) }
     var showSvip by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var hasPassword by remember { mutableStateOf(FirebaseSession.hasPassword()) }
@@ -93,6 +94,7 @@ fun SettingsScreen(
     BackHandler {
         when {
             showDev -> showDev = false
+            showDevBg -> showDevBg = false
             showPrivacy -> showPrivacy = false
             showSvip -> showSvip = false
             showAbout -> showAbout = false
@@ -102,6 +104,10 @@ fun SettingsScreen(
 
     if (showDev) {
         OverlayBox { DeveloperGiftPanel(onBack = { showDev = false }) }
+        return
+    }
+    if (showDevBg) {
+        OverlayBox { TabBgPanel(onBack = { showDevBg = false }) }
         return
     }
     if (showPrivacy) {
@@ -127,21 +133,22 @@ fun SettingsScreen(
                 SettingRow(tr("Akun"), user.email) {}
                 SettingRow(tr("ID pengguna"), userId) {}
                 SettingRow(
-                    "Email & password",
+                    tr("Email & password"),
                     if (hasPassword) (FirebaseSession.passwordEmail() ?: "Aktif") else "Belum diatur",
                 ) {
                     if (hasPassword) {
-                        Toast.makeText(context, "Login email & password sudah aktif", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, tr("Login email & password sudah aktif"), Toast.LENGTH_SHORT).show()
                     } else {
                         showAddEmail = true
                     }
                 }
                 SettingRow(tr("Kebijakan privasi")) { showPrivacy = true }
                 SettingRow(tr("Bahasa"), AppLang.label()) { showLang = true }
-                SettingRow("SVIP Settings") { showSvip = true }
-                SettingRow("Tentang Rezo Chat Voice", appVersionName()) { showAbout = true }
+                SettingRow(tr("SVIP Settings")) { showSvip = true }
+                SettingRow(tr("Tentang Rezo Chat Voice"), appVersionName()) { showAbout = true }
                 if (isDeveloper) {
-                    SettingRow("Panel Developer") { showDev = true }
+                    SettingRow(tr("Panel Developer")) { showDev = true }
+                    SettingRow(tr("Background Tab")) { showDevBg = true }
                 }
                 Spacer(Modifier.height(20.dp))
                 OutlinedButton(
@@ -235,7 +242,7 @@ private fun AddEmailDialog(onDone: () -> Unit, onDismiss: () -> Unit) {
                 onClick = {
                     val e = email.trim()
                     when {
-                        !Patterns.EMAIL_ADDRESS.matcher(e).matches() -> error = "Format email tidak valid"
+                        !Patterns.EMAIL_ADDRESS.matcher(e).matches() -> error = tr("Format email tidak valid")
                         pass.length < 6 -> error = "Password minimal 6 karakter"
                         pass != pass2 -> error = "Konfirmasi password tidak sama"
                         else -> {
