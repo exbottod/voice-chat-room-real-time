@@ -70,6 +70,16 @@ object RoomRepo {
         )
     }
 
+    /** Cari room lewat kode kunci (roomNo, contoh: 100001). */
+    suspend fun findByNo(no: String): RoomInfo? = try {
+        db().collection("rooms").whereEqualTo("roomNo", no.trim()).limit(1).get().await()
+            .documents.firstOrNull()?.toRoom()
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
     suspend fun findOwned(ownerUid: String): RoomInfo? = try {
         db().collection("rooms").whereEqualTo("ownerUid", ownerUid).limit(1).get().await()
             .documents.firstOrNull()?.toRoom()

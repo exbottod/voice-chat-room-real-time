@@ -271,14 +271,22 @@ fun RoomScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
-                    Modifier.weight(1f, fill = false).clip(RoundedCornerShape(50)).background(Color(0x66000000)).padding(5.dp),
+                    Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color(0x66000000)).padding(5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RmAvatar(roomBmp, r.name, 38.dp)
                     Spacer(Modifier.width(8.dp))
-                    Column(Modifier.weight(1f, fill = false)) {
-                        Text(r.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("ID:${ownerUserId ?: "..."}", color = Color(0xFFBDBDBD), fontSize = 11.sp)
+                    Column(Modifier.weight(1f)) {
+                        // Nama room tampil utuh: satu baris, kapsul melebar penuh.
+                        Text(
+                            r.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                            maxLines = 1, overflow = TextOverflow.Visible, softWrap = false,
+                        )
+                        Text(
+                            "ID:" + (ownerUserId ?: "...") + " | Kode room: " + r.roomNo.ifBlank { "..." },
+                            color = Color(0xFFBDBDBD), fontSize = 11.sp,
+                            maxLines = 1, overflow = TextOverflow.Visible, softWrap = false,
+                        )
                     }
                     Spacer(Modifier.width(10.dp))
                 }
@@ -311,7 +319,7 @@ fun RoomScreen(
                         fontWeight = FontWeight.Bold,
                     )
                 }
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(6.dp))
                 Text(
                     "👤 ${r.online}",
                     color = Color.White,
@@ -326,10 +334,12 @@ fun RoomScreen(
                         .clip(CircleShape)
                         .background(Color(0x66000000))
                         .clickable {
+                            // Bagikan room lewat KODE KUNCI (contoh: 100001):
+                            // penerima mengetik kode di tab Party, "Masuk dengan kode room".
                             val shareText =
                                 "Ayo ngobrol bareng di room " + r.name + " di REZO CHAT VOICE! \uD83D\uDD25\n" +
-                                "\nSudah punya aplikasinya? Buka langsung roomnya:\nrezo://room/" + roomId + "\n" +
-                                "\nBelum punya? Download APK-nya di:\nhttps://github.com/exbottod/voice-chat-room-real-time/releases"
+                                "Kode room: " + r.roomNo + "\n\n" +
+                                "Buka app REZO CHAT VOICE, tab Party, ketik kode room di kolom \"Masuk dengan kode room\", lalu tekan Masuk."
                             val send = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, shareText)

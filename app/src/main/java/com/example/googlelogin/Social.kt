@@ -190,18 +190,29 @@ object FollowRepo {
         db().collection("follows").document(docId(me, target)).delete().await()
     }
 
-    /** Daftar uid yang diikuti (terbaru dulukan). Limit default 30 untuk hemat kuota. */
+    /** Daftar uid yang diikuti (terbaru dulukan). Limit default 30 untuk hemat kuota.
+     *  Tanpa orderBy di server: kombinasi where + orderBy minta composite index
+     *  (belum dibuat), query malah gagal dan daftar tampak kosong.
+     *  Urutkan createdAt di perangkat saja, hasilnya sama. */
     suspend fun listFollowing(uid: String, limit: Long = 30): List<String> = try {
-        db().collection("follows").whereEqualTo("followerUid", uid)
-            .orderBy("createdAt", Query.Direction.DESCENDING).limit(limit).get().await()
-            .documents.mapNotNull { it.getString("targetUid")?.ifBlank { null } }
+        db().collection("follows").whereEqualTo("followerUid", uid).limit(limit).get().await()
+            .documents.mapNotNull { d ->
+                val t = d.getString("targetUid")?.ifBlank { null } ?: return@mapNotNull null
+                t to (d.getLong("createdAt") ?: 0L)
+            }
+            .sortedByDescending { it.second }
+            .map { it.first }
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
 
     /** Daftar uid pengikut / fans (terbaru dulukan). Limit default 30 untuk hemat kuota. */
     suspend fun listFans(uid: String, limit: Long = 30): List<String> = try {
-        db().collection("follows").whereEqualTo("targetUid", uid)
-            .orderBy("createdAt", Query.Direction.DESCENDING).limit(limit).get().await()
-            .documents.mapNotNull { it.getString("followerUid")?.ifBlank { null } }
+        db().collection("follows").whereEqualTo("targetUid", uid).limit(limit).get().await()
+            .documents.mapNotNull { d ->
+                val f = d.getString("followerUid")?.ifBlank { null } ?: return@mapNotNull null
+                f to (d.getLong("createdAt") ?: 0L)
+            }
+            .sortedByDescending { it.second }
+            .map { it.first }
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
 
     /** Jumlah fans seorang user (untuk baris daftar). */
