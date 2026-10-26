@@ -39,6 +39,14 @@ service cloud.firestore {
       allow read, write: if isOwner(uid) || isAdmin();
     }
 
+    // Riwayat pengunjung profil (fitur SVIP Hide visit records).
+    // Hanya pemilik profil yang boleh membaca daftar pengunjungnya.
+    match /visits/{uid}/logs/{visitor} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
     // ---------- Ranking ----------
     match /rank_sawer/{docId} {
       allow read: if signedIn();
@@ -92,13 +100,15 @@ service cloud.firestore {
       // Anggota chat tidak boleh diubah setelah dibuat.
       allow update: if signedIn()
         && request.auth.uid in resource.data.members
-        && request.resource.data.members == resource.data.members;
+        && request.resource.data.members.toSet() == resource.data.members.toSet();
 
       match /messages/{msgId} {
         allow read: if signedIn()
           && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
+        // getAfter(): pesan pertama dibuat bersamaan dengan dokumen chat dalam satu batch,
+        // jadi anggota chat harus dibaca dari keadaan SETELAH batch (bukan get()).
         allow create: if signedIn()
-          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members
+          && request.auth.uid in getAfter(/databases/$(database)/documents/chats/$(chatId)).data.members
           && request.resource.data.from == request.auth.uid;
       }
     }
@@ -109,7 +119,7 @@ service cloud.firestore {
       // Pemilik boleh edit; user lain hanya boleh mengubah penghitung like/komentar.
       allow update: if signedIn() && (
         resource.data.uid == request.auth.uid
-        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeCount', 'commentCount'])
+        || resource.data.diff(resource.data).affectedKeys().hasOnly(['likeCount', 'commentCount'])
       );
       allow delete: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
 
@@ -123,6 +133,12 @@ service cloud.firestore {
         allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
         allow delete: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
       }
+    }
+
+    match /gifts/{id} {
+      allow read: if signedIn();
+      // Katalog gift hanya dikelola developer/admin lewat Panel Developer.
+      allow write: if isAdmin();
     }
 
     match /vipConfig/{id} {
@@ -142,6 +158,24 @@ service cloud.firestore {
 
     match /adminLogs/{id} {
       allow read, write: if isAdmin();
+    }
+
+    // ---------- Family ----------
+    match /families/{fid} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if signedIn()
+        && (resource.data.ownerUid == request.auth.uid || isAdmin());
+
+      match /{sub=**} {
+        allow read: if signedIn();
+        allow write: if signedIn();
+      }
+    }
+
+    match /familyMembers/{uid} {
+      allow read: if signedIn();
+      allow write: if isOwner(uid);
     }
 
     match /{document=**} {
