@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import coil.compose.AsyncImage
+import com.google.firebase.database.ServerValue
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -766,6 +767,12 @@ fun GiftPanel(
                                     if (err == null) {
                                         PublicSync.push(myUid)
                                         RoomExtras.sendGiftMessage(roomId, myName, g, count, toText)
+                                        // Poin mic: gift ke kursi penerima menambah poin sesuai harga (RTDB, hemat kuota Firestore).
+                                        val inc = g.price * count
+                                        receivers.filter { it.index >= 0 }.forEach { sRec ->
+                                            Rtdb.ref("micPoints/" + roomId + "/" + sRec.index)
+                                                .setValue(ServerValue.increment(inc))
+                                        }
                                         val (jp, cb) = GiftFx.sent(roomId, myUid, myName, g, count, receivers.size)
                                         if (jp > 0) {
                                             Toast.makeText(
