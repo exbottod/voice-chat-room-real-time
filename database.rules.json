@@ -48,6 +48,24 @@
       "$uid": {
         ".write": "auth != null && auth.uid === $uid"
       }
+    },
+    "micPoints": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$idx": {
+          ".write": "auth != null",
+          ".validate": "!newData.exists() || newData.isNumber()"
+        }
+      }
+    },
+    "followRooms": {
+      "$uid": {
+        ".read": "auth != null",
+        "$roomId": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "!newData.exists() || newData.val() === true"
+        }
+      }
     }
   }
 }
