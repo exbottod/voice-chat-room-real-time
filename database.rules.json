@@ -119,6 +119,17 @@
           ".validate": "!newData.exists() || newData.val() === true"
         }
       }
+    },
+    "chats": {
+      ".read": "auth != null",
+      "$chatId": {
+        ".write": "auth != null",
+        "messages": {
+          "$msgId": {
+            ".validate": "newData.hasChildren(['from','text','at']) && newData.child('from').isString() && newData.child('text').isString() && newData.child('text').val().length <= 500 && (newData.child('from').val() === auth.uid)"
+          }
+        }
+      }
     }
   }
 }
