@@ -1,16 +1,32 @@
 package com.example.googlelogin
 
 import android.graphics.BitmapFactory
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import android.net.Uri
 import android.os.Build
 import android.util.Base64
 import android.widget.VideoView
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -363,10 +379,40 @@ fun VipFrame(tier: Int, size: Dp) {
     VipMedia(a, Modifier.requiredSize(size), loop = true)
 }
 
-/** Efek masuk VIP di room: mp4 atau gif/webp/svga, diputar sebentar di bagian atas layar. */
+/** Ic banner efek masuk VIP1-9 (drawable di dalam APK). */
+fun vipBannerRes(n: Int): Int = when (n) {
+    1 -> R.drawable.ic_banner1
+    2 -> R.drawable.ic_banner2
+    3 -> R.drawable.ic_banner3
+    4 -> R.drawable.ic_banner4
+    5 -> R.drawable.ic_banner5
+    6 -> R.drawable.ic_banner6
+    7 -> R.drawable.ic_banner7
+    8 -> R.drawable.ic_banner8
+    9 -> R.drawable.ic_banner9
+    else -> R.drawable.ic_banner1
+}
+
+/** Banner efek masuk dari pesan "masuk kamar":
+ *  item store custom (sx_) MENANG, lalu item banner VIP (vipbn_, drawable di APK),
+ *  terakhir otomatis sesuai level VIP user. */
+fun bannerAssetOf(m: RoomMsg): VipAsset? =
+    if (m.banner.startsWith("sx_")) StoreCatalog.find(m.banner)?.asset else null
+
+fun bannerResOf(m: RoomMsg): Int? = when {
+    m.banner.startsWith("vipbn_") -> m.banner.removePrefix("vipbn_").toIntOrNull()?.let { vipBannerRes(it) }
+    m.vip in 1..9 -> vipBannerRes(m.vip)
+    else -> null
+}
+
+/** Efek masuk VIP di room: mp4 atau gif/webp/svga, diputar sebentar di bagian atas layar.
+ *  Banner efek masuk (kalau dipakai) tampil DI DEPAN efek masuk. */
 @Composable
 fun VipEntryEffect(roomId: String) {
     var playing by remember { mutableStateOf<VipAsset?>(null) }
+    var banner by remember { mutableStateOf<VipAsset?>(null) }
+    var bannerRes by remember { mutableStateOf<Int?>(null) }
+    var bannerName by remember { mutableStateOf<String?>(null) }
     var first by remember { mutableStateOf(true) }
     var lastId by remember { mutableStateOf<String?>(null) }
     var pending by remember { mutableStateOf<RoomMsg?>(null) }
@@ -384,8 +430,12 @@ fun VipEntryEffect(roomId: String) {
         val m = pending ?: return@LaunchedEffect
         repeat(15) {
             val a = entryAssetOf(m)
-            if (a != null) {
+            val b = bannerAssetOf(m)
+            if (a != null || b != null || bannerResOf(m) != null) {
                 playing = a
+                banner = b
+                bannerRes = if (b != null) null else bannerResOf(m)
+                bannerName = m.name.takeIf { it.isNotBlank() }
                 return@LaunchedEffect
             }
             delay(400)
@@ -402,34 +452,110 @@ fun VipEntryEffect(roomId: String) {
                 val fresh = last != null && System.currentTimeMillis() - last.createdAt < 8000
                 if (last != null && fresh && last.vipUid == myUid) {
                     val a = entryAssetOf(last)
-                    if (a != null) playing = a
-                    else if (last.entry.startsWith("sx_")) pending = last
+                    val b = bannerAssetOf(last)
+                    val br = bannerResOf(last)
+                    if (a != null || b != null || br != null) {
+                        playing = a
+                        banner = b
+                        bannerRes = if (b != null) null else br
+                        bannerName = last.name.takeIf { it.isNotBlank() }
+                    } else if (last.entry.startsWith("sx_") || last.banner.startsWith("sx_")) pending = last
                 }
             } else if (last != null && last.id != lastId) {
                 lastId = last.id
                 val a = entryAssetOf(last)
-                if (a != null) playing = a
-                else if (last.entry.startsWith("sx_")) pending = last
+                val b = bannerAssetOf(last)
+                val br = bannerResOf(last)
+                if (a != null || b != null || br != null) {
+                    playing = a
+                    banner = b
+                    bannerRes = if (b != null) null else br
+                    bannerName = last.name.takeIf { it.isNotBlank() }
+                } else if (last.entry.startsWith("sx_") || last.banner.startsWith("sx_")) pending = last
             }
         }
         onDispose { reg.remove() }
     }
 
     val p = playing
-    if (p != null) {
-        LaunchedEffect(p) {
-            delay(if (p.kind == "mp4" || p.kind == "svga") 15000L else 5000L)
-            playing = null
+    val b = banner
+    val br = bannerRes
+    // Posisi geser banner: 1f = penuh di kanan layar, 0f = tengah, negatif = keluar kiri.
+    val slide = remember { Animatable(1f) }
+    if (p != null || b != null || br != null) {
+        if (p != null) {
+            LaunchedEffect(p) {
+                delay(if (p.kind == "mp4" || p.kind == "svga") 15000L else 5000L)
+                playing = null
+            }
+        }
+        if (b != null || br != null) {
+            // Banner geser: dari kanan CEPAT ke tengah, di tengah LAMBAT,
+            // saat menutup CEPAT lagi ke kiri. Total 3 detik.
+            LaunchedEffect(b, br) {
+                slide.snapTo(1f)
+                slide.animateTo(0f, tween(800, easing = FastOutSlowInEasing))
+                slide.animateTo(-0.08f, tween(1400, easing = LinearEasing))
+                slide.animateTo(-1.25f, tween(800, easing = FastOutLinearInEasing))
+                banner = null
+                bannerRes = null
+                bannerName = null
+            }
         }
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            VipMedia(
-                p,
-                Modifier.fillMaxSize(),
-                loop = false,
-                contentScale = ContentScale.Crop,
-                onEnd = { playing = null },
-                sound = true,
-            )
+            if (p != null) {
+                VipMedia(
+                    p,
+                    Modifier.fillMaxSize(),
+                    loop = false,
+                    contentScale = ContentScale.Crop,
+                    onEnd = { playing = null },
+                    sound = true,
+                )
+            }
+            // Banner efek masuk: di ATAS layar, digambar SETELAH efek jadi tampil di depannya.
+            // Ukuran banner TETAP sesuai file aslinya (tidak diperbesar selebar layar).
+            if (b != null || br != null) {
+                val painter = remember(br) { if (br != null) painterResource(br) else null }
+                val density = LocalDensity.current
+                val bSize = remember(painter, density) {
+                    val ins = painter?.intrinsicSize
+                    if (ins != null && ins.width > 0f && ins.height > 0f) {
+                        with(density) { DpSize(ins.width.toDp(), ins.height.toDp()) }
+                    } else DpSize(320.dp, 90.dp)
+                }
+                Box(
+                    Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                        .statusBarsPadding().padding(top = 4.dp)
+                        .graphicsLayer { translationX = slide.value * size.width },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.size(bSize)) {
+                        if (b != null) {
+                            VipMedia(b, Modifier.fillMaxSize(), loop = true, contentScale = ContentScale.Fit)
+                        } else {
+                            Image(painter!!, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                        }
+                    // Nama user tampil DI DEPAN banner (overlay di tengahnya).
+                    val nm = bannerName
+                    if (!nm.isNullOrBlank()) {
+                        Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                nm,
+                                color = Color(0xFFFFE9A0),
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                style = androidx.compose.ui.text.TextStyle(
+                                    shadow = Shadow(Color(0xCC000000), blurRadius = 10f),
+                                ),
+                            )
+                        }
+                    }
+                    }
+                }
+            }
         }
     }
 }

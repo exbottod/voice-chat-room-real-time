@@ -39,6 +39,7 @@ data class RoomMsg(
     val vip: Int = 0,
     val vipUid: String = "",
     val entry: String = "",
+    val banner: String = "",
 )
 
 fun sha256(s: String): String =
@@ -156,6 +157,7 @@ object RoomRepo {
                         (c.child("vip").value as? Number)?.toInt() ?: 0,
                         c.child("vipUid").getValue(String::class.java) ?: "",
                         c.child("entry").getValue(String::class.java) ?: "",
+                        c.child("banner").getValue(String::class.java) ?: "",
                     )
                 },
             )
@@ -191,7 +193,7 @@ object RoomRepo {
         e.message ?: "Gagal menghapus chat"
     }
 
-    suspend fun join(roomId: String, name: String, vip: Int = 0, entry: String = "") {
+    suspend fun join(roomId: String, name: String, vip: Int = 0, entry: String = "", banner: String = "") {
         try {
             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
             if (isBanned(roomId, uid)) return
@@ -210,7 +212,8 @@ object RoomRepo {
                     "createdAt" to System.currentTimeMillis(),
                     "vip" to vip,
                     "entry" to entry,
-                    "vipUid" to (if (vip > 0 || entry.isNotBlank()) uid else ""),
+                    "banner" to banner,
+                    "vipUid" to (if (vip > 0 || entry.isNotBlank() || banner.isNotBlank()) uid else ""),
                 ),
             ).await()
         } catch (e: kotlinx.coroutines.CancellationException) {
