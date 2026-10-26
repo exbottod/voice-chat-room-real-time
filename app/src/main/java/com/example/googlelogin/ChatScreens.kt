@@ -85,6 +85,9 @@ object ChatRepo {
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false }
             if (!ok) return tr("User ini mengaktifkan Avoid disturbing (hanya menerima pesan dari orang yang dia ikuti)")
         }
+        // Kuota Firestore sedang habis: LANGSUNG kirim lewat server cadangan RTDB
+        // (kuota terpisah) tanpa menunggu Firestore gagal (~30 detik).
+        if (QuotaGuard.isDown()) return sendRtdb(me, myName, myId, other, text)
         return try {
             val ref = db().collection("chats").document(chatId(me, other.uid))
             val now = System.currentTimeMillis()
@@ -101,11 +104,68 @@ object ChatRepo {
                 SetOptions.merge(),
             )
             b.set(ref.collection("messages").document(), hashMapOf<String, Any?>("from" to me, "text" to text, "at" to now))
-            b.commit().await()
-            null
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            val ok = kotlinx.coroutines.withTimeoutOrNull(5000L) { b.commit().await() }
+            if (ok == null) sendRtdb(me, myName, myId, other, text) else null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (QuotaGuard.isExhausted(e)) {
+                QuotaGuard.markDown()
+                return sendRtdb(me, myName, myId, other, text)
+            }
             e.message ?: tr("Gagal mengirim")
         }
+    }
+
+    /** DATABASE CADANGAN: kirim pesan lewat RTDB chats/{chatId} (kuota terpisah).
+     *  Pesan otomatis tampil juga di lawan bicara yang kuotanya habis. */
+    private suspend fun sendRtdb(me: String, myName: String, myId: String, other: PublicUser, text: String): String? {
+        return try {
+            val id = chatId(me, other.uid)
+            val now = System.currentTimeMillis()
+            val root = Rtdb.ref("chats/$id")
+            root.child("messages").push().setValue(
+                hashMapOf<String, Any?>("from" to me, "text" to text, "at" to now),
+            ).await()
+            root.updateChildren(
+                hashMapOf<String, Any?>(
+                    "members" to mapOf(me to true, other.uid to true),
+                    "names" to mapOf(me to myName, other.uid to other.name),
+                    "ids" to mapOf(me to myId, other.uid to other.userId),
+                    "lastText" to text,
+                    "lastAt" to now,
+                ),
+            ).await()
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.message ?: tr("Gagal mengirim")
+        }
+    }
+
+    /** Gabung pesan dari Firestore + cadangan RTDB, urut waktu, tanpa dobel. */
+    fun observeMessagesMerged(chatId: String, onChange: (List<ChatMsg>) -> Unit): Reg {
+        val merged = HashMap<String, ChatMsg>()
+        fun emit() = onChange(merged.values.sortedBy { it.at })
+        val fs = observeMessages(chatId) { list ->
+            merged.keys.removeAll { it.startsWith("fs_") }
+            list.forEach { merged["fs_" + it.id] = it }
+            emit()
+        }
+        val rt = Rtdb.listen(Rtdb.ref("chats/$chatId/messages")) { s ->
+            merged.keys.removeAll { it.startsWith("rt_") }
+            s.children.forEach { c ->
+                val from = c.child("from").getValue(String::class.java) ?: return@forEach
+                merged["rt_" + (c.key ?: c.key.hashCode().toString())] = ChatMsg(
+                    "rt_" + (c.key ?: ""), from,
+                    c.child("text").getValue(String::class.java) ?: "",
+                    c.child("at").getValue(Long::class.java) ?: 0L,
+                )
+            }
+            emit()
+        }
+        return Reg { fs.remove(); rt.remove() }
     }
 }
 
@@ -172,7 +232,7 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
     val listState = rememberLazyListState()
 
     DisposableEffect(chatId) {
-        val r = ChatRepo.observeMessages(chatId) { msgs = it }
+        val r = ChatRepo.observeMessagesMerged(chatId) { msgs = it }
         onDispose { r.remove() }
     }
     LaunchedEffect(msgs.size) { if (msgs.isNotEmpty()) listState.animateScrollToItem(msgs.size - 1) }
