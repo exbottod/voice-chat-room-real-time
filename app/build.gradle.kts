@@ -25,7 +25,9 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.googlelogin"
+        // Nama paket baru untuk rilis (Play Store / APKPure).
+        // Namespace Kotlin dibiarkan com.example.googlelogin supaya kode tidak perlu diubah.
+        applicationId = "com.rezochatvoice.exceo"
         minSdk = 24
         targetSdk = 35
         // Selalu naik (menit sejak 1970), jadi APK baru bisa menimpa APK lama baik dari GitHub maupun build lokal.
@@ -43,6 +45,10 @@ android {
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
+            // Tanda tangan lengkap skema V1 + V2 + V3 untuk rilis (APKPure / Play Store).
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
         }
     }
 
