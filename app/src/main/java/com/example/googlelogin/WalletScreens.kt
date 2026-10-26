@@ -504,6 +504,8 @@ fun GiftPanel(
     val actions = LocalActions.current
     var wallet by remember { mutableStateOf(Wallet()) }
     var tab by remember { mutableStateOf(0) }
+    // Jaring pengaman: pastikan katalog gift sudah dimuat saat panel dibuka.
+    LaunchedEffect(Unit) { GiftCatalog.start() }
     val gifts = GiftCatalog.list
     var selected by remember { mutableStateOf(gifts.firstOrNull()?.id ?: "") }
 

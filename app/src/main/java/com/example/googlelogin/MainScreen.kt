@@ -139,6 +139,11 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
 
     // Muat profil dari Firestore, pastikan ID pengguna (mulai 100000) ada, lalu publikasikan.
     LaunchedEffect(uid) {
+        // Katalog (gift/store/VIP) dimuat PALING AWAL, tidak bergantung proses lain,
+        // supaya gift bawaan selalu tampil walau Firestore limit/koneksi bermasalah.
+        VipAssets.load()
+        StoreCatalog.start()
+        GiftCatalog.start()
         if (uid.isEmpty()) return@LaunchedEffect
         ProfileRepo.loadRemote()?.let {
             profile = it
@@ -151,8 +156,12 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         } catch (e: Exception) {
             Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
         }
-        UserDirectory.publish(context, user, profile)
-        PublicSync.push(uid)
+        try {
+            UserDirectory.publish(context, user, profile)
+            PublicSync.push(uid)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
         // SVIP offline: sinkronkan toggle yang tersimpan lokal saat kuota/koneksi kembali.
         try { SvipRepo.resync(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         // Status online (SVIP5 Hide Online Status): online = true selama app hidup,
@@ -166,9 +175,6 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 s.setValue(true).await()
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-        VipAssets.load()
-        StoreCatalog.start()
-        GiftCatalog.start()
     }
 
     // Item VIP otomatis masuk My Item, termasuk VIP yang dibeli sebelumnya
