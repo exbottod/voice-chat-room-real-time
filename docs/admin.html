@@ -145,13 +145,13 @@ label{font-size:12px;color:var(--mut)}
   <div class="card">
     <h2>Tambah item Store</h2>
     <label>Jenis item</label>
-    <select id="stSlot" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"><option value="frame">⭕ Bingkai avatar</option><option value="entry">✨ Efek masuk</option><option value="badge">🎖️ Lencana</option><option value="medal">🏅 Medali (Lencana glory)</option></select>
+    <select id="stSlot" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"><option value="frame">⭕ Bingkai avatar</option><option value="entry">✨ Efek masuk</option><option value="banner">🚩 Banner efek masuk</option><option value="badge">🎖️ Lencana</option><option value="medal">🏅 Medali (Lencana glory)</option></select>
     <label>Nama item</label><input type="text" id="stName" placeholder="Contoh: Bingkai Vietnam">
     <label>Harga (koin)</label><input type="number" id="stPrice" value="1000000" min="0">
     <label>Durasi (hari)</label><input type="number" id="stDays" value="7" min="1">
     <label>Urutan (angka kecil tampil lebih dulu)</label><input type="number" id="stOrder" value="0">
     <div class="prev" id="stPrev">Pratinjau</div>
-    <label>URL (svga, gif, webp, png; efek masuk juga mp4)</label><input type="text" id="stUrl" placeholder="https://...">
+    <label>URL (svga, gif, webp, png; efek masuk juga mp4; banner: png/webp/jpg/gif)</label><input type="text" id="stUrl" placeholder="https://...">
     <label>atau pilih file dari HP (maks sekitar 5 MB)</label><input type="file" id="stFile" accept=".svga,.gif,.webp,.png,.mp4">
     <button class="btn" id="stAdd">Tambah ke Store</button>
   </div>
@@ -727,6 +727,7 @@ async function vipDelete(slot){
 const STORE_SLOTS = {
   frame: { name: "⭕ Bingkai avatar", accept: [".svga", ".gif", ".webp", ".png"] },
   entry: { name: "✨ Efek masuk", accept: [".svga", ".gif", ".webp", ".png", ".mp4"] },
+  banner: { name: "🚩 Banner efek masuk", accept: [".png", ".webp", ".jpg", ".jpeg", ".gif"] },
   badge: { name: "🎖️ Lencana", accept: [".svga", ".gif", ".webp", ".png"] },
   medal: { name: "🏅 Medali", accept: [".svga", ".gif", ".webp", ".png"] },
 };
