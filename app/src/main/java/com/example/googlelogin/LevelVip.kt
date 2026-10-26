@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -115,6 +116,7 @@ private fun vipItems(n: Int) = listOf(
     StoreItem("vipf_$n", "frame", "Bingkai eksklusif VIP$n", "⭕", 0, VIP_DAYS, vipColor(n), n),
     StoreItem("vipb_$n", "bubble", "Gelembung obrolan VIP$n", "💬", 0, VIP_DAYS, vipColor(n), n),
     StoreItem("vipe_$n", "entry", "Efek masuk VIP$n", "✨", 0, VIP_DAYS, vipColor(n), n),
+    StoreItem("vipbn_$n", "banner", "Banner efek masuk VIP$n", "🚩", 0, VIP_DAYS, vipColor(n), n),
 )
 
 private val ALL_ITEMS: List<StoreItem> by lazy { STORE_ITEMS + (1..9).flatMap { vipItems(it) } }
@@ -202,6 +204,8 @@ object LvRepo {
                     if (cur["bubble"].isNullOrBlank() || cur["bubble"]!!.startsWith("vipb_")) put("bubble", "vipb_$tier")
                     val curEntry = cur["entry"]
                     if (curEntry == null || (curEntry.isNotBlank() && curEntry.startsWith("vipe_"))) put("entry", "vipe_$tier")
+                    val curBanner = cur["banner"]
+                    if (curBanner == null || (curBanner.isNotBlank() && curBanner.startsWith("vipbn_"))) put("banner", "vipbn_$tier")
                 },
             ),
             SetOptions.merge(),
@@ -690,7 +694,7 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     if (confirm) AlertDialog(
         onDismissRequest = { confirm = false },
         title = { Text("Beli VIP$sel") },
-        text = { Text("Harga ${fmtNum(price)} koin untuk $VIP_DAYS hari. Lencana, bingkai, gelembung & efek masuk VIP$sel otomatis masuk ke My Item.") },
+        text = { Text("Harga ${fmtNum(price)} koin untuk $VIP_DAYS hari. Lencana, bingkai, gelembung, efek masuk & banner masuk VIP$sel otomatis masuk ke My Item.") },
         confirmButton = {
             TextButton(onClick = {
                 confirm = false
@@ -749,6 +753,18 @@ private fun LegacyItemPreview(item: StoreItem) {
 
 @Composable
 private fun ItemPreview(item: StoreItem, size: Dp = 70.dp) {
+    // Banner VIP1-9: gambar langsung dari drawable di dalam APK.
+    if (item.slot == "banner" && item.vip in 1..9 && item.asset == null) {
+        Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+            Image(
+                painterResource(vipBannerRes(item.vip)),
+                null,
+                Modifier.fillMaxWidth().height(size),
+                contentScale = ContentScale.Fit,
+            )
+        }
+        return
+    }
     val dyn = item.asset
     if (dyn == null) {
         Box(Modifier.size(size), contentAlignment = Alignment.Center) { LegacyItemPreview(item) }
@@ -764,6 +780,7 @@ private fun ItemPreview(item: StoreItem, size: Dp = 70.dp) {
                 FrameOverlay(dyn, size)
             }
             "badge" -> key(dyn.updatedAt) { VipMedia(dyn, Modifier.size((size.value * 0.8f).dp), loop = true) }
+            "banner" -> key(dyn.updatedAt) { VipMedia(dyn, Modifier.fillMaxWidth().height(size), loop = true, contentScale = ContentScale.Fit) }
             else -> key(dyn.updatedAt) { VipMedia(dyn, Modifier.fillMaxSize(), loop = true) }
         }
     }
@@ -774,6 +791,7 @@ private fun slotLabel(slot: String) = when (slot) {
     "bubble" -> "Gelembung"
     "badge" -> "Lencana"
     "entry" -> "Efek masuk"
+    "banner" -> "Banner masuk"
     "medal" -> "Medali"
     else -> "Gelar"
 }
@@ -794,6 +812,7 @@ private fun fmtShort(n: Long): String {
 private val STORE_CATS = listOf(
     Triple("frame", "Bingkai avatar", "\u2B55"),
     Triple("entry", "Efek masuk", "\u2728"),
+    Triple("banner", "Banner masuk", "\uD83D\uDEA9"),
     Triple("badge", "Lencana", "\uD83C\uDF96\uFE0F"),
     Triple("bubble", "Gelembung", "\uD83D\uDCAC"),
     Triple("medal", "Medali", "\uD83C\uDFC5"),
@@ -864,7 +883,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         ) {
                             Column {
                                 Text("\uD83D\uDC51 VIP1 \u2013 VIP9", color = Color(0xFFFFD54F), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                                Text("Gelar, bingkai, gelembung & efek masuk eksklusif", color = Color.White, fontSize = 12.sp)
+                                Text("Gelar, bingkai, gelembung, efek masuk & banner masuk eksklusif", color = Color.White, fontSize = 12.sp)
                             }
                         }
                         Spacer(Modifier.height(10.dp))
