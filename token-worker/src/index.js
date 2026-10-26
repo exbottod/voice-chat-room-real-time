@@ -87,9 +87,41 @@ async function handleUpload(req, env) {
   return json({ url: out.secure_url, kind: ext === 'svga' ? 'svga' : ext === 'mp4' ? 'mp4' : 'image' });
 }
 
+// ---------- Halaman link room: /r/<roomId> ----------
+// Halaman publik untuk fitur "bagikan room". Kalau app terpasang, tombol
+// membuka rezo://room/<roomId> (deep link). Kalau belum, tombol download APK.
+function roomPage(roomId) {
+  const safe = roomId.replace(/[^A-Za-z0-9_-]/g, '');
+  const html = `<!doctype html><html lang="id"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>REZO CHAT VOICE - Undangan Room</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#0b0b0b,#14100a);color:#fff;font-family:system-ui,sans-serif}
+.c{max-width:400px;width:90%;background:#121212;border:1px solid #d4af37;border-radius:16px;padding:28px;text-align:center}
+h1{color:#f6e3a1;font-size:22px;margin:0 0 6px}
+p{color:#bdbdbd;font-size:14px;margin:0 0 20px}
+a.b{display:block;text-decoration:none;margin:10px 0;padding:14px;border-radius:12px;font-weight:700;font-size:16px}
+.open{background:#d4af37;color:#000}
+.dl{background:#1e2a28;color:#2bd9c4;border:1px solid #2bd9c4}
+small{color:#757575}
+</style></head><body><div class="c">
+<h1>&#128293; REZO CHAT VOICE</h1>
+<p>Kamu diundang masuk room!</p>
+<a class="b open" href="rezo://room/${safe}">Buka di aplikasi</a>
+<a class="b dl" href="https://github.com/exbottod/voice-chat-room-real-time/releases/latest/download/REZO-CHAT-VOICE.apk">Belum punya app? Download APK</a>
+<small>ID room: ${safe}</small>
+</div>
+<script>setTimeout(function(){location.href='rezo://room/${safe}';},800);</script>
+</body></html>`;
+  return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
 export default {
   async fetch(req, env) {
-    const isUpload = new URL(req.url).pathname.replace(/\/+$/, '').endsWith('/upload');
+    const path = new URL(req.url).pathname.replace(/\/+$/, '');
+    // Link room publik (seperti link invite): /r/<roomId>
+    if (path.startsWith('/r/')) return roomPage(path.slice(3));
+    const isUpload = path.endsWith('/upload');
     if (isUpload) {
       if (req.method === 'OPTIONS') return withCors(new Response(null, { status: 204 }));
       if (req.method !== 'POST') return withCors(json({ error: 'POST saja' }, 405));
