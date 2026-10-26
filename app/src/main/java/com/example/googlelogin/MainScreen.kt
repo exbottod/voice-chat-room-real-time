@@ -138,13 +138,16 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     }
 
     // Deep link "bagikan room" (rezo://room/<id>): otomatis masuk room
-    // saat link dibuka dan user sudah login.
+    // saat link dibuka dan user sudah login. Link tiap room unik (memuat ID room),
+    // jadi penerima link selalu masuk ke room milik orang yang membagikan.
     LaunchedEffect(RoomDeepLink.pendingRoomId) {
         val rid = RoomDeepLink.pendingRoomId ?: return@LaunchedEffect
         RoomDeepLink.pendingRoomId = null
-        if (activeRoom == null) {
-            RoomRepo.getRoom(rid)?.let { enterRoom(it) }
+        if (activeRoom?.id == rid) {
+            minimized = false
+            return@LaunchedEffect
         }
+        RoomRepo.getRoom(rid)?.let { enterRoom(it) }
     }
 
     // Muat profil dari Firestore, pastikan ID pengguna (mulai 100000) ada, lalu publikasikan.
