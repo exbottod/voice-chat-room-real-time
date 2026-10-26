@@ -225,6 +225,7 @@ private val TR_MAP: Map<String, Pair<String, String>> = mapOf(
     "Gagal mengirim" to ("Failed to send" to "发送失败"),
     "Belum ada pesan.\nBuka profil seseorang lalu tekan Chat." to ("No messages yet.\nOpen someone's profile and tap Chat." to "暂无消息。\n打开资料并点击聊天。"),
     "🔒 Mic ini dikunci" to ("🔒 This mic is locked" to "🔒 此麦位已锁定"),
+    "Background Tab" to ("Tab background" to "标签页背景"),
 )
 
 /** Terjemahan Hindi (India) untuk semua kunci kamus. */
@@ -355,6 +356,7 @@ private val TR_HI: Map<String, String> = mapOf(
     "Gagal mengirim" to "भेजने में विफल",
     "Belum ada pesan.\nBuka profil seseorang lalu tekan Chat." to "अभी कोई संदेश नहीं।\nकिसी की प्रोफ़ाइल खोलकर चैट दबाएँ।",
     "🔒 Mic ini dikunci" to "🔒 यह माइक लॉक है",
+    "Background Tab" to "टैब बैकग्राउंड",
 )
 
 /** Terjemahan Arab (Arab Saudi) untuk semua kunci kamus. */
@@ -485,4 +487,5 @@ private val TR_AR: Map<String, String> = mapOf(
     "Gagal mengirim" to "فشل الإرسال",
     "Belum ada pesan.\nBuka profil seseorang lalu tekan Chat." to "لا توجد رسائل بعد.\nافتح ملف شخصي واضغط على الدردشة.",
     "🔒 Mic ini dikunci" to "🔒 هذا الميكروفون مقفل",
+    "Background Tab" to "خلفية التبويبات",
 )
