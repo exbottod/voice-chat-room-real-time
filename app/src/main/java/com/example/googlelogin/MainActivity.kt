@@ -74,7 +74,6 @@ class SessionStore(context: Context) {
  */
 object RoomDeepLink {
     var pendingRoomId by mutableStateOf<String?>(null)
-        private set
 
     fun parse(intent: Intent?) {
         val d = intent?.data ?: return
