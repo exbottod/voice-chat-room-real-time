@@ -90,7 +90,10 @@ fun FrameOverlay(a: VipAsset, size: Dp) {
 
 /** Efek masuk untuk satu pesan "masuk kamar": item store yang dipakai dulu, lalu efek VIP. */
 fun entryAssetOf(m: RoomMsg): VipAsset? {
-    if (m.entry.startsWith("sx_")) StoreCatalog.find(m.entry)?.asset?.let { return it }
+    // Item store (sx_) yang dipakai user HARUS menang:
+    // jangan fallback ke efek VIP default kalau katalog belum termuat,
+    // biarkan pemanggil mencoba lagi (mencegah efek masuk "beda-beda").
+    if (m.entry.startsWith("sx_")) return StoreCatalog.find(m.entry)?.asset
     return if (m.vip in 1..9) VipAssets.get(m.vip, "entry") else null
 }
 

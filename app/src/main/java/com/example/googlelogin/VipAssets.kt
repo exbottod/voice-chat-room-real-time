@@ -367,9 +367,29 @@ fun VipEntryEffect(roomId: String) {
     var playing by remember { mutableStateOf<VipAsset?>(null) }
     var first by remember { mutableStateOf(true) }
     var lastId by remember { mutableStateOf<String?>(null) }
+    var pending by remember { mutableStateOf<RoomMsg?>(null) }
     val myUid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
 
-    LaunchedEffect(Unit) { VipAssets.load() }
+    LaunchedEffect(Unit) {
+        VipAssets.load()
+        // Pastikan katalog store termuat: efek masuk sx_ butuh data ini.
+        StoreCatalog.start()
+    }
+
+    // Pesan masuk dengan item sx_ yang belum ketemu di katalog (katalog masih
+    // termuat / offline): coba lagi sampai ketemu supaya efeknya konsisten.
+    LaunchedEffect(pending) {
+        val m = pending ?: return@LaunchedEffect
+        repeat(15) {
+            val a = entryAssetOf(m)
+            if (a != null) {
+                playing = a
+                return@LaunchedEffect
+            }
+            delay(400)
+        }
+        pending = null
+    }
 
     DisposableEffect(roomId) {
         val reg = RoomRepo.observeMessages(roomId, 1) { list ->
@@ -379,11 +399,15 @@ fun VipEntryEffect(roomId: String) {
                 lastId = last?.id
                 val fresh = last != null && System.currentTimeMillis() - last.createdAt < 8000
                 if (last != null && fresh && last.vipUid == myUid) {
-                    entryAssetOf(last)?.let { playing = it }
+                    val a = entryAssetOf(last)
+                    if (a != null) playing = a
+                    else if (last.entry.startsWith("sx_")) pending = last
                 }
             } else if (last != null && last.id != lastId) {
                 lastId = last.id
-                entryAssetOf(last)?.let { playing = it }
+                val a = entryAssetOf(last)
+                if (a != null) playing = a
+                else if (last.entry.startsWith("sx_")) pending = last
             }
         }
         onDispose { reg.remove() }
