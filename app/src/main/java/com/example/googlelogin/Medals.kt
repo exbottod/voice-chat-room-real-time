@@ -83,12 +83,20 @@ fun MedalIcon(id: String, size: Dp, tagModifier: Modifier = Modifier) {
 
 /** Deretan medal kecil (di bawah nama, di chat room, di profil). Kosong = tidak menampilkan apa-apa. */
 @Composable
-fun UserMedals(csv: String?, size: Dp = 32.dp, modifier: Modifier = Modifier) {
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+fun UserMedals(csv: String?, size: Dp = 44.dp, modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) { StoreCatalog.start(); VipAssets.load() }
     val ids = medalIdList(csv).take(MAX_MEDALS).filter { it.startsWith("vipt_") || findItem(it) != null }
     if (ids.isEmpty()) return
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-        ids.forEach { MedalIcon(it, size) }
+    // Barisan medal rapi: rata kiri, jarak seragam, otomatis pindah baris kalau banyak.
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        ids.forEach {
+            Box(Modifier.height(size), contentAlignment = Alignment.CenterStart) { MedalIcon(it, size) }
+        }
     }
 }
 

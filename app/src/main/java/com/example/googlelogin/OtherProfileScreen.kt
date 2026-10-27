@@ -300,8 +300,8 @@ fun OtherProfileScreen(
                     }
                     Spacer(Modifier.height(14.dp))
                     if (!hidden) {
-                        UserMedals(u.medals)
-                        Spacer(Modifier.height(10.dp))
+                        UserMedals(u.medals, 44.dp, Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(4.dp))
                         UserBadges(u)
                         if (u.fam.isNotBlank()) {
                             Spacer(Modifier.height(6.dp))
