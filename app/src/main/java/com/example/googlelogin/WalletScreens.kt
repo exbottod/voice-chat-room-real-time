@@ -784,9 +784,9 @@ fun GiftPanel(
                                             Toast.LENGTH_LONG,
                                         ).show()
                                     }
-                                    // Langkah lanjut: gagal pun tidak boleh menggagalkan tampilan gift.
-                                    try { PublicSync.push(myUid) } catch (e: Exception) { }
-                                    // Poin mic: gift ke kursi penerima menambah poin sesuai harga (RTDB, hemat kuota Firestore).
+                                    // LANGKAH PENTING DULU (RTDB, cepat): poin mic + ranking.
+                                    // FIX: dulu PublicSync (Firestore, bisa macet kuota) menggantung di sini
+                                    // dan poin mic / ranking tidak pernah dicatat.
                                     val inc = g.price * count
                                     receivers.filter { it.index >= 0 }.forEach { sRec ->
                                         try {
@@ -796,10 +796,19 @@ fun GiftPanel(
                                     }
                                     var rerr: String? = null
                                     try {
-                                        rerr = GiftRankRepo.record(myUid, myName, roomId, perReceiver, receivers)
+                                        kotlinx.coroutines.withTimeoutOrNull(8000L) {
+                                            rerr = GiftRankRepo.record(myUid, myName, roomId, perReceiver, receivers)
+                                        } ?: run { rerr = "ranking lambat" }
                                     } catch (e: Exception) { rerr = "gagal mencatat ranking" }
                                     if (rerr != null) {
                                         Toast.makeText(context, "Ranking gagal: $rerr", Toast.LENGTH_LONG).show()
+                                    }
+                                    // Sinkron profil (Firestore, bisa lambat saat kuota tipis): di belakang,
+                                    // dengan batas waktu, tidak boleh menghalangi apa pun.
+                                    AppScope.scope.launch {
+                                        try {
+                                            kotlinx.coroutines.withTimeoutOrNull(4000L) { PublicSync.push(myUid) }
+                                        } catch (e: Exception) { }
                                     }
                                     sending = false
                                 }

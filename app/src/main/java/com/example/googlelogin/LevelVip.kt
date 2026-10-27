@@ -1011,9 +1011,13 @@ object PublicSync {
             // supaya owner/anggota lama juga tampil lencana & "family saya"-nya.
             var famName = ""
             try {
-                val fid = db.collection("familyMembers").document(uid).get().await().getString("familyId") ?: ""
+                val fid = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                    db.collection("familyMembers").document(uid).get().await()
+                }?.getString("familyId") ?: ""
                 if (fid.isNotBlank()) {
-                    famName = db.collection("families").document(fid).get().await().getString("name") ?: ""
+                    famName = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                        db.collection("families").document(fid).get().await()
+                    }?.getString("name") ?: ""
                 }
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
             val data = hashMapOf<String, Any?>(
