@@ -168,7 +168,9 @@ object UserCache {
             val d = ProfileRepo.loadLocal(ctx, email)
             val w = WalletCache.load(uid)
             PublicUser(
-                userId = userIdFrom(email),
+                // ID RESMI akun (berurutan dari 100000), BUKAN hash email 8 digit
+                // yang mirip kode room. Kosong dulu kalau cache ID belum siap.
+                userId = UserDirectory.cachedId(ctx, uid) ?: "",
                 uid = uid,
                 name = d.nickname,
                 countryCode = d.countryCode,
