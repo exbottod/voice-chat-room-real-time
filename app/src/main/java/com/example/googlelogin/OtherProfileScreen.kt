@@ -270,14 +270,31 @@ fun OtherProfileScreen(
                         }
                     }
                     Spacer(Modifier.height(6.dp))
+                    // ID yang tampil SELALU ID resmi akun (bukan kode room / hash email):
+                    // profil sendiri dari cache ID resmi, profil lain dari ID resmi di userIds.
+                    var shownId by remember(uid, u.userId) {
+                        mutableStateOf(if (isMe) (UserDirectory.cachedId(context, uid) ?: u.userId) else u.userId)
+                    }
+                    LaunchedEffect(uid) {
+                        if (!isMe) {
+                            try {
+                                val off = kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                                    UserDirectory.officialIdOf(uid)
+                                }
+                                if (!off.isNullOrBlank()) shownId = off
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) { }
+                        }
+                    }
                     Row(
                         Modifier.clickable {
-                            clipboard.setText(AnnotatedString(u.userId))
+                            clipboard.setText(AnnotatedString(shownId))
                             Toast.makeText(context, "ID disalin", Toast.LENGTH_SHORT).show()
                         },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("UID:${u.userId}", color = Muted, fontSize = 16.sp)
+                        Text("UID:${shownId}", color = Muted, fontSize = 16.sp)
                         Spacer(Modifier.width(8.dp))
                         Text("📋", fontSize = 14.sp)
                     }

@@ -150,6 +150,17 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         RoomRepo.getRoom(rid)?.let { enterRoom(it) }
     }
 
+    // Cerminkan room milik sendiri ke RTDB (roomsPub) supaya muncul di tab Party
+    // walau Firestore bermasalah / kuota habis.
+    LaunchedEffect(uid) {
+        if (uid.isEmpty()) return@LaunchedEffect
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(6000L) { RoomRepo.findOwned(uid) }?.let { RoomRepo.mirrorRoom(it) }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+
     // Muat profil dari Firestore, pastikan ID pengguna (mulai 100000) ada, lalu publikasikan.
     LaunchedEffect(uid) {
         // Katalog (gift/store/VIP) dimuat PALING AWAL, tidak bergantung proses lain,

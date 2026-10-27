@@ -41,6 +41,13 @@ object UserDirectory {
 
     fun cachedId(ctx: Context, uid: String): String? = prefs(ctx).getString(uid, null)
 
+    /** ID RESMI user lain (berurutan dari 100000) dari users/{uid}.userId di Firestore.
+     *  Dipakai layar profil supaya UID yang tampil tidak pernah kode room / hash email. */
+    suspend fun officialIdOf(uid: String): String? {
+        val d = db().collection("users").document(uid).get().await()
+        return d.getString("userId")?.takeIf { it.isNotBlank() }
+    }
+
     /**
      * ID unik berurutan mulai 100000. Dibuat sekali per akun lewat transaksi Firestore
      * (counters/userIds) lalu disimpan di users/{uid} dan userIds/{id}.

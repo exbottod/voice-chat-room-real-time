@@ -1163,7 +1163,7 @@ object PublicSync {
                     "av" to (me?.avatarB64 ?: ""),
                     // PROFIL UTAMA DI RTDB: data identitas ikut ke pub.
                     "name" to (me?.name ?: ""),
-                    "id" to (me?.userId ?: ""),
+                    "id" to officialId(uid, me?.userId),
                     "cc" to (me?.countryCode ?: "ID"),
                     "bio" to (me?.bio ?: ""),
                     "gender" to (me?.gender ?: ""),
@@ -1171,6 +1171,13 @@ object PublicSync {
                 ),
             ).await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+
+    /** ID RESMI akun (cache ensureUserId). Tidak pernah memakai kode room / hash email. */
+    private fun officialId(uid: String, fallback: String?): String {
+        val ctx = try { com.google.firebase.FirebaseApp.getInstance().applicationContext } catch (e: Exception) { null }
+        val official = ctx?.let { UserDirectory.cachedId(it, uid) }
+        return official ?: (fallback ?: "")
     }
 
     suspend fun push(uid: String) {
@@ -1231,7 +1238,7 @@ object PublicSync {
                         // PROFIL UTAMA DI RTDB: data identitas ikut ke pub
                         // supaya pembacaan profil tidak bergantung Firestore.
                         "name" to (me?.name ?: ""),
-                        "id" to (me?.userId ?: ""),
+                        "id" to officialId(uid, me?.userId),
                         "cc" to (me?.countryCode ?: "ID"),
                         "bio" to (me?.bio ?: ""),
                         "gender" to (me?.gender ?: ""),
