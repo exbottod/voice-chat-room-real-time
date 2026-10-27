@@ -169,9 +169,18 @@ object SvipRepo {
         // pub/{uid}/svip. RTDB menerapkan nilai ke cache lokal seketika dan
         // menyinkronkan ke server di latar belakang, jadi panel tidak delay.
         try {
-            Rtdb.ref("pub/$uid/svip").setValue(SvipLocal.csv(uid))
+            // Tunggu tulisan sampai RTDB; kalau gagal (rules/network) dirty tetap
+            // menyala sehingga perubahan otomatis didorong lagi di resync().
+            kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                Rtdb.ref("pub/$uid/svip").setValue(SvipLocal.csv(uid)).await()
+            }
+            if (!SvipLocal.dirty(uid)) { /* sukses: dirty sudah diclear di bawah */ }
             SvipLocal.clearDirty(uid)
-        } catch (e: Exception) { }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return null // nilai lokal tetap dipakai; resync() akan mencoba lagi
+        }
         return null
     }
 
@@ -186,6 +195,9 @@ object SvipRepo {
     /** Apakah user INI (uid) mengaktifkan privilege dan SVIP-nya masih aktif.
      *  Kalau database tidak bisa dibaca (kuota habis/offline), pakai cache lokal. */
     suspend fun myOn(uid: String, key: String, minVip: Int): Boolean {
+        // Ada perubahan lokal yang belum tersinkron ke RTDB: nilai lokal MENANG,
+        // jangan timpa dengan data lama dari server (fix toggle on/off tidak berubah).
+        if (SvipLocal.dirty(uid)) return fallbackOn(uid, key, minVip)
         // RTDB LANGSUNG: baca dari Realtime Database pub/{uid} (kuota terpisah);
         // kalau RTDB tidak terjangkau, pakai cache lokal.
         try {
@@ -244,6 +256,7 @@ object SvipRepo {
     /** Segarkan cache lokal SVIP (toggle/iklan/level) dari RTDB pub/{uid};
      *  dipanggil sebelum sinkronisasi profil supaya nilai terbaru tidak tertimpa. */
     suspend fun refreshLocal(uid: String) {
+        if (SvipLocal.dirty(uid)) return // ada perubahan lokal belum tersinkron: jangan ditimpa
         try {
             val s = kotlinx.coroutines.withTimeoutOrNull(2000L) { Rtdb.ref("pub/$uid").get().await() }
             if (s != null && s.exists()) {
