@@ -164,64 +164,40 @@ object SvipRepo {
      */
     suspend fun set(uid: String, key: String, on: Boolean): String? {
         SvipLocal.save(uid, key, on)
-        // Kuota Firestore sedang habis: LANGSUNG ke server cadangan RTDB
-        // tanpa mencoba Firestore dulu (coba Firestore saat kuota habis lama ~30 detik).
-        if (QuotaGuard.isDown()) {
-            rtdbPub(uid)
-            return null
-        }
-        return try {
-            ref(uid).set(hashMapOf<String, Any?>("svip" to hashMapOf(key to on)), SetOptions.merge()).await()
-            SvipLocal.clearDirty(uid)
-            try { PublicSync.push(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-            null
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Kuota Firestore habis: tetap tersimpan publik lewat RTDB (kuota terpisah),
-            // dan tetap disinkronkan ke Firestore otomatis saat kuota kembali.
-            if (QuotaGuard.isExhausted(e)) QuotaGuard.markDown()
-            rtdbPub(uid)
-            null
-        }
+        // RTDB LANGSUNG: toggle privilege langsung ke Realtime Database pub/{uid}
+        // (kuota terpisah dari Firestore) supaya panel aktif tanpa jeda.
+        rtdbPub(uid)
+        SvipLocal.clearDirty(uid)
+        return null
     }
 
     /** Sinkronkan ulang perubahan lokal yang belum masuk server (dipanggil saat app dibuka). */
     suspend fun resync(uid: String) {
         if (!SvipLocal.dirty(uid)) return
-        try {
-            val data = hashMapOf<String, Any?>(
-                "svip" to SVIP_PRIVS.associate { it.key to SvipLocal.on(uid, it.key) },
-                "svipAd" to SvipLocal.ad(uid),
-            )
-            ref(uid).set(data, SetOptions.merge()).await()
-            SvipLocal.clearDirty(uid)
-            PublicSync.push(uid)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) { }
+        // RTDB LANGSUNG: perubahan lokal didorong ke Realtime Database pub/{uid}.
+        rtdbPub(uid)
+        SvipLocal.clearDirty(uid)
     }
 
     /** Apakah user INI (uid) mengaktifkan privilege dan SVIP-nya masih aktif.
      *  Kalau database tidak bisa dibaca (kuota habis/offline), pakai cache lokal. */
     suspend fun myOn(uid: String, key: String, minVip: Int): Boolean {
-        if (QuotaGuard.isDown()) return fallbackOn(uid, key, minVip)
+        // RTDB LANGSUNG: baca dari Realtime Database pub/{uid} (kuota terpisah);
+        // kalau RTDB tidak terjangkau, pakai cache lokal.
         try {
-            val doc = ref(uid).get().await()
-            val v = (doc.getLong("vip") ?: 0L).toInt()
-            val until = doc.getLong("vipUntil") ?: 0L
-            SvipLocal.saveVip(uid, v, until)
-            val m = (doc.get("svip") as? Map<*, *>)
-            if (m != null) SvipLocal.saveAll(uid, m.entries.filter { it.value == true }.joinToString(",") { it.key as String })
-            val ad = doc.getString("svipAd")
-            if (ad != null) SvipLocal.saveAd(uid, ad)
-            return vipActive(v, until) && v >= minVip && m?.get(key) == true
+            val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("pub/$uid").get().await() }
+            if (s != null && s.exists()) {
+                val v = (s.child("vip").value as? Long)?.toInt() ?: 0
+                val until = s.child("vipUntil").value as? Long ?: 0L
+                SvipLocal.saveVip(uid, v, until)
+                if (s.hasChild("svip")) SvipLocal.saveAll(uid, s.child("svip").value as? String ?: "")
+                if (s.hasChild("ad")) SvipLocal.saveAd(uid, s.child("ad").value as? String ?: "")
+                return vipActive(v, until) && v >= minVip && SvipLocal.on(uid, key)
+            }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
-        } catch (e: Exception) {
-            if (QuotaGuard.isExhausted(e)) QuotaGuard.markDown()
-            return fallbackOn(uid, key, minVip)
-        }
+        } catch (e: Exception) { }
+        return fallbackOn(uid, key, minVip)
     }
 
     /** DATABASE CADANGAN: baca status SVIP dari RTDB pub/{uid} (kuota terpisah
@@ -260,21 +236,30 @@ object SvipRepo {
         return SvipLocal.vip(uid)
     }
 
+
+    /** Segarkan cache lokal SVIP (toggle/iklan/level) dari RTDB pub/{uid};
+     *  dipanggil sebelum sinkronisasi profil supaya nilai terbaru tidak tertimpa. */
+    suspend fun refreshLocal(uid: String) {
+        try {
+            val s = kotlinx.coroutines.withTimeoutOrNull(2000L) { Rtdb.ref("pub/$uid").get().await() }
+            if (s != null && s.exists()) {
+                if (s.hasChild("svip")) SvipLocal.saveAll(uid, s.child("svip").value as? String ?: "")
+                if (s.hasChild("ad")) SvipLocal.saveAd(uid, s.child("ad").value as? String ?: "")
+                val v = (s.child("vip").value as? Long)?.toInt() ?: 0
+                if (v > 0) SvipLocal.saveVip(uid, v, s.child("vipUntil").value as? Long ?: 0L)
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+
     /** Simpan iklan pribadi (Personal ADs); lokal dulu, server best-effort. */
     suspend fun setAd(uid: String, ad: String): String? {
         SvipLocal.saveAd(uid, ad.trim().take(120))
-        return try {
-            ref(uid).set(hashMapOf<String, Any?>("svipAd" to ad.trim().take(120)), SetOptions.merge()).await()
-            SvipLocal.clearDirty(uid)
-            try { PublicSync.push(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-            null
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Kuota Firestore habis: iklan tetap tersimpan publik lewat RTDB.
-            rtdbPub(uid)
-            null
-        }
+        // RTDB LANGSUNG: iklan pribadi langsung ke Realtime Database pub/{uid}.
+        rtdbPub(uid)
+        SvipLocal.clearDirty(uid)
+        return null
     }
 }
 
@@ -320,56 +305,35 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
 
     LaunchedEffect(uid) {
         var ok = false
-        if (!QuotaGuard.isDown()) {
-            try {
-                val doc = kotlinx.coroutines.withTimeoutOrNull(4000L) {
-                    FirebaseFirestore.getInstance().collection("wallets").document(uid).get().await()
+        // RTDB LANGSUNG: level + toggle dibaca dari Realtime Database pub/{uid}
+        // (kuota terpisah dari Firestore) supaya panel langsung tampil tanpa jeda.
+        try {
+            val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("pub/$uid").get().await() }
+            if (s != null && s.exists()) {
+                ok = true
+                vip = (s.child("vip").value as? Long)?.toInt() ?: 0
+                vipUntil = s.child("vipUntil").value as? Long ?: 0L
+                if (s.hasChild("svip")) {
+                    val csv = s.child("svip").value as? String ?: ""
+                    SvipLocal.saveAll(uid, csv)
+                    toggles = svipKeys(csv).associateWith { true }
                 }
-                if (doc != null && doc.exists()) {
-                    ok = true
-                    vip = (doc.getLong("vip") ?: 0L).toInt()
-                    vipUntil = doc.getLong("vipUntil") ?: 0L
-                    val m = doc.get("svip") as? Map<*, *>
-                    toggles = m?.mapNotNull { (k, v) -> if (k is String && v == true) k to true else null }?.toMap() ?: emptyMap()
-                    myAd = doc.getString("svipAd") ?: ""
-                    // segarkan cache lokal supaya tetap mutakhir
-                    SvipLocal.saveVip(uid, vip, vipUntil)
-                    if (m != null) SvipLocal.saveAll(uid, m.entries.filter { it.value == true }.joinToString(",") { it.key as String })
+                if (s.hasChild("ad")) {
+                    myAd = s.child("ad").value as? String ?: ""
                     SvipLocal.saveAd(uid, myAd)
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (QuotaGuard.isExhausted(e)) QuotaGuard.markDown()
+                SvipLocal.saveVip(uid, vip, vipUntil)
             }
-        }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
         if (!ok) {
-            // DATABASE CADANGAN: Firestore tidak tersambung (kuota habis / offline).
-            // Panel tetap hidup: toggle + level dibaca dari RTDB pub (kuota terpisah)
-            // dan wallet KV, sehingga semua switch tetap bisa diklik.
-            try {
-                val s = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("pub/$uid").get().await() }
-                if (s != null && s.exists()) {
-                    val v = (s.child("vip").value as? Long)?.toInt() ?: 0
-                    if (v > 0) { vip = v; vipUntil = s.child("vipUntil").value as? Long ?: 0L }
-                    if (s.hasChild("svip")) {
-                        val csv = s.child("svip").value as? String ?: ""
-                        SvipLocal.saveAll(uid, csv)
-                        toggles = svipKeys(csv).associateWith { true }
-                    }
-                    if (s.hasChild("ad")) {
-                        myAd = s.child("ad").value as? String ?: ""
-                        SvipLocal.saveAd(uid, myAd)
-                    }
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) { }
-            if (vip == 0) {
-                val st = SvipRepo.fallbackState(uid)
-                if (st.first > 0) { vip = st.first; vipUntil = st.second }
-            }
+            // RTDB tidak terjangkau: tampilkan cache lokal + jalur cadangan KV.
+            val st = SvipRepo.fallbackState(uid)
+            if (st.first > 0) { vip = st.first; vipUntil = st.second }
             SvipLocal.saveVip(uid, vip, vipUntil)
+            toggles = SvipLocal.keys(uid).associateWith { true }
+            myAd = SvipLocal.ad(uid)
         }
         loaded = true
     }
