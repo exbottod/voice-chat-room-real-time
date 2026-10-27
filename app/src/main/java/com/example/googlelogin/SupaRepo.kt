@@ -23,6 +23,11 @@ object SupaRepo {
 
     /** POST kecil ke edge function. Semua argumen dompet dikirim sebagai JSON. */
     private suspend fun call(action: String, params: org.json.JSONObject): Res =
+        kotlinx.coroutines.withTimeoutOrNull(20_000L) {
+            callInner(action, params)
+        } ?: Res(null, "Server timeout, coba lagi")
+
+    private suspend fun callInner(action: String, params: org.json.JSONObject): Res =
         withContext(Dispatchers.IO) {
             try {
                 val token = com.google.firebase.auth.FirebaseAuth.getInstance()
