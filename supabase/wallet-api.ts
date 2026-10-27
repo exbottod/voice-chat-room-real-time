@@ -7,7 +7,7 @@
 // =====================================================================
 
 const FIREBASE_PROJECT_ID = "arboreal-cat-511705";
-const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk";
+const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 
 let jwksCache: { keys: Record<string, unknown>[]; at: number } | null = null;
 
@@ -28,7 +28,7 @@ function b64urlJson(s: string): Record<string, unknown> {
 async function getKeys(): Promise<Record<string, unknown>[]> {
   if (jwksCache && Date.now() - jwksCache.at < 3600_000) return jwksCache.keys;
   const r = await fetch(JWKS_URL);
-  if (!r.ok) throw new Error("Gagal mengambil kunci Google");
+  if (!r.ok) throw new Error("Gagal mengambil kunci Google (" + r.status + ")");
   const j = await r.json();
   jwksCache = { keys: j.keys ?? [], at: Date.now() };
   return jwksCache.keys;
