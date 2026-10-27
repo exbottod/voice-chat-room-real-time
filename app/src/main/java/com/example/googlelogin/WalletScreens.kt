@@ -200,6 +200,23 @@ object WalletRepo {
 }
 
 @Composable
+private fun BalanceCard(emoji: String, label: String, value: String, modifier: Modifier) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier
+            .clip(shape)
+            .background(CardBlack.copy(alpha = 0.9f))
+            .border(1.dp, Gold.copy(alpha = 0.4f), shape)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(emoji, fontSize = 30.sp)
+        Text(value, color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+        Text(label, color = Color(0xFFBDBDBD), fontSize = 13.sp)
+    }
+}
+
+@Composable
 fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
