@@ -207,12 +207,9 @@ object UserDirectory {
                     "createdAt" to Timestamp.now(),
                 ),
             )
-            batch.set(
-                db().collection("wallets").document(myUid),
-                hashMapOf<String, Any?>("coins" to FieldValue.increment(INVITE_REWARD_COINS)),
-                SetOptions.merge(),
-            )
             batch.commit().await()
+            // Hadiah undangan masuk dompet Supabase (dompet tidak lagi di Firestore).
+            WalletRepo.topUp(myUid, INVITE_REWARD_COINS)
             null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             "Gagal: ${e.message}"
