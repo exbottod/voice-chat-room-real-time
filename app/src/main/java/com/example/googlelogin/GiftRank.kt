@@ -112,6 +112,17 @@ object GiftRankRepo {
         }
     }
 
+    private fun rtBump(col: String, subject: String, name: String, amount: Long, now: Long) {
+        if (subject.isBlank()) return
+        for (p in 0..2) {
+            val key = RankPeriod.key(p, now)
+            val ref = Rtdb.ref("rank/$col/$key/$subject")
+            ref.child("name").setValue(name)
+            ref.child("total").setValue(com.google.firebase.database.ServerValue.increment(amount))
+            ref.child("updatedAt").setValue(now)
+        }
+    }
+
     /** Dipanggil setelah gift berhasil dikirim. Return pesan error (atau null kalau sukses). */
     suspend fun record(
         senderUid: String,
@@ -128,11 +139,11 @@ object GiftRankRepo {
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 "Room"
             }
-            val b = db().batch()
-            bump(b, COL_SAWER, senderUid, senderName, total, now)
-            bump(b, COL_ROOM, roomId, roomName, total, now)
-            receivers.forEach { bump(b, COL_CHARM, it.uid, it.name, perReceiver, now) }
-            b.commit().await()
+            // RANKING DI REALTIME DATABASE: increment atomik di rank/{col}/{period}/{subject}.
+            // Tidak bergantung kuota Firestore, jadi ranking tidak pernah kosong.
+            rtBump(COL_SAWER, senderUid, senderName, total, now)
+            rtBump(COL_ROOM, roomId, roomName, total, now)
+            receivers.forEach { rtBump(COL_CHARM, it.uid, it.name, perReceiver, now) }
             null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             e.message ?: "Gagal mencatat ranking"
@@ -140,12 +151,36 @@ object GiftRankRepo {
     }
 
     suspend fun top(col: String, periodKey: String, limit: Int = 30): List<RankEntry> {
-        val raw = db().collection(col).whereEqualTo("period", periodKey).limit(300).get().await()
-            .documents
-            .map { RankEntry(it.getString("subject") ?: "", it.getString("name") ?: "", it.getLong("total") ?: 0L) }
-            .filter { it.id.isNotEmpty() && it.total > 0 }
-            .sortedByDescending { it.total }
-            .take(limit)
+        // 1) UTAMA: Realtime Database rank/{col}/{period}
+        val merged = HashMap<String, RankEntry>()
+        try {
+            val snap = withTimeoutOrNull(6000L) { Rtdb.ref("rank/$col/$periodKey").get().await() }
+            snap?.children?.forEach { c ->
+                val id = c.key ?: return@forEach
+                val total = (c.child("total").value as? Number)?.toLong() ?: 0L
+                val name = c.child("name").getValue(String::class.java) ?: ""
+                if (total > 0) merged[id] = RankEntry(id, name, total)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // 2) Data lama di Firestore (sebelum pindah RTDB): digabung kalau terbaca.
+        try {
+            val docs = withTimeoutOrNull(4000L) {
+                db().collection(col).whereEqualTo("period", periodKey).limit(300).get().await().documents
+            }
+            docs?.forEach {
+                val id = it.getString("subject") ?: ""
+                val total = it.getLong("total") ?: 0L
+                if (id.isNotEmpty() && total > 0) {
+                    val cur = merged[id]
+                    if (cur == null || total > cur.total) merged[id] = RankEntry(id, it.getString("name") ?: "", total)
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        val raw = merged.values.sortedByDescending { it.total }.take(limit)
         // Hide ranking records (SVIP6): yang mengaktifkan tampil misterius di daftar.
         val uids = raw.map { it.id }.filter { it.length > 10 }.distinct()
         val pubByUid = HashMap<String, PublicUser>()
