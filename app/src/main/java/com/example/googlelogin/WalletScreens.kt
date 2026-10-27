@@ -803,6 +803,12 @@ fun GiftPanel(
                                     if (rerr != null) {
                                         Toast.makeText(context, "Ranking gagal: $rerr", Toast.LENGTH_LONG).show()
                                     }
+                                    // EXP FAMILY dari gift: nilai gift menambah exp family pengirim.
+                                    AppScope.scope.launch {
+                                        try {
+                                            kotlinx.coroutines.withTimeoutOrNull(8000L) { FamilyRepo.addGiftExp(myUid, total) }
+                                        } catch (e: Exception) { }
+                                    }
                                     // Sinkron profil (Firestore, bisa lambat saat kuota tipis): di belakang,
                                     // dengan batas waktu, tidak boleh menghalangi apa pun.
                                     AppScope.scope.launch {

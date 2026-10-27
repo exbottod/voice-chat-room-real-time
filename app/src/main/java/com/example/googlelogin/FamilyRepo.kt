@@ -337,6 +337,28 @@ object FamilyRepo {
         err
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
+    /** EXP FAMILY dari gift: nilai gift (koin) menambah exp family + kontribusi pengirim.
+     *  Jalan di latar belakang, tidak boleh menghalangi gift. */
+    suspend fun addGiftExp(uid: String, amount: Long): String? {
+        if (amount <= 0) return null
+        return try {
+            val fid = try { UserCache.peek(uid)?.fam ?: "" } catch (e: Exception) { "" }
+            if (fid.isBlank()) return null
+            kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                db().runTransaction { tx ->
+                    tx.update(fam(fid), "exp", FieldValue.increment(amount))
+                    tx.update(fam(fid).collection("members").document(uid), "contribution", FieldValue.increment(amount))
+                    null
+                }.await()
+            } ?: return "timeout"
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.message
+        }
+    }
+
     /** Hapus family: hanya pemilik. Semua anggota dikeluarkan lalu dokumen dihapus. */
     suspend fun delete(fid: String): String? = try {
         val members = fam(fid).collection("members").get().await().documents
