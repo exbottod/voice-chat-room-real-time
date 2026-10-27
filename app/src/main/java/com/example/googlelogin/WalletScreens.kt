@@ -743,42 +743,63 @@ fun GiftPanel(
                                 }
                                 sending = true
                                 AppScope.scope.launch {
-                                    val err = WalletRepo.sendGift(myUid, total, g.id, roomId)
-                                    if (err == null) {
-                                        PublicSync.push(myUid)
-                                        RoomExtras.sendGiftMessage(roomId, myName, g, count, toText)
-                                        // Poin mic: gift ke kursi penerima menambah poin sesuai harga (RTDB, hemat kuota Firestore).
-                                        val inc = g.price * count
-                                        receivers.filter { it.index >= 0 }.forEach { sRec ->
-                                            Rtdb.ref("micPoints/" + roomId + "/" + sRec.index)
-                                                .setValue(ServerValue.increment(inc))
-                                        }
-                                        val (jp, cb) = GiftFx.sent(roomId, myUid, myName, g, count, receivers.size)
-                                        if (jp > 0) {
-                                            Toast.makeText(
-                                                context,
-                                                "🎉 JP!! +${fmtNum(jp)} koin masuk dompet!",
-                                                Toast.LENGTH_LONG,
-                                            ).show()
-                                        }
-                                        if (cb > 0) {
-                                            Toast.makeText(
-                                                context,
-                                                "💵 Cashback +${fmtNum(cb)} koin!",
-                                                Toast.LENGTH_LONG,
-                                            ).show()
-                                        }
-                                        val rerr = GiftRankRepo.record(myUid, myName, roomId, perReceiver, receivers)
+                                    var err: String? = null
+                                    try {
+                                        err = WalletRepo.sendGift(myUid, total, g.id, roomId)
+                                    } catch (e: kotlinx.coroutines.CancellationException) {
+                                        throw e
+                                    } catch (e: Exception) {
+                                        err = "Gagal memproses gift, coba lagi"
+                                    }
+                                    if (err != null) {
+                                        Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                        sending = false
+                                        return@launch
+                                    }
+                                    // FIX: toast sukses tampil LANGSUNG setelah dompet terpotong,
+                                    // jangan menunggu ranking/pesan/fx yang bisa lambat atau gagal.
+                                    Toast.makeText(
+                                        context,
+                                        "Gift terkirim! +${fmtNum(total)} diamond",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                    var jp = 0L
+                                    var cb = 0L
+                                    try {
+                                        val (j, c) = GiftFx.sent(roomId, myUid, myName, g, count, receivers.size)
+                                        jp = j; cb = c
+                                    } catch (e: Exception) { }
+                                    if (jp > 0) {
                                         Toast.makeText(
                                             context,
-                                            "Gift terkirim! +${fmtNum(total)} diamond",
-                                            Toast.LENGTH_SHORT,
+                                            "🎉 JP!! +${fmtNum(jp)} koin masuk dompet!",
+                                            Toast.LENGTH_LONG,
                                         ).show()
-                                        if (rerr != null) {
-                                            Toast.makeText(context, "Ranking gagal: $rerr", Toast.LENGTH_LONG).show()
-                                        }
-                                    } else {
-                                        Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                    }
+                                    if (cb > 0) {
+                                        Toast.makeText(
+                                            context,
+                                            "💵 Cashback +${fmtNum(cb)} koin!",
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
+                                    // Langkah lanjut: gagal pun tidak boleh menggagalkan tampilan gift.
+                                    try { PublicSync.push(myUid) } catch (e: Exception) { }
+                                    try { RoomExtras.sendGiftMessage(roomId, myName, g, count, toText) } catch (e: Exception) { }
+                                    // Poin mic: gift ke kursi penerima menambah poin sesuai harga (RTDB, hemat kuota Firestore).
+                                    val inc = g.price * count
+                                    receivers.filter { it.index >= 0 }.forEach { sRec ->
+                                        try {
+                                            Rtdb.ref("micPoints/" + roomId + "/" + sRec.index)
+                                                .setValue(ServerValue.increment(inc))
+                                        } catch (e: Exception) { }
+                                    }
+                                    var rerr: String? = null
+                                    try {
+                                        rerr = GiftRankRepo.record(myUid, myName, roomId, perReceiver, receivers)
+                                    } catch (e: Exception) { rerr = "gagal mencatat ranking" }
+                                    if (rerr != null) {
+                                        Toast.makeText(context, "Ranking gagal: $rerr", Toast.LENGTH_LONG).show()
                                     }
                                     sending = false
                                 }
