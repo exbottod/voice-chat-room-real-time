@@ -43,6 +43,16 @@
         }
       }
     },
+    "rank": {
+      ".read": "auth != null",
+      "$col": {
+        "$period": {
+          "$subject": {
+            ".write": "auth != null"
+          }
+        }
+      }
+    },
     "pub": {
       ".read": "auth != null",
       "$uid": {
