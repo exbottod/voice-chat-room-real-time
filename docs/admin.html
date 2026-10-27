@@ -195,16 +195,18 @@ label{font-size:12px;color:var(--mut)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
 const CFG = {
   apiKey: "AIzaSyC-Fu_WeY93DxtwieQ_psU2DSSwzdZ899o",
   authDomain: "arboreal-cat-511705-p6.firebaseapp.com",
   projectId: "arboreal-cat-511705-p6",
-  messagingSenderId: "707122344337"
+  messagingSenderId: "707122344337",
+  databaseURL: "https://arboreal-cat-511705-p6-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 const ADMIN_EMAIL = "developerex100@gmail.com";
 firebase.initializeApp(CFG);
-const auth = firebase.auth(), db = firebase.firestore();
+const auth = firebase.auth(), db = firebase.firestore(), rtdb = firebase.database();
 const $ = id => document.getElementById(id);
 let imgB64 = null, unsub = null;
 
@@ -570,6 +572,19 @@ async function cldUpload(file, name){
   if (!res.ok || !out.url) throw new Error(out.error || ("Upload gagal (" + res.status + ")"));
   return out.url;
   }
+async function rtSet(path, obj){
+  toast("Menyimpan ke Realtime Database...");
+  return Promise.race([
+    rtdb.ref(path).set(obj),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Realtime Database tidak merespons dalam 20 detik. Cek koneksi.")), 20000))
+  ]);
+}
+async function rtDel(path){
+  return Promise.race([
+    rtdb.ref(path).remove(),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Realtime Database tidak merespons dalam 20 detik. Cek koneksi.")), 20000))
+  ]);
+}
 function fsCommit(b){
   toast("Menyimpan ke database...");
   return Promise.race([
@@ -580,10 +595,18 @@ function fsCommit(b){
   
 function vipStart(){
   if (vipUnsub) return;
-  vipUnsub = db.collection("vipConfig").where("meta", "==", true).onSnapshot(s => {
-    vipCfg = {};
-    s.forEach(d => { const x = d.data(); vipCfg[x.n + "_" + x.slot] = x; });
+  vipUnsub = rtdb.ref("vipCfg").on("value", s => {
+    vipCfg = {}; storeItems = []; emoteItems = [];
+    s.forEach(d => {
+      const x = d.val() || {};
+      if (x.meta && x.n >= 1 && x.n <= 9 && x.slot) vipCfg[x.n + "_" + x.slot] = x;
+      else if (x.store && x.id) storeItems.push(x);
+      else if (x.slot === "emote") emoteItems.push(Object.assign({ _did: d.key }, x));
+    });
+    storeItems.sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name)));
     renderVip();
+    try { if (document.querySelector('.tab[data-t="store"]').classList.contains("on")) renderStore(); } catch (e) {}
+    try { if (document.querySelector('.tab[data-t="emote"]').classList.contains("on")) renderEmotes(); } catch (e) {}
   }, e => toast("Gagal memuat VIP: " + e.message));
 }
 /* ---------- Pratinjau aset VIP (gambar, gif, webp, mp4, SVGA) ---------- */
@@ -725,13 +748,11 @@ async function vipSave(slot){
     {
       if (!/^https?:\/\//i.test(finalUrl)) { toast("URL harus diawali http:// atau https://"); return; }
       if (!vipExtOk(slot, finalUrl)) { toast("Format URL harus " + slot.hint); return; }
-      b.set(col.doc(id), { meta: true, n: n, slot: slot.k, kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() });
-      b.delete(col.doc(did));
-      for (let i = 0; i < 8; i++) b.delete(col.doc(did + "_" + i));
+      // ASET TERSIMPAN DI REALTIME DATABASE (kuota terpisah); file di Cloudinary.
+      await rtSet("vipCfg/" + id, { meta: true, n: n, slot: slot.k, kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() });
     }
-    await fsCommit(b);
     logAction({ type: "vipAsset", vip: n, slot: slot.k });
-    toast("Tersimpan ✅ (file di Cloudinary, bukan database)");
+    toast("Tersimpan ✅ (file di Cloudinary, data di Realtime Database)");
     $("vfile_" + slot.k).value = "";
   } catch (e) { const u = auth.currentUser || {}; toast("Gagal: " + e.message + " | " + u.email + " | verified=" + u.emailVerified); }
   finally { const s = $("vsave_" + slot.k); if (s) s.disabled = false; }
@@ -740,9 +761,7 @@ async function vipDelete(slot){
   if (!confirm("Hapus " + slot.name + " VIP" + vipSel + "?")) return;
   const col = db.collection("vipConfig"), id = "vip" + vipSel + "_" + slot.k;
   try {
-    const b = db.batch(); b.delete(col.doc(id)); b.delete(col.doc("data_" + id));
-    for (let i = 0; i < 8; i++) b.delete(col.doc("data_" + id + "_" + i));
-    await fsCommit(b);
+    await rtDel("vipCfg/" + id);
     $("vurl_" + slot.k).value = "";
     toast("Dihapus ✅");
   } catch (e) { toast("Gagal: " + e.message); }
@@ -758,15 +777,7 @@ const STORE_SLOTS = {
 };
 let storeItems = [], storeUnsub = null;
 let pendingFiles = {}; // file yang dipilih tidak hilang saat kartu di-render ulang
-function storeStart(){
-  if (storeUnsub) return;
-  storeUnsub = db.collection("vipConfig").where("store", "==", true).onSnapshot(s => {
-    storeItems = [];
-    s.forEach(d => storeItems.push(d.data()));
-    storeItems.sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name)));
-    renderStore();
-  }, e => toast("Gagal memuat Store: " + e.message));
-}
+function storeStart(){ vipStart(); renderStore(); }
 async function storePreview(box, c){
   stopPrev(box); box.textContent = "";
   let src = c.url || "";
@@ -842,12 +853,11 @@ async function storeSave(c, el, btn){
       if (!/^https?:\/\//i.test(finalUrl)) { toast("URL harus diawali http:// atau https://"); return; }
       const e = vipExt(finalUrl);
       if (e && !sl.accept.includes("." + e)) { toast("Format URL harus " + sl.accept.join(" ")); return; }
-      b.set(col.doc(docId), Object.assign(base, { kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() }));
-      for (let i = 0; i < 8; i++) b.delete(col.doc(did + "_" + i));
+      // Realtime Database: kuota terpisah, tidak lagi tergantung Firestore.
+      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() }));
     } else {
-      b.set(col.doc(docId), Object.assign(base, { kind: c.kind, url: c.url || "", hasData: !!c.hasData, chunks: c.chunks || 0, updatedAt: c.updatedAt || Date.now() }));
+      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: c.kind, url: c.url || "", hasData: !!c.hasData, chunks: c.chunks || 0, updatedAt: c.updatedAt || Date.now() }));
     }
-    await fsCommit(b);
     logAction({ type: "storeItem", id: id, slot: slot });
     if (c) delete pendingFiles[c.id];
     toast("Tersimpan ✅");
@@ -862,10 +872,7 @@ async function storeDelete(c){
   if (!confirm("Hapus item \"" + (c.name || "") + "\" dari Store?")) return;
   const col = db.collection("vipConfig");
   try {
-    const b = db.batch();
-    b.delete(col.doc("store_" + c.id));
-    for (let i = 0; i < 8; i++) b.delete(col.doc("data_store_" + c.id + "_" + i));
-    await fsCommit(b);
+    await rtDel("vipCfg/store_" + c.id);
     toast("Dihapus ✅");
   } catch (e) { toast("Gagal: " + e.message); }
 }
@@ -875,13 +882,7 @@ $("stFile").onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFi
 // ===== Emote room (gif/png/jpg) =====
 let emoteItems = [], emoteUnsub = null;
 const EMOTE_ACCEPT = [".gif", ".png", ".jpg", ".jpeg"];
-function emoteStart(){
-  if (emoteUnsub) return;
-  emoteUnsub = db.collection("vipConfig").where("slot", "==", "emote").onSnapshot(s => {
-    emoteItems = s.docs.map(d => Object.assign({ _did: d.id }, d.data()));
-    renderEmotes();
-  }, e => { $("emList").textContent = "Gagal memuat: " + e.message; });
-}
+function emoteStart(){ vipStart(); renderEmotes(); }
 function renderEmotes(){
   const box = $("emList"); box.textContent = "";
   const items = emoteItems.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -903,14 +904,17 @@ function renderEmotes(){
       const order = parseInt(card.querySelector(".e-order").value, 10) || 0;
       ev.target.disabled = true;
       try {
-        await db.collection("vipConfig").doc(c._did).set({ name: name, order: order, updatedAt: Date.now() }, { merge: true });
+        const path = String(c._did || "").startsWith("emote_") ? "vipCfg/" + c._did : "vipCfg/emote_" + c.id;
+        await rtdb.ref(path).update({ name: name, order: order, updatedAt: Date.now() });
         toast("Tersimpan \u2705");
       } catch (e) { toast("Gagal: " + e.message); }
       ev.target.disabled = false;
     };
     card.querySelector(".e-del").onclick = async () => {
       if (!confirm("Hapus emote ini?")) return;
-      try { await db.collection("vipConfig").doc(c._did).delete(); toast("Dihapus \u2705"); }
+      try {
+        const path = String(c._did || "").startsWith("emote_") ? "vipCfg/" + c._did : "vipCfg/emote_" + c.id;
+        await rtDel(path); toast("Dihapus \u2705"); }
       catch (e) { toast("Gagal: " + e.message); }
     };
     box.appendChild(card);
@@ -934,7 +938,7 @@ $("emAdd").onclick = async () => {
     const e2 = vipExt(finalUrl);
     if (e2 && !EMOTE_ACCEPT.includes("." + e2)) return toast("Format URL harus gif, png, atau jpg");
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    await db.collection("vipConfig").doc("emote_" + id).set({
+    await rtSet("vipCfg/emote_" + id, {
       slot: "emote", meta: false, store: false, id: id, name: name,
       kind: "image", url: finalUrl, order: order, hasData: false, chunks: 0, updatedAt: Date.now(),
     });

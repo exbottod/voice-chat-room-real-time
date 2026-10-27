@@ -35,6 +35,19 @@ data class CatalogItem(
 object StoreCatalog {
     private val items = mutableStateMapOf<String, CatalogItem>()
     private var reg: ListenerRegistration? = null
+    // UTAMA: katalog store kini dari Realtime Database (vipCfg), Firestore jadi cadangan.
+    private var rtdbReg: Reg? = null
+    private val fsMap = HashMap<String, CatalogItem>()
+    private val rtdbMap = HashMap<String, CatalogItem>()
+
+    private fun apply() {
+        val merged = HashMap<String, CatalogItem>()
+        merged.putAll(fsMap)
+        merged.putAll(rtdbMap) // RTDB selalu menang
+        items.clear()
+        items.putAll(merged)
+        saveDisk(merged.values)
+    }
 
     // Katalog disimpan juga di perangkat. Saat app dibuka / Firestore lambat
     // (kuota habis), frame & lencana kustom tetap langsung tampil tanpa nunggu.
@@ -83,6 +96,34 @@ object StoreCatalog {
         loadDisk()
         if (reg != null && !force) return
         reg?.remove()
+        rtdbReg?.remove()
+        // REALTIME DATABASE (utama): node vipCfg/{store_id}.
+        rtdbReg = Rtdb.listen(Rtdb.ref("vipCfg")) { snap ->
+            rtdbMap.clear()
+            for (c in snap.children) {
+                val id = c.child("id").getValue(String::class.java) ?: continue
+                if (c.child("store").getValue(Boolean::class.java) != true) continue
+                val slot = c.child("slot").getValue(String::class.java) ?: continue
+                val asset = VipAsset(
+                    0, "st_$id",
+                    c.child("kind").getValue(String::class.java) ?: "image",
+                    c.child("url").getValue(String::class.java) ?: "",
+                    c.child("hasData").getValue(Boolean::class.java) ?: false,
+                    c.child("updatedAt").getValue(Long::class.java) ?: 0L,
+                    (c.child("chunks").getValue(Long::class.java) ?: 0L).toInt(),
+                )
+                rtdbMap[id] = CatalogItem(
+                    id, slot,
+                    c.child("name").getValue(String::class.java) ?: id,
+                    c.child("price").getValue(Long::class.java) ?: 0L,
+                    (c.child("days").getValue(Long::class.java) ?: 7L).coerceAtLeast(1L),
+                    c.child("order").getValue(Long::class.java) ?: 0L,
+                    asset,
+                )
+            }
+            apply()
+        }
+        // FIRESTORE (cadangan): item lama yang belum dipindah tetap tampil.
         reg = FirebaseFirestore.getInstance().collection("vipConfig")
             .whereEqualTo("store", true)
             .addSnapshotListener { snap, e ->
@@ -112,9 +153,9 @@ object StoreCatalog {
                         asset,
                     )
                 }
-                items.clear()
-                items.putAll(fresh)
-                saveDisk(fresh.values)
+                fsMap.clear()
+                fsMap.putAll(fresh)
+                apply()
             }
     }
 

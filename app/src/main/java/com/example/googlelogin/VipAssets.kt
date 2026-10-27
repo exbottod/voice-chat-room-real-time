@@ -65,6 +65,11 @@ object VipAssets {
     private val cfg = mutableStateMapOf<String, VipAsset>()
     private val blobs = HashMap<String, ByteArray>()
     private var reg: ListenerRegistration? = null
+    // UTAMA: aset VIP kini dari Realtime Database (vipCfg) supaya upload panel
+    // developer tetap tersimpan walau kuota Firestore habis. Firestore jadi cadangan.
+    private var rtdbReg: Reg? = null
+    private val fsMap = HashMap<String, VipAsset>()
+    private val rtdbMap = HashMap<String, VipAsset>()
 
     /** Pesan error terakhir saat memuat aset (mis. rules Firestore menolak). null = lancar. */
     var lastError by mutableStateOf<String?>(null)
@@ -72,10 +77,39 @@ object VipAssets {
 
     fun get(n: Int, slot: String): VipAsset? = cfg["${n}_$slot"]
 
+    private fun apply() {
+        val merged = HashMap<String, VipAsset>()
+        merged.putAll(fsMap)
+        merged.putAll(rtdbMap) // RTDB selalu menang
+        cfg.clear()
+        cfg.putAll(merged)
+    }
+
     /** Dengarkan aset VIP secara langsung: upload dari panel developer langsung tampil tanpa buka ulang app. */
     fun start(force: Boolean = false) {
         if (reg != null && !force) return
         reg?.remove()
+        rtdbReg?.remove()
+        // REALTIME DATABASE (utama): node vipCfg/{vipN_slot}.
+        rtdbReg = Rtdb.listen(Rtdb.ref("vipCfg")) { snap ->
+            rtdbMap.clear()
+            for (c in snap.children) {
+                val n = (c.child("n").getValue(Long::class.java) ?: 0L).toInt()
+                val slot = c.child("slot").getValue(String::class.java) ?: continue
+                if (n !in 1..9) continue
+                rtdbMap["${n}_$slot"] = VipAsset(
+                    n, slot,
+                    c.child("kind").getValue(String::class.java) ?: "image",
+                    c.child("url").getValue(String::class.java) ?: "",
+                    c.child("hasData").getValue(Boolean::class.java) ?: false,
+                    c.child("updatedAt").getValue(Long::class.java) ?: 0L,
+                    (c.child("chunks").getValue(Long::class.java) ?: 0L).toInt(),
+                )
+            }
+            apply()
+            lastError = null
+        }
+        // FIRESTORE (cadangan): item lama yang belum dipindah ke RTDB tetap tampil.
         reg = FirebaseFirestore.getInstance().collection("vipConfig")
             .whereEqualTo("meta", true)
             .addSnapshotListener { snap, e ->
@@ -99,8 +133,9 @@ object VipAssets {
                         (d.getLong("chunks") ?: 0L).toInt(),
                     )
                 }
-                cfg.clear()
-                cfg.putAll(fresh)
+                fsMap.clear()
+                fsMap.putAll(fresh)
+                apply()
                 lastError = null
             }
     }
