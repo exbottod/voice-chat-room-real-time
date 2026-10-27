@@ -59,14 +59,16 @@ fun medalIdList(csv: String?): List<String> =
 /** Medal yang sedang dipasang dan masih berlaku (dari wallet sendiri). */
 fun activeMedalIds(w: Wallet): List<String> {
     val now = System.currentTimeMillis()
-    return medalIdList(w.equip["medals"]).filter { (w.inv[it] ?: 0L) > now }.take(MAX_MEDALS)
+    return medalIdList(w.equip["medals"]).filter {
+        (w.inv[it] ?: 0L) > now && (it.startsWith("vipt_") || findItem(it)?.slot == "medal")
+    }.take(MAX_MEDALS)
 }
 
 /** Semua medal yang dimiliki: medal VIP (vipt_), medal/lencana dari store. */
 private fun ownedMedalIds(w: Wallet): List<String> {
     val now = System.currentTimeMillis()
     return w.inv.filter { (id, exp) ->
-        exp > now && (id.startsWith("vipt_") || findItem(id)?.slot.let { it == "medal" || it == "badge" })
+        exp > now && (id.startsWith("vipt_") || findItem(id)?.slot == "medal")
     }.keys.sortedWith(compareBy<String>({ !it.startsWith("vipt_") }, { it }))
 }
 
@@ -217,7 +219,7 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         Modifier.size(30.dp), contentScale = ContentScale.Fit,
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("Medali kehormatan", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text("MY MEDALS", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Column(
@@ -278,7 +280,7 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     if (mine.isEmpty()) {
                         Text(
-                            "Belum punya medal. Beli di Store atau aktifkan VIP untuk mendapat medal VIP.",
+                            "Belum punya medali. Beli medali di Store atau aktifkan VIP. Lencana dipasang di Store \u2192 Saya.",
                             color = Color(0xFFE9D3B0), fontSize = 13.sp,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                         )

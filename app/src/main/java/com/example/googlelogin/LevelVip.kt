@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.window.Dialog
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -772,6 +773,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
     var cat by remember { mutableStateOf("frame") }
     var sel by remember { mutableStateOf<StoreItem?>(null) }
     var buying by remember { mutableStateOf<StoreItem?>(null) }
+    var previewItem by remember { mutableStateOf<StoreItem?>(null) }
     val now = System.currentTimeMillis()
     LaunchedEffect(Unit) { StoreCatalog.start() }
     val shopItems = StoreCatalog.bySlot(cat).map { it.toStoreItem() } + STORE_ITEMS.filter { it.slot == cat }
@@ -786,13 +788,13 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                     "\u2039", color = Color.White, fontSize = 34.sp,
                     modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 8.dp),
                 )
-                Text("Store", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
+                Text(if (tab == 0) "Store" else "Ransel saya", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
                 Text(
                     if (tab == 0) "\uD83C\uDF92 Saya" else "\uD83D\uDECD\uFE0F Store",
                     color = Color(0xFFFFE08A), fontSize = 15.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.CenterEnd).clip(RoundedCornerShape(50))
                         .background(Color(0x55000000)).border(1.dp, Color(0xFFE8B923), RoundedCornerShape(50))
-                        .clickable { tab = if (tab == 0) 1 else 0 }.padding(horizontal = 14.dp, vertical = 7.dp),
+                        .clickable { tab = if (tab == 0) 1 else 0; if (tab == 1 && cat == "medal") cat = "frame"; sel = null }.padding(horizontal = 14.dp, vertical = 7.dp),
                 )
             }
             if (tab == 0) {
@@ -889,39 +891,140 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                     )
                 }
             } else {
-                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp).navigationBarsPadding()) {
-                    val mine = wallet.inv.filter { it.value > now }.mapNotNull { (id, exp) -> findItem(id)?.let { it to exp } }
-                        .sortedWith(compareBy<Pair<StoreItem, Long>>({ it.first.slot }, { it.first.id }))
-                    if (mine.isEmpty()) {
-                        Spacer(Modifier.height(60.dp))
-                        Text("Belum ada item.\nBeli di Store atau beli VIP untuk mendapatkan item.", color = Color.White, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-                    }
-                    mine.forEach { (item, exp) ->
-                        val used = if (item.slot == "badge") item.id in activeMedalIds(wallet) else wallet.equip[item.slot] == item.id
-                        Row(
-                            Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp)).background(Color(0x55000000)).padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            ItemPreview(item)
-                            Spacer(Modifier.width(8.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(item.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                Text("${slotLabel(item.slot)} \u00B7 sisa ${daysLeft(exp)} hari", color = Color(0xFFD0F5EF), fontSize = 12.sp)
-                                if (item.vip > 0) Text("Dari VIP${item.vip}", color = vipColor(item.vip), fontSize = 12.sp)
-                            }
-                            if (item.slot == "medal") Text("Atur di Lencana glory", color = Color(0xFFD0F5EF), fontSize = 12.sp)
-                            else if (item.slot == "title") Text("Otomatis", color = Color(0xFFD0F5EF), fontSize = 13.sp)
-                            else GoldPill(if (used) "Lepas" else "Pakai") {
-                                AppScope.scope.launch {
-                                    val err = LvRepo.equip(uid, item.slot, if (used) "" else item.id)
-                                    if (err == null) PublicSync.push(uid)
-                                    Toast.makeText(context, err ?: if (used) "Dilepas" else "Dipakai", Toast.LENGTH_SHORT).show()
-                                }
+                // ===== RANSEL SAYA: kategori di kiri, grid item di kanan, play = preview penuh =====
+                val mineAll = wallet.inv.filter { it.value > now }
+                    .mapNotNull { (id, exp) -> findItem(id)?.let { it to exp } }
+                    .filter { it.first.slot != "medal" && it.first.slot != "title" }
+                val bagCats = STORE_CATS.filter { it.first != "medal" }
+                val mineCat = mineAll.filter { it.first.slot == cat }
+                    .sortedWith(compareBy<Pair<StoreItem, Long>>({ it.first.id }))
+                Row(Modifier.weight(1f)) {
+                    Column(
+                        Modifier.width(96.dp).fillMaxHeight().background(Color(0x3300574F)).verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        bagCats.forEach { (k, label, emoji) ->
+                            val on = (if (cat == "medal") "frame" else cat) == k
+                            Column(
+                                Modifier.fillMaxWidth().background(if (on) Color(0xFFFFC107) else Color.Transparent)
+                                    .clickable { cat = k; sel = null }.padding(vertical = 12.dp, horizontal = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Box(
+                                    Modifier.size(58.dp).clip(CircleShape).background(Color(0xFF0B5D63)).border(2.dp, Color(0xFFE8B923), CircleShape),
+                                    contentAlignment = Alignment.Center,
+                                ) { Text(emoji, fontSize = 26.sp) }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    label, color = if (on) Color(0xFF4A3300) else Color.White, fontSize = 13.sp,
+                                    textAlign = TextAlign.Center, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                                )
                             }
                         }
                     }
-                    Spacer(Modifier.height(24.dp))
+                    Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp).navigationBarsPadding()) {
+                        Text("Ransel saya", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(8.dp))
+                        val shownCat = if (cat == "medal") "frame" else cat
+                        val list = mineAll.filter { it.first.slot == shownCat }.sortedBy { it.first.id }
+                        if (list.isEmpty()) {
+                            Text(
+                                "Belum ada item di kategori ini.\nBeli di Store atau beli VIP untuk mendapatkan item.",
+                                color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                            )
+                        }
+                        list.chunked(2).forEach { row ->
+                            Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                row.forEach { (item, exp) ->
+                                    val used = wallet.equip[item.slot] == item.id
+                                    Column(
+                                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(Color(0xFF0C7F7B))
+                                            .border(if (used) 3.dp else 2.dp, if (used) Color(0xFFFFC107) else Color(0xFF39D3C3), RoundedCornerShape(16.dp)),
+                                    ) {
+                                        Box(Modifier.fillMaxWidth().height(150.dp)) {
+                                            Text(
+                                                "${daysLeft(exp)} hari tersisa", color = Color.White, fontSize = 13.sp,
+                                                modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
+                                            )
+                                            // Tombol play: preview penuh (frame, efek masuk, banner, dll).
+                                            Box(
+                                                Modifier.align(Alignment.TopEnd).padding(8.dp).size(26.dp).clip(CircleShape)
+                                                    .background(Color(0x66000000)).clickable { previewItem = item },
+                                                contentAlignment = Alignment.Center,
+                                            ) { Text("\u25B6", color = Color.White, fontSize = 12.sp) }
+                                            Box(
+                                                Modifier.align(Alignment.Center).clickable { previewItem = item },
+                                                contentAlignment = Alignment.Center,
+                                            ) { ItemPreview(item, 110.dp) }
+                                        }
+                                        Box(
+                                            Modifier.fillMaxWidth().background(if (used) Color(0xFFFFC107) else Color(0xFF1FC8B5)).padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            GoldPill(if (used) "Lepas" else "Memakai") {
+                                                AppScope.scope.launch {
+                                                    val err = LvRepo.equip(uid, item.slot, if (used) "" else item.id)
+                                                    if (err == null) PublicSync.push(uid)
+                                                    Toast.makeText(context, err ?: if (used) "Dilepas" else "Dipakai", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                if (row.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                        Spacer(Modifier.height(24.dp))
+                    }
                 }
+            }
+        }
+    }
+
+    // ===== Dialog preview penuh (tombol play) =====
+    previewItem?.let { item ->
+        Dialog(onDismissRequest = { previewItem = null }) {
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+                    .background(Brush.verticalGradient(listOf(Color(0xFF22C1AE), Color(0xFF0E5F5A))))
+                    .border(2.dp, Color(0xFFE8B923), RoundedCornerShape(20.dp)).padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(item.name, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(slotLabel(item.slot), color = Color(0xFFD0F5EF), fontSize = 12.sp)
+                Spacer(Modifier.height(12.dp))
+                Box(
+                    Modifier.fillMaxWidth().height(if (item.slot == "banner" || item.slot == "entry") 190.dp else 260.dp)
+                        .clip(RoundedCornerShape(14.dp)).background(Color(0x55000000)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val a = item.asset
+                    if (a != null && (item.slot == "entry" || item.slot == "banner")) {
+                        // Efek masuk / banner: putar penuh sekali tampil.
+                        key(a.updatedAt) { VipMedia(a, Modifier.fillMaxSize(), loop = true) }
+                    } else {
+                        ItemPreview(item, 220.dp)
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                val used = wallet.equip[item.slot] == item.id
+                val exp = wallet.inv[item.id] ?: 0L
+                if (exp > now) {
+                    GoldPill(if (used) "Lepas" else "Memakai") {
+                        AppScope.scope.launch {
+                            val err = LvRepo.equip(uid, item.slot, if (used) "" else item.id)
+                            if (err == null) PublicSync.push(uid)
+                            Toast.makeText(context, err ?: if (used) "Dilepas" else "Dipakai", Toast.LENGTH_SHORT).show()
+                        }
+                        previewItem = null
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+                Text(
+                    "Tutup", color = Color.White, fontSize = 14.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).clickable { previewItem = null }.padding(horizontal = 24.dp, vertical = 8.dp),
+                )
             }
         }
     }

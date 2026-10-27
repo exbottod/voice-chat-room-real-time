@@ -345,7 +345,7 @@ fun ProfileTab(
                     .padding(vertical = 4.dp),
             ) {
                 MenuItem("🎁", tr("Undang teman dan dapatkan koin"), icon = R.drawable.ic_invite_coins) { onInviteClick() }
-                MenuItem("⭐", tr("Lencana glory")) { onGloryClick() }
+                MenuItem("⭐", tr("MY MEDALS")) { onGloryClick() }
                 MenuItem("🎨", tr("Pusat kustom")) { soon(tr("Pusat kustom")) }
                 MenuItem("🏪", tr("Store & My Item"), icon = R.drawable.ic_store_myitem) { onStoreClick() }
                 MenuItem("🧰", tr("Alat peraga")) { soon(tr("Alat peraga")) }
