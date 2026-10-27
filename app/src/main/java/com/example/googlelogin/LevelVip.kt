@@ -172,11 +172,15 @@ object LvRepo {
     private fun ref(uid: String) = db().collection("wallets").document(uid)
 
     private suspend fun txRun(fallback: String, block: (com.google.firebase.firestore.Transaction) -> Unit): String? = try {
-        db().runTransaction { tx -> block(tx); true }.await()
+        // Batasi percobaan Firestore 8 detik: saat kuota habis SDK suka mengulang
+        // sampai ~30 detik; dengan batas ini transaksi cepat pindah ke server KV.
+        kotlinx.coroutines.withTimeoutOrNull(8000L) {
+            db().runTransaction { tx -> block(tx); true }.await()
+        } ?: throw java.util.concurrent.TimeoutException("quota exceeded: Firestore timeout")
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-        // Kuota Firestore habis: teruskan agar pemanggil beralih ke server cadangan.
-        if (QuotaGuard.isExhausted(e)) throw e
+        // Kuota Firestore habis: tandai + teruskan agar pemanggil pakai server cadangan.
+        if (QuotaGuard.isExhausted(e)) { QuotaGuard.markDown(); throw e }
         e.message ?: fallback
     }
 
@@ -1179,11 +1183,12 @@ object PublicSync {
             if (snap == null) { pushFromCache(uid); return }
             val w = parseWallet(snap)
             val me = UserCache.meLocal(uid)
-            // FIX: privilege SVIP harus ikut tersinkron ke profil publik.
-            val svipCsv = (snap.get("svip") as? Map<*, *>)
-                ?.entries?.filter { it.key is String && it.value == true }
-                ?.joinToString(",") { it.key as String } ?: ""
-            val ad = snap.getString("svipAd") ?: ""
+            // SVIP dari RTDB: segarkan cache lokal dari Realtime Database dulu
+            // (sumber utama panel SVIP) supaya sinkronisasi tidak menimpa
+            // toggle/iklan terbaru dengan nilai lama dari Firestore.
+            SvipRepo.refreshLocal(uid)
+            val svipCsv = SvipLocal.csv(uid)
+            val ad = SvipLocal.ad(uid)
             // FIX family: isi ulang label family dari data family asli setiap sinkronisasi,
             // supaya owner/anggota lama juga tampil lencana & "family saya"-nya.
             var famName = ""

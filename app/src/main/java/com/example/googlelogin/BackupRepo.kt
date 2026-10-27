@@ -112,8 +112,8 @@ object BackupRepo {
         return try {
             conn = (URL("$BASE/w").openConnection() as HttpURLConnection).apply {
                 requestMethod = method
-                connectTimeout = 10_000
-                readTimeout = 20_000
+                connectTimeout = 5_000
+                readTimeout = 10_000
                 doOutput = body != null
                 setRequestProperty("Authorization", "Bearer $token")
                 if (body != null) setRequestProperty("Content-Type", "application/json; charset=utf-8")
