@@ -135,14 +135,37 @@ Deno.serve(async (req) => {
 
   const p = { ...(body.p ?? {}) };
   if ("uid" in p) delete p.uid; // uid selalu dari token, tidak bisa dipalsukan
-  const params =
-    action === "migrate"
-      ? {
-          p_uid: uid, p_coins: p.coins, p_diamonds: p.diamonds, p_exp: p.exp,
-          p_vip: p.vip, p_vip_until: p.vipUntil, p_lv_claimed: p.lvClaimed,
-          p_inv: p.inv ?? {}, p_equip: p.equip ?? {},
-        }
-      : { p_uid: uid, ...p };
+  // Nama parameter HARUS persis dengan definisi fungsi SQL (p_*).
+  let params: Record<string, unknown>;
+  switch (action) {
+    case "migrate":
+      params = {
+        p_uid: uid, p_coins: p.coins, p_diamonds: p.diamonds, p_exp: p.exp,
+        p_vip: p.vip, p_vip_until: p.vipUntil, p_lv_claimed: p.lvClaimed,
+        p_inv: p.inv ?? {}, p_equip: p.equip ?? {},
+      };
+      break;
+    case "topup":
+      params = { p_uid: uid, p_coins: p.coins };
+      break;
+    case "send_gift":
+      params = { p_uid: uid, p_price: p.price, p_item_id: p.item_id ?? null, p_room_id: p.room_id ?? null };
+      break;
+    case "exchange":
+      params = { p_uid: uid, p_diamonds: p.diamonds };
+      break;
+    case "buy_vip":
+      params = { p_uid: uid, p_tier: p.tier };
+      break;
+    case "buy_item":
+      params = { p_uid: uid, p_item_id: p.item_id, p_price: p.price, p_days: p.days };
+      break;
+    case "equip":
+      params = { p_uid: uid, p_slot: p.slot, p_id: p.id };
+      break;
+    default:
+      params = { p_uid: uid };
+  }
 
   try {
     const r = await rpc(fn, params);
