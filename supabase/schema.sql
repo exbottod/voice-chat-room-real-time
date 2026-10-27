@@ -157,7 +157,7 @@ begin
   select * into w from public.wallets where uid = p_uid for update;
   if not found then raise exception 'WALLET_NOT_FOUND'; end if;
   active := w.vip between 1 and 9 and w.vip_until > nowms;
-  if active and w.vip > p_tier then raise exception('VIP% kamu masih aktif', w.vip); end if;
+  if active and w.vip > p_tier then raise exception 'VIP% kamu masih aktif', w.vip; end if;
   if w.coins < price then raise exception 'Coin tidak cukup. Tekan Topup'; end if;
   until := (case when active and w.vip = p_tier then w.vip_until else nowms end) + 30 * 86400000;
   inv := w.inv || jsonb_build_object(
