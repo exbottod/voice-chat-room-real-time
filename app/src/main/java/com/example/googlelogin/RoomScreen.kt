@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -242,7 +243,17 @@ fun RoomScreen(
         LaunchedEffect(r.ownerUid) {
             if (ownerUserId == null) {
                 ownerUserId = (if (r.ownerUid == myUid) UserDirectory.cachedId(context, myUid) else UserCache.byUid(r.ownerUid)?.userId)
-                ?: r.roomNo
+                // FIX code room dihapus: ID user TIDAK boleh diganti kode room.
+                // Kalau cache ID kosong, ambil ID asli dari profil publik RTDB.
+                if (ownerUserId == null) {
+                    try {
+                        val s = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("pub/" + r.ownerUid + "/id").get().await() }
+                        val pid = s?.value as? String
+                        if (!pid.isNullOrBlank()) ownerUserId = pid
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) { }
+                }
             }
         }
         val mySeat = seats.values.firstOrNull { it.uid == myUid }
@@ -283,7 +294,7 @@ fun RoomScreen(
                             maxLines = 1, overflow = TextOverflow.Visible, softWrap = false,
                         )
                         Text(
-                            "ID:" + (ownerUserId ?: "...") + " | Kode room: " + r.roomNo.ifBlank { "..." },
+                            "ID:" + (ownerUserId ?: "..."),
                             color = Color(0xFFBDBDBD), fontSize = 11.sp,
                             maxLines = 1, overflow = TextOverflow.Visible, softWrap = false,
                         )
@@ -334,12 +345,12 @@ fun RoomScreen(
                         .clip(CircleShape)
                         .background(Color(0x66000000))
                         .clickable {
-                            // Bagikan room lewat KODE KUNCI (contoh: 100001):
-                            // penerima mengetik kode di tab Party, "Masuk dengan kode room".
+                            // Bagikan room lewat LINK room (rezo://room/<id>): penerima
+                            // tinggal buka linknya, app otomatis masuk room ini.
+                            // Fitur kode room sudah dihapus.
                             val shareText =
                                 "Ayo ngobrol bareng di room " + r.name + " di REZO CHAT VOICE! \uD83D\uDD25\n" +
-                                "Kode room: " + r.roomNo + "\n\n" +
-                                "Buka app REZO CHAT VOICE, tab Party, ketik kode room di kolom \"Masuk dengan kode room\", lalu tekan Masuk."
+                                "Masuk room ini lewat link: rezo://room/" + r.id
                             val send = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, shareText)

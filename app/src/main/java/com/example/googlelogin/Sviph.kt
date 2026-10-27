@@ -36,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -164,10 +165,13 @@ object SvipRepo {
      */
     suspend fun set(uid: String, key: String, on: Boolean): String? {
         SvipLocal.save(uid, key, on)
-        // RTDB LANGSUNG: toggle privilege langsung ke Realtime Database pub/{uid}
-        // (kuota terpisah dari Firestore) supaya panel aktif tanpa jeda.
-        rtdbPub(uid)
-        SvipLocal.clearDirty(uid)
+        // RTDB LANGSUNG & TANPA MENUNGGU: nilai svip ditulis ke Realtime Database
+        // pub/{uid}/svip. RTDB menerapkan nilai ke cache lokal seketika dan
+        // menyinkronkan ke server di latar belakang, jadi panel tidak delay.
+        try {
+            Rtdb.ref("pub/$uid/svip").setValue(SvipLocal.csv(uid))
+            SvipLocal.clearDirty(uid)
+        } catch (e: Exception) { }
         return null
     }
 
@@ -302,6 +306,33 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
     var myAd by remember(uid) { mutableStateOf(SvipLocal.ad(uid)) }
     var loaded by remember(uid) { mutableStateOf(false) }
     var editAd by remember { mutableStateOf(false) }
+
+    // RTDB REALTIME: panel mendengarkan pub/{uid} langsung, jadi level & toggle
+    // selalu terbaru tanpa delay (data lokal RTDB tampil seketika, lalu server menyusul).
+    DisposableEffect(uid) {
+        val r = Rtdb.ref("pub/$uid")
+        val l = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(s: com.google.firebase.database.DataSnapshot) {
+                if (!s.exists()) return
+                val v = (s.child("vip").value as? Number)?.toInt() ?: 0
+                val until = (s.child("vipUntil").value as? Number)?.toLong() ?: 0L
+                if (v > 0) { vip = v; vipUntil = until; SvipLocal.saveVip(uid, v, until) }
+                if (s.hasChild("svip")) {
+                    val csv = s.child("svip").value as? String ?: ""
+                    SvipLocal.saveAll(uid, csv)
+                    toggles = svipKeys(csv).associateWith { true }
+                }
+                if (s.hasChild("ad")) {
+                    myAd = s.child("ad").value as? String ?: ""
+                    SvipLocal.saveAd(uid, myAd)
+                }
+                loaded = true
+            }
+            override fun onCancelled(e: com.google.firebase.database.DatabaseError) { }
+        }
+        r.addValueEventListener(l)
+        onDispose { r.removeEventListener(l) }
+    }
 
     LaunchedEffect(uid) {
         var ok = false

@@ -80,8 +80,6 @@ fun PartyTab(
     var showFamilyRank by remember { mutableStateOf(false) }
     var famProfile by remember { mutableStateOf<String?>(null) }
     var refreshKey by remember { mutableStateOf(0) }
-    var codeInput by remember { mutableStateOf("") }
-    var codeBusy by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     val refreshScope = rememberCoroutineScope()
     val allRooms = rememberRooms(refreshKey)
@@ -132,39 +130,8 @@ fun PartyTab(
                 },
             )
         }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            // Masuk dengan kode kunci room (contoh: 100001).
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(
-                    value = codeInput,
-                    onValueChange = { codeInput = it.filter { c -> c.isDigit() }.take(12) },
-                    singleLine = true,
-                    placeholder = { Text("Masuk dengan kode room") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                )
-                Button(
-                    enabled = !codeBusy && codeInput.isNotBlank(),
-                    onClick = {
-                        codeBusy = true
-                        refreshScope.launch {
-                            val room = RoomRepo.findByNo(codeInput)
-                            codeBusy = false
-                            if (room == null) {
-                                Toast.makeText(context, "Kode room tidak ditemukan", Toast.LENGTH_SHORT).show()
-                            } else {
-                                codeInput = ""
-                                if (room.locked && room.ownerUid != myUid) lockedRoom = room else onEnterRoom(room)
-                            }
-                        }
-                    },
-                ) { Text("Masuk") }
-            }
-        }
+        // FITUR CODE ROOM DIHAPUS: masuk room cukup lewat daftar room / link room
+        // (rezo://room/<id>) yang dibagikan pemilik room.
         if (subTab == 2) {
             item(span = { GridItemSpan(maxLineSpan) }) { EmptyBlock(tr("Belum ada aktivitas")) }
         } else {
