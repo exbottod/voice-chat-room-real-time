@@ -246,14 +246,15 @@ fun ProfileTab(
                             Spacer(Modifier.width(10.dp))
                             LevelBadge(level)
                         }
-                        Spacer(Modifier.height(6.dp))
-                        BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"))
-                        FamTagByUid(FirebaseAuth.getInstance().currentUser?.uid)
+                        Spacer(Modifier.height(8.dp))
+                        // Medal di atas (rapi, rata kiri), lencana tepat di bawahnya.
                         val myMedals = activeMedalIds(wallet)
                         if (myMedals.isNotEmpty()) {
-                            Spacer(Modifier.height(6.dp))
-                            UserMedals(myMedals.joinToString(","), 32.dp)
+                            UserMedals(myMedals.joinToString(","), 44.dp, Modifier.fillMaxWidth())
+                            Spacer(Modifier.height(4.dp))
                         }
+                        BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"))
+                        FamTagByUid(FirebaseAuth.getInstance().currentUser?.uid)
                     }
                 }
                 if (profile.bio.isNotBlank()) {
