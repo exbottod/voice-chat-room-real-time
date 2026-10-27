@@ -53,7 +53,7 @@ fun rememberRooms(refreshKey: Int = 0): List<RoomInfo> {
     var rooms by remember { mutableStateOf(emptyList<RoomInfo>()) }
     var online by remember { mutableStateOf(emptyMap<String, Int>()) }
     DisposableEffect(refreshKey) {
-        val reg = RoomRepo.observeRooms { rooms = it }
+        val reg = RoomRepo.observeRoomsMerged { rooms = it.sortedByDescending { r -> r.pinnedAt } }
         val reg2 = RoomRepo.observeAllOnline { online = it }
         onDispose { reg.remove(); reg2.remove() }
     }
