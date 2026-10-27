@@ -43,6 +43,12 @@
         }
       }
     },
+    "roomsPub": {
+      ".read": "auth != null",
+      "$roomId": {
+        ".write": "auth != null"
+      }
+    },
     "rank": {
       ".read": "auth != null",
       "$col": {
