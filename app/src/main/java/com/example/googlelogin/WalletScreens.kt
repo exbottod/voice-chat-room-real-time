@@ -127,225 +127,75 @@ object WalletCache {
 }
 
 object WalletRepo {
+    private val backupCbs = java.util.concurrent.CopyOnWriteArrayList<(String, Wallet) -> Unit>()
     private fun db() = FirebaseFirestore.getInstance()
     private fun ref(uid: String) = db().collection("wallets").document(uid)
 
-    /**
-     * Pantau dompet. Data terakhir yang berhasil dibaca disimpan di perangkat, jadi kalau
-     * kuota Firestore habis / offline, frame, VIP, dan item tetap tampil (tidak dikosongkan).
-     */
-    // ---------- Server cadangan (Cloudflare Worker + KV) ----------
-    private val backupCbs = java.util.concurrent.CopyOnWriteArrayList<(String, Wallet) -> Unit>()
-    @Volatile private var lastBkCheck = 0L
-
-    /** Dipanggil setelah transaksi berhasil di server cadangan: langsung perbarui tampilan. */
+    /** Pemanggil sudah tahu dompet terbaru (misal hasil transaksi): perbarui cache + tampilan. */
     fun emitBackup(uid: String, w: Wallet) {
         try { WalletCache.save(uid, w) } catch (e: Exception) { }
         backupCbs.forEach { try { it(uid, w) } catch (e: Exception) { } }
     }
 
-    /** Saat Firestore sehat lagi: pindahkan transaksi era "kuota habis"
-     *  dari server cadangan ke Firestore sekali per menit. */
-    private fun syncBackup(uid: String, s: com.google.firebase.firestore.DocumentSnapshot) {
-        val now = System.currentTimeMillis()
-        if (now - lastBkCheck < 60_000L) return
-        lastBkCheck = now
-        kotlinx.coroutines.GlobalScope.launch {
-            try {
-                val bk = BackupRepo.get() ?: return@launch
-                val fsBkAt = s.getLong("bkSyncedAt") ?: 0L
-                if (bk.ver <= 0L || bk.updatedAt <= fsBkAt) return@launch
-                // Gabung inv: masa aktif paling lama menang.
-                val invPatch = HashMap<String, Any?>()
-                for ((k, v) in bk.inv) invPatch[k] = v
-                (s.get("inv") as? Map<*, *>)?.forEach { (k, v) ->
-                    if (k is String && v is Number) {
-                        val old = (invPatch[k] as? Long) ?: 0L
-                        if (v.toLong() > old) invPatch[k] = v.toLong()
-                    }
-                }
-                ref(uid).set(
-                    hashMapOf<String, Any?>(
-                        "coins" to bk.coins, "diamonds" to bk.diamonds, "exp" to bk.exp,
-                        "vip" to bk.vip, "vipUntil" to bk.vipUntil, "lvClaimed" to bk.lvClaimed,
-                        "inv" to invPatch, "equip" to bk.equip, "bkSyncedAt" to bk.updatedAt,
-                    ),
-                    SetOptions.merge(),
-                ).await()
-            } catch (e: Exception) { }
-        }
-    }
+    fun emit(uid: String, w: Wallet) = emitBackup(uid, w)
 
+    /** Baca dompet dari Firestore SEKALI (untuk migrasi awal ke Supabase). */
+    private suspend fun readLegacy(uid: String): Wallet? = try {
+        kotlinx.coroutines.withTimeoutOrNull(6000L) { ref(uid).get().await() }?.let { if (it.exists()) parseWallet(it) else null }
+    } catch (e: Exception) { null }
+
+    /**
+     * Pantau dompet lewat Supabase. Cache lokal tampil lebih dulu supaya
+     * lencana/frame/VIP muncul instan saat app dibuka, lalu saldo terbaru
+     * menyusul (dan otomatis migrasi dari Firestore kalau belum ada).
+     * Firestore tidak lagi dibaca terus-menerus: kuota hemat total.
+     */
     fun observe(uid: String, onChange: (Wallet) -> Unit): ListenerRegistration {
         WalletCache.load(uid)?.let(onChange)
         val cb: (String, Wallet) -> Unit = { u, w -> if (u == uid) onChange(w) }
         backupCbs.add(cb)
-        val reg = ref(uid).addSnapshotListener { s, e ->
-            if (e != null) {
-                // Kuota Firestore habis: tampilkan wallet dari server cadangan.
-                if (QuotaGuard.isExhausted(e)) {
-                    QuotaGuard.markDown()
-                    kotlinx.coroutines.GlobalScope.launch {
-                        try {
-                            val bk = BackupRepo.base(uid) ?: return@launch
-                            if (bk.coins > 0 || bk.vip > 0 || bk.inv.isNotEmpty()) {
-                                emitBackup(uid, bk.toWallet())
-                            }
-                        } catch (e2: Exception) { }
-                    }
+        val job = kotlinx.coroutines.GlobalScope.launch {
+            while (true) {
+                var res = SupaRepo.get(uid)
+                if (res.needMigrate) {
+                    // Pertama kali di Supabase: pindahkan saldo lama dari Firestore.
+                    val legacy = readLegacy(uid) ?: Wallet()
+                    res = SupaRepo.migrate(uid, legacy)
                 }
-                return@addSnapshotListener // error/kuota habis: pertahankan data lama
+                res.wallet?.let {
+                    WalletCache.save(uid, it)
+                    emitBackup(uid, it)
+                }
+                kotlinx.coroutines.delay(15_000L)
             }
-            if (s == null) return@addSnapshotListener
-            QuotaGuard.markUp() // Firestore sehat: transaksi kembali normal
-            if (!s.exists() && s.metadata.isFromCache) return@addSnapshotListener // belum ada di cache lokal
-            val w = parseWallet(s)
-            if (s.exists()) {
-                WalletCache.save(uid, w)
-                syncBackup(uid, s)
-            }
-            onChange(w)
         }
         return object : ListenerRegistration {
             override fun remove() {
-                reg.remove()
+                job.cancel()
                 backupCbs.remove(cb)
             }
         }
     }
 
+    /** Isi coin (mode uji gratis; saat pembayaran nyata, ini jadi hasil pembayaran). */
     suspend fun topUp(uid: String, coins: Long): String? {
-        if (QuotaGuard.isDown()) return topUpBackup(uid, coins)
-        return try {
-            ref(uid).set(hashMapOf<String, Any?>("coins" to FieldValue.increment(coins)), SetOptions.merge()).await()
-            null
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            if (QuotaGuard.isExhausted(e)) topUpBackup(uid, coins)
-            else (e.message ?: "Gagal isi coin")
-        }
-    }
-
-    private suspend fun topUpBackup(uid: String, coins: Long): String? {
-        QuotaGuard.markDown()
-        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        val bk = BackupRepo.put(org.json.JSONObject().put("coins", w.coins + coins))
-            ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        emitBackup(uid, bk.toWallet())
-        return null
+        val r = SupaRepo.topUp(uid, coins)
+        r.wallet?.let { emitBackup(uid, it) }
+        return r.error
     }
 
     /** Kirim gift: coin berkurang, diamond pengirim bertambah sebanyak harga gift. */
-    suspend fun sendGift(uid: String, price: Long): String? {
-        if (QuotaGuard.isDown()) return sendGiftBackup(uid, price)
-        return try {
-        val r = ref(uid)
-        db().runTransaction { tx ->
-            val s = tx.get(r)
-            val coins = s.getLong("coins") ?: 0L
-            val dia = s.getLong("diamonds") ?: 0L
-            if (coins < price) throw IllegalStateException("Coin tidak cukup. Tekan Topup")
-            val exp = s.getLong("exp") ?: 0L
-            val vipLv = s.getLong("vip") ?: 0L
-            val vipUntil = s.getLong("vipUntil") ?: 0L
-            val boost = if (vipUntil > System.currentTimeMillis()) 100L + 5L * vipLv else 100L
-            tx.set(
-                r,
-                hashMapOf<String, Any?>(
-                    "coins" to coins - price,
-                    "diamonds" to dia + price,
-                    "exp" to exp + price * boost / 100L,
-                ),
-                SetOptions.merge(),
-            )
-            true
-        }.await()
-        null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        if (QuotaGuard.isExhausted(e)) {
-            // Kuota habis: gift tetap terkirim, coin dipotong di server cadangan.
-            QuotaGuard.markDown()
-            sendGiftBackup(uid, price)
-        } else
-        e.message ?: "Gagal mengirim gift"
-    }
+    suspend fun sendGift(uid: String, price: Long, itemId: String? = null, roomId: String? = null): String? {
+        val r = SupaRepo.sendGift(uid, price, itemId, roomId)
+        r.wallet?.let { emitBackup(uid, it) }
+        return r.error
     }
 
-    private suspend fun sendGiftBackup(uid: String, price: Long): String? {
-        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        if (w.coins < price) return "Coin tidak cukup (saldo cadangan: ${w.coins}). Tekan Topup"
-        val boost = if (w.vipUntil > System.currentTimeMillis()) 100L + 5L * w.vip else 100L
-        val patch = org.json.JSONObject()
-            .put("coins", w.coins - price)
-            .put("diamonds", w.diamonds + price)
-            .put("exp", w.exp + price * boost / 100L)
-        val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        emitBackup(uid, bk.toWallet())
-        return null
-    }
-
+    /** Tukar diamond ke coin. */
     suspend fun exchange(uid: String, diamonds: Long): String? {
-        if (QuotaGuard.isDown()) return exchangeBackup(uid, diamonds)
-        return try {
-        val r = ref(uid)
-        db().runTransaction { tx ->
-            val s = tx.get(r)
-            val coins = s.getLong("coins") ?: 0L
-            val dia = s.getLong("diamonds") ?: 0L
-            val gain = diamonds / DIAMOND_PER_COIN
-            if (diamonds > dia) throw IllegalStateException("Diamond tidak cukup")
-            if (gain < 1) throw IllegalStateException("Minimal $DIAMOND_PER_COIN diamond")
-            tx.set(
-                r,
-                hashMapOf<String, Any?>(
-                    "coins" to coins + gain,
-                    "diamonds" to dia - gain * DIAMOND_PER_COIN,
-                ),
-                SetOptions.merge(),
-            )
-            true
-        }.await()
-        null
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        if (QuotaGuard.isExhausted(e)) exchangeBackup(uid, diamonds)
-        else (e.message ?: "Gagal menukar")
-    }
-    }
-
-    private suspend fun exchangeBackup(uid: String, diamonds: Long): String? {
-        QuotaGuard.markDown()
-        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        val gain = diamonds / DIAMOND_PER_COIN
-        if (diamonds > w.diamonds) return "Diamond tidak cukup"
-        if (gain < 1) return "Minimal $DIAMOND_PER_COIN diamond"
-        val patch = org.json.JSONObject()
-            .put("coins", w.coins + gain)
-            .put("diamonds", w.diamonds - gain * DIAMOND_PER_COIN)
-        val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        emitBackup(uid, bk.toWallet())
-        return null
-    }
-    }
-
-@Composable
-private fun BalanceCard(emoji: String, label: String, value: String, modifier: Modifier) {
-    val shape = RoundedCornerShape(16.dp)
-    Column(
-        modifier
-            .clip(shape)
-            .background(CardBlack.copy(alpha = 0.9f))
-            .border(1.dp, Gold.copy(alpha = 0.4f), shape)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(emoji, fontSize = 30.sp)
-        Text(value, color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
-        Text(label, color = Color(0xFFBDBDBD), fontSize = 13.sp)
+        val r = SupaRepo.exchange(uid, diamonds)
+        r.wallet?.let { emitBackup(uid, it) }
+        return r.error
     }
 }
 
@@ -876,7 +726,7 @@ fun GiftPanel(
                                 }
                                 sending = true
                                 AppScope.scope.launch {
-                                    val err = WalletRepo.sendGift(myUid, total)
+                                    val err = WalletRepo.sendGift(myUid, total, g.id, roomId)
                                     if (err == null) {
                                         PublicSync.push(myUid)
                                         RoomExtras.sendGiftMessage(roomId, myName, g, count, toText)

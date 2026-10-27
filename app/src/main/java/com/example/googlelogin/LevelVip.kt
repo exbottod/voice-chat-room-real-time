@@ -168,232 +168,45 @@ fun parseWallet(s: DocumentSnapshot?): Wallet {
 }
 
 object LvRepo {
-    private fun db() = FirebaseFirestore.getInstance()
-    private fun ref(uid: String) = db().collection("wallets").document(uid)
+    /**
+     * Semua operasi store (beli VIP, beli item, pasang, klaim level) kini
+     * dieksekusi Supabase lewat Edge Function wallet-api: saldo dicek dan
+     * dipotong secara atomik di server, Firestore tidak lagi disentuh.
+     */
 
-    private suspend fun txRun(fallback: String, block: (com.google.firebase.firestore.Transaction) -> Unit): String? = try {
-        // Batasi percobaan Firestore 8 detik: saat kuota habis SDK suka mengulang
-        // sampai ~30 detik; dengan batas ini transaksi cepat pindah ke server KV.
-        kotlinx.coroutines.withTimeoutOrNull(8000L) {
-            db().runTransaction { tx -> block(tx); true }.await()
-        } ?: throw java.util.concurrent.TimeoutException("quota exceeded: Firestore timeout")
-        null
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-        // Kuota Firestore habis: tandai + teruskan agar pemanggil pakai server cadangan.
-        if (QuotaGuard.isExhausted(e)) { QuotaGuard.markDown(); throw e }
-        e.message ?: fallback
-    }
-
-    // ================= TANAMAN CADANGAN (Cloudflare Worker + KV) =================
-    // Dipakai otomatis saat kuota harian Firestore habis, supaya beli VIP,
-    // beli item, equip, klaim level dan lainnya tetap bisa jalan.
-
-    private suspend fun buyVipBackup(uid: String, tier: Int): String? {
-        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        val now = System.currentTimeMillis()
-        val active = vipActive(w.vip, w.vipUntil)
-        if (active && w.vip > tier) return "VIP${w.vip} kamu masih aktif"
-        val price = vipPrice(tier)
-        if (w.coins < price) return "Coin tidak cukup. Tekan Topup"
-        val until = (if (active && w.vip == tier) w.vipUntil else now) + VIP_DAYS * 86_400_000L
-        val patch = org.json.JSONObject()
-            .put("coins", w.coins - price)
-            .put("vip", tier)
-            .put("vipUntil", until)
-        val inv = org.json.JSONObject()
-        for (i in vipItems(tier)) inv.put(i.id, until)
-        patch.put("inv", inv)
-        val eq = org.json.JSONObject()
-        eq.put("frame", "vipf_$tier")
-        val curB = w.equip["bubble"]
-        if (curB.isNullOrBlank() || curB.startsWith("vipb_")) eq.put("bubble", "vipb_$tier")
-        val curE = w.equip["entry"]
-        if (curE == null || (curE.isNotBlank() && curE.startsWith("vipe_"))) eq.put("entry", "vipe_$tier")
-        val curBn = w.equip["banner"]
-        if (curBn == null || (curBn.isNotBlank() && curBn.startsWith("vipbn_"))) eq.put("banner", "vipbn_$tier")
-        patch.put("equip", eq)
-        val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        QuotaGuard.markDown()
-        WalletRepo.emitBackup(uid, bk.toWallet())
-        return null
-    }
-
-    private suspend fun buyItemBackup(uid: String, item: StoreItem): String? {
-        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        if (w.coins < item.price) return "Coin tidak cukup. Tekan Topup"
-        val now = System.currentTimeMillis()
-        val base = maxOf(now, w.inv[item.id] ?: 0L)
-        val patch = org.json.JSONObject().put("coins", w.coins - item.price)
-        patch.put("inv", org.json.JSONObject().put(item.id, base + item.days * 86_400_000L))
-        val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        QuotaGuard.markDown()
-        WalletRepo.emitBackup(uid, bk.toWallet())
-        return null
-    }
-
-    private suspend fun claimLevelBackup(uid: String): String? {
-        val w = BackupRepo.base(uid) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        val lvl = levelFromExp(w.exp)
-        if (lvl <= w.lvClaimed) return "Belum ada hadiah level untuk diklaim"
-        var gain = 0L
-        for (l in (w.lvClaimed + 1)..lvl) gain += l * LEVEL_REWARD_PER_LV
-        val patch = org.json.JSONObject().put("coins", w.coins + gain).put("lvClaimed", lvl)
-        val bk = BackupRepo.put(patch) ?: return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-        QuotaGuard.markDown()
-        WalletRepo.emitBackup(uid, bk.toWallet())
-        return null
-    }
-    // ================= AKHIR TANAMAN CADANGAN =================
-
-    /** Beli / perpanjang / upgrade VIP. Otomatis menambah item VIP ke My Item. */
+    /** Beli / perpanjang / upgrade VIP. Harga VIP diverifikasi di server. */
     suspend fun buyVip(uid: String, tier: Int): String? {
-        if (QuotaGuard.isDown()) return buyVipBackup(uid, tier)
-        return try {
-        fsBuyVip(uid, tier)
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        if (QuotaGuard.isExhausted(e)) buyVipBackup(uid, tier) else (e.message ?: "Gagal beli VIP")
-    }
+        val r = SupaRepo.buyVip(uid, tier)
+        r.wallet?.let { WalletRepo.emitBackup(uid, it) }
+        return r.error
     }
 
-    private suspend fun fsBuyVip(uid: String, tier: Int): String? = txRun("Gagal beli VIP") { tx ->
-        val r = ref(uid)
-        val w = parseWallet(tx.get(r))
-        val now = System.currentTimeMillis()
-        val active = vipActive(w.vip, w.vipUntil)
-        if (active && w.vip > tier) throw IllegalStateException("VIP${w.vip} kamu masih aktif")
-        val price = vipPrice(tier)
-        if (w.coins < price) throw IllegalStateException("Coin tidak cukup. Tekan Topup")
-        val until = (if (active && w.vip == tier) w.vipUntil else now) + VIP_DAYS * 86_400_000L
-        val items = vipItems(tier).associate { it.id to until }
-        tx.set(
-            r,
-            hashMapOf<String, Any?>(
-                "coins" to w.coins - price,
-                "vip" to tier.toLong(),
-                "vipUntil" to until,
-                "inv" to items,
-                // Item VIP langsung terpasang: bingkai selalu diganti ke VIP ini;
-                // gelembung & efek masuk hanya kalau belum memakai item store.
-                "equip" to buildMap<String, String> {
-                    put("frame", "vipf_$tier")
-                    val cur = w.equip
-                    if (cur["bubble"].isNullOrBlank() || cur["bubble"]!!.startsWith("vipb_")) put("bubble", "vipb_$tier")
-                    val curEntry = cur["entry"]
-                    if (curEntry == null || (curEntry.isNotBlank() && curEntry.startsWith("vipe_"))) put("entry", "vipe_$tier")
-                    val curBanner = cur["banner"]
-                    if (curBanner == null || (curBanner.isNotBlank() && curBanner.startsWith("vipbn_"))) put("banner", "vipbn_$tier")
-                },
-            ),
-            SetOptions.merge(),
-        )
-    }
-
+    /** Beli / perpanjang item store (lencana, frame, gelembung, dsb). */
     suspend fun buyItem(uid: String, item: StoreItem): String? {
-        if (QuotaGuard.isDown()) return buyItemBackup(uid, item)
-        return try {
-        fsBuyItem(uid, item)
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        if (QuotaGuard.isExhausted(e)) buyItemBackup(uid, item) else (e.message ?: "Gagal membeli item")
-    }
+        val r = SupaRepo.buyItem(uid, item)
+        r.wallet?.let { WalletRepo.emitBackup(uid, it) }
+        return r.error
     }
 
-    private suspend fun fsBuyItem(uid: String, item: StoreItem): String? = txRun("Gagal membeli item") { tx ->
-        val r = ref(uid)
-        val w = parseWallet(tx.get(r))
-        if (w.coins < item.price) throw IllegalStateException("Coin tidak cukup. Tekan Topup")
-        val now = System.currentTimeMillis()
-        val base = maxOf(now, w.inv[item.id] ?: 0L)
-        tx.set(
-            r,
-            hashMapOf<String, Any?>(
-                "coins" to w.coins - item.price,
-                "inv" to hashMapOf(item.id to base + item.days * 86_400_000L),
-            ),
-            SetOptions.merge(),
-        )
-    }
-
+    /** Pasang / lepas item ke slot (frame, bubble, badge, entry, banner, medals, ...). */
     suspend fun equip(uid: String, slot: String, id: String): String? {
-        return try {
-            ref(uid).set(hashMapOf<String, Any?>("equip" to hashMapOf(slot to id)), SetOptions.merge()).await()
-            null
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            if (QuotaGuard.isExhausted(e)) {
-                // Kuota habis: simpan status Pakai/Lepas di server cadangan.
-                val bk = BackupRepo.put(
-                    org.json.JSONObject().put("equip", org.json.JSONObject().put(slot, id)),
-                )
-                if (bk == null) return "Server cadangan tidak bisa dihubungi. Coba lagi nanti."
-                QuotaGuard.markDown()
-                WalletRepo.emitBackup(uid, bk.toWallet())
-                null
-            } else {
-                e.message ?: "Gagal"
-            }
-        }
+        val r = SupaRepo.equip(uid, slot, id)
+        r.wallet?.let { WalletRepo.emitBackup(uid, it) }
+        return r.error
     }
 
-    /** Lengkapi item VIP (gelar, bingkai, gelembung, efek masuk, banner) kalau ada yang belum masuk My Item. */
+    /** Klaim hadiah level (server menghitung level dari exp, reward tak bisa dimanipulasi). */
+    suspend fun claimLevel(uid: String): String? {
+        val r = SupaRepo.claimLevel(uid)
+        r.wallet?.let { WalletRepo.emitBackup(uid, it) }
+        return r.error
+    }
+
+    /** Lengkapi item VIP yang belum masuk My Item kalau ada yang hilang. */
     suspend fun backfillVip(uid: String, w: Wallet) {
         if (!vipActive(w.vip, w.vipUntil)) return
-        val missing = vipItems(w.vip).filter { (w.inv[it.id] ?: 0L) < w.vipUntil }
-        if (missing.isEmpty()) return
-        try {
-            ref(uid).set(
-                hashMapOf<String, Any?>("inv" to missing.associate { it.id to w.vipUntil }),
-                SetOptions.merge(),
-            ).await()
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Kuota habis: lengkapi item di server cadangan.
-            if (QuotaGuard.isExhausted(e)) {
-                try {
-                    val bk = BackupRepo.base(uid)
-                    if (bk != null && vipActive(bk.vip, bk.vipUntil)) {
-                        val bkMissing = vipItems(bk.vip).filter { (bk.inv[it.id] ?: 0L) < bk.vipUntil }
-                        if (bkMissing.isNotEmpty()) {
-                            val inv = org.json.JSONObject()
-                            for (i in bkMissing) inv.put(i.id, bk.vipUntil)
-                            BackupRepo.put(org.json.JSONObject().put("inv", inv))
-                        }
-                    }
-                } catch (e2: Exception) {
-                }
-            }
-        }
-    }
-
-    /** Klaim hadiah koin untuk semua level yang belum diambil. */
-    suspend fun claimLevel(uid: String): String? {
-        if (QuotaGuard.isDown()) return claimLevelBackup(uid)
-        return try {
-        fsClaimLevel(uid)
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        if (QuotaGuard.isExhausted(e)) claimLevelBackup(uid) else (e.message ?: "Gagal klaim")
-    }
-    }
-
-    private suspend fun fsClaimLevel(uid: String): String? = txRun("Gagal klaim") { tx ->
-        val r = ref(uid)
-        val w = parseWallet(tx.get(r))
-        val lvl = levelFromExp(w.exp)
-        if (lvl <= w.lvClaimed) throw IllegalStateException("Belum ada hadiah level untuk diklaim")
-        var gain = 0L
-        for (l in (w.lvClaimed + 1)..lvl) gain += l * LEVEL_REWARD_PER_LV
-        tx.set(
-            r,
-            hashMapOf<String, Any?>("coins" to w.coins + gain, "lvClaimed" to lvl.toLong()),
-            SetOptions.merge(),
-        )
+        val r = SupaRepo.backfillVip(uid)
+        r.wallet?.let { WalletRepo.emitBackup(uid, it) }
     }
 }
 
@@ -1184,11 +997,9 @@ object PublicSync {
         if (QuotaGuard.isDown()) { pushFromCache(uid); return }
         try {
             val db = FirebaseFirestore.getInstance()
-            val snap = kotlinx.coroutines.withTimeoutOrNull(4000L) {
-                db.collection("wallets").document(uid).get().await()
-            }
-            if (snap == null) { pushFromCache(uid); return }
-            val w = parseWallet(snap)
+            // Dompet kini di Supabase (cache dulu, lalu server); Firestore tidak dibaca lagi.
+            val w = WalletCache.load(uid) ?: SupaRepo.get(uid).wallet
+            if (w == null) { pushFromCache(uid); return }
             val me = UserCache.meLocal(uid)
             // SVIP dari RTDB: segarkan cache lokal dari Realtime Database dulu
             // (sumber utama panel SVIP) supaya sinkronisasi tidak menimpa
