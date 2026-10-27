@@ -386,6 +386,7 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                                     AppScope.scope.launch {
                                         val err = SvipRepo.set(uid, priv.key, v)
                                         if (err != null) Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                        else PublicSync.push(uid) // FIX top ranking: privilege baru langsung terlihat orang lain
                                     }
                                 })
                             }
