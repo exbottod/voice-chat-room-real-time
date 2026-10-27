@@ -98,8 +98,74 @@ object RoomRepo {
             "online" to 0,
             "createdAt" to System.currentTimeMillis(),
         )
+        val created = RoomInfo(ref.id, no, name, ownerUid, ownerName, photoB64, null, "", 8, "", 0)
+        // RTDB dulu (tidak kena kuota Firestore), lalu Firestore.
+        mirrorRoom(created)
         ref.set(data).await()
-        return RoomInfo(ref.id, no, name, ownerUid, ownerName, photoB64, null, "", 8, "", 0)
+        return created
+    }
+
+    // ===== DAFTAR ROOM DI REALTIME DATABASE (roomsPub/{roomId}) =====
+    // Tab Party tidak lagi bergantung Firestore: setiap room dicermin ke RTDB,
+    // jadi daftar room tetap tampil walau kuota Firestore habis / error.
+    fun mirrorRoom(r: RoomInfo) {
+        try {
+            val m = hashMapOf<String, Any?>(
+                "roomNo" to r.roomNo, "name" to r.name, "ownerUid" to r.ownerUid,
+                "ownerName" to r.ownerName, "photoB64" to r.photoB64,
+                "announcement" to r.announcement, "micCount" to r.micCount.toLong(),
+                "lockHash" to r.lockHash, "pinned" to r.pinned, "pinnedAt" to r.pinnedAt,
+                "createdAt" to (System.currentTimeMillis()),
+            )
+            Rtdb.ref("roomsPub/" + r.id).updateChildren(m)
+        } catch (e: Exception) { }
+    }
+
+    private fun com.google.firebase.database.DataSnapshot.toRtRoom(): RoomInfo? {
+        val id = key ?: return null
+        val owner = child("ownerUid").getValue(String::class.java) ?: return null
+        return RoomInfo(
+            id = id,
+            roomNo = child("roomNo").getValue(String::class.java) ?: "",
+            name = child("name").getValue(String::class.java) ?: "Room",
+            ownerUid = owner,
+            ownerName = child("ownerName").getValue(String::class.java) ?: "",
+            photoB64 = child("photoB64").getValue(String::class.java),
+            backgroundB64 = null,
+            announcement = child("announcement").getValue(String::class.java) ?: "",
+            micCount = (child("micCount").value as? Number)?.toInt() ?: 8,
+            lockHash = child("lockHash").getValue(String::class.java) ?: "",
+            online = 0,
+            lockedSeats = emptyList(),
+            pinned = child("pinned").getValue(Boolean::class.java) ?: false,
+            pinnedAt = (child("pinnedAt").value as? Number)?.toLong() ?: 0L,
+        )
+    }
+
+    /** Daftar room: RTDB (utama) digabung Firestore (kalau terbaca). */
+    fun observeRoomsMerged(onChange: (List<RoomInfo>) -> Unit): Reg {
+        var rt = emptyList<RoomInfo>()
+        var fs = emptyList<RoomInfo>()
+        fun emit() {
+            val byId = LinkedHashMap<String, RoomInfo>()
+            rt.forEach { byId[it.id] = it }
+            // Firestore melengkapi (background, lockedSeats, dll) dan menambah room yang belum tercermin
+            fs.forEach { f ->
+                val cur = byId[f.id]
+                byId[f.id] = if (cur == null) f else f.copy(pinned = f.pinned || cur.pinned)
+                // cerminkan room dari Firestore ke RTDB sekali supaya permanen tersedia
+                if (cur == null) mirrorRoom(f)
+            }
+            onChange(byId.values.toList())
+        }
+        val r1 = Rtdb.listen(Rtdb.ref("roomsPub")) { snap ->
+            rt = snap.children.mapNotNull { it.toRtRoom() }
+            emit()
+        }
+        val r2 = try {
+            observeRooms { fs = it; emit() }
+        } catch (e: Exception) { null }
+        return Reg { r1.remove(); try { r2?.remove() } catch (e: Exception) { } }
     }
 
     fun observeRooms(onChange: (List<RoomInfo>) -> Unit): ListenerRegistration =
@@ -342,6 +408,7 @@ object RoomRepo {
     suspend fun setMicCount(roomId: String, n: Int): String? {
         return try {
             val ref = roomRef(roomId)
+            try { Rtdb.ref("roomsPub/$roomId/micCount").setValue(n.toLong()) } catch (e: Exception) { }
             ref.update("micCount", n).await()
             val seatsRef = Rtdb.ref("seats/$roomId")
             val upd = HashMap<String, Any?>()
@@ -362,6 +429,12 @@ object RoomRepo {
             val m = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
             if (photoB64 != null) m["photoB64"] = photoB64
             if (bgB64 != null) m["backgroundB64"] = bgB64
+            // RTDB dulu supaya daftar Party langsung ikut berubah.
+            try {
+                val rm = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
+                if (photoB64 != null) rm["photoB64"] = photoB64
+                Rtdb.ref("roomsPub/$roomId").updateChildren(rm)
+            } catch (e: Exception) { }
             roomRef(roomId).update(m).await()
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
