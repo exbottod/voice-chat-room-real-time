@@ -6,7 +6,7 @@
 //  ENV otomatis dari Supabase: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 // =====================================================================
 
-const FIREBASE_PROJECT_ID = "arboreal-cat-511705";
+const FIREBASE_PROJECT_ID = "arboreal-cat-511705-p6";
 const JWKS_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 
 let jwksCache: { keys: Record<string, unknown>[]; at: number } | null = null;
