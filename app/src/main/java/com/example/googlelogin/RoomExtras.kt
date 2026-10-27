@@ -40,6 +40,30 @@ object RoomEmotes {
     suspend fun load(force: Boolean = false): List<RoomEmote> {
         val c = cache
         if (!force && c != null && System.currentTimeMillis() - loadedAt < TTL) return c
+        // UTAMA: Realtime Database (vipCfg) -> tidak kena kuota Firestore.
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("vipCfg").get().await() }
+            if (snap != null && snap.exists()) {
+                val list = snap.children.mapNotNull { d ->
+                    if (d.child("slot").getValue(String::class.java) != "emote") return@mapNotNull null
+                    val url = d.child("url").getValue(String::class.java) ?: return@mapNotNull null
+                    RoomEmote(
+                        d.child("id").getValue(String::class.java) ?: d.key ?: "",
+                        d.child("name").getValue(String::class.java) ?: "",
+                        url,
+                        (d.child("order").getValue(Long::class.java) ?: 0L).toInt(),
+                    )
+                }.sortedWith(compareBy({ it.order }, { it.id }))
+                if (list.isNotEmpty()) {
+                    cache = list
+                    loadedAt = System.currentTimeMillis()
+                    return list
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Cadangan: emote lama yang masih di Firestore.
         return try {
             val snap = FirebaseFirestore.getInstance().collection("vipConfig")
                 .whereEqualTo("slot", "emote").get().await()
