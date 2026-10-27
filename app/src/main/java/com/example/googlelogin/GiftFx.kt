@@ -114,7 +114,9 @@ object GiftFx {
         var cbWin = 0L
         var comboN = 0
         if (g.special) {
-            comboN = combo(roomId, uid)
+            comboN = try {
+                kotlinx.coroutines.withTimeoutOrNull(3000L) { combo(roomId, uid) } ?: 1
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { 1 }
             if (g.jpRate > 0 && (1..100).random() <= g.jpRate) {
                 jpWin = g.price * g.jpMult * count
                 WalletRepo.topUp(uid, jpWin)
@@ -135,8 +137,6 @@ object GiftFx {
                 }
             }
         }
-        val room = RoomRepo.getRoom(roomId)
-
         // Efek layar penuh untuk semua orang di room (mp4/gif/svga) atau emoji besar.
         Rtdb.ref("giftFx/$roomId").push().setValue(
             hashMapOf<String, Any?>(
@@ -150,6 +150,9 @@ object GiftFx {
                 "ts" to System.currentTimeMillis(),
             ),
         )
+        val room = try {
+            kotlinx.coroutines.withTimeoutOrNull(3000L) { RoomRepo.getRoom(roomId) }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
         Rtdb.ref("giftBanner").setValue(
             hashMapOf<String, Any?>(
                 "roomId" to roomId,

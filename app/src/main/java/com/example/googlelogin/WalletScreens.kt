@@ -763,6 +763,7 @@ fun GiftPanel(
                                         "Gift terkirim! +${fmtNum(total)} diamond",
                                         Toast.LENGTH_SHORT,
                                     ).show()
+                                    try { RoomExtras.sendGiftMessage(roomId, myName, g, count, toText) } catch (e: Exception) { }
                                     var jp = 0L
                                     var cb = 0L
                                     try {
@@ -785,7 +786,6 @@ fun GiftPanel(
                                     }
                                     // Langkah lanjut: gagal pun tidak boleh menggagalkan tampilan gift.
                                     try { PublicSync.push(myUid) } catch (e: Exception) { }
-                                    try { RoomExtras.sendGiftMessage(roomId, myName, g, count, toText) } catch (e: Exception) { }
                                     // Poin mic: gift ke kursi penerima menambah poin sesuai harga (RTDB, hemat kuota Firestore).
                                     val inc = g.price * count
                                     receivers.filter { it.index >= 0 }.forEach { sRec ->
