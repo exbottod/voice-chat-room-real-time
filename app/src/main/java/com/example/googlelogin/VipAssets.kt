@@ -534,9 +534,11 @@ fun VipEntryEffect(roomId: String) {
                 val density = LocalDensity.current
                 val bSize = remember(painter, density) {
                     val ins = painter?.intrinsicSize
-                    if (ins != null && ins.width > 0f && ins.height > 0f) {
+                    val base = if (ins != null && ins.width > 0f && ins.height > 0f) {
                         with(density) { DpSize(ins.width.toDp(), ins.height.toDp()) }
                     } else DpSize(320.dp, 90.dp)
+                    // Banner diperkecil sedikit (80%) supaya tidak kebesaran di layar.
+                    DpSize(base.width * 0.8f, base.height * 0.8f)
                 }
                 BoxWithConstraints(
                     Modifier.align(Alignment.TopCenter).fillMaxWidth()
@@ -569,7 +571,7 @@ fun VipEntryEffect(roomId: String) {
                             Text(
                                 nm,
                                 color = Color(0xFFFFE9A0),
-                                fontSize = 26.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 textAlign = TextAlign.Center,
                                 maxLines = 1,
