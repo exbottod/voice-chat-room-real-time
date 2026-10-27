@@ -33,8 +33,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.WriteBatch
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
@@ -153,9 +157,37 @@ object GiftRankRepo {
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        // Toggle SVIP sekarang ditulis langsung ke RTDB pub/{uid}: cek RTDB juga
+        // supaya "hideRanking" langsung berfungsi (avatar misterius di top ranking)
+        // tanpa menunggu sinkronisasi profil ke Firestore berikutnya.
+        val rtByUid = HashMap<String, Triple<Int, Long, String>>() // uid -> (vip, vipUntil, csv svip)
+        try {
+            coroutineScope {
+                uids.map { uid ->
+                    async {
+                        try {
+                            val s = withTimeoutOrNull(3000L) { Rtdb.ref("pub/$uid").get().await() }
+                            if (s != null && s.exists()) {
+                                val v = (s.child("vip").value as? Long)?.toInt() ?: 0
+                                val until = s.child("vipUntil").value as? Long ?: 0L
+                                val csv = s.child("svip").value as? String ?: ""
+                                if (v > 0 || csv.isNotBlank()) rtByUid[uid] = Triple(v, until, csv)
+                            }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) { }
+                    }
+                }.awaitAll()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) { }
         return raw.map { e ->
             val pub = pubByUid[e.id]
-            if (pub != null && vipActive(pub.vip, pub.vipUntil) && pub.vip >= 6 && pub.svipOn("hideRanking")) {
+            val rt = rtByUid[e.id]
+            val hiddenFs = pub != null && vipActive(pub.vip, pub.vipUntil) && pub.vip >= 6 && pub.svipOn("hideRanking")
+            val hiddenRt = rt != null && rt.first >= 6 && vipActive(rt.first, rt.second) && "hideRanking" in svipKeys(rt.third)
+            if (hiddenFs || hiddenRt) {
                 e.copy(name = "Mysterious", hidden = true)
             } else e
         }
