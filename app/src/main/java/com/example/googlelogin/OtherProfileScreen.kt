@@ -229,7 +229,7 @@ fun OtherProfileScreen(
 
     // Status misterius dihitung sejak awal supaya latar animasi raja bisa tampil full screen.
     val uBg = user
-    val hidden = !isMe && uBg != null && uBg.svipOn("hideProfile") && vipActive(uBg.vip, uBg.vipUntil) && uBg.vip >= 6
+    val hidden = !isMe && uBg != null && uBg.svipOn("hideProfile") && uBg.svipLevel() >= 6
 
     Box(
         Modifier.fillMaxSize().blockTouches()

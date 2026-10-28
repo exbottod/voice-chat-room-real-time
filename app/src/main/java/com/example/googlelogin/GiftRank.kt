@@ -203,8 +203,11 @@ object GiftRankRepo {
                         try {
                             val s = withTimeoutOrNull(3000L) { Rtdb.ref("pub/$uid").get().await() }
                             if (s != null && s.exists()) {
-                                val v = (s.child("vip").value as? Long)?.toInt() ?: 0
-                                val until = s.child("vipUntil").value as? Long ?: 0L
+                                // Level SVIP yang dibeli (Realtime Database) menang atas VIP dompet.
+                                val sv = (s.child("svipLv").value as? Long)?.toInt() ?: 0
+                                val su = s.child("svipUntil").value as? Long ?: 0L
+                                val v = if (vipActive(sv, su)) sv else (s.child("vip").value as? Long)?.toInt() ?: 0
+                                val until = if (vipActive(sv, su)) su else (s.child("vipUntil").value as? Long ?: 0L)
                                 val csv = s.child("svip").value as? String ?: ""
                                 if (v > 0 || csv.isNotBlank()) rtByUid[uid] = Triple(v, until, csv)
                             }
@@ -220,7 +223,7 @@ object GiftRankRepo {
         return raw.map { e ->
             val pub = pubByUid[e.id]
             val rt = rtByUid[e.id]
-            val hiddenFs = pub != null && vipActive(pub.vip, pub.vipUntil) && pub.vip >= 6 && pub.svipOn("hideRanking")
+            val hiddenFs = pub != null && pub.svipLevel() >= 6 && pub.svipOn("hideRanking")
             val hiddenRt = rt != null && rt.first >= 6 && vipActive(rt.first, rt.second) && "hideRanking" in svipKeys(rt.third)
             if (hiddenFs || hiddenRt) {
                 e.copy(name = "Mysterious", hidden = true)
