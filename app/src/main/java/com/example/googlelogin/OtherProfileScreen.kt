@@ -279,16 +279,26 @@ fun OtherProfileScreen(
                         mutableStateOf(if (isMe) (UserDirectory.cachedId(context, uid) ?: u.userId) else u.userId)
                     }
                     LaunchedEffect(uid) {
-                        if (!isMe) {
-                            try {
+                        try {
+                            if (isMe) {
+                                // Profil sendiri: pastikan ID ada (buat otomatis di Realtime Database bila kosong).
+                                repeat(4) {
+                                    if (shownId.isNotBlank() && shownId != "...") return@repeat
+                                    try {
+                                        shownId = UserDirectory.ensureUserId(context, uid)
+                                    } catch (e: kotlinx.coroutines.CancellationException) {
+                                        throw e
+                                    } catch (e: Exception) { kotlinx.coroutines.delay(1500L) }
+                                }
+                            } else {
                                 val off = kotlinx.coroutines.withTimeoutOrNull(3000L) {
                                     UserDirectory.officialIdOf(uid)
                                 }
                                 if (!off.isNullOrBlank()) shownId = off
-                            } catch (e: kotlinx.coroutines.CancellationException) {
-                                throw e
-                            } catch (e: Exception) { }
-                        }
+                            }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) { }
                     }
                     Row(
                         Modifier.clickable {
