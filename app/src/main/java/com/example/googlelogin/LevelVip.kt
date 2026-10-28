@@ -519,7 +519,16 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     Text("🏮", fontSize = 40.sp)
                 }
                 Text("🦌", fontSize = 130.sp, modifier = Modifier.offset(y = 14.dp))
-                Text("👑", fontSize = 56.sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = 22.dp))
+                // MEDAL VIP: medal per level (slot "title" dari panel developer)
+                // tampil di posisi mahkota. Kalau belum diupload, tetap mahkota.
+                val medalA = VipAssets.get(sel, "title")
+                if (medalA != null) {
+                    key(medalA.updatedAt) {
+                        VipMedia(medalA, Modifier.align(Alignment.TopCenter).offset(y = 22.dp).width(170.dp), loop = true, contentScale = ContentScale.Fit)
+                    }
+                } else {
+                    Text("👑", fontSize = 56.sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = 22.dp))
+                }
             }
             val perks = listOf(
                 "👑 Lencana VIP$sel otomatis tampil di bawah level & nama",
