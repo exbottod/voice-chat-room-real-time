@@ -135,6 +135,7 @@ fun RoomScreen(
     var messages by remember { mutableStateOf<List<RoomMsg>>(emptyList()) }
     var panel by remember { mutableStateOf(P_NONE) }
     var seatSheet by remember { mutableStateOf<Int?>(null) }
+    var waveOpen by remember { mutableStateOf(false) }
     var seatInvite by remember { mutableStateOf<Int?>(null) }
     var blacklist by remember { mutableStateOf<Set<String>>(emptySet()) }
     var roomMuted by remember { mutableStateOf(false) }
@@ -477,6 +478,8 @@ fun RoomScreen(
                     RmRoundBtn({ typing = true; emoteOpen = false }) { Text("💬", fontSize = 20.sp) }
                     Spacer(Modifier.width(10.dp))
                     RmRoundBtn({ emoteOpen = !emoteOpen }) { Text("😊", fontSize = 20.sp) }
+                    Spacer(Modifier.width(10.dp))
+                    RmRoundBtn({ waveOpen = true }) { Text("🎮", fontSize = 20.sp) }
                     Spacer(Modifier.weight(1f))
                     RmRoundBtn({ giftTarget = null; giftOpen = true; emoteOpen = false }) {
                         Image(painterResource(R.drawable.ic_room_gift), null, Modifier.size(24.dp), contentScale = ContentScale.Fit)
@@ -494,6 +497,11 @@ fun RoomScreen(
                     RmRoundBtn({ panel = P_TOOLS }) { GridIcon(Modifier.size(24.dp)) }
                 }
             }
+        }
+
+        // Game pihak ketiga (WaveGames)
+        if (waveOpen) {
+            WaveGamesScreen(myName = myName, myAvatarB64 = myAvatarB64, onClose = { waveOpen = false })
         }
 
         // Dialog seat mic
