@@ -253,8 +253,7 @@ fun RoomScreen(
                 // Kalau cache ID kosong, ambil ID asli dari profil publik RTDB.
                 if (ownerUserId == null) {
                     try {
-                        val s = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("pub/" + r.ownerUid + "/id").get().await() }
-                        val pid = s?.value as? String
+                        val pid = UserDirectory.officialIdOf(r.ownerUid)
                         if (!pid.isNullOrBlank()) ownerUserId = pid
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
