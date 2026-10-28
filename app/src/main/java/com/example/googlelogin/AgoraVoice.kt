@@ -36,6 +36,7 @@ object AgoraVoice {
     private const val TAG = "AgoraVoice"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var engine: RtcEngine? = null
+    private var appIdInUse = ""
 
     @Volatile private var inChannel = false
 
@@ -68,20 +69,21 @@ object AgoraVoice {
 
         override fun onTokenPrivilegeWillExpire(token: String?) {
             val r = roomId ?: return
-            scope.launch { fetchToken(r)?.let { engine?.renewToken(it) } }
+            scope.launch { fetchToken(r)?.let { engine?.renewToken(it.token) } }
         }
     }
 
-    private fun ensure(ctx: Context): RtcEngine? {
-        engine?.let { return it }
-        if (BuildConfig.AGORA_APP_ID.isBlank()) {
+    private fun ensure(ctx: Context, appId: String): RtcEngine? {
+        val use = appId.ifBlank { BuildConfig.AGORA_APP_ID }
+        engine?.let { if (appIdInUse == use) return it else { try { it.leaveChannel() } catch (e: Exception) { }; it.release(); engine = null } }
+        if (use.isBlank()) {
             problem("Suara mati: AGORA_APP_ID kosong di build")
             return null
         }
         return try {
             val cfg = RtcEngineConfig().apply {
                 mContext = ctx.applicationContext
-                mAppId = BuildConfig.AGORA_APP_ID
+                mAppId = use
                 mChannelProfile = Constants.CHANNEL_PROFILE_LIVE_BROADCASTING
                 mEventHandler = handler
             }
@@ -89,6 +91,7 @@ object AgoraVoice {
                 it.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_GAME_STREAMING)
                 it.enableAudio()
                 engine = it
+                appIdInUse = use
             }
         } catch (e: Exception) {
             Log.e(TAG, "init gagal", e)
@@ -96,7 +99,9 @@ object AgoraVoice {
         }
     }
 
-    private suspend fun fetchToken(channel: String): String? {
+    private data class Tok(val token: String, val appId: String)
+
+    private suspend fun fetchToken(channel: String): Tok? {
         val url = BuildConfig.AGORA_TOKEN_URL
         if (url.isBlank()) {
             problem("Suara mati: AGORA_TOKEN_URL kosong di build")
@@ -119,7 +124,8 @@ object AgoraVoice {
                 problem("Suara mati: token gagal ${c.responseCode} $body".take(140))
                 return null
             }
-            JSONObject(c.inputStream.bufferedReader().readText()).getString("token")
+            val o = JSONObject(c.inputStream.bufferedReader().readText())
+            Tok(o.getString("token"), o.optString("appId", ""))
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -134,13 +140,14 @@ object AgoraVoice {
         joinJob?.cancel()
         roomId = id
         joinJob = scope.launch {
-            val e = ensure(app) ?: return@launch
+            val t = fetchToken(id) ?: return@launch
+            if (roomId != id) return@launch
+            val e = ensure(app, t.appId) ?: return@launch
             if (inChannel) {
                 e.leaveChannel()
                 inChannel = false
             }
-            val token = fetchToken(id) ?: return@launch
-            if (roomId != id) return@launch
+            val token = t.token
             val opt = ChannelMediaOptions().apply {
                 clientRoleType = Constants.CLIENT_ROLE_AUDIENCE
                 channelProfile = Constants.CHANNEL_PROFILE_LIVE_BROADCASTING
