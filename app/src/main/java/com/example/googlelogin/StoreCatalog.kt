@@ -192,6 +192,11 @@ fun entryAssetOf(m: RoomMsg): VipAsset? {
     // jangan fallback ke efek VIP default kalau katalog belum termuat,
     // biarkan pemanggil mencoba lagi (mencegah efek masuk "beda-beda").
     if (m.entry.startsWith("sx_")) return StoreCatalog.find(m.entry)?.asset
+    // Efek masuk SVIP (sve_N) memakai aset VIP N.
+    if (m.entry.startsWith("sve_")) {
+        val t = m.entry.removePrefix("sve_").toIntOrNull() ?: 0
+        return if (t in 1..9) VipAssets.get(t, "entry") else null
+    }
     return if (m.vip in 1..9) VipAssets.get(m.vip, "entry") else null
 }
 

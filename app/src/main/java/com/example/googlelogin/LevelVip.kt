@@ -120,7 +120,16 @@ private fun vipItems(n: Int) = listOf(
     StoreItem("vipbn_$n", "banner", "Banner efek masuk VIP$n", "🚩", 0, VIP_DAYS, vipColor(n), n),
 )
 
-private val ALL_ITEMS: List<StoreItem> by lazy { STORE_ITEMS + (1..9).flatMap { vipItems(it) } }
+private fun svipItems(n: Int) = listOf(
+    StoreItem("svf_$n", "frame", "Bingkai eksklusif SVIP$n", "\u2B55", 0, VIP_DAYS, vipColor(n), n),
+    StoreItem("sve_$n", "entry", "Efek masuk SVIP$n", "\u2728", 0, VIP_DAYS, vipColor(n), n),
+    StoreItem("svbn_$n", "banner", "Banner efek masuk SVIP$n", "\uD83D\uDEA9", 0, VIP_DAYS, vipColor(n), n),
+    StoreItem("svb_$n", "bubble", "Gelembung obrolan SVIP$n", "\uD83D\uDCAC", 0, VIP_DAYS, vipColor(n), n),
+    StoreItem("svbd_$n", "badge", "Lencana SVIP$n", "\uD83D\uDC51", 0, VIP_DAYS, vipColor(n), n),
+    StoreItem("svm_$n", "medal", "Medal SVIP$n", "\uD83E\uDD48", 0, VIP_DAYS, vipColor(n), n),
+)
+
+private val ALL_ITEMS: List<StoreItem> by lazy { STORE_ITEMS + (1..9).flatMap { vipItems(it) } + (1..9).flatMap { svipItems(it) } }
 
 fun findItem(id: String?): StoreItem? {
     if (id.isNullOrBlank()) return null

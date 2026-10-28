@@ -190,7 +190,10 @@ object VipAssets {
 
 fun vipFrameTier(frameId: String?, vip: Int, until: Long): Int {
     if (!frameId.isNullOrBlank()) {
-        return if (frameId.startsWith("vipf_")) frameId.removePrefix("vipf_").toIntOrNull() ?: 0 else 0
+        if (frameId.startsWith("vipf_")) return frameId.removePrefix("vipf_").toIntOrNull() ?: 0
+        // Bingkai SVIP (svf_N) memakai aset VIP N.
+        if (frameId.startsWith("svf_")) return frameId.removePrefix("svf_").toIntOrNull() ?: 0
+        return 0
     }
     return if (vipActive(vip, until)) vip else 0
 }
@@ -200,7 +203,10 @@ fun hasVipFrame(tier: Int): Boolean = tier in 1..9 && VipAssets.get(tier, "frame
 /** Tingkat VIP untuk gelembung obrolan: pakai vipb_N yang dipakai, atau otomatis mengikuti VIP aktif. */
 fun vipBubbleTier(bubbleId: String?, vip: Int, until: Long): Int {
     if (!bubbleId.isNullOrBlank()) {
-        return if (bubbleId.startsWith("vipb_")) bubbleId.removePrefix("vipb_").toIntOrNull() ?: 0 else 0
+        if (bubbleId.startsWith("vipb_")) return bubbleId.removePrefix("vipb_").toIntOrNull() ?: 0
+        // Gelembung SVIP (svb_N) memakai aset VIP N.
+        if (bubbleId.startsWith("svb_")) return bubbleId.removePrefix("svb_").toIntOrNull() ?: 0
+        return 0
     }
     return if (vipActive(vip, until)) vip else 0
 }
@@ -443,6 +449,8 @@ fun bannerAssetOf(m: RoomMsg): VipAsset? =
 
 fun bannerResOf(m: RoomMsg): Int? = when {
     m.banner.startsWith("vipbn_") -> m.banner.removePrefix("vipbn_").toIntOrNull()?.let { vipBannerRes(it) }
+    // Banner SVIP (svbn_N) memakai banner VIP N.
+    m.banner.startsWith("svbn_") -> m.banner.removePrefix("svbn_").toIntOrNull()?.let { vipBannerRes(it) }
     m.vip in 1..9 -> vipBannerRes(m.vip)
     else -> null
 }

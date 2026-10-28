@@ -111,6 +111,9 @@ object SupaRepo {
 
     suspend fun buyVip(uid: String, tier: Int) = call("buy_vip", uidJson(uid).put("tier", tier))
 
+    /** Beli SVIP n: koin dipotong + semua item SVIP 1..n masuk My Item (di server). */
+    suspend fun buySvip(uid: String, tier: Int) = call("buy_svip", uidJson(uid).put("tier", tier))
+
     suspend fun buyItem(uid: String, item: StoreItem): Res {
         val p = uidJson(uid).put("item_id", item.id).put("price", item.price).put("days", item.days)
         return call("buy_item", p)

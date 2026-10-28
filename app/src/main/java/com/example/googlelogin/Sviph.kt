@@ -304,9 +304,9 @@ object SvipRepo {
     suspend fun buySvip(uid: String, tier: Int): String? {
         if (tier !in 1..9) return "Level SVIP tidak valid"
         val price = vipPrice(tier)
-        // 1) Potong koin lewat dompet Supabase (juga mencatat transaksi).
-        val item = StoreItem("svip$tier", "badge", "SVIP$tier", "\uD83D\uDC51", price, 30, Color(0xFFD4AF37), 0, null)
-        val r = SupaRepo.buyItem(uid, item)
+        // 1) Potong koin + isi My Item (frame, efek masuk, banner, gelembung,
+        //    lencana, medal SVIP 1..tier) lewat dompet Supabase.
+        val r = SupaRepo.buySvip(uid, tier)
         r.wallet?.let { WalletRepo.emitBackup(uid, it) }
         if (r.error != null) return r.error
         // 2) Baca daftar level SVIP yang sudah dibeli (Realtime Database).
