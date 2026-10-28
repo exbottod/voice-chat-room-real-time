@@ -78,6 +78,7 @@ const ACTIONS: Record<string, string> = {
   send_gift: "w_send_gift",
   exchange: "w_exchange",
   buy_vip: "w_buy_vip",
+  buy_svip: "w_buy_svip",
   buy_item: "w_buy_item",
   equip: "w_equip",
   claim_level: "w_claim_level",
@@ -155,6 +156,9 @@ Deno.serve(async (req) => {
       params = { p_uid: uid, p_diamonds: p.diamonds };
       break;
     case "buy_vip":
+      params = { p_uid: uid, p_tier: p.tier };
+      break;
+    case "buy_svip":
       params = { p_uid: uid, p_tier: p.tier };
       break;
     case "buy_item":
