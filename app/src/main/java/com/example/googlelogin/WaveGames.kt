@@ -306,11 +306,13 @@ private fun WaveGameView(
     onBack: () -> Unit,
 ) {
     var web by remember { mutableStateOf<WebView?>(null) }
+    var prog by remember { mutableStateOf(0) }
+    var err by remember { mutableStateOf("") }
     BackHandler {
         val w = web
         if (w != null && w.canGoBack()) w.goBack() else onBack()
     }
-    Column(modifier) {
+    Box(modifier) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { c ->
@@ -322,13 +324,75 @@ private fun WaveGameView(
                     settings.loadWithOverviewMode = true
                     settings.useWideViewPort = true
                     settings.allowFileAccess = false
-                    webChromeClient = WebChromeClient()
-                    webViewClient = WebViewClient()
+                    settings.javaScriptCanOpenWindowsAutomatically = true
+                    settings.setSupportMultipleWindows(false)
+                    settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onConsoleMessage(m: android.webkit.ConsoleMessage?): Boolean {
+                            return true
+                        }
+                    }
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageStarted(v: WebView?, u: String?, f: android.graphics.Bitmap?) {
+                            err = ""
+                            prog = 0
+                        }
+                        override fun onProgressChanged(v: WebView?, p: Int) {
+                            prog = p
+                        }
+                        override fun onPageFinished(v: WebView?, u: String?) {
+                            prog = 100
+                        }
+                        override fun onReceivedError(
+                            v: WebView?,
+                            r: android.webkit.WebResourceRequest?,
+                            e: android.webkit.WebResourceError?,
+                        ) {
+                            if (r?.isForMainFrame == true) {
+                                err = "Gagal memuat game: " + (e?.description ?: "koneksi ditolak")
+                            }
+                        }
+                        override fun onReceivedHttpError(
+                            v: WebView?,
+                            r: android.webkit.WebResourceRequest?,
+                            e: android.webkit.WebResourceResponse?,
+                        ) {
+                            if (r?.isForMainFrame == true) {
+                                err = "Server game membalas " + (e?.statusCode ?: 0) + " " + (r.url?.path ?: "")
+                            }
+                        }
+                    }
                     loadUrl(url)
                     web = this
                 }
             },
             onRelease = { it.destroy() },
         )
+        if (err.isNotEmpty()) {
+            Column(
+                Modifier.fillMaxSize().background(Color(0xCC000000)).padding(20.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    err,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    "Muat ulang",
+                    color = Gold,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable {
+                        err = ""
+                        web?.reload()
+                    }.padding(10.dp),
+                )
+            }
+        }
     }
 }
