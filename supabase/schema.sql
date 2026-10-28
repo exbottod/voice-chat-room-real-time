@@ -146,7 +146,7 @@ $$;
 create or replace function public.w_buy_vip(p_uid text, p_tier int)
 returns public.wallets language plpgsql security definer set search_path = public as $$
 declare w public.wallets; price bigint; until bigint; nowms bigint;
-  active boolean; inv jsonb; eq jsonb; cur text;
+  active boolean; inv jsonb; eq jsonb; cur text; i int; pre text;
 begin
   if p_tier not between 1 and 9 then raise exception 'Level VIP tidak valid'; end if;
   price := case p_tier
@@ -247,7 +247,7 @@ $$;
 -- Lengkapi item VIP yang belum masuk My Item (untuk VIP yang sedang aktif).
 create or replace function public.w_backfill_vip(p_uid text)
 returns public.wallets language plpgsql security definer set search_path = public as $$
-declare w public.wallets; inv jsonb; id text;
+declare w public.wallets; inv jsonb; id text; i int;
 begin
   select * into w from public.wallets where uid = p_uid for update;
   if not found then raise exception 'WALLET_NOT_FOUND'; end if;
