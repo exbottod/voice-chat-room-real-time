@@ -1,4 +1,3 @@
-
 // ---------- Agora AccessToken2 (tanpa dependensi npm) ----------
 const _enc = new TextEncoder();
 const _u16 = (n) => { const b = new Uint8Array(2); b[0] = n & 255; b[1] = (n >> 8) & 255; return b; };
