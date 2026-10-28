@@ -256,34 +256,46 @@ async function logWave(env, entry) {
 async function proxyWave(req, env) {
   const bodyText = req.method === 'POST' ? await req.text() : '';
   const token = pickToken(req, bodyText);
-  const isSubmit = new URL(req.url).pathname.toLowerCase().includes('submitflow');
+  const u = new URL(req.url);
+  const isSubmit = u.pathname.toLowerCase().includes('submitflow');
   const url = `${WAVE_SUPA}/wave/game/${isSubmit ? 'submitFlow' : 'userInfo'}`;
-  await logWave(env, {
-    at: new Date().toISOString(),
-    method: req.method,
-    path: new URL(req.url).pathname,
-    query: new URL(req.url).search.replace(/(token|t|ut)=[^&]+/gi, '$1=<hidden>').slice(0, 200),
-    header: [...req.headers.keys()].join(','),
-    hasToken: Boolean(token),
-    tokenEnd: token ? token.slice(-8) : '',
-    body: bodyText.slice(0, 400),
-  });
   const headers = { 'content-type': 'application/json', accept: 'application/json' };
   if (token) headers.authorization = `Bearer ${token}`;
-  let resp;
+  let status = 0;
+  let text = '';
+  let err = '';
   try {
-    resp = await fetch(url, {
+    const resp = await fetch(url, {
       method: isSubmit ? 'POST' : 'GET',
       headers,
       body: isSubmit ? (bodyText || '{}') : undefined,
     });
+    status = resp.status;
+    text = await resp.text();
   } catch (e) {
-    return json({ success: false, message: 'proxy error: ' + (e && e.message) }, 502);
+    err = String((e && e.message) || e);
   }
-  const text = await resp.text();
+  await logWave(env, {
+    at: new Date().toISOString(),
+    method: req.method,
+    path: u.pathname,
+    query: u.search.replace(/(token|t|ut)=[^&]+/gi, '$1=<hidden>').slice(0, 120),
+    from: (req.headers.get('origin') || req.headers.get('referer') || '').slice(0, 60),
+    ua: (req.headers.get('user-agent') || '').slice(0, 40),
+    hasToken: Boolean(token),
+    tokenEnd: token ? token.slice(-8) : '',
+    status,
+    reply: err ? 'FETCH: ' + err : text.slice(0, 220),
+    body: bodyText.slice(0, 200),
+  });
+  if (err) return json({ success: false, message: 'proxy error: ' + err }, 502);
   return new Response(text, {
-    status: resp.status,
-    headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' },
+    status,
+    headers: {
+      'content-type': 'application/json',
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': '*',
+    },
   });
 }
 
