@@ -279,7 +279,7 @@ object FollowRepo {
     private fun docId(a: String, b: String) = "${a}_$b"
 
     /** Daftar follow di Realtime Database: {path}/{uidOrTarget} = createdAt. */
-    private suspend fun rtdbMap(path: String): Map<String, Long> = try {
+    private suspend fun rtdbMap(path: String): MutableMap<String, Long> = try {
         val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref(path).get().await() }
         val m = HashMap<String, Long>()
         s?.children?.forEach { c ->
@@ -287,10 +287,10 @@ object FollowRepo {
             (c.value as? Long)?.let { m[k] = it }
         }
         m
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyMap() }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { HashMap() }
 
     /** Data follow lama di Firestore (sebelum migrasi Realtime Database). */
-    private suspend fun legacyMap(uid: String, byFollower: Boolean): Map<String, Long> = try {
+    private suspend fun legacyMap(uid: String, byFollower: Boolean): MutableMap<String, Long> = try {
         val q = if (byFollower)
             db().collection("follows").whereEqualTo("followerUid", uid).limit(200).get().await()
         else
@@ -301,7 +301,7 @@ object FollowRepo {
             if (!k.isNullOrBlank()) m[k] = d.getLong("createdAt") ?: 0L
         }
         m
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyMap() }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { HashMap() }
 
     suspend fun isFollowing(me: String, target: String): Boolean {
         // REALTIME DATABASE dulu (hemat kuota Firestore), Firestore cadangan.
