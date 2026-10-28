@@ -166,6 +166,28 @@
       "next": {
         ".write": "auth != null"
       }
+    },
+    "follows": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    },
+    "followers": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    },
+    "chatsByUser": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    },
+    "giftCfg": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
     }
   }
 }

@@ -1,5 +1,8 @@
 package com.example.googlelogin
 
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -123,40 +126,45 @@ object StoreCatalog {
             }
             apply()
         }
-        // FIRESTORE (cadangan): item lama yang belum dipindah tetap tampil.
-        reg = FirebaseFirestore.getInstance().collection("vipConfig")
-            .whereEqualTo("store", true)
-            .addSnapshotListener { snap, e ->
-                if (e != null) {
-                    QuotaGuard.handle(e)
-                    return@addSnapshotListener
+        // FIRESTORE (warisan lama): dimuat SEKALI per buka app, bukan listener
+        // realtime, supaya hemat kuota baca harian Firestore.
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                    FirebaseFirestore.getInstance().collection("vipConfig")
+                        .whereEqualTo("store", true).get().await()
                 }
-                if (snap == null) return@addSnapshotListener
-                val fresh = HashMap<String, CatalogItem>()
-                for (d in snap.documents) {
-                    val id = d.getString("id") ?: continue
-                    val slot = d.getString("slot") ?: continue
-                    val asset = VipAsset(
-                        0, "st_$id",
-                        d.getString("kind") ?: "image",
-                        d.getString("url") ?: "",
-                        d.getBoolean("hasData") ?: false,
-                        d.getLong("updatedAt") ?: 0L,
-                        (d.getLong("chunks") ?: 0L).toInt(),
-                    )
-                    fresh[id] = CatalogItem(
-                        id, slot,
-                        d.getString("name") ?: id,
-                        d.getLong("price") ?: 0L,
-                        (d.getLong("days") ?: 7L).coerceAtLeast(1L),
-                        d.getLong("order") ?: 0L,
-                        asset,
-                    )
+                if (snap != null) {
+                    val fresh = HashMap<String, CatalogItem>()
+                    for (d in snap.documents) {
+                        val id = d.getString("id") ?: continue
+                        val slot = d.getString("slot") ?: continue
+                        val asset = VipAsset(
+                            0, "st_$id",
+                            d.getString("kind") ?: "image",
+                            d.getString("url") ?: "",
+                            d.getBoolean("hasData") ?: false,
+                            d.getLong("updatedAt") ?: 0L,
+                            (d.getLong("chunks") ?: 0L).toInt(),
+                        )
+                        fresh[id] = CatalogItem(
+                            id, slot,
+                            d.getString("name") ?: id,
+                            d.getLong("price") ?: 0L,
+                            (d.getLong("days") ?: 7L).coerceAtLeast(1L),
+                            d.getLong("order") ?: 0L,
+                            asset,
+                        )
+                    }
+                    fsMap.clear()
+                    fsMap.putAll(fresh)
+                    apply()
                 }
-                fsMap.clear()
-                fsMap.putAll(fresh)
-                apply()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: Exception) {
+                QuotaGuard.handle(e)
             }
+        }
     }
 
     fun bySlot(slot: String): List<CatalogItem> =

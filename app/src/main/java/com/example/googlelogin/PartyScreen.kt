@@ -30,9 +30,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -253,18 +255,22 @@ private fun BannerPager() {
             Toast.makeText(context, "Tidak bisa membuka link", Toast.LENGTH_SHORT).show()
         }
     }
-    androidx.compose.runtime.DisposableEffect(Unit) {
-        val reg = com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("banners")
-            .addSnapshotListener { snap, err ->
-                if (err != null) android.util.Log.w("Banner", err)
-                if (snap != null) {
-                    remote = snap.documents
-                        .filter { it.getBoolean("active") != false && !it.getString("imageB64").isNullOrBlank() }
-                        .sortedBy { it.getLong("order") ?: 0L }
-                        .map { AppBanner(it.getString("title") ?: "", it.getString("subtitle") ?: "", it.getString("imageB64"), it.getString("link") ?: "") }
-                }
+    // Banner dibaca SEKALI per buka tab (hemat kuota listener Firestore).
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("banners").get().await()
             }
-        onDispose { reg.remove() }
+            if (snap != null) {
+                remote = snap.documents
+                    .filter { it.getBoolean("active") != false && !it.getString("imageB64").isNullOrBlank() }
+                    .sortedBy { it.getLong("order") ?: 0L }
+                    .map { AppBanner(it.getString("title") ?: "", it.getString("subtitle") ?: "", it.getString("imageB64"), it.getString("link") ?: "") }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: Exception) {
+            android.util.Log.w("Banner", e)
+        }
     }
     val count = if (remote.isNotEmpty()) remote.size else defaults.size
     val state = rememberPagerState(pageCount = { count })

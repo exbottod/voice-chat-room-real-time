@@ -43,6 +43,7 @@ import com.opensource.svgaplayer.SVGAImageView
 import com.opensource.svgaplayer.SVGAParser
 import com.opensource.svgaplayer.SVGAVideoEntity
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import java.io.ByteArrayInputStream
@@ -109,35 +110,39 @@ object VipAssets {
             apply()
             lastError = null
         }
-        // FIRESTORE (cadangan): item lama yang belum dipindah ke RTDB tetap tampil.
-        reg = FirebaseFirestore.getInstance().collection("vipConfig")
-            .whereEqualTo("meta", true)
-            .addSnapshotListener { snap, e ->
-                if (e != null) {
-                    lastError = e.message ?: e.toString()
-                    QuotaGuard.handle(e)
-                    return@addSnapshotListener
+        // FIRESTORE (warisan lama): dimuat SEKALI per buka app, bukan listener
+        // realtime, supaya hemat kuota baca harian Firestore.
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                    FirebaseFirestore.getInstance().collection("vipConfig")
+                        .whereEqualTo("meta", true).get().await()
                 }
-                if (snap == null) return@addSnapshotListener
-                val fresh = HashMap<String, VipAsset>()
-                for (d in snap.documents) {
-                    val n = (d.getLong("n") ?: 0L).toInt()
-                    val slot = d.getString("slot") ?: continue
-                    if (n !in 1..9) continue
-                    fresh["${n}_$slot"] = VipAsset(
-                        n, slot,
-                        d.getString("kind") ?: "image",
-                        d.getString("url") ?: "",
-                        d.getBoolean("hasData") ?: false,
-                        d.getLong("updatedAt") ?: 0L,
-                        (d.getLong("chunks") ?: 0L).toInt(),
-                    )
+                if (snap != null) {
+                    val fresh = HashMap<String, VipAsset>()
+                    for (d in snap.documents) {
+                        val n = (d.getLong("n") ?: 0L).toInt()
+                        val slot = d.getString("slot") ?: continue
+                        if (n !in 1..9) continue
+                        fresh["${n}_$slot"] = VipAsset(
+                            n, slot,
+                            d.getString("kind") ?: "image",
+                            d.getString("url") ?: "",
+                            d.getBoolean("hasData") ?: false,
+                            d.getLong("updatedAt") ?: 0L,
+                            (d.getLong("chunks") ?: 0L).toInt(),
+                        )
+                    }
+                    fsMap.clear()
+                    fsMap.putAll(fresh)
+                    apply()
+                    lastError = null
                 }
-                fsMap.clear()
-                fsMap.putAll(fresh)
-                apply()
-                lastError = null
+            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: Exception) {
+                QuotaGuard.handle(e)
             }
+        }
     }
 
     suspend fun load(force: Boolean = false) {

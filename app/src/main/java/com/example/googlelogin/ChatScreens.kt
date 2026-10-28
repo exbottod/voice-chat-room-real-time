@@ -42,16 +42,40 @@ object ChatRepo {
 
     fun chatId(a: String, b: String) = if (a < b) "${a}_$b" else "${b}_$a"
 
-    fun observeChats(myUid: String, onChange: (List<ChatSummary>) -> Unit): ListenerRegistration =
-        db().collection("chats").whereArrayContains("members", myUid).addSnapshotListener { snap, _ ->
-            if (snap != null) {
-                onChange(
-                    snap.documents.mapNotNull { d ->
-                        val members = (d.get("members") as? List<*>)?.filterIsInstance<String>() ?: return@mapNotNull null
-                        val other = members.firstOrNull { it != myUid } ?: return@mapNotNull null
+    fun observeChats(myUid: String, onChange: (List<ChatSummary>) -> Unit): Reg {
+        // UTAMA: Realtime Database chatsByUser/{uid} (hemat kuota Firestore).
+        val byId = HashMap<String, ChatSummary>()
+        fun emit() = onChange(byId.values.sortedByDescending { it.lastAt })
+        val rt = Rtdb.listen(Rtdb.ref("chatsByUser/$myUid")) { s ->
+            byId.keys.removeAll { it.startsWith("rt_") }
+            s.children.forEach { c ->
+                val cid = c.key ?: return@forEach
+                val otherUid = c.child("otherUid").getValue(String::class.java) ?: return@forEach
+                byId["rt_$cid"] = ChatSummary(
+                    id = cid,
+                    otherUid = otherUid,
+                    otherName = c.child("otherName").getValue(String::class.java) ?: tr("Pengguna"),
+                    otherId = c.child("otherId").getValue(String::class.java) ?: "",
+                    lastText = c.child("lastText").getValue(String::class.java) ?: "",
+                    lastAt = c.child("lastAt").getValue(Long::class.java) ?: 0L,
+                )
+            }
+            emit()
+        }
+        // Riwayat lama di Firestore: dibaca SEKALI per buka tab (tanpa listener realtime).
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                    db().collection("chats").whereArrayContains("members", myUid).get().await()
+                }
+                if (snap != null) {
+                    snap.documents.forEach { d ->
+                        if (byId.containsKey("rt_" + d.id)) return@forEach
+                        val members = (d.get("members") as? List<*>)?.filterIsInstance<String>() ?: return@forEach
+                        val other = members.firstOrNull { it != myUid } ?: return@forEach
                         val names = d.get("names") as? Map<*, *>
                         val ids = d.get("ids") as? Map<*, *>
-                        ChatSummary(
+                        byId["fs_" + d.id] = ChatSummary(
                             id = d.id,
                             otherUid = other,
                             otherName = names?.get(other) as? String ?: tr("Pengguna"),
@@ -59,10 +83,15 @@ object ChatRepo {
                             lastText = d.getString("lastText") ?: "",
                             lastAt = d.getLong("lastAt") ?: 0L,
                         )
-                    }.sortedByDescending { it.lastAt },
-                )
+                    }
+                    emit()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: Exception) {
             }
         }
+        return rt
+    }
 
     fun observeMessages(chatId: String, onChange: (List<ChatMsg>) -> Unit): ListenerRegistration =
         db().collection("chats").document(chatId).collection("messages")
@@ -85,12 +114,47 @@ object ChatRepo {
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false }
             if (!ok) return tr("User ini mengaktifkan Avoid disturbing (hanya menerima pesan dari orang yang dia ikuti)")
         }
-        // Kuota Firestore sedang habis: LANGSUNG kirim lewat server cadangan RTDB
-        // (kuota terpisah) tanpa menunggu Firestore gagal (~30 detik).
-        if (QuotaGuard.isDown()) return sendRtdb(me, myName, myId, other, text)
-        return try {
-            val ref = db().collection("chats").document(chatId(me, other.uid))
-            val now = System.currentTimeMillis()
+        // UTAMA: REALTIME DATABASE (chats/{id} + chatsByUser kedua pihak) -
+        // kirim pesan tidak lagi kena kuota Firestore.
+        val id = chatId(me, other.uid)
+        val now = System.currentTimeMillis()
+        try {
+            val ok = kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                val root = Rtdb.ref("chats/$id")
+                root.child("messages").push().setValue(
+                    hashMapOf<String, Any?>("from" to me, "text" to text, "at" to now),
+                ).await()
+                root.updateChildren(
+                    hashMapOf<String, Any?>(
+                        "members" to mapOf(me to true, other.uid to true),
+                        "names" to mapOf(me to myName, other.uid to other.name),
+                        "ids" to mapOf(me to myId, other.uid to other.userId),
+                        "lastText" to text,
+                        "lastAt" to now,
+                    ),
+                ).await()
+                Rtdb.ref("chatsByUser/$me/$id").updateChildren(
+                    hashMapOf<String, Any?>(
+                        "otherUid" to other.uid, "otherName" to other.name,
+                        "otherId" to other.userId, "lastText" to text, "lastAt" to now,
+                    ),
+                ).await()
+                Rtdb.ref("chatsByUser/${other.uid}/$id").updateChildren(
+                    hashMapOf<String, Any?>(
+                        "otherUid" to me, "otherName" to myName,
+                        "otherId" to myId, "lastText" to text, "lastAt" to now,
+                    ),
+                ).await()
+            }
+            if (ok == null) return tr("Koneksi lambat, coba lagi")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return e.message ?: tr("Gagal mengirim")
+        }
+        // Cermin Firestore best-effort supaya versi app lama tetap menerima pesan.
+        try {
+            val ref = db().collection("chats").document(id)
             val b = db().batch()
             b.set(
                 ref,
@@ -104,17 +168,12 @@ object ChatRepo {
                 SetOptions.merge(),
             )
             b.set(ref.collection("messages").document(), hashMapOf<String, Any?>("from" to me, "text" to text, "at" to now))
-            val ok = kotlinx.coroutines.withTimeoutOrNull(5000L) { b.commit().await() }
-            if (ok == null) sendRtdb(me, myName, myId, other, text) else null
+            kotlinx.coroutines.withTimeoutOrNull(4000L) { b.commit().await() }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            if (QuotaGuard.isExhausted(e)) {
-                QuotaGuard.markDown()
-                return sendRtdb(me, myName, myId, other, text)
-            }
-            e.message ?: tr("Gagal mengirim")
         }
+        return null
     }
 
     /** DATABASE CADANGAN: kirim pesan lewat RTDB chats/{chatId} (kuota terpisah).
@@ -134,6 +193,18 @@ object ChatRepo {
                     "ids" to mapOf(me to myId, other.uid to other.userId),
                     "lastText" to text,
                     "lastAt" to now,
+                ),
+            ).await()
+            Rtdb.ref("chatsByUser/$me/$id").updateChildren(
+                hashMapOf<String, Any?>(
+                    "otherUid" to other.uid, "otherName" to other.name,
+                    "otherId" to other.userId, "lastText" to text, "lastAt" to now,
+                ),
+            ).await()
+            Rtdb.ref("chatsByUser/${other.uid}/$id").updateChildren(
+                hashMapOf<String, Any?>(
+                    "otherUid" to me, "otherName" to myName,
+                    "otherId" to myId, "lastText" to text, "lastAt" to now,
                 ),
             ).await()
             null
