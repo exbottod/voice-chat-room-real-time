@@ -220,7 +220,8 @@ export default {
       const token = RtcTokenBuilder.buildTokenWithUid(
         env.AGORA_APP_ID, env.AGORA_APP_CERTIFICATE, channel, 0, RtcRole.PUBLISHER, TTL, TTL,
       );
-      return json({ token, expiresIn: TTL });
+      // App memakai appId ini untuk init RtcEngine supaya tidak mismatch.
+      return json({ token, appId: env.AGORA_APP_ID, expiresIn: TTL });
     } catch (e) {
       if (e instanceof AuthError) return json({ error: e.message }, 401);
       return json({ error: 'server error: ' + (e && e.message) }, 500);
