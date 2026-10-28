@@ -688,32 +688,53 @@ fun FollowListScreen(
     var busy by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uid, mode) {
-        list = if (mode == FOLLOW_MODE_FANS) FollowRepo.listFans(uid) else FollowRepo.listFollowing(uid)
+        // Daftar uid dibatasi 10 detik supaya layar tidak berputar selamanya
+        // kalau Firestore lambat; kalau gagal tampil pesan kosong, bukan loading abadi.
+        list = try {
+            kotlinx.coroutines.withTimeoutOrNull(10_000L) {
+                if (mode == FOLLOW_MODE_FANS) FollowRepo.listFans(uid) else FollowRepo.listFollowing(uid)
+            } ?: emptyList()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
     }
     LaunchedEffect(list) {
         val ids = list ?: return@LaunchedEffect
-        val um = HashMap<String, PublicUser>()
-        val fm = HashMap<String, Long>()
-        val iv = HashMap<String, Boolean>()
-        val mu = HashMap<String, Boolean>()
-        for (id in ids) {
-            try {
-                UserCache.byUid(id)?.let { um[id] = it }
-                fm[id] = FollowRepo.fansCount(id)
-                if (myUid.isNotEmpty() && id != myUid) {
-                    iv[id] = FollowRepo.isFollowing(myUid, id)
-                    mu[id] = FollowRepo.isFollowing(id, myUid)
-                } else {
-                    iv[id] = true
-                    mu[id] = true
+        // FIX list kosong: semua user dimuat PARALEL dan tiap hasil langsung
+        // ditampilkan begitu siap. Dulu berurutan + baru tampil setelah semua
+        // selesai, sehingga satu panggilan lambat membuat seluruh baris kosong.
+        kotlinx.coroutines.coroutineScope {
+            for (id in ids) {
+                launch {
+                    // 1) PROFIL dulu (nama + foto): Realtime Database, batas 6 detik.
+                    try {
+                        val u = kotlinx.coroutines.withTimeoutOrNull(6000L) { UserCache.byUid(id) }
+                            ?: UserCache.peek(id)
+                        if (u != null) users = users + (id to u)
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+                        UserCache.peek(id)?.let { users = users + (id to it) }
+                    }
+                    // 2) Status ikuti (tombol), batas 5 detik.
+                    try {
+                        if (myUid.isNotEmpty() && id != myUid) {
+                            val r = kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                                FollowRepo.isFollowing(myUid, id) to FollowRepo.isFollowing(id, myUid)
+                            }
+                            if (r != null) {
+                                iFollowMap = iFollowMap + (id to r.first)
+                                mutualMap = mutualMap + (id to r.second)
+                            }
+                        } else {
+                            iFollowMap = iFollowMap + (id to true)
+                            mutualMap = mutualMap + (id to true)
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+                    // 3) Jumlah fans (informasi tambahan), batas 5 detik.
+                    try {
+                        kotlinx.coroutines.withTimeoutOrNull(5000L) { FollowRepo.fansCount(id) }
+                            ?.let { fansN = fansN + (id to it) }
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
             }
         }
-        users = um
-        fansN = fm
-        iFollowMap = iv
-        mutualMap = mu
     }
     BackHandler { onBack() }
 
@@ -798,8 +819,9 @@ private fun FollowRow(
     val name = when {
         u == null -> "..."
         hidden -> tr("Pengguna Misterius")
-        u.name.isBlank() -> u.userId
-        else -> u.name
+        u.name.isNotBlank() -> u.name
+        u.userId.isNotBlank() -> u.userId
+        else -> tr("Pengguna")
     }
     Row(
         Modifier
@@ -836,7 +858,8 @@ private fun FollowRow(
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                "Kota ${ProfileRepo.countryName(u?.countryCode ?: "")} \u00b7 Fans ${fans ?: "-"}",
+                (if (u != null && u.userId.isNotBlank() && !hidden) "ID ${u.userId} \u00b7 " else "") +
+                    "${ProfileRepo.countryName(u?.countryCode ?: "")} \u00b7 Fans ${fans ?: "-"}",
                 color = Color(0xFF757575), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
