@@ -131,10 +131,31 @@ private fun svipItems(n: Int) = listOf(
 
 private val ALL_ITEMS: List<StoreItem> by lazy { STORE_ITEMS + (1..9).flatMap { vipItems(it) } + (1..9).flatMap { svipItems(it) } }
 
+/** Slot aset di panel admin (vipCfg/{n}_{slot}) untuk item bawaan VIP/SVIP. */
+private fun vipAssetSlot(id: String, fallback: String): String = when {
+    id.startsWith("vipt_") -> "title"
+    id.startsWith("vipf_") -> "frame"
+    id.startsWith("vipb_") -> "bubble"
+    id.startsWith("vipe_") -> "entry"
+    id.startsWith("vipbn_") -> "banner"
+    id.startsWith("svm_") -> "medal"
+    id.startsWith("svf_") -> "frame"
+    id.startsWith("sve_") -> "entry"
+    id.startsWith("svbn_") -> "banner"
+    id.startsWith("svb_") -> "bubble"
+    id.startsWith("svbd_") -> "badge"
+    else -> fallback
+}
+
 fun findItem(id: String?): StoreItem? {
     if (id.isNullOrBlank()) return null
     if (id.startsWith("sx_")) return StoreCatalog.find(id)?.toStoreItem()
-    return ALL_ITEMS.firstOrNull { it.id == id }
+    val base = ALL_ITEMS.firstOrNull { it.id == id } ?: return null
+    // FIX: item bawaan VIP/SVIP sebelumnya selalu tanpa aset, jadi medali muncul
+    // sebagai emoji. Sekarang aset hasil upload panel admin dipakai kalau ada.
+    val n = base.vip ?: return base
+    val a = VipAssets.get(n, vipAssetSlot(id, base.slot)) ?: return base
+    return base.copy(asset = a)
 }
 
 fun activeEquip(w: Wallet, slot: String): String {
