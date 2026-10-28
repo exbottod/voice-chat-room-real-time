@@ -136,11 +136,25 @@ object SvipLocal {
 }
 
 
-/** Level SVIP dari snapshot RTDB pub/{uid}: svipLv/svipUntil (baru), fallback vip/vipUntil (lama). */
+/** Semua level SVIP yang masih aktif dari pub/{uid}/svips: tier -> berakhir kapan. */
+private fun svipTiersOf(s: com.google.firebase.database.DataSnapshot): Map<Int, Long> {
+    val out = HashMap<Int, Long>()
+    s.child("svips").children.forEach { c ->
+        val t = c.key?.toIntOrNull() ?: return@forEach
+        val u = c.value as? Long ?: 0L
+        if (u > System.currentTimeMillis()) out[t] = u
+    }
+    return out
+}
+
+/** Level SVIP efektif dari snapshot RTDB pub/{uid}: level tertinggi yang masih aktif. */
 private fun svipLevelOf(s: com.google.firebase.database.DataSnapshot): Pair<Int, Long> {
+    val tiers = svipTiersOf(s)
+    val top = tiers.maxByOrNull { it.key }
+    if (top != null) return top.key to top.value
     val sv = (s.child("svipLv").value as? Long)?.toInt() ?: 0
     val su = s.child("svipUntil").value as? Long ?: 0L
-    if (sv > 0) return sv to su
+    if (vipActive(sv, su)) return sv to su
     val v = (s.child("vip").value as? Long)?.toInt() ?: 0
     val u = s.child("vipUntil").value as? Long ?: 0L
     return v to u
@@ -289,23 +303,35 @@ object SvipRepo {
      */
     suspend fun buySvip(uid: String, tier: Int): String? {
         if (tier !in 1..9) return "Level SVIP tidak valid"
-        val cur = SvipLocal.vip(uid)
-        val curActive = vipActive(cur.first, cur.second)
-        if (curActive && cur.first > tier) return "SVIP${cur.first} kamu masih aktif"
         val price = vipPrice(tier)
         // 1) Potong koin lewat dompet Supabase (juga mencatat transaksi).
         val item = StoreItem("svip$tier", "badge", "SVIP$tier", "\uD83D\uDC51", price, 30, Color(0xFFD4AF37), 0, null)
         val r = SupaRepo.buyItem(uid, item)
         r.wallet?.let { WalletRepo.emitBackup(uid, it) }
         if (r.error != null) return r.error
-        // 2) Simpan level SVIP di Realtime Database.
+        // 2) Baca daftar level SVIP yang sudah dibeli (Realtime Database).
         val now = System.currentTimeMillis()
-        val until = (if (curActive && cur.first == tier) cur.second else now) + 30L * 86_400_000L
-        SvipLocal.saveVip(uid, tier, until)
+        val tiers = HashMap<Int, Long>()
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("pub/$uid").get().await() }
+            if (snap != null && snap.exists()) tiers.putAll(svipTiersOf(snap))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // 3) Level yang dibeli: sama = perpanjang 30 hari, beda = dapat tambah 30 hari.
+        val until = (tiers[tier] ?: now) + 30L * 86_400_000L
+        tiers[tier] = until
+        // Level aktif = level tertinggi yang belum kedaluwarsa.
+        val top = tiers.maxByOrNull { it.key }!!
+        SvipLocal.saveVip(uid, top.key, top.value)
         try {
             kotlinx.coroutines.withTimeoutOrNull(5000L) {
                 Rtdb.ref("pub/$uid").updateChildren(
-                    hashMapOf<String, Any?>("svipLv" to tier.toLong(), "svipUntil" to until),
+                    hashMapOf<String, Any?>(
+                        "svips/$tier" to until,
+                        "svipLv" to top.key.toLong(),
+                        "svipUntil" to top.value,
+                    ),
                 ).await()
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
