@@ -142,30 +142,13 @@ object RoomRepo {
         )
     }
 
-    /** Daftar room: RTDB (utama) digabung Firestore (kalau terbaca). */
+    /** Daftar room: REALTIME DATABASE saja (roomsPub). Firestore tidak lagi dipakai
+     *  di sini karena listener 100 dokumen terus-menerus menghabiskan kuota baca. */
     fun observeRoomsMerged(onChange: (List<RoomInfo>) -> Unit): Reg {
-        var rt = emptyList<RoomInfo>()
-        var fs = emptyList<RoomInfo>()
-        fun emit() {
-            val byId = LinkedHashMap<String, RoomInfo>()
-            rt.forEach { byId[it.id] = it }
-            // Firestore melengkapi (background, lockedSeats, dll) dan menambah room yang belum tercermin
-            fs.forEach { f ->
-                val cur = byId[f.id]
-                byId[f.id] = if (cur == null) f else f.copy(pinned = f.pinned || cur.pinned)
-                // cerminkan room dari Firestore ke RTDB sekali supaya permanen tersedia
-                if (cur == null) mirrorRoom(f)
-            }
-            onChange(byId.values.toList())
-        }
         val r1 = Rtdb.listen(Rtdb.ref("roomsPub")) { snap ->
-            rt = snap.children.mapNotNull { it.toRtRoom() }
-            emit()
+            onChange(snap.children.mapNotNull { it.toRtRoom() })
         }
-        val r2 = try {
-            observeRooms { fs = it; emit() }
-        } catch (e: Exception) { null }
-        return Reg { r1.remove(); try { r2?.remove() } catch (e: Exception) { } }
+        return Reg { r1.remove() }
     }
 
     fun observeRooms(onChange: (List<RoomInfo>) -> Unit): ListenerRegistration =
@@ -174,8 +157,9 @@ object RoomRepo {
                 if (snap != null) onChange(snap.documents.mapNotNull { it.toRoom() })
             }
 
-    fun observeRoom(id: String, onChange: (RoomInfo?) -> Unit): ListenerRegistration =
-        roomRef(id).addSnapshotListener { snap, _ -> onChange(snap?.toRoom()) }
+    /** Data room realtime dari Realtime Database (bukan Firestore). */
+    fun observeRoom(id: String, onChange: (RoomInfo?) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("roomsPub/$id")) { snap -> onChange(pubToRoom(id, snap)) }
 
     /** Room dari mirror Realtime Database roomsPub/{id}: dipakai sebagai cadangan
      *  saat Firestore macet / kuota habis supaya masuk room tidak muter-muter. */

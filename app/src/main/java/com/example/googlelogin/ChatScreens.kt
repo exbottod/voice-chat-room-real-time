@@ -62,8 +62,11 @@ object ChatRepo {
             }
             emit()
         }
-        // Riwayat lama di Firestore: dibaca SEKALI per buka tab (tanpa listener realtime).
+        // Riwayat lama di Firestore: dibaca SEKALI per buka tab, dan HANYA kalau
+        // daftar dari RTDB masih kosong (hemat kuota Firestore).
         kotlinx.coroutines.GlobalScope.launch {
+            kotlinx.coroutines.delay(2000L)
+            if (byId.isNotEmpty()) return@launch
             try {
                 val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
                     db().collection("chats").whereArrayContains("members", myUid).get().await()
@@ -216,14 +219,11 @@ object ChatRepo {
     }
 
     /** Gabung pesan dari Firestore + cadangan RTDB, urut waktu, tanpa dobel. */
+    /** Pesan chat: REALTIME DATABASE realtime (utama). Riwayat lama di Firestore
+     *  dibaca SEKALI saja (tanpa listener) supaya kuota Firestore tidak terbakar. */
     fun observeMessagesMerged(chatId: String, onChange: (List<ChatMsg>) -> Unit): Reg {
         val merged = HashMap<String, ChatMsg>()
         fun emit() = onChange(merged.values.sortedBy { it.at })
-        val fs = observeMessages(chatId) { list ->
-            merged.keys.removeAll { it.startsWith("fs_") }
-            list.forEach { merged["fs_" + it.id] = it }
-            emit()
-        }
         val rt = Rtdb.listen(Rtdb.ref("chats/$chatId/messages")) { s ->
             merged.keys.removeAll { it.startsWith("rt_") }
             s.children.forEach { c ->
@@ -236,7 +236,22 @@ object ChatRepo {
             }
             emit()
         }
-        return Reg { fs.remove(); rt.remove() }
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                    db().collection("chats").document(chatId).collection("messages")
+                        .orderBy("at").limitToLast(100).get().await()
+                }
+                if (snap != null && merged.keys.none { it.startsWith("fs_") }) {
+                    snap.documents.forEach {
+                        merged["fs_" + it.id] = ChatMsg(it.id, it.getString("from") ?: "", it.getString("text") ?: "", it.getLong("at") ?: 0L)
+                    }
+                    emit()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: Exception) { }
+        }
+        return Reg { rt.remove() }
     }
 }
 
