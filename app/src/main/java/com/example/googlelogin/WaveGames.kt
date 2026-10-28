@@ -153,6 +153,7 @@ fun WaveGamesScreen(
     onClose: () -> Unit,
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val ctx = LocalContext.current
     var games by remember { mutableStateOf<List<WaveGames.Game>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var playing by remember { mutableStateOf<Pair<WaveGames.Game, String>?>(null) }
@@ -199,6 +200,20 @@ fun WaveGamesScreen(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                "Browser",
+                                color = Color(0xFF7FD1C1),
+                                fontSize = 13.sp,
+                                modifier = Modifier.clickable {
+                                    try {
+                                        ctx.startActivity(
+                                            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(play.second))
+                                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                        )
+                                    } catch (e: Exception) {
+                                    }
+                                }.padding(6.dp),
                             )
                             Text(
                                 if (fullMode) "▽ Panel" else "⤢ Penuh",
