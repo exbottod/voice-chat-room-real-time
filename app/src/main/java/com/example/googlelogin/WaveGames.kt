@@ -328,6 +328,12 @@ private fun WaveGameView(
                     settings.setSupportMultipleWindows(false)
                     settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                    // Banyak halaman game menolak WebView default; pakai UA Chrome mobile
+                    settings.userAgentString = settings.userAgentString
+                        .replace("; wv", "")
+                        .replace("Version/4.0 ", "")
+                    android.webkit.CookieManager.getInstance().setAcceptCookie(true)
+                    android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webChromeClient = object : WebChromeClient() {
                         override fun onConsoleMessage(m: android.webkit.ConsoleMessage?): Boolean {
                             return true
