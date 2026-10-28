@@ -1,0 +1,5 @@
+# Gateway Supabase tidak boleh memverifikasi JWT sendiri untuk wallet-api.
+# Token yang dikirim app dan WaveGames adalah token Firebase, bukan JWT Supabase,
+# jadi verifikasinya dilakukan di dalam fungsi (verifyFirebase).
+[functions.wallet-api]
+verify_jwt = false

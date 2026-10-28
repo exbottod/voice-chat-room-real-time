@@ -134,9 +134,14 @@ async function wavePlayer(uid: string) {
   };
 }
 
-function bearer(req: Request): string {
+// Token pemain bisa datang dari header Authorization, query ?token=, atau body.
+function bearer(req: Request, bodyToken?: unknown): string {
   const a = req.headers.get("authorization") || req.headers.get("Authorization") || "";
-  return a.toLowerCase().startsWith("bearer ") ? a.slice(7).trim() : "";
+  if (a.toLowerCase().startsWith("bearer ")) return a.slice(7).trim();
+  const q = new URL(req.url).searchParams.get("token");
+  if (q) return q.trim();
+  if (typeof bodyToken === "string" && bodyToken.trim()) return bodyToken.trim();
+  return "";
 }
 
 async function waveUserInfo(req: Request): Promise<Response> {
@@ -151,7 +156,14 @@ async function waveUserInfo(req: Request): Promise<Response> {
 }
 
 async function waveSubmitFlow(req: Request): Promise<Response> {
-  let body: { betAmount?: number; type?: number; transactionId?: string; gameName?: string };
+  let body: {
+    betAmount?: number;
+    type?: number;
+    transactionId?: string;
+    gameName?: string;
+    token?: string;
+    userToken?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -159,7 +171,7 @@ async function waveSubmitFlow(req: Request): Promise<Response> {
   }
   let uid: string;
   try {
-    uid = await verifyFirebase(bearer(req));
+    uid = await verifyFirebase(bearer(req, body.token ?? body.userToken));
   } catch (e) {
     return json({ success: false, message: e instanceof Error ? e.message : "Token tidak valid" }, 401);
   }
