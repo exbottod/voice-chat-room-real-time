@@ -38,7 +38,12 @@ async function getKeys(): Promise<Record<string, unknown>[]> {
 async function verifyFirebase(token: string): Promise<string> {
   const parts = token.split(".");
   if (parts.length !== 3) throw new Error("Token tidak valid");
-  const header = b64urlJson(parts[0]);
+  let header: Record<string, unknown>;
+  try {
+    header = b64urlJson(parts[0]);
+  } catch {
+    throw new Error("Token tidak valid");
+  }
   if (header.alg !== "RS256" || typeof header.kid !== "string") throw new Error("Token tidak valid");
 
   const keys = await getKeys();
@@ -62,7 +67,12 @@ async function verifyFirebase(token: string): Promise<string> {
   );
   if (!ok) throw new Error("Token tidak valid");
 
-  const p = b64urlJson(parts[1]);
+  let p: Record<string, unknown>;
+  try {
+    p = b64urlJson(parts[1]);
+  } catch {
+    throw new Error("Token tidak valid");
+  }
   const now = Math.floor(Date.now() / 1000);
   if (p.aud !== FIREBASE_PROJECT_ID) throw new Error("Token tidak valid");
   if (p.iss !== `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`) throw new Error("Token tidak valid");
