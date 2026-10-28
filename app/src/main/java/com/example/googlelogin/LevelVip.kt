@@ -519,12 +519,13 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     Text("🏮", fontSize = 40.sp)
                 }
                 Text("🦌", fontSize = 130.sp, modifier = Modifier.offset(y = 14.dp))
-                // MEDAL VIP: medal per level (slot "title" dari panel developer)
-                // tampil di posisi mahkota. Kalau belum diupload, tetap mahkota.
-                val medalA = VipAssets.get(sel, "title")
+                // MEDAL VIP: aset terpisah (slot "medal", kotak 1:1) tampil di posisi
+                // mahkota. Gelar VIP (slot "title") tetap dipakai seperti dulu (VipTag).
+                // Kalau medal belum diupload, tetap tampil mahkota.
+                val medalA = VipAssets.get(sel, "medal")
                 if (medalA != null) {
                     key(medalA.updatedAt) {
-                        VipMedia(medalA, Modifier.align(Alignment.TopCenter).offset(y = 22.dp).width(170.dp), loop = true, contentScale = ContentScale.Fit)
+                        VipMedia(medalA, Modifier.align(Alignment.TopCenter).offset(y = 22.dp).size(140.dp), loop = true, contentScale = ContentScale.Fit)
                     }
                 } else {
                     Text("👑", fontSize = 56.sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = 22.dp))
