@@ -7,6 +7,9 @@ import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.resume
+import kotlinx.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 
 /** Diisi otomatis oleh skrip dari URL repo GitHub Anda. Boleh diganti manual. */
@@ -54,58 +57,160 @@ object UserDirectory {
     /** ID RESMI user lain (berurutan dari 100000) dari users/{uid}.userId di Firestore.
      *  Dipakai layar profil supaya UID yang tampil tidak pernah kode room / hash email. */
     suspend fun officialIdOf(uid: String): String? {
-        val d = db().collection("users").document(uid).get().await()
-        return d.getString("userId")?.takeIf { it.isNotBlank() }
+        try {
+            val d = db().collection("users").document(uid).get().await()
+            val fs = d.getString("userId")?.takeIf { it.isNotBlank() }
+            if (fs != null) return fs
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Cadangan: ID tersimpan di Realtime Database.
+        return try {
+            val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("ids/u/$uid").get().await() }
+            (s?.value as? String)?.takeIf { it.isNotBlank() }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { null }
     }
 
     /**
-     * ID unik berurutan mulai 100000. Dibuat sekali per akun lewat transaksi Firestore
-     * (counters/userIds) lalu disimpan di users/{uid} dan userIds/{id}.
+     * ID unik berurutan mulai 100000. Kini dibuat lewat REALTIME DATABASE
+     * (transaksi ids/u/{uid}, ids/i/{id}, ids/next) sehingga daftar akun
+     * tidak terganggu kuota Firestore. User lama yang sudah punya ID di
+     * Firestore tetap memakai ID lamanya.
      */
     suspend fun ensureUserId(ctx: Context, uid: String): String {
         cachedId(ctx, uid)?.let { return it }
-        val db = db()
-        val counterRef = db.collection("counters").document("userIds")
-        val userRef = db.collection("users").document(uid)
-        val id: String = db.runTransaction { tx ->
-            val existing = tx.get(userRef).getString("userId")
-            if (existing != null) {
-                existing
-            } else {
-                val next = tx.get(counterRef).getLong("next") ?: FIRST_USER_ID
-                tx.set(counterRef, hashMapOf("next" to next + 1))
-                tx.set(userRef, hashMapOf("userId" to next.toString()), SetOptions.merge())
-                tx.set(db.collection("userIds").document(next.toString()), hashMapOf("uid" to uid))
-                next.toString()
+        // 1) User lama: ID yang sudah ada di Firestore tetap dipakai.
+        try {
+            val d = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                db().collection("users").document(uid).get().await()
             }
-        }.await()
+            val fsId = d?.getString("userId")?.takeIf { it.isNotBlank() }
+            if (fsId != null) {
+                prefs(ctx).edit().putString(uid, fsId).apply()
+                mirrorIdToRtdb(uid, fsId)
+                return fsId
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // 2) ID baru dibuat di Realtime Database.
+        val id = rtdbEnsureId(uid)
         prefs(ctx).edit().putString(uid, id).apply()
+        // 3) Cermin best-effort ke Firestore agar fitur lama tetap jalan.
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                db().collection("users").document(uid).set(
+                    hashMapOf("userId" to id), SetOptions.merge(),
+                ).await()
+                db().collection("userIds").document(id).set(
+                    hashMapOf("uid" to uid), SetOptions.merge(),
+                ).await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
         return id
+    }
+
+    /** Simpan ID yang sudah ada ke Realtime Database (ids/u, ids/i). */
+    private suspend fun mirrorIdToRtdb(uid: String, id: String) {
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                Rtdb.ref("ids/u/$uid").setValue(id).await()
+                Rtdb.ref("ids/i/$id/uid").setValue(uid).await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+
+    /** Transaksi pembuatan ID di Realtime Database (seed dari counter Firestore lama). */
+    private suspend fun rtdbEnsureId(uid: String): String {
+        val seed: Long = try {
+            val c = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                db().collection("counters").document("userIds").get().await()
+            }
+            (c?.getLong("next") ?: FIRST_USER_ID).coerceAtLeast(FIRST_USER_ID)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { FIRST_USER_ID }
+        return suspendCancellableCoroutine { cont ->
+            Rtdb.ref("ids").runTransaction(object : com.google.firebase.database.Transaction.Handler {
+                override fun doTransaction(current: com.google.firebase.database.MutableData): com.google.firebase.database.Transaction.Result {
+                    val mine = current.child("u").child(uid).value
+                    if (mine == null) {
+                        val next = (current.child("next").value as? Long) ?: seed
+                        current.child("next").value = next + 1
+                        current.child("u").child(uid).value = next.toString()
+                        current.child("i").child(next.toString()).value = uid
+                    }
+                    return com.google.firebase.database.Transaction.success(current)
+                }
+                override fun onComplete(
+                    err: com.google.firebase.database.DatabaseError?,
+                    committed: Boolean,
+                    current: com.google.firebase.database.DataSnapshot?,
+                ) {
+                    if (!cont.isActive) return
+                    val v = current?.child("u")?.child(uid)?.value
+                    if (err == null && v != null) cont.resume(v.toString())
+                    else cont.resumeWithException(err?.toException() ?: IllegalStateException("Gagal membuat ID, coba lagi"))
+                }
+            })
+        }
     }
 
     /** Data publik (nama, avatar, negara, bio) agar bisa dicari lewat ID. */
     suspend fun publish(ctx: Context, user: UserProfile, d: ProfileData): Throwable? {
         val uid = FirebaseAuth.getInstance().currentUser?.uid
             ?: return IllegalStateException("Belum login")
-        val id = cachedId(ctx, uid) ?: return IllegalStateException("ID belum siap")
-        return try {
-            db().collection("userIds").document(id).set(
-                hashMapOf<String, Any?>(
-                    "uid" to uid,
-                    "name" to d.nickname.ifBlank { user.name },
-                    "countryCode" to d.countryCode,
-                    "bio" to d.bio,
-                    "avatarB64" to d.avatarB64,
-                    "photoUrl" to user.photoUrl,
-                    "gender" to d.gender,
-                ),
-                SetOptions.merge(),
-            ).await()
-            null
+        val id = try {
+            cachedId(ctx, uid) ?: ensureUserId(ctx, uid)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { return e }
+        val data = hashMapOf<String, Any?>(
+            "uid" to uid,
+            "name" to d.nickname.ifBlank { user.name },
+            "countryCode" to d.countryCode,
+            "bio" to d.bio,
+            "avatarB64" to d.avatarB64,
+            "photoUrl" to user.photoUrl,
+            "gender" to d.gender,
+        )
+        // REALTIME DATABASE: profil publik utama (daftar akun tidak bergantung Firestore).
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                Rtdb.ref("ids/i/$id").updateChildren(data).await()
+            }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-            e
+            return e
         }
+        // Cermin best-effort ke Firestore untuk fitur cari lama.
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                db().collection("userIds").document(id).set(data, SetOptions.merge()).await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        return null
     }
+
+    /** Profil publik user dari Realtime Database (ids/i/{id}). */
+    private fun rtdbToPublic(id: String, s: com.google.firebase.database.DataSnapshot): PublicUser = PublicUser(
+        userId = id,
+        uid = (s.child("uid").value as? String) ?: "",
+        name = (s.child("name").value as? String)?.takeIf { it.isNotBlank() } ?: "Pengguna $id",
+        countryCode = (s.child("countryCode").value as? String) ?: "ID",
+        bio = (s.child("bio").value as? String) ?: "",
+        avatarB64 = s.child("avatarB64").value as? String,
+        photoUrl = s.child("photoUrl").value as? String,
+        gender = (s.child("gender").value as? String) ?: "",
+    )
+
+    /** ID user dari Realtime Database (ids/u/{uid}); null kalau belum ada. */
+    private suspend fun rtdbIdOf(uid: String): String? = try {
+        kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("ids/u/$uid").get().await() }?.value as? String
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
 
     /** Ubah dokumen koleksi userIds menjadi PublicUser (dipakai masking ranking). */
     fun toPublic(doc: com.google.firebase.firestore.DocumentSnapshot): PublicUser = PublicUser(
@@ -129,9 +234,16 @@ object UserDirectory {
         ad = doc.getString("ad") ?: "",
     )
 
-    /** Cari pengguna berdasarkan ID. null = tidak ditemukan. */
+    /** Cari pengguna berdasarkan ID (Realtime Database dulu, Firestore cadangan). null = tidak ditemukan. */
     suspend fun find(id: String): PublicUser? {
-        val doc = db().collection("userIds").document(id.trim()).get().await()
+        val key = id.trim()
+        try {
+            val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("ids/i/$key").get().await() }
+            if (s != null && s.exists()) return rtdbToPublic(key, s)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        val doc = db().collection("userIds").document(key).get().await()
         if (!doc.exists()) return null
         return PublicUser(
             userId = doc.id,
@@ -156,9 +268,10 @@ object UserDirectory {
     }
 
     suspend fun findByUid(uid: String): PublicUser? {
-        val q = db().collection("userIds").whereEqualTo("uid", uid).limit(1).get().await()
-        val doc = q.documents.firstOrNull() ?: return null
-        return PublicUser(
+        try {
+            val q = db().collection("userIds").whereEqualTo("uid", uid).limit(1).get().await()
+            val doc = q.documents.firstOrNull()
+            if (doc != null) return PublicUser(
             userId = doc.id,
             uid = doc.getString("uid") ?: "",
             name = doc.getString("name") ?: "Pengguna ${doc.id}",
@@ -176,10 +289,26 @@ object UserDirectory {
             medals = doc.getString("medals") ?: "",
             fam = doc.getString("fam") ?: "",
         )
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Cadangan Realtime Database: cari ID lewat ids/u lalu muat profilnya.
+        val rid = rtdbIdOf(uid) ?: return null
+        return find(rid)
     }
-    
-/** Simpan label family di profil publik (dipanggil saat create/join/leave family). */
-    suspend fun setFam(uid: String, fam: String): String? = try {
+
+    /** Simpan label family di profil publik (dipanggil saat create/join/leave family). */
+    suspend fun setFam(uid: String, fam: String): String? {
+        // Realtime Database: label family di profil publik RTDB.
+        try {
+            val rid = rtdbIdOf(uid)
+            if (rid != null) kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                Rtdb.ref("ids/i/$rid/fam").setValue(fam).await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        return try {
         val q = db().collection("userIds").whereEqualTo("uid", uid).limit(1).get().await()
         val doc = q.documents.firstOrNull() ?: return null
         db().collection("userIds").document(doc.id).set(
@@ -187,6 +316,7 @@ object UserDirectory {
         ).await()
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
+    }
     
     // ---------- Undangan ----------
 
@@ -205,8 +335,14 @@ object UserDirectory {
         return try {
             val mine = db().collection("invites").document(myUid).get().await()
             if (mine.exists()) return "Kamu sudah pernah memakai kode undangan"
-            val inviter = db().collection("userIds").document(c).get().await()
-            val inviterUid = inviter.getString("uid") ?: return "Kode undangan tidak ditemukan"
+            val inviterUid = try {
+                db().collection("userIds").document(c).get().await().getString("uid")
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+                ?: try {
+                    val s = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("ids/i/$c/uid").get().await() }
+                    s?.value as? String
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+                ?: return "Kode undangan tidak ditemukan"
             val batch = db().batch()
             batch.set(
                 db().collection("invites").document(myUid),

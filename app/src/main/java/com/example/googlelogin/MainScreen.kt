@@ -173,12 +173,17 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             profile = it
             ProfileRepo.saveLocal(context, user.email, it)
         }
-        try {
-            userId = UserDirectory.ensureUserId(context, uid)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
+        // Daftar akun: ID dibuat lewat Realtime Database; coba sampai 3x.
+        repeat(3) { attempt ->
+            if (userId.isNotBlank()) return@repeat
+            try {
+                userId = UserDirectory.ensureUserId(context, uid)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (attempt == 2) Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
+                else kotlinx.coroutines.delay(2000L)
+            }
         }
         try {
             UserDirectory.publish(context, user, profile)
