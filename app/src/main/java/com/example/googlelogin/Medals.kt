@@ -81,7 +81,11 @@ fun MedalIcon(id: String, size: Dp, tagModifier: Modifier = Modifier) {
         if (n in 1..9) VipTag(n, tagModifier)
         return
     }
-    findItem(id)?.let { StoreBadgeIcon(it, size) }
+    val item = findItem(id) ?: return
+    // Medal SVIP hanya tampil kalau aset 1:1 dari panel admin sudah diupload.
+    // Tanpa aset, jangan tampilkan emoji pengganti.
+    if (id.startsWith("svm_") && item.asset == null) return
+    StoreBadgeIcon(item, size)
 }
 
 /** Deretan medal kecil (di bawah nama, di chat room, di profil). Kosong = tidak menampilkan apa-apa. */
@@ -207,7 +211,9 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     }
     val worn = activeMedalIds(walletMerged)
     val ownedIds = ownedMedalIds(walletMerged)
-    val mine = ownedIds.map { MedalEntry(it, findItem(it)?.name ?: it, true) }
+    val mine = ownedIds
+        .filter { id -> !id.startsWith("svm_") || findItem(id)?.asset != null }
+        .map { MedalEntry(it, findItem(it)?.name ?: it, true) }
     val shop = StoreCatalog.bySlot("medal")
         .filter { "sx_${it.id}" !in ownedIds }
         .map { MedalEntry("sx_${it.id}", it.name, false, it) }
