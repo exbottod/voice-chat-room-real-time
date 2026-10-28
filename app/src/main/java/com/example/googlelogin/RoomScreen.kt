@@ -211,6 +211,19 @@ fun RoomScreen(
         }
     }
 
+    // Penjaga spinner: kalau 2 detik room belum termuat, coba lagi berkali-kali lewat
+    // getRoom (Realtime Database dulu, lalu Firestore) sampai dapat.
+    LaunchedEffect(roomId) {
+        var tries = 0
+        while (room == null && tries < 8) {
+            kotlinx.coroutines.delay(if (tries == 0) 2000L else 3000L)
+            if (room != null) break
+            val got = try { RoomRepo.getRoom(roomId) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+            if (got != null && room == null) room = got
+            tries++
+        }
+    }
+
     BackHandler {
         when {
             giftOpen -> giftOpen = false
