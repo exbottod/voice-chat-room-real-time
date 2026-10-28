@@ -57,6 +57,7 @@ object UserDirectory {
     /** ID RESMI user lain (berurutan dari 100000) dari users/{uid}.userId di Firestore.
      *  Dipakai layar profil supaya UID yang tampil tidak pernah kode room / hash email. */
     suspend fun officialIdOf(uid: String): String? {
+        rtdbOfficialId(uid)?.let { return it }
         try {
             val d = db().collection("users").document(uid).get().await()
             val fs = d.getString("userId")?.takeIf { it.isNotBlank() }
@@ -90,6 +91,7 @@ object UserDirectory {
             if (fsId != null) {
                 prefs(ctx).edit().putString(uid, fsId).apply()
                 mirrorIdToRtdb(uid, fsId)
+                publishPubId(uid, fsId)
                 return fsId
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -98,6 +100,7 @@ object UserDirectory {
         // 2) ID baru dibuat di Realtime Database.
         val id = rtdbEnsureId(uid)
         prefs(ctx).edit().putString(uid, id).apply()
+        publishPubId(uid, id)
         // 3) Cermin best-effort ke Firestore agar fitur lama tetap jalan.
         try {
             kotlinx.coroutines.withTimeoutOrNull(4000L) {
@@ -112,6 +115,30 @@ object UserDirectory {
             throw e
         } catch (e: Exception) { }
         return id
+    }
+
+    /** Tulis ID ke pub/{uid}/id: dibaca layar room & profil orang lain. */
+    private suspend fun publishPubId(uid: String, id: String) {
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                Rtdb.ref("pub/$uid/id").setValue(id).await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+
+    /** ID resmi user dari Realtime Database: ids/u/{uid}, lalu pub/{uid}/id. */
+    suspend fun rtdbOfficialId(uid: String): String? {
+        try {
+            val a = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("ids/u/$uid").get().await() }
+            (a?.value as? String)?.takeIf { it.isNotBlank() }?.let { return it }
+            val b = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("pub/$uid/id").get().await() }
+            (b?.value as? String)?.takeIf { it.isNotBlank() }?.let { return it }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        return null
     }
 
     /** Simpan ID yang sudah ada ke Realtime Database (ids/u, ids/i). */
