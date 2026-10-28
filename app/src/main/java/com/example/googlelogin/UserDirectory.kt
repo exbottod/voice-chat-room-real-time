@@ -33,7 +33,17 @@ data class PublicUser(
     val fam: String = "",
     val svip: String = "",
     val ad: String = "",
+    val svipLv: Int = 0,
+    val svipUntil: Long = 0,
 )
+
+/** Level SVIP efektif: SVIP yang dibeli (Realtime Database) atau level VIP dompet, mana yang lebih tinggi. */
+fun PublicUser.svipLevel(): Int {
+    val a = if (vipActive(svipLv, svipUntil)) svipLv else 0
+    val b = if (vipActive(vip, vipUntil)) vip else 0
+    return maxOf(a, b)
+}
+
 
 object UserDirectory {
     private fun db() = FirebaseFirestore.getInstance()

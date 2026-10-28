@@ -144,6 +144,8 @@ object UserCache {
                 medals = if (s.hasChild("medals")) s.child("medals").getValue(String::class.java) ?: b.medals else b.medals,
                 fam = if (s.hasChild("fam")) s.child("fam").getValue(String::class.java) ?: b.fam else b.fam,
                 svip = if (s.hasChild("svip")) s.child("svip").getValue(String::class.java) ?: b.svip else b.svip,
+                svipLv = (s.child("svipLv").value as? Number)?.toInt() ?: b.svipLv,
+                svipUntil = (s.child("svipUntil").value as? Number)?.toLong() ?: b.svipUntil,
                 ad = s.child("ad").getValue(String::class.java) ?: b.ad,
                 // FIX avatar: foto profil ikut dibaca dari RTDB pub (field "av")
                 // supaya avatar tetap tampil saat kuota Firestore habis.
@@ -815,7 +817,7 @@ private fun FollowRow(
     onClick: () -> Unit,
     onToggle: () -> Unit,
 ) {
-    val hidden = u != null && u.svipOn("hideProfile") && vipActive(u.vip, u.vipUntil) && u.vip >= 6
+    val hidden = u != null && u.svipOn("hideProfile") && u.svipLevel() >= 6
     val name = when {
         u == null -> "..."
         hidden -> tr("Pengguna Misterius")

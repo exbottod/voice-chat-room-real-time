@@ -14,6 +14,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -133,6 +134,17 @@ object SvipLocal {
     }
 }
 
+
+/** Level SVIP dari snapshot RTDB pub/{uid}: svipLv/svipUntil (baru), fallback vip/vipUntil (lama). */
+private fun svipLevelOf(s: com.google.firebase.database.DataSnapshot): Pair<Int, Long> {
+    val sv = (s.child("svipLv").value as? Long)?.toInt() ?: 0
+    val su = s.child("svipUntil").value as? Long ?: 0L
+    if (sv > 0) return sv to su
+    val v = (s.child("vip").value as? Long)?.toInt() ?: 0
+    val u = s.child("vipUntil").value as? Long ?: 0L
+    return v to u
+}
+
 object SvipRepo {
     private fun db() = FirebaseFirestore.getInstance()
     private fun ref(uid: String) = db().collection("wallets").document(uid)
@@ -149,8 +161,9 @@ object SvipRepo {
             val data = hashMapOf<String, Any?>("svip" to SvipLocal.csv(uid), "ad" to SvipLocal.ad(uid))
             val lv = SvipLocal.vip(uid)
             if (lv.first > 0) {
-                data["vip"] = lv.first.toLong()
-                data["vipUntil"] = lv.second
+                // BELI SVIP: level tersimpan di Realtime Database pub/{uid}/svipLv.
+                data["svipLv"] = lv.first.toLong()
+                data["svipUntil"] = lv.second
             }
             Rtdb.ref("pub/$uid").updateChildren(data).await()
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -203,8 +216,7 @@ object SvipRepo {
         try {
             val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("pub/$uid").get().await() }
             if (s != null && s.exists()) {
-                val v = (s.child("vip").value as? Long)?.toInt() ?: 0
-                val until = s.child("vipUntil").value as? Long ?: 0L
+                val (v, until) = svipLevelOf(s)
                 SvipLocal.saveVip(uid, v, until)
                 if (s.hasChild("svip")) SvipLocal.saveAll(uid, s.child("svip").value as? String ?: "")
                 if (s.hasChild("ad")) SvipLocal.saveAd(uid, s.child("ad").value as? String ?: "")
@@ -229,8 +241,7 @@ object SvipRepo {
         try {
             val s = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("pub/$uid").get().await() }
             if (s != null && s.exists()) {
-                val v = (s.child("vip").value as? Long)?.toInt() ?: 0
-                val until = s.child("vipUntil").value as? Long ?: 0L
+                val (v, until) = svipLevelOf(s)
                 if (v > 0) {
                     SvipLocal.saveVip(uid, v, until)
                     return v to until
@@ -262,12 +273,44 @@ object SvipRepo {
             if (s != null && s.exists()) {
                 if (s.hasChild("svip")) SvipLocal.saveAll(uid, s.child("svip").value as? String ?: "")
                 if (s.hasChild("ad")) SvipLocal.saveAd(uid, s.child("ad").value as? String ?: "")
-                val v = (s.child("vip").value as? Long)?.toInt() ?: 0
-                if (v > 0) SvipLocal.saveVip(uid, v, s.child("vipUntil").value as? Long ?: 0L)
+                val (v, u) = svipLevelOf(s)
+                if (v > 0) SvipLocal.saveVip(uid, v, u)
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) { }
+    }
+
+    /**
+     * BELI SVIP n: koin dipotong lewat dompet Supabase (transaksi tercatat),
+     * level + masa aktif SVIP disimpan di REALTIME DATABASE pub/{uid}/svipLv.
+     * Membeli level yang sama memperpanjang 30 hari.
+     */
+    suspend fun buySvip(uid: String, tier: Int): String? {
+        if (tier !in 1..9) return "Level SVIP tidak valid"
+        val cur = SvipLocal.vip(uid)
+        val curActive = vipActive(cur.first, cur.second)
+        if (curActive && cur.first > tier) return "SVIP${cur.first} kamu masih aktif"
+        val price = vipPrice(tier)
+        // 1) Potong koin lewat dompet Supabase (juga mencatat transaksi).
+        val item = StoreItem("svip$tier", "badge", "SVIP$tier", "\uD83D\uDC51", price, 30, Color(0xFFD4AF37), 0, null)
+        val r = SupaRepo.buyItem(uid, item)
+        r.wallet?.let { WalletRepo.emitBackup(uid, it) }
+        if (r.error != null) return r.error
+        // 2) Simpan level SVIP di Realtime Database.
+        val now = System.currentTimeMillis()
+        val until = (if (curActive && cur.first == tier) cur.second else now) + 30L * 86_400_000L
+        SvipLocal.saveVip(uid, tier, until)
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                Rtdb.ref("pub/$uid").updateChildren(
+                    hashMapOf<String, Any?>("svipLv" to tier.toLong(), "svipUntil" to until),
+                ).await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        return null
     }
 
     /** Simpan iklan pribadi (Personal ADs); lokal dulu, server best-effort. */
@@ -319,7 +362,15 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
     var myAd by remember(uid) { mutableStateOf(SvipLocal.ad(uid)) }
     var loaded by remember(uid) { mutableStateOf(false) }
     var editAd by remember { mutableStateOf(false) }
+    // BELI SVIP: level disimpan di Realtime Database (pub svipLv/svipUntil).
+    var selSvip by remember { mutableStateOf(1) }
+    var buyBusy by remember { mutableStateOf(false) }
+    var wallet by remember(uid) { mutableStateOf(WalletCache.load(uid)) }
 
+    DisposableEffect(uid) {
+        val reg = WalletRepo.observe(uid) { wallet = it }
+        onDispose { reg.remove() }
+    }
     // RTDB REALTIME: panel mendengarkan pub/{uid} langsung, jadi level & toggle
     // selalu terbaru tanpa delay (data lokal RTDB tampil seketika, lalu server menyusul).
     DisposableEffect(uid) {
@@ -327,8 +378,7 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
         val l = object : com.google.firebase.database.ValueEventListener {
             override fun onDataChange(s: com.google.firebase.database.DataSnapshot) {
                 if (!s.exists()) return
-                val v = (s.child("vip").value as? Number)?.toInt() ?: 0
-                val until = (s.child("vipUntil").value as? Number)?.toLong() ?: 0L
+                val (v, until) = svipLevelOf(s)
                 if (v > 0) { vip = v; vipUntil = until; SvipLocal.saveVip(uid, v, until) }
                 if (s.hasChild("svip")) {
                     val csv = s.child("svip").value as? String ?: ""
@@ -355,8 +405,8 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
             val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("pub/$uid").get().await() }
             if (s != null && s.exists()) {
                 ok = true
-                vip = (s.child("vip").value as? Long)?.toInt() ?: 0
-                vipUntil = s.child("vipUntil").value as? Long ?: 0L
+                val (vv, uu) = svipLevelOf(s)
+                vip = vv; vipUntil = uu
                 if (s.hasChild("svip")) {
                     val csv = s.child("svip").value as? String ?: ""
                     SvipLocal.saveAll(uid, csv)
@@ -403,6 +453,73 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                 if (!loaded) {
                     Spacer(Modifier.height(40.dp))
                     Text("Memuat…", color = Color(0xFF9E9E9E), fontSize = 14.sp)
+                }
+                // ===== BELI / PERPANJANG SVIP =====
+                Box(
+                    Modifier.fillMaxWidth().padding(vertical = 12.dp).clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF262626)).border(1.dp, Color(0xFFF5C542), RoundedCornerShape(16.dp))
+                        .padding(14.dp),
+                ) {
+                    Column {
+                        Text("Beli SVIP", color = Color(0xFFF5C542), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Level tersimpan di Realtime Database. Aktif 30 hari; beli level yang sama = perpanjang. Semua privilege level itu ke bawah langsung terbuka.",
+                            color = Color(0xFF9E9E9E), fontSize = 12.sp,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            for (n in 1..9) {
+                                val on = n == selSvip
+                                Box(
+                                    Modifier.clip(RoundedCornerShape(10.dp))
+                                        .background(if (on) Color(0xFFF5C542) else Color(0xFF3A3A3A))
+                                        .clickable { selSvip = n }.padding(horizontal = 16.dp, vertical = 8.dp),
+                                ) {
+                                    Text(
+                                        "SVIP$n", color = if (on) Color(0xFF3B2800) else Color.White,
+                                        fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        if (wallet != null) {
+                            Text("Saldo: ${fmtNum(wallet!!.coins)} koin", color = Color(0xFFE9D3B0), fontSize = 12.sp)
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        Text(
+                            (if (active && vip == selSvip) "Perpanjang" else "Beli") + " SVIP$selSvip · " + fmtNum(vipPrice(selSvip)) + " koin",
+                            color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        if (buyBusy) {
+                            Text("Memproses…", color = Color(0xFFF5C542), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        } else {
+                            Text(
+                                "Beli sekarang", color = Color(0xFF3B2800), fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFF5C542))
+                                    .clickable {
+                                        buyBusy = true
+                                        AppScope.scope.launch {
+                                            val err = SvipRepo.buySvip(uid, selSvip)
+                                            buyBusy = false
+                                            if (err == null) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "SVIP$selSvip aktif! Privilege SVIP$selSvip ke bawah terbuka.",
+                                                    Toast.LENGTH_LONG,
+                                                ).show()
+                                            } else {
+                                                Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }.padding(horizontal = 22.dp, vertical = 10.dp),
+                            )
+                        }
+                    }
                 }
                 SVIP_PRIVS.forEachIndexed { i, priv ->
                     val unlocked = active && vip >= priv.minVip
