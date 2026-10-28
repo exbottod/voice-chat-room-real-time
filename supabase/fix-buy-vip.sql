@@ -1,10 +1,11 @@
--- FIX: "integer out of range" saat beli VIP/SVIP (30 hari dalam milidetik melebihi batas integer).
--- Jalankan di Supabase > SQL Editor > Run.
+-- FIX BELI VIP ("integer out of range" + column reference "inv" is ambiguous)
+-- Supabase > SQL Editor > New query > tempel semua > Run.
+-- Aman dijalankan berulang.
 
 create or replace function public.w_buy_vip(p_uid text, p_tier int)
 returns public.wallets language plpgsql security definer set search_path = public as $$
-declare w public.wallets; price bigint; until bigint; nowms bigint;
-  active boolean; inv jsonb; eq jsonb; cur text; i int; pre text;
+declare w public.wallets; price bigint; vuntil bigint; nowms bigint;
+  active boolean; ninv jsonb; neq jsonb; cur text; i int; pre text; newvip int; newvipuntil bigint;
 begin
   if p_tier not between 1 and 9 then raise exception 'Level VIP tidak valid'; end if;
   price := case p_tier
@@ -17,43 +18,67 @@ begin
   active := w.vip between 1 and 9 and w.vip_until > nowms;
   if w.coins < price then raise exception 'Coin tidak cukup. Tekan Topup'; end if;
   -- BOLEH BELI LEVEL BERAPA PUN walau level lebih tinggi sudah aktif.
-  -- Item tier yang dibeli: perpanjang 30 hari dari sisa item tier itu.
-  until := coalesce((w.inv ->> ('vipt_' || p_tier))::bigint, 0);
-  if until <= nowms then until := nowms; end if;
-  until := until + 30::bigint * 86400000::bigint;
-  inv := w.inv;
+  vuntil := coalesce((w.inv ->> ('vipt_' || p_tier))::bigint, 0);
+  if vuntil <= nowms then vuntil := nowms; end if;
+  vuntil := vuntil + 30::bigint * 86400000::bigint;
+  ninv := w.inv;
   -- BELI VIP N = SEMUA ITEM VIP 1..N OTOMATIS MASUK MY ITEM
-  -- (gelar, frame, gelembung, efek masuk, banner) sampai masa aktif VIP N.
   for i in 1..p_tier loop
     foreach pre in array array['vipt_','vipf_','vipb_','vipe_','vipbn_'] loop
-      inv := inv || jsonb_build_object(pre || i, until);
+      ninv := ninv || jsonb_build_object(pre || i, vuntil);
     end loop;
   end loop;
   -- Level dompet = level TERTINGGI; membeli level rendah tidak menurunkan level.
+  newvip := w.vip;
+  newvipuntil := w.vip_until;
   if p_tier > w.vip or not active then
-    w.vip := p_tier;
-    w.vip_until := until;
+    newvip := p_tier;
+    newvipuntil := vuntil;
   elsif p_tier = w.vip then
-    w.vip_until := until;
+    newvipuntil := vuntil;
   end if;
   -- Perlengkapan otomatis hanya dipasang kalau level naik / belum ada.
-  eq := w.equip;
+  neq := w.equip;
   if p_tier >= w.vip or not active then
-    eq := jsonb_set(eq, '{frame}', to_jsonb('vipf_' || p_tier));
-    cur := coalesce(eq ->> 'bubble', '');
-    if cur = '' or left(cur, 5) = 'vipb_' then eq := jsonb_set(eq, '{bubble}', to_jsonb('vipb_' || p_tier)); end if;
-    cur := coalesce(eq ->> 'entry', '');
-    if cur = '' or left(cur, 5) = 'vipe_' then eq := jsonb_set(eq, '{entry}', to_jsonb('vipe_' || p_tier)); end if;
-    cur := coalesce(eq ->> 'banner', '');
-    if cur = '' or left(cur, 6) = 'vipbn_' then eq := jsonb_set(eq, '{banner}', to_jsonb('vipbn_' || p_tier)); end if;
+    neq := jsonb_set(neq, '{frame}', to_jsonb('vipf_' || p_tier));
+    cur := coalesce(neq ->> 'bubble', '');
+    if cur = '' or left(cur, 5) = 'vipb_' then neq := jsonb_set(neq, '{bubble}', to_jsonb('vipb_' || p_tier)); end if;
+    cur := coalesce(neq ->> 'entry', '');
+    if cur = '' or left(cur, 5) = 'vipe_' then neq := jsonb_set(neq, '{entry}', to_jsonb('vipe_' || p_tier)); end if;
+    cur := coalesce(neq ->> 'banner', '');
+    if cur = '' or left(cur, 6) = 'vipbn_' then neq := jsonb_set(neq, '{banner}', to_jsonb('vipbn_' || p_tier)); end if;
   end if;
   update public.wallets set
-    coins = coins - price, vip = w.vip, vip_until = w.vip_until,
-    inv = inv, equip = eq, updated_at = now()
+    coins = coins - price, vip = newvip, vip_until = newvipuntil,
+    inv = ninv, equip = neq, updated_at = now()
   where uid = p_uid returning * into w;
   insert into public.money_tx (uid, kind, item_id, amount) values (p_uid, 'buy_vip', 'vip' || p_tier, price);
   return w;
 end
 $$;
 
+create or replace function public.w_backfill_vip(p_uid text)
+returns public.wallets language plpgsql security definer set search_path = public as $$
+declare w public.wallets; ninv jsonb; item text; i int;
+begin
+  select * into w from public.wallets where uid = p_uid for update;
+  if not found then raise exception 'WALLET_NOT_FOUND'; end if;
+  if not (w.vip between 1 and 9 and w.vip_until > (extract(epoch from now())*1000)::bigint) then
+    return w;
+  end if;
+  ninv := w.inv;
+  for i in 1..w.vip loop
+    foreach item in array array['vipt_','vipf_','vipb_','vipe_','vipbn_'] loop
+      if coalesce((ninv ->> (item || i))::bigint, 0) < w.vip_until then
+        ninv := ninv || jsonb_build_object(item || i, w.vip_until);
+      end if;
+    end loop;
+  end loop;
+  update public.wallets set inv = ninv, updated_at = now()
+    where uid = p_uid returning * into w;
+  return w;
+end
+$$;
+
 grant execute on function public.w_buy_vip(text,int) to service_role;
+grant execute on function public.w_backfill_vip(text) to service_role;
