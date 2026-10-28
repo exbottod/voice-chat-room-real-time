@@ -188,6 +188,29 @@
     "giftCfg": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+    },
+    "fm": {
+      ".read": "auth != null",
+      ".indexOn": [
+        "name",
+        "numId",
+        "exp"
+      ],
+      "$fid": {
+        ".write": "auth != null"
+      }
+    },
+    "fmUser": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    },
+    "fmIdx": {
+      ".read": "auth != null",
+      "next": {
+        ".write": "auth != null"
+      }
     }
   }
 }

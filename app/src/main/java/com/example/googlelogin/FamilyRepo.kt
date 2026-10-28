@@ -1,11 +1,13 @@
 package com.example.googlelogin
 
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.SetOptions
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.MutableData
+import com.google.firebase.database.Transaction
+import com.google.firebase.database.ValueEventListener
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlin.coroutines.resume
 
 data class Family(
     val id: String = "",
@@ -75,209 +77,270 @@ fun familyClassOf(exp: Long): FamilyClass {
     return res
 }
 
+/**
+ * FAMILY di REALTIME DATABASE (tanpa Firestore, bebas kuota Firestore).
+ *   fm/{fid}                  data family
+ *   fm/{fid}/members/{uid}    anggota
+ *   fm/{fid}/requests/{uid}   permintaan bergabung
+ *   fm/{fid}/events/{id}      pengumuman kegiatan
+ *   fm/{fid}/taskLog/{key}    log tugas harian
+ *   fmUser/{uid}              familyId milik user
+ *   fmIdx/next                nomor ID family berurutan
+ */
 object FamilyRepo {
-    private fun db() = FirebaseFirestore.getInstance()
-    private fun fam(id: String) = db().collection("families").document(id)
-    /** Cari family dari nama (untuk label family di profil & room). */
-    suspend fun findByName(name: String): Family? = try {
-        db().collection("families").whereEqualTo("name", name).limit(1).get().await()
-            .documents.firstOrNull()?.toFamily()
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
-    private fun userFam(uid: String) = db().collection("familyMembers").document(uid)
+    private fun fm(id: String) = Rtdb.ref("fm/$id")
+    private fun fmUser(uid: String) = Rtdb.ref("fmUser/$uid")
 
     const val MONTH_MS = 30L * 24 * 60 * 60 * 1000
 
-    private fun com.google.firebase.firestore.DocumentSnapshot.toFamily() = Family(
-        id = id,
-        numId = getString("numId") ?: "",
-        name = getString("name") ?: "",
-        label = getString("label") ?: "",
-        logoB64 = getString("logoB64"),
-        ownerUid = getString("ownerUid") ?: "",
-        announcement = getString("announcement") ?: "",
-        slogan = getString("slogan") ?: "",
-        needApproval = getBoolean("needApproval") ?: false,
-        exp = getLong("exp") ?: 0L,
-        memberCount = (getLong("memberCount") ?: 0L).toInt(),
-        createdAt = getLong("createdAt") ?: 0L,
-        nameChangedAt = getLong("nameChangedAt") ?: 0L,
-        labelChangedAt = getLong("labelChangedAt") ?: 0L,
-    )
+    private fun DataSnapshot.str(k: String): String? = child(k).value as? String
+    private fun DataSnapshot.lng(k: String): Long = (child(k).value as? Number)?.toLong() ?: 0L
+
+    private fun DataSnapshot.toFamily(): Family? {
+        if (!exists()) return null
+        return Family(
+            id = key ?: "",
+            numId = str("numId") ?: "",
+            name = str("name") ?: "",
+            label = str("label") ?: "",
+            logoB64 = str("logoB64"),
+            ownerUid = str("ownerUid") ?: "",
+            announcement = str("announcement") ?: "",
+            slogan = str("slogan") ?: "",
+            needApproval = (child("needApproval").value as? Boolean) ?: false,
+            exp = lng("exp"),
+            memberCount = lng("memberCount").toInt(),
+            createdAt = lng("createdAt"),
+            nameChangedAt = lng("nameChangedAt"),
+            labelChangedAt = lng("labelChangedAt"),
+        )
+    }
+
+    private suspend fun <T> readOnce(r: com.google.firebase.database.Query, f: (DataSnapshot) -> T): T? =
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(8000L) { r.get().await() }?.let(f)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+
+    /** Cari family dari nama (untuk label family di profil & room). */
+    suspend fun findByName(name: String): Family? =
+        readOnce(Rtdb.ref("fm").orderByChild("name").equalTo(name).limitToFirst(1)) { s ->
+            s.children.firstOrNull()?.toFamily()
+        }
+
+    private fun listen(r: com.google.firebase.database.Query, on: (DataSnapshot) -> Unit): Reg {
+        val l = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) { try { on(snapshot) } catch (e: Exception) { } }
+            override fun onCancelled(error: DatabaseError) {}
+        }
+        r.addValueEventListener(l)
+        return Reg { r.removeEventListener(l) }
+    }
 
     /** Pantau family milik user (null kalau belum punya). */
     fun observeMy(uid: String, onChange: (Family?, Boolean) -> Unit): Reg {
-        var famReg: ListenerRegistration? = null
-        val memReg = userFam(uid).addSnapshotListener { snap, _ ->
+        var famReg: Reg? = null
+        val memReg = listen(fmUser(uid)) { snap ->
             famReg?.remove()
             famReg = null
-            if (snap == null) return@addSnapshotListener
-            val fid = snap.getString("familyId")
+            val fid = snap.value as? String
             if (fid.isNullOrBlank()) {
                 onChange(null, true)
             } else {
-                famReg = fam(fid).addSnapshotListener { fs, _ ->
-                    if (fs == null) return@addSnapshotListener
-                    if (!fs.exists()) onChange(null, true) else onChange(fs.toFamily(), true)
+                famReg = listen(fm(fid)) { fs ->
+                    val f = fs.toFamily()
+                    onChange(f, true)
                 }
             }
         }
         return Reg { memReg.remove(); famReg?.remove() }
     }
 
-    fun observeMembers(fid: String, onChange: (List<FamilyMember>) -> Unit): Reg {
-        val r = fam(fid).collection("members").addSnapshotListener { snap, _ ->
-            if (snap != null) onChange(
-                snap.documents.map {
+    fun observeMembers(fid: String, onChange: (List<FamilyMember>) -> Unit): Reg =
+        listen(fm(fid).child("members")) { snap ->
+            onChange(
+                snap.children.map {
                     FamilyMember(
-                        uid = it.id,
-                        name = it.getString("name") ?: "Pengguna",
-                        avatarB64 = it.getString("avatarB64"),
-                        role = it.getString("role") ?: "member",
-                        contribution = it.getLong("contribution") ?: 0L,
-                        joinedAt = it.getLong("joinedAt") ?: 0L,
+                        uid = it.key ?: "",
+                        name = it.str("name") ?: "Pengguna",
+                        avatarB64 = it.str("avatarB64"),
+                        role = it.str("role") ?: "member",
+                        contribution = it.lng("contribution"),
+                        joinedAt = it.lng("joinedAt"),
                     )
                 }.sortedByDescending { it.contribution },
             )
         }
-        return Reg { r.remove() }
-    }
 
-    fun observeRequests(fid: String, onChange: (List<FamilyRequest>) -> Unit): Reg {
-        val r = fam(fid).collection("requests").addSnapshotListener { snap, _ ->
-            if (snap != null) onChange(
-                snap.documents.map {
-                    FamilyRequest(it.id, it.getString("name") ?: "Pengguna", it.getString("avatarB64"), it.getLong("createdAt") ?: 0L)
+    fun observeRequests(fid: String, onChange: (List<FamilyRequest>) -> Unit): Reg =
+        listen(fm(fid).child("requests")) { snap ->
+            onChange(
+                snap.children.map {
+                    FamilyRequest(it.key ?: "", it.str("name") ?: "Pengguna", it.str("avatarB64"), it.lng("createdAt"))
                 }.sortedByDescending { it.createdAt },
             )
         }
-        return Reg { r.remove() }
-    }
 
-    fun observeEvents(fid: String, onChange: (List<FamilyEvent>) -> Unit): Reg {
-        val r = fam(fid).collection("events").orderBy("createdAt", Query.Direction.DESCENDING).limit(50)
-            .addSnapshotListener { snap, _ ->
-                if (snap != null) onChange(
-                    snap.documents.map {
-                        FamilyEvent(it.id, it.getString("title") ?: "", it.getString("text") ?: "", it.getLong("createdAt") ?: 0L, it.getString("byName") ?: "")
-                    },
-                )
-            }
-        return Reg { r.remove() }
-    }
+    fun observeEvents(fid: String, onChange: (List<FamilyEvent>) -> Unit): Reg =
+        listen(fm(fid).child("events").orderByChild("createdAt").limitToLast(50)) { snap ->
+            onChange(
+                snap.children.map {
+                    FamilyEvent(it.key ?: "", it.str("title") ?: "", it.str("text") ?: "", it.lng("createdAt"), it.str("byName") ?: "")
+                }.sortedByDescending { it.createdAt },
+            )
+        }
 
     fun observeDoneTasks(fid: String, uid: String, onChange: (Set<String>) -> Unit): Reg {
         val day = System.currentTimeMillis() / 86_400_000L
-        val r = fam(fid).collection("taskLog").whereEqualTo("uid", uid).whereEqualTo("day", day)
-            .addSnapshotListener { snap, _ ->
-                if (snap != null) onChange(snap.documents.mapNotNull { it.getString("task") }.toSet())
-            }
-        return Reg { r.remove() }
+        return listen(fm(fid).child("taskLog")) { snap ->
+            onChange(
+                snap.children.filter { it.str("uid") == uid && it.lng("day") == day }
+                    .mapNotNull { it.str("task") }.toSet(),
+            )
+        }
     }
 
     suspend fun search(q: String): List<Family> {
         val t = q.trim()
         if (t.isEmpty()) return emptyList()
-        val byId = db().collection("families").whereEqualTo("numId", t).limit(5).get().await().documents.map { it.toFamily() }
+        val byId = readOnce(Rtdb.ref("fm").orderByChild("numId").equalTo(t).limitToFirst(5)) { s ->
+            s.children.mapNotNull { it.toFamily() }
+        } ?: emptyList()
         if (byId.isNotEmpty()) return byId
-        return db().collection("families").orderBy("name").startAt(t).endAt(t + "\uf8ff").limit(20).get().await()
-            .documents.map { it.toFamily() }
+        return readOnce(Rtdb.ref("fm").orderByChild("name").startAt(t).endAt(t + "\uf8ff").limitToFirst(20)) { s ->
+            s.children.mapNotNull { it.toFamily() }
+        } ?: emptyList()
     }
 
     suspend fun topFamilies(): List<Family> =
-        db().collection("families").orderBy("exp", Query.Direction.DESCENDING).limit(30).get().await().documents.map { it.toFamily() }
+        readOnce(Rtdb.ref("fm").orderByChild("exp").limitToLast(30)) { s ->
+            s.children.mapNotNull { it.toFamily() }.sortedByDescending { it.exp }
+        } ?: emptyList()
 
-     /** Ambil satu family berdasarkan id (dipakai halaman family orang lain). */
-    suspend fun getFamily(fid: String): Family? =
-        fam(fid).get().await().toFamily()
+    /** Ambil satu family berdasarkan id (dipakai halaman family orang lain). */
+    suspend fun getFamily(fid: String): Family? = readOnce(fm(fid)) { it.toFamily() }
 
     /** FamilyId milik uid saat ini (null = belum punya family). */
     suspend fun myFamilyId(uid: String): String? =
-        userFam(uid).get().await().getString("familyId")
-        
+        readOnce(fmUser(uid)) { it.value as? String }?.takeIf { it.isNotBlank() }
+
+    /** Ambil nomor family berikutnya (transaksi HANYA di fmIdx/next). */
+    private suspend fun nextNum(): Long = suspendCancellableCoroutine { cont ->
+        Rtdb.ref("fmIdx/next").runTransaction(object : Transaction.Handler {
+            override fun doTransaction(cur: MutableData): Transaction.Result {
+                val n = (cur.value as? Number)?.toLong() ?: 10001L
+                cur.value = n + 1
+                return Transaction.success(cur)
+            }
+            override fun onComplete(err: DatabaseError?, committed: Boolean, snap: DataSnapshot?) {
+                if (!cont.isActive) return
+                val v = (snap?.value as? Number)?.toLong()
+                if (err == null && committed && v != null) cont.resume(v - 1)
+                else cont.resume(-1L)
+            }
+        })
+    }
+
     suspend fun create(
         uid: String, myName: String, myAvatar: String?, name: String, label: String,
         logoB64: String?, needApproval: Boolean,
     ): String? = try {
         val now = System.currentTimeMillis()
-        val counter = db().collection("counters").document("familyIds")
-        val newRef = db().collection("families").document()
-        var err: String? = null
-        db().runTransaction { tx ->
-            val mine = tx.get(userFam(uid)).getString("familyId")
-            if (!mine.isNullOrBlank()) {
-                err = "Kamu sudah punya family"
-                return@runTransaction null
-            }
-            val next = tx.get(counter).getLong("next") ?: 10001L
-            tx.set(counter, hashMapOf("next" to next + 1))
-            tx.set(
-                newRef,
-                hashMapOf<String, Any?>(
-                    "numId" to next.toString(), "name" to name, "label" to label, "logoB64" to logoB64,
-                    "ownerUid" to uid, "announcement" to "", "slogan" to "", "needApproval" to needApproval,
-                    "exp" to 0L, "memberCount" to 1L, "createdAt" to now, "nameChangedAt" to now, "labelChangedAt" to now,
-                ),
+        if (!myFamilyId(uid).isNullOrBlank()) {
+            "Kamu sudah punya family"
+        } else {
+            var num = -1L
+            repeat(3) { if (num < 0) num = nextNum() }
+            if (num < 0) num = 10000L + (now % 900000L)
+            val fid = Rtdb.ref("fm").push().key ?: "f$now"
+            val data = hashMapOf<String, Any?>(
+                "fm/$fid/numId" to num.toString(), "fm/$fid/name" to name, "fm/$fid/label" to label,
+                "fm/$fid/logoB64" to logoB64, "fm/$fid/ownerUid" to uid, "fm/$fid/announcement" to "",
+                "fm/$fid/slogan" to "", "fm/$fid/needApproval" to needApproval, "fm/$fid/exp" to 0L,
+                "fm/$fid/memberCount" to 1L, "fm/$fid/createdAt" to now, "fm/$fid/nameChangedAt" to now,
+                "fm/$fid/labelChangedAt" to now,
+                "fm/$fid/members/$uid/name" to myName, "fm/$fid/members/$uid/avatarB64" to myAvatar,
+                "fm/$fid/members/$uid/role" to "owner", "fm/$fid/members/$uid/contribution" to 0L,
+                "fm/$fid/members/$uid/joinedAt" to now,
+                "fmUser/$uid" to fid,
             )
-            tx.set(
-                newRef.collection("members").document(uid),
-                hashMapOf<String, Any?>("name" to myName, "avatarB64" to myAvatar, "role" to "owner", "contribution" to 0L, "joinedAt" to now),
-            )
-            tx.set(userFam(uid), hashMapOf("familyId" to newRef.id))
+            kotlinx.coroutines.withTimeout(10000L) { Rtdb.root().updateChildren(data).await() }
+            UserDirectory.setFam(uid, name)
             null
-        }.await()
-        if (err == null) UserDirectory.setFam(uid, name)
-        err
+        }
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message ?: "Gagal membuat family" }
 
     suspend fun join(fid: String, uid: String, myName: String, myAvatar: String?): String? = try {
         val now = System.currentTimeMillis()
-        var err: String? = null
-        db().runTransaction { tx ->
-            val mine = tx.get(userFam(uid)).getString("familyId")
-            if (!mine.isNullOrBlank()) { err = "Kamu sudah punya family"; return@runTransaction null }
-            val fs = tx.get(fam(fid))
-            if (!fs.exists()) { err = "Family tidak ditemukan"; return@runTransaction null }
-            if ((fs.getLong("memberCount") ?: 0L) >= 100L) { err = "Family sudah penuh"; return@runTransaction null }
-            if (fs.getBoolean("needApproval") == true) {
-                tx.set(fam(fid).collection("requests").document(uid), hashMapOf<String, Any?>("name" to myName, "avatarB64" to myAvatar, "createdAt" to now))
-                err = "REQUEST_SENT"
+        if (!myFamilyId(uid).isNullOrBlank()) "Kamu sudah punya family" else {
+            val fs = readOnce(fm(fid)) { it } 
+            val f = fs?.toFamily()
+            if (f == null) "Family tidak ditemukan"
+            else if (f.memberCount >= 100) "Family sudah penuh"
+            else if (f.needApproval) {
+                kotlinx.coroutines.withTimeout(8000L) {
+                    Rtdb.root().updateChildren(hashMapOf<String, Any?>(
+                        "fm/$fid/requests/$uid/name" to myName, "fm/$fid/requests/$uid/avatarB64" to myAvatar,
+                        "fm/$fid/requests/$uid/createdAt" to now,
+                    )).await()
+                }
+                "REQUEST_SENT"
             } else {
-                tx.set(fam(fid).collection("members").document(uid), hashMapOf<String, Any?>("name" to myName, "avatarB64" to myAvatar, "role" to "member", "contribution" to 0L, "joinedAt" to now))
-                tx.update(fam(fid), "memberCount", FieldValue.increment(1))
-                tx.set(userFam(uid), hashMapOf("familyId" to fid))
+                addMember(fid, uid, myName, myAvatar, now)
+                UserDirectory.setFam(uid, f.name)
+                null
             }
-            null
-        }.await()
-        if (err == null) UserDirectory.setFam(uid, fam(fid).get().await().getString("name") ?: "")
-        err
+        }
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message ?: "Gagal bergabung" }
+
+    private suspend fun bumpCount(fid: String, delta: Long) {
+        suspendCancellableCoroutine<Unit> { cont ->
+            fm(fid).child("memberCount").runTransaction(object : Transaction.Handler {
+                override fun doTransaction(cur: MutableData): Transaction.Result {
+                    cur.value = maxOf(0L, ((cur.value as? Number)?.toLong() ?: 0L) + delta)
+                    return Transaction.success(cur)
+                }
+                override fun onComplete(err: DatabaseError?, committed: Boolean, snap: DataSnapshot?) {
+                    if (cont.isActive) cont.resume(Unit)
+                }
+            })
+        }
+    }
+
+    private suspend fun addMember(fid: String, uid: String, name: String, avatar: String?, now: Long) {
+        kotlinx.coroutines.withTimeout(8000L) {
+            Rtdb.root().updateChildren(hashMapOf<String, Any?>(
+                "fm/$fid/members/$uid/name" to name, "fm/$fid/members/$uid/avatarB64" to avatar,
+                "fm/$fid/members/$uid/role" to "member", "fm/$fid/members/$uid/contribution" to 0L,
+                "fm/$fid/members/$uid/joinedAt" to now, "fmUser/$uid" to fid,
+                "fm/$fid/requests/$uid" to null,
+            )).await()
+        }
+        bumpCount(fid, 1)
+    }
 
     suspend fun approve(fid: String, r: FamilyRequest): String? = try {
         val now = System.currentTimeMillis()
-        var err: String? = null
-        db().runTransaction { tx ->
-            val mine = tx.get(userFam(r.uid)).getString("familyId")
-            tx.delete(fam(fid).collection("requests").document(r.uid))
-            if (!mine.isNullOrBlank()) { err = "Pengguna sudah masuk family lain"; return@runTransaction null }
-            tx.set(fam(fid).collection("members").document(r.uid), hashMapOf<String, Any?>("name" to r.name, "avatarB64" to r.avatarB64, "role" to "member", "contribution" to 0L, "joinedAt" to now))
-            tx.update(fam(fid), "memberCount", FieldValue.increment(1))
-            tx.set(userFam(r.uid), hashMapOf("familyId" to fid))
+        if (!myFamilyId(r.uid).isNullOrBlank()) {
+            kotlinx.coroutines.withTimeout(8000L) { fm(fid).child("requests/${r.uid}").removeValue().await() }
+            "Pengguna sudah masuk family lain"
+        } else {
+            addMember(fid, r.uid, r.name, r.avatarB64, now)
+            UserDirectory.setFam(r.uid, getFamily(fid)?.name ?: "")
             null
-        }.await()
-        if (err == null) UserDirectory.setFam(r.uid, fam(fid).get().await().getString("name") ?: "")
-        err
+        }
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
     suspend fun reject(fid: String, uid: String): String? = try {
-        fam(fid).collection("requests").document(uid).delete().await(); null
+        kotlinx.coroutines.withTimeout(8000L) { fm(fid).child("requests/$uid").removeValue().await() }; null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
     suspend fun leave(fid: String, uid: String): String? = try {
-        db().runBatch { b ->
-            b.delete(fam(fid).collection("members").document(uid))
-            b.update(fam(fid), "memberCount", FieldValue.increment(-1))
-            b.delete(userFam(uid))
-        }.await()
+        kotlinx.coroutines.withTimeout(8000L) {
+            Rtdb.root().updateChildren(hashMapOf<String, Any?>(
+                "fm/$fid/members/$uid" to null, "fmUser/$uid" to null,
+            )).await()
+        }
+        bumpCount(fid, -1)
         UserDirectory.setFam(uid, "")
         null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
@@ -285,7 +348,7 @@ object FamilyRepo {
     suspend fun kick(fid: String, uid: String): String? = leave(fid, uid)
 
     suspend fun setRole(fid: String, uid: String, role: String): String? = try {
-        fam(fid).collection("members").document(uid).update("role", role).await(); null
+        kotlinx.coroutines.withTimeout(8000L) { fm(fid).child("members/$uid/role").setValue(role).await() }; null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
     suspend fun saveSettings(f: Family, name: String, label: String, logoB64: String?, needApproval: Boolean): String? {
@@ -300,41 +363,64 @@ object FamilyRepo {
                 if (now - f.labelChangedAt < MONTH_MS) return "Label family hanya dapat diubah 1 kali per bulan"
                 upd["label"] = label; upd["labelChangedAt"] = now
             }
-            fam(f.id).set(upd, SetOptions.merge()).await(); null
+            kotlinx.coroutines.withTimeout(8000L) { fm(f.id).updateChildren(upd).await() }
+            if (name != f.name) {
+                // Label family di profil semua anggota ikut nama baru.
+                try {
+                    val ms = readOnce(fm(f.id).child("members")) { s -> s.children.mapNotNull { it.key } } ?: emptyList()
+                    ms.forEach { UserDirectory.setFam(it, name) }
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            }
+            null
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
     }
 
     suspend fun setAnnouncement(fid: String, text: String): String? = try {
-        fam(fid).update("announcement", text).await(); null
+        kotlinx.coroutines.withTimeout(8000L) { fm(fid).child("announcement").setValue(text).await() }; null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
     suspend fun setSlogan(fid: String, text: String): String? = try {
-        fam(fid).update("slogan", text).await(); null
+        kotlinx.coroutines.withTimeout(8000L) { fm(fid).child("slogan").setValue(text).await() }; null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
     suspend fun postEvent(fid: String, byName: String, title: String, text: String): String? = try {
-        fam(fid).collection("events").add(
-            hashMapOf<String, Any?>("title" to title, "text" to text, "byName" to byName, "createdAt" to System.currentTimeMillis()),
-        ).await(); null
+        val ref = fm(fid).child("events").push()
+        kotlinx.coroutines.withTimeout(8000L) {
+            ref.setValue(hashMapOf<String, Any?>("title" to title, "text" to text, "byName" to byName, "createdAt" to System.currentTimeMillis())).await()
+        }; null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
     suspend fun deleteEvent(fid: String, id: String): String? = try {
-        fam(fid).collection("events").document(id).delete().await(); null
+        kotlinx.coroutines.withTimeout(8000L) { fm(fid).child("events/$id").removeValue().await() }; null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
+
+    private suspend fun incr(r: com.google.firebase.database.DatabaseReference, amount: Long) {
+        suspendCancellableCoroutine<Unit> { cont ->
+            r.runTransaction(object : Transaction.Handler {
+                override fun doTransaction(cur: MutableData): Transaction.Result {
+                    cur.value = ((cur.value as? Number)?.toLong() ?: 0L) + amount
+                    return Transaction.success(cur)
+                }
+                override fun onComplete(err: DatabaseError?, committed: Boolean, snap: DataSnapshot?) {
+                    if (cont.isActive) cont.resume(Unit)
+                }
+            })
+        }
+    }
 
     /** Selesaikan tugas harian: tambah exp family & kontribusi anggota. Satu kali per tugas per hari. */
     suspend fun completeTask(fid: String, uid: String, t: FamilyTask): String? = try {
         val day = System.currentTimeMillis() / 86_400_000L
-        val logRef = fam(fid).collection("taskLog").document("$uid-${t.id}-$day")
-        var err: String? = null
-        db().runTransaction { tx ->
-            if (tx.get(logRef).exists()) { err = "Tugas sudah diselesaikan hari ini"; return@runTransaction null }
-            tx.set(logRef, hashMapOf<String, Any?>("uid" to uid, "task" to t.id, "day" to day))
-            tx.update(fam(fid), "exp", FieldValue.increment(t.reward))
-            tx.update(fam(fid).collection("members").document(uid), "contribution", FieldValue.increment(t.reward))
+        val key = "$uid-${t.id}-$day"
+        val exists = readOnce(fm(fid).child("taskLog/$key")) { it.exists() } ?: false
+        if (exists) "Tugas sudah diselesaikan hari ini" else {
+            kotlinx.coroutines.withTimeout(8000L) {
+                fm(fid).child("taskLog/$key").setValue(hashMapOf<String, Any?>("uid" to uid, "task" to t.id, "day" to day)).await()
+            }
+            incr(fm(fid).child("exp"), t.reward)
+            incr(fm(fid).child("members/$uid/contribution"), t.reward)
             null
-        }.await()
-        err
+        }
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 
     /** EXP FAMILY dari gift: nilai gift (koin) menambah exp family + kontribusi pengirim.
@@ -342,14 +428,14 @@ object FamilyRepo {
     suspend fun addGiftExp(uid: String, amount: Long): String? {
         if (amount <= 0) return null
         return try {
-            val fid = try { UserCache.peek(uid)?.fam ?: "" } catch (e: Exception) { "" }
+            var fid = try { UserCache.peek(uid)?.fam ?: "" } catch (e: Exception) { "" }
+            // UserCache.fam berisi NAMA family; cari id family dari fmUser bila perlu.
+            val myFid = myFamilyId(uid)
+            if (!myFid.isNullOrBlank()) fid = myFid
             if (fid.isBlank()) return null
             kotlinx.coroutines.withTimeoutOrNull(6000L) {
-                db().runTransaction { tx ->
-                    tx.update(fam(fid), "exp", FieldValue.increment(amount))
-                    tx.update(fam(fid).collection("members").document(uid), "contribution", FieldValue.increment(amount))
-                    null
-                }.await()
+                incr(fm(fid).child("exp"), amount)
+                incr(fm(fid).child("members/$uid/contribution"), amount)
             } ?: return "timeout"
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -359,21 +445,14 @@ object FamilyRepo {
         }
     }
 
-    /** Hapus family: hanya pemilik. Semua anggota dikeluarkan lalu dokumen dihapus. */
+    /** Hapus family: hanya pemilik. Semua anggota dikeluarkan lalu data dihapus. */
     suspend fun delete(fid: String): String? = try {
-        val members = fam(fid).collection("members").get().await().documents
-        for (chunk in members.chunked(200)) {
-            db().runBatch { b ->
-                chunk.forEach { m ->
-                    b.delete(userFam(m.id))
-                    b.delete(m.reference)
-                }
-            }.await()
-        }
-        for (sub in listOf("requests", "events", "taskLog")) {
-            val docs = fam(fid).collection(sub).get().await().documents
-            for (chunk in docs.chunked(400)) db().runBatch { b -> chunk.forEach { b.delete(it.reference) } }.await()
-        }
-        fam(fid).delete().await(); null
+        val members = readOnce(fm(fid).child("members")) { s -> s.children.mapNotNull { it.key } } ?: emptyList()
+        val upd = HashMap<String, Any?>()
+        members.forEach { upd["fmUser/$it"] = null }
+        upd["fm/$fid"] = null
+        kotlinx.coroutines.withTimeout(10000L) { Rtdb.root().updateChildren(upd).await() }
+        members.forEach { UserDirectory.setFam(it, "") }
+        null
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
 }
