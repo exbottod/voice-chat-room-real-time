@@ -304,11 +304,19 @@ object SvipRepo {
     suspend fun buySvip(uid: String, tier: Int): String? {
         if (tier !in 1..9) return "Level SVIP tidak valid"
         val price = vipPrice(tier)
-        // 1) Potong koin + isi My Item (frame, efek masuk, banner, gelembung,
-        //    lencana, medal SVIP 1..tier) lewat dompet Supabase.
-        val r = SupaRepo.buySvip(uid, tier)
+        // 1) Potong koin lewat dompet Supabase (transaksi tercatat).
+        val item = StoreItem("svip$tier", "badge", "SVIP$tier", "\uD83D\uDC51", price, 30, Color(0xFFD4AF37), 0, null)
+        val r = SupaRepo.buyItem(uid, item)
         r.wallet?.let { WalletRepo.emitBackup(uid, it) }
         if (r.error != null) return r.error
+        // 1b) Semua item SVIP 1..tier (frame, efek masuk, banner, gelembung,
+        //     lencana, medal) masuk My Item lewat REALTIME DATABASE.
+        r.wallet?.let { w ->
+            try { SvipInv.grant(uid, tier) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            // 1c) Pasang otomatis bila slot masih kosong / masih item VIP lama.
+            try { SvipInv.autoEquip(uid, w, tier) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            WalletRepo.emitBackup(uid, w)
+        }
         // 2) Baca daftar level SVIP yang sudah dibeli (Realtime Database).
         val now = System.currentTimeMillis()
         val tiers = HashMap<Int, Long>()
@@ -685,4 +693,106 @@ object VisitRepo {
             .limit(limit).get().await().documents
             .mapNotNull { d -> d.getString("uid")?.let { UserDirectory.findByUid(it) } }
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
+}
+
+
+/** Item SVIP yang dimiliki: disimpan di REALTIME DATABASE pub/{uid}/svipInv.
+ *  Digabung ke dompet (inv) supaya My Item, MY MEDALS, dan equip membacanya
+ *  seperti item dompet biasa, tanpa perlu perubahan di Supabase. */
+object SvipInv {
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, Map<String, Long>>()
+    private val lastWallet = java.util.concurrent.ConcurrentHashMap<String, Wallet>()
+    private val listeners = java.util.concurrent.ConcurrentHashMap<String, com.google.firebase.database.ValueEventListener>()
+    private val prefixes = listOf("svf_", "sve_", "svbn_", "svb_", "svbd_", "svm_")
+
+    /** Pantau item SVIP user di Realtime Database (sekali per uid). */
+    fun observe(uid: String) {
+        if (uid.isBlank() || listeners.containsKey(uid)) return
+        val l = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(s: com.google.firebase.database.DataSnapshot) {
+                val m = HashMap<String, Long>()
+                s.children.forEach { c -> c.key?.let { k -> m[k] = (c.value as? Long) ?: 0L } }
+                cache[uid] = m
+                lastWallet[uid]?.let { WalletRepo.emitBackup(uid, it) }
+            }
+            override fun onCancelled(e: com.google.firebase.database.DatabaseError) { }
+        }
+        try {
+            Rtdb.ref("pub/$uid/svipInv").addValueEventListener(l)
+            listeners[uid] = l
+        } catch (e: Exception) { }
+    }
+
+    /** Gabung item SVIP (RTDB) ke dompet untuk tampilan dan logika equip. */
+    fun apply(uid: String, w: Wallet): Wallet {
+        lastWallet[uid] = w
+        val extra = cache[uid] ?: return w
+        if (extra.isEmpty()) return w
+        val now = System.currentTimeMillis()
+        var changed = false
+        val inv = w.inv.toMutableMap()
+        extra.forEach { (id, until) ->
+            if (until > now && until > (inv[id] ?: 0L)) { inv[id] = until; changed = true }
+        }
+        return if (changed) w.copy(inv = inv) else w
+    }
+
+    /** Beri semua item SVIP 1..tier; tier sama = perpanjang 30 hari (seperti VIP). */
+    suspend fun grant(uid: String, tier: Int) {
+        val now = System.currentTimeMillis()
+        val cur = HashMap(cache[uid] ?: emptyMap())
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("pub/$uid/svipInv").get().await() }
+            if (snap != null && snap.exists()) {
+                snap.children.forEach { c -> c.key?.let { k -> cur[k] = (c.value as? Long) ?: 0L } }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        val upd = HashMap<String, Any>()
+        for (i in 1..tier) {
+            val base = (cur["svm_$i"] ?: 0L).let { if (it > now) it else now }
+            val until = base + 30L * 86_400_000L
+            prefixes.forEach { p -> if ((cur[p + i] ?: 0L) < until) upd[p + i] = until }
+        }
+        if (upd.isEmpty()) return
+        repeat(2) { attempt ->
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(5000L) { Rtdb.ref("pub/$uid/svipInv").updateChildren(upd).await() }
+                upd.forEach { (k, v) -> cur[k] = v as Long }
+                cache[uid] = cur
+                return
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { if (attempt == 1) return }
+        }
+    }
+
+    /** Pasang item SVIP otomatis bila slot kosong / masih item VIP-SVIP lama. */
+    suspend fun autoEquip(uid: String, w: Wallet, tier: Int) {
+        val eq = w.equip.toMutableMap()
+        var changed = false
+        fun setSlot(name: String, id: String, keeps: List<String>) {
+            val cur = eq[name].orEmpty()
+            if ((cur.isBlank() || keeps.any { cur.startsWith(it) }) && cur != id) {
+                eq[name] = id; changed = true
+            }
+        }
+        setSlot("frame", "svf_$tier", listOf("vipf_", "svf_"))
+        setSlot("entry", "sve_$tier", listOf("vipe_", "sve_"))
+        setSlot("banner", "svbn_$tier", listOf("vipbn_", "svbn_"))
+        setSlot("badge", "svbd_$tier", listOf("svbd_"))
+        if (!changed) return
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                SupaRepo.equip(uid, "frame", eq["frame"].orEmpty())
+                SupaRepo.equip(uid, "entry", eq["entry"].orEmpty())
+                SupaRepo.equip(uid, "banner", eq["banner"].orEmpty())
+                SupaRepo.equip(uid, "badge", eq["badge"].orEmpty())
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        WalletRepo.emitBackup(uid, w.copy(equip = eq))
+    }
 }
