@@ -181,6 +181,8 @@ object RoomRepo {
      *  saat Firestore macet / kuota habis supaya masuk room tidak muter-muter. */
     fun pubToRoom(id: String, s: com.google.firebase.database.DataSnapshot): RoomInfo? {
         if (!s.exists()) return null
+        // Mirror parsial (misal hanya micCount) belum cukup untuk membuka room.
+        if ((s.child("name").value as? String).isNullOrBlank() && (s.child("ownerUid").value as? String).isNullOrBlank()) return null
         fun str(k: String): String = s.child(k).value as? String ?: ""
         return RoomInfo(
             id = id,
@@ -211,7 +213,9 @@ object RoomRepo {
         } catch (e: Exception) { }
         // Cadangan Firestore (kalau mirror RTDB belum ada).
         return try {
-            db().collection("rooms").document(id).get().await().toRoom()
+            val fs = kotlinx.coroutines.withTimeoutOrNull(6000L) { db().collection("rooms").document(id).get().await().toRoom() }
+            if (fs != null) mirrorRoom(fs)
+            fs
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
