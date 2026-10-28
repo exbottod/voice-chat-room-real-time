@@ -160,9 +160,14 @@ begin
   if active and w.vip > p_tier then raise exception 'VIP% kamu masih aktif', w.vip; end if;
   if w.coins < price then raise exception 'Coin tidak cukup. Tekan Topup'; end if;
   until := (case when active and w.vip = p_tier then w.vip_until else nowms end) + 30 * 86400000;
-  inv := w.inv || jsonb_build_object(
-    'vipt_' || p_tier, until, 'vipf_' || p_tier, until,
-    'vipb_' || p_tier, until, 'vipe_' || p_tier, until, 'vipbn_' || p_tier, until);
+  inv := w.inv;
+  -- BELI VIP N = SEMUA ITEM VIP 1..N OTOMATIS MASUK MY ITEM
+  -- (gelar, frame, gelembung, efek masuk, banner) sampai masa aktif VIP N.
+  for i in 1..p_tier loop
+    foreach pre in array array['vipt_','vipf_','vipb_','vipe_','vipbn_'] loop
+      inv := inv || jsonb_build_object(pre || i, until);
+    end loop;
+  end loop;
   eq := w.equip;
   eq := jsonb_set(eq, '{frame}', to_jsonb('vipf_' || p_tier));
   cur := coalesce(eq ->> 'bubble', '');
@@ -250,11 +255,13 @@ begin
     return w;
   end if;
   inv := w.inv;
-  foreach id in array array['vipt_','vipf_','vipb_','vipe_','vipbn_'] loop
-    id := id || w.vip;
-    if coalesce((inv ->> id)::bigint, 0) < w.vip_until then
-      inv := inv || jsonb_build_object(id, w.vip_until);
-    end if;
+  for i in 1..w.vip loop
+    foreach id in array array['vipt_','vipf_','vipb_','vipe_','vipbn_'] loop
+      id := id || i;
+      if coalesce((inv ->> id)::bigint, 0) < w.vip_until then
+        inv := inv || jsonb_build_object(id, w.vip_until);
+      end if;
+    end loop;
   end loop;
   update public.wallets set inv = inv, updated_at = now()
     where uid = p_uid returning * into w;
