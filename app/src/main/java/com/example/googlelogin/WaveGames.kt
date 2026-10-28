@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -156,6 +157,7 @@ fun WaveGamesScreen(
     var loading by remember { mutableStateOf(true) }
     var playing by remember { mutableStateOf<Pair<WaveGames.Game, String>?>(null) }
     var err by remember { mutableStateOf("") }
+    var fullMode by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         WaveGames.prepare(myName, myAvatarB64.orEmpty())
@@ -170,7 +172,49 @@ fun WaveGamesScreen(
         Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0B))) {
             val play = playing
             if (play != null) {
-                WaveGameView(game = play.first, url = play.second, onBack = { playing = null })
+                // Panel bawah: room tetap terlihat. Tombol di header untuk layar penuh.
+                val box = if (fullMode) Modifier.fillMaxSize()
+                    else Modifier.fillMaxWidth().fillMaxHeight(0.75f)
+                        .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+                Box(Modifier.fillMaxSize()) {
+                    Column(
+                        box.align(if (fullMode) Alignment.Center else Alignment.BottomCenter)
+                            .background(Color(0xFF0B0B0B)),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().background(Color(0xFF141414))
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "‹ Kembali",
+                                color = Gold,
+                                fontSize = 15.sp,
+                                modifier = Modifier.clickable { playing = null }.padding(6.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                play.first.name,
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                if (fullMode) "▽ Panel" else "⤢ Penuh",
+                                color = Gold,
+                                fontSize = 14.sp,
+                                modifier = Modifier.clickable { fullMode = !fullMode }.padding(6.dp),
+                            )
+                        }
+                        WaveGameView(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            game = play.first,
+                            url = play.second,
+                            onBack = { playing = null },
+                        )
+                    }
+                }
             } else {
                 Column(Modifier.fillMaxSize()) {
                     Row(
@@ -255,35 +299,18 @@ fun WaveGamesScreen(
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun WaveGameView(game: WaveGames.Game, url: String, onBack: () -> Unit) {
+private fun WaveGameView(
+    modifier: Modifier = Modifier,
+    game: WaveGames.Game,
+    url: String,
+    onBack: () -> Unit,
+) {
     var web by remember { mutableStateOf<WebView?>(null) }
     BackHandler {
         val w = web
         if (w != null && w.canGoBack()) w.goBack() else onBack()
     }
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().background(Color(0xFF141414)).padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "‹ Kembali",
-                color = Gold,
-                fontSize = 15.sp,
-                modifier = Modifier.clickable {
-                    val w = web
-                    if (w != null && w.canGoBack()) w.goBack() else onBack()
-                }.padding(6.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                game.name,
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
-            )
-        }
+    Column(modifier) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { c ->
