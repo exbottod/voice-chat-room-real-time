@@ -62,7 +62,7 @@ import java.net.URLEncoder
  */
 object WaveGames {
     // App key PRODUKSI (bukan testing AM8Nc1KMn6).
-    const val APP_KEY = "6oVRL5qsw0"
+    const val APP_KEY = "mbRZYZdxek"
     private const val CATALOG = "https://my.wavegames.online/admin/game/list?appKey=$APP_KEY"
     private const val FRONT = "https://wavegames.online"
 
