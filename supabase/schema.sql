@@ -162,7 +162,7 @@ begin
   -- Item tier yang dibeli: perpanjang 30 hari dari sisa item tier itu.
   until := coalesce((w.inv ->> ('vipt_' || p_tier))::bigint, 0);
   if until <= nowms then until := nowms; end if;
-  until := until + 30 * 86400000;
+  until := until + 30::bigint * 86400000::bigint;
   inv := w.inv;
   -- BELI VIP N = SEMUA ITEM VIP 1..N OTOMATIS MASUK MY ITEM
   -- (gelar, frame, gelembung, efek masuk, banner) sampai masa aktif VIP N.
