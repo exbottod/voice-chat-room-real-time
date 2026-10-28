@@ -5,6 +5,8 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.MutableData
 import com.google.firebase.database.Transaction
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.resume
@@ -127,10 +129,101 @@ object FamilyRepo {
     private suspend fun scanAll(): List<Family> =
         readOnce(Rtdb.ref("fm").limitToFirst(300)) { s -> s.children.mapNotNull { it.toFamily() } } ?: emptyList()
 
+    // ================= MIGRASI FAMILY LAMA (Firestore -> RTDB) =================
+    // Family yang dibuat sebelum migrasi hanya tersimpan di Firestore (families,
+    // familyMembers). Tanpa ini, label family di profil menampilkan toast
+    // "Family tidak ditemukan" karena pencarian hanya membaca fm di RTDB.
+    private val fs by lazy { FirebaseFirestore.getInstance() }
+
+    /** Salin satu dokumen family Firestore ke fm/{id} di RTDB (sekali saja). */
+    private suspend fun importFamily(id: String, name: String? = null): Family? {
+        if (id.isBlank()) return null
+        val doc = try {
+            kotlinx.coroutines.withTimeoutOrNull(6000L) { fs.collection("families").document(id).get().await() }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        } ?: return null
+        if (!doc.exists()) return null
+        val f = Family(
+            id = doc.id,
+            numId = (doc.getString("numId") ?: doc.getLong("numId")?.toString() ?: ""),
+            name = doc.getString("name") ?: name ?: "",
+            label = doc.getString("label") ?: "",
+            logoB64 = doc.getString("logoB64"),
+            ownerUid = doc.getString("ownerUid") ?: "",
+            announcement = doc.getString("announcement") ?: "",
+            slogan = doc.getString("slogan") ?: "",
+            needApproval = doc.getBoolean("needApproval") ?: false,
+            exp = doc.getLong("exp") ?: 0L,
+            memberCount = (doc.getLong("memberCount") ?: 0L).toInt(),
+            createdAt = doc.getLong("createdAt") ?: 0L,
+            nameChangedAt = doc.getLong("nameChangedAt") ?: 0L,
+            labelChangedAt = doc.getLong("labelChangedAt") ?: 0L,
+        )
+        if (f.name.isBlank()) return null
+        val upd = hashMapOf<String, Any?>(
+            "fm/${f.id}/numId" to f.numId, "fm/${f.id}/name" to f.name, "fm/${f.id}/label" to f.label,
+            "fm/${f.id}/logoB64" to f.logoB64, "fm/${f.id}/ownerUid" to f.ownerUid,
+            "fm/${f.id}/announcement" to f.announcement, "fm/${f.id}/slogan" to f.slogan,
+            "fm/${f.id}/needApproval" to f.needApproval, "fm/${f.id}/exp" to f.exp,
+            "fm/${f.id}/memberCount" to f.memberCount.toLong(), "fm/${f.id}/createdAt" to f.createdAt,
+            "fm/${f.id}/nameChangedAt" to f.nameChangedAt, "fm/${f.id}/labelChangedAt" to f.labelChangedAt,
+        )
+        try {
+            kotlinx.coroutines.withTimeout(8000L) { Rtdb.root().updateChildren(upd).await() }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
+        return f
+    }
+
+    /** Cari family lama di Firestore berdasarkan nama. */
+    private suspend fun fsFindByName(name: String): Family? {
+        if (name.isBlank()) return null
+        val snap = try {
+            kotlinx.coroutines.withTimeoutOrNull(7000L) {
+                fs.collection("families").whereEqualTo("name", name).limit(1).get().await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        } ?: return null
+        val doc = snap.documents.firstOrNull() ?: return null
+        return importFamily(doc.id, name)
+    }
+
+    /** Family id milik user dari Firestore lama (familyMembers/{uid}). */
+    private suspend fun fsMyFamilyId(uid: String): String? = try {
+        val fid = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+            fs.collection("familyMembers").document(uid).get().await()
+        }?.getString("familyId")
+        if (fid.isNullOrBlank()) null else {
+            // Baca RTDB langsung (jangan panggil myFamilyId: itu memanggil fungsi ini lagi).
+            val already = try {
+                kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("fmUser/$uid").get().await() }?.value as? String
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+            if (already.isNullOrBlank()) {
+                try {
+                    kotlinx.coroutines.withTimeout(6000L) { Rtdb.ref("fmUser/$uid").setValue(fid).await() }
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            }
+            fid
+        }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
     suspend fun findByName(name: String): Family? =
         (readOnce(Rtdb.ref("fm").orderByChild("name").equalTo(name).limitToFirst(1)) { s ->
             s.children.firstOrNull()?.toFamily()
         }) ?: scanAll().firstOrNull { it.name.equals(name, ignoreCase = true) }
+            ?: fsFindByName(name)
 
     private fun listen(r: com.google.firebase.database.Query, on: (DataSnapshot) -> Unit): Reg {
         val l = object : ValueEventListener {
@@ -149,6 +242,11 @@ object FamilyRepo {
             famReg = null
             val fid = snap.value as? String
             if (fid.isNullOrBlank()) {
+                // Belum ada di RTDB: coba family lama di Firestore sekali, lalu salin.
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    val old = fsMyFamilyId(uid)
+                    if (old != null) importFamily(old)
+                }
                 onChange(null, true)
             } else {
                 famReg = listen(fm(fid)) { fs ->
@@ -217,7 +315,21 @@ object FamilyRepo {
         if (byName.isNotEmpty()) return byName
         // Cadangan: saring di aplikasi (nama mengandung kata / numId sama), tanpa peduli huruf besar-kecil.
         val low = t.lowercase()
-        return scanAll().filter { it.name.lowercase().contains(low) || it.numId == t }.take(20)
+        val local = scanAll().filter { it.name.lowercase().contains(low) || it.numId == t }.take(20)
+        if (local.isNotEmpty()) return local
+        // Family lama: cari di Firestore lalu salin ke RTDB (sekali).
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(7000L) {
+                fs.collection("families").orderBy("name").startAt(t).endAt(t + "\uf8ff").limit(20).get().await()
+            }
+            val docs = snap?.documents ?: emptyList()
+            val out = docs.mapNotNull { importFamily(it.id, it.getString("name")) }
+            if (out.isNotEmpty()) return out
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
+        return emptyList()
     }
 
     suspend fun topFamilies(): List<Family> =
@@ -230,7 +342,7 @@ object FamilyRepo {
 
     /** FamilyId milik uid saat ini (null = belum punya family). */
     suspend fun myFamilyId(uid: String): String? =
-        readOnce(fmUser(uid)) { it.value as? String }?.takeIf { it.isNotBlank() }
+        readOnce(fmUser(uid)) { it.value as? String }?.takeIf { it.isNotBlank() } ?: fsMyFamilyId(uid)
 
     /** Ambil nomor family berikutnya (transaksi HANYA di fmIdx/next). */
     private suspend fun nextNum(): Long = suspendCancellableCoroutine { cont ->
