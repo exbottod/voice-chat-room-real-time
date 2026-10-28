@@ -256,7 +256,12 @@ fun WaveGamesScreen(
                                         err = ""
                                         scope.launch {
                                             val u = WaveGames.url(g)
-                                            if (u == null) err = "Gagal membuat sesi game, coba lagi" else playing = g to u
+                                            if (u == null) {
+                                                err = "Gagal membuat sesi game, coba lagi"
+                                            } else {
+                                                val bad = SupaRepo.waveCheck()
+                                                if (bad != null) err = bad else playing = g to u
+                                            }
                                         }
                                     },
                                 ) {
