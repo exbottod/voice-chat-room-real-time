@@ -64,6 +64,41 @@ object SupaRepo {
             }
         }
 
+    /**
+     * Cek jalur coin untuk game: panggil endpoint yang sama dengan yang dipakai
+     * WaveGames (userInfo). Hasilnya dipakai untuk menampilkan pesan jelas kalau
+     * server coin belum siap, bukan layar game kosong.
+     */
+    suspend fun waveCheck(): String? = withContext(Dispatchers.IO) {
+        try {
+            val token = com.google.firebase.auth.FirebaseAuth.getInstance()
+                .currentUser?.getIdToken(true)?.await()?.token ?: return@withContext "Belum login"
+            val conn = (URL("$FN/wave/game/userInfo").openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 8000
+                readTimeout = 12000
+                setRequestProperty("apikey", KEY)
+                setRequestProperty("Authorization", "Bearer $token")
+                setRequestProperty("Accept", "application/json")
+            }
+            val code = conn.responseCode
+            val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            val o = try { org.json.JSONObject(txt) } catch (e: Exception) { org.json.JSONObject() }
+            if (code in 200..299 && o.optBoolean("success")) {
+                val d = o.optJSONObject("data")
+                val bal = d?.optLong("balance", -1L) ?: -1L
+                if (bal < 0) "Data saldo game tidak lengkap (userInfo tanpa balance)" else null
+            } else {
+                "Server coin game menolak (" + code + "): " + o.optString("message", txt.take(120))
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            "Tidak bisa menghubungi server coin game: " + (e.message ?: "koneksi gagal")
+        }
+    }
+
     /** Simpan nama + foto pemain untuk game WaveGames (dipakai userInfo). */
     suspend fun wavePrepare(name: String, avatar: String): String? {
         val r = call("wave_prepare", org.json.JSONObject().put("name", name).put("avatar", avatar))
