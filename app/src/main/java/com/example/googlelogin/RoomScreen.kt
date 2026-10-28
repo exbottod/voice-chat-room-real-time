@@ -478,8 +478,7 @@ fun RoomScreen(
                     RmRoundBtn({ typing = true; emoteOpen = false }) { Text("💬", fontSize = 20.sp) }
                     Spacer(Modifier.width(10.dp))
                     RmRoundBtn({ emoteOpen = !emoteOpen }) { Text("😊", fontSize = 20.sp) }
-                    Spacer(Modifier.width(10.dp))
-                    RmRoundBtn({ waveOpen = true }) { Text("🎮", fontSize = 20.sp) }
+
                     Spacer(Modifier.weight(1f))
                     RmRoundBtn({ giftTarget = null; giftOpen = true; emoteOpen = false }) {
                         Image(painterResource(R.drawable.ic_room_gift), null, Modifier.size(24.dp), contentScale = ContentScale.Fit)
@@ -730,7 +729,7 @@ fun RoomScreen(
                         ) { Text("💗", fontSize = 24.sp) }
                     }
                     RmTool("Musik", onClick = { panel = P_MUSIC }) { Text("🎵", fontSize = 24.sp) }
-                    RmTool("Game", onClick = { panel = P_NONE; toast("Game segera hadir") }) {
+                    RmTool("Game", onClick = { panel = P_NONE; waveOpen = true }) {
                         Image(painterResource(R.drawable.ic_room_game), null, Modifier.size(26.dp), contentScale = ContentScale.Fit)
                     }
                     RmTool(
