@@ -628,12 +628,12 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
             Spacer(Modifier.width(10.dp))
             GoldPill(
                 when {
-                    higher -> "VIP${wallet.vip} aktif"
                     sameTier -> "Perpanjang"
+                    higher -> "Beli VIP$sel"
                     active -> "Upgrade VIP$sel"
                     else -> "Beli VIP$sel"
                 },
-                enabled = !higher && !busy,
+                enabled = !busy,
             ) { confirm = true }
         }
     }

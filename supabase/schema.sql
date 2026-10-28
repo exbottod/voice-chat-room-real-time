@@ -157,9 +157,12 @@ begin
   select * into w from public.wallets where uid = p_uid for update;
   if not found then raise exception 'WALLET_NOT_FOUND'; end if;
   active := w.vip between 1 and 9 and w.vip_until > nowms;
-  if active and w.vip > p_tier then raise exception 'VIP% kamu masih aktif', w.vip; end if;
   if w.coins < price then raise exception 'Coin tidak cukup. Tekan Topup'; end if;
-  until := (case when active and w.vip = p_tier then w.vip_until else nowms end) + 30 * 86400000;
+  -- BOLEH BELI LEVEL BERAPA PUN walau level lebih tinggi sudah aktif.
+  -- Item tier yang dibeli: perpanjang 30 hari dari sisa item tier itu.
+  until := coalesce((w.inv ->> ('vipt_' || p_tier))::bigint, 0);
+  if until <= nowms then until := nowms; end if;
+  until := until + 30 * 86400000;
   inv := w.inv;
   -- BELI VIP N = SEMUA ITEM VIP 1..N OTOMATIS MASUK MY ITEM
   -- (gelar, frame, gelembung, efek masuk, banner) sampai masa aktif VIP N.
@@ -168,16 +171,26 @@ begin
       inv := inv || jsonb_build_object(pre || i, until);
     end loop;
   end loop;
+  -- Level dompet = level TERTINGGI; membeli level rendah tidak menurunkan level.
+  if p_tier > w.vip or not active then
+    w.vip := p_tier;
+    w.vip_until := until;
+  elsif p_tier = w.vip then
+    w.vip_until := until;
+  end if;
+  -- Perlengkapan otomatis hanya dipasang kalau level naik / belum ada.
   eq := w.equip;
-  eq := jsonb_set(eq, '{frame}', to_jsonb('vipf_' || p_tier));
-  cur := coalesce(eq ->> 'bubble', '');
-  if cur = '' or left(cur, 5) = 'vipb_' then eq := jsonb_set(eq, '{bubble}', to_jsonb('vipb_' || p_tier)); end if;
-  cur := coalesce(eq ->> 'entry', '');
-  if cur = '' or left(cur, 5) = 'vipe_' then eq := jsonb_set(eq, '{entry}', to_jsonb('vipe_' || p_tier)); end if;
-  cur := coalesce(eq ->> 'banner', '');
-  if cur = '' or left(cur, 6) = 'vipbn_' then eq := jsonb_set(eq, '{banner}', to_jsonb('vipbn_' || p_tier)); end if;
+  if p_tier >= w.vip or not active then
+    eq := jsonb_set(eq, '{frame}', to_jsonb('vipf_' || p_tier));
+    cur := coalesce(eq ->> 'bubble', '');
+    if cur = '' or left(cur, 5) = 'vipb_' then eq := jsonb_set(eq, '{bubble}', to_jsonb('vipb_' || p_tier)); end if;
+    cur := coalesce(eq ->> 'entry', '');
+    if cur = '' or left(cur, 5) = 'vipe_' then eq := jsonb_set(eq, '{entry}', to_jsonb('vipe_' || p_tier)); end if;
+    cur := coalesce(eq ->> 'banner', '');
+    if cur = '' or left(cur, 6) = 'vipbn_' then eq := jsonb_set(eq, '{banner}', to_jsonb('vipbn_' || p_tier)); end if;
+  end if;
   update public.wallets set
-    coins = coins - price, vip = p_tier, vip_until = until,
+    coins = coins - price, vip = w.vip, vip_until = w.vip_until,
     inv = inv, equip = eq, updated_at = now()
   where uid = p_uid returning * into w;
   insert into public.money_tx (uid, kind, item_id, amount) values (p_uid, 'buy_vip', 'vip' || p_tier, price);
