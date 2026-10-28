@@ -146,25 +146,6 @@ object WaveGames {
 }
 
 
-/** Buka URL game lewat Chrome Custom Tab (tampil di dalam aplikasi, mesin Chrome). */
-private fun openInChrome(ctx: android.content.Context, url: String) {
-    try {
-        val intent = androidx.browser.customtabs.CustomTabsIntent.Builder()
-            .setShowTitle(true)
-            .build()
-        intent.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        intent.launchUrl(ctx, android.net.Uri.parse(url))
-    } catch (e: Exception) {
-        try {
-            ctx.startActivity(
-                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-        } catch (e2: Exception) {
-        }
-    }
-}
-
 /** Daftar game + WebView. Ditampilkan penuh di atas layar room. */
 @Composable
 fun WaveGamesScreen(
@@ -298,10 +279,7 @@ fun WaveGamesScreen(
                                                 if (bad != null) {
                                                     err = bad
                                                 } else {
-                                                    // WebView di sebagian HP (Android 9) tidak mampu
-                                                    // merender game, jadi mainkan lewat Chrome Custom Tab:
-                                                    // tetap di dalam aplikasi, tapi memakai mesin Chrome.
-                                                    openInChrome(ctx, u)
+                                                    playing = g to u
                                                 }
                                             }
                                         }
@@ -379,6 +357,11 @@ private fun WaveGameView(
                     settings.setSupportMultipleWindows(false)
                     settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                    // Sebagian penyedia game menolak UA bawaan WebView. Pakai UA Chrome mobile bersih.
+                    settings.userAgentString = "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
+                        "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                    android.webkit.WebView.setWebContentsDebuggingEnabled(true)
+                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                     android.webkit.CookieManager.getInstance().setAcceptCookie(true)
                     android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webChromeClient = object : WebChromeClient() {
@@ -421,8 +404,11 @@ private fun WaveGameView(
                     loadUrl(url)
                     web = this
                     postDelayed({
-                        evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0)") { out ->
-                            val n = out.trim().removeSurrounding("\"").toIntOrNull() ?: 0
+                        evaluateJavascript("(document.querySelectorAll('canvas,iframe').length + ':' + (document.body && document.body.innerText ? document.body.innerText.trim().length : 0))") { out ->
+                            val raw = out.trim().removeSurrounding("\"")
+                            val n = raw.substringAfter(':').toIntOrNull() ?: 0
+                            val objs = raw.substringBefore(':').toIntOrNull() ?: 0
+                            if (n < 40 && objs == 0) blank = true
                             if (n < 40) {
                                 blank = true
                                 evaluateJavascript("(document.body ? document.body.innerText.slice(0,200) : 'tanpa body')") { t ->
