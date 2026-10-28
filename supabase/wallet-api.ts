@@ -87,7 +87,9 @@ const ACTIONS: Record<string, string> = {
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, accept, x-requested-with",
+  "Access-Control-Max-Age": "86400",
 };
 
 async function rpc(fn: string, params: Record<string, unknown>): Promise<Response> {
@@ -138,15 +140,25 @@ async function wavePlayer(uid: string) {
 function bearer(req: Request, bodyToken?: unknown): string {
   const a = req.headers.get("authorization") || req.headers.get("Authorization") || "";
   if (a.toLowerCase().startsWith("bearer ")) return a.slice(7).trim();
-  const q = new URL(req.url).searchParams.get("token");
-  if (q) return q.trim();
+  const sp = new URL(req.url).searchParams;
+  for (const k of ["token", "userToken", "user_token", "ut", "t", "authToken"]) {
+    const v = sp.get(k);
+    if (v && v.trim()) return v.trim();
+  }
   if (typeof bodyToken === "string" && bodyToken.trim()) return bodyToken.trim();
   return "";
 }
 
 async function waveUserInfo(req: Request): Promise<Response> {
   try {
-    const uid = await verifyFirebase(bearer(req));
+    let bodyToken: unknown = undefined;
+    if (req.method === "POST") {
+      try {
+        const b = await req.clone().json();
+        bodyToken = b?.token ?? b?.userToken ?? b?.user_token ?? undefined;
+      } catch { /* tanpa body */ }
+    }
+    const uid = await verifyFirebase(bearer(req, bodyToken));
     const p = await wavePlayer(uid);
     if (!p) return json({ success: false, message: "Pemain tidak ditemukan" }, 200);
     return json({ success: true, message: "User info fetched successfully", data: p });
@@ -171,7 +183,7 @@ async function waveSubmitFlow(req: Request): Promise<Response> {
   }
   let uid: string;
   try {
-    uid = await verifyFirebase(bearer(req, body.token ?? body.userToken));
+    uid = await verifyFirebase(bearer(req, body.token ?? body.userToken ?? body.user_token));
   } catch (e) {
     return json({ success: false, message: e instanceof Error ? e.message : "Token tidak valid" }, 401);
   }
@@ -208,10 +220,10 @@ async function waveSubmitFlow(req: Request): Promise<Response> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  const wpath = new URL(req.url).pathname.replace(/\/+$/, "");
-  if (wpath.endsWith("/wave/game/userInfo")) return await waveUserInfo(req);
-  if (wpath.endsWith("/wave/game/submitFlow")) return await waveSubmitFlow(req);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  const wpath = new URL(req.url).pathname.replace(/\/+$/, "").toLowerCase();
+  if (wpath.includes("userinfo")) return await waveUserInfo(req);
+  if (wpath.includes("submitflow")) return await waveSubmitFlow(req);
   if (req.method !== "POST") return json({ ok: 0, e: "Method tidak didukung" }, 405);
 
   let body: { a?: string; t?: string; p?: Record<string, unknown> };
