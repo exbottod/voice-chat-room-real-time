@@ -310,9 +310,11 @@ private fun WaveGameView(
     url: String,
     onBack: () -> Unit,
 ) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     var web by remember { mutableStateOf<WebView?>(null) }
     var prog by remember { mutableStateOf(0) }
     var err by remember { mutableStateOf("") }
+    var blank by remember { mutableStateOf(false) }
     BackHandler {
         val w = web
         if (w != null && w.canGoBack()) w.goBack() else onBack()
@@ -376,10 +378,53 @@ private fun WaveGameView(
                     }
                     loadUrl(url)
                     web = this
+                    postDelayed({
+                        evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0)") { out ->
+                            val n = out.trim().removeSurrounding("\"").toIntOrNull() ?: 0
+                            if (n < 5) blank = true
+                        }
+                    }, 6500)
                 }
             },
             onRelease = { it.destroy() },
         )
+        if (blank && err.isEmpty()) {
+            Column(
+                Modifier.fillMaxSize().background(Color(0xFF101010)).padding(20.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("Game belum tampil di dalam aplikasi", color = Color.White, fontSize = 15.sp, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(8.dp))
+                Text("Pembaca game di HP ini terlalu lama memuat. Buka di browser supaya bisa main.", color = Color(0xFFBDBDBD), fontSize = 12.sp, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Buka di browser",
+                    color = Gold,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable {
+                        try {
+                            ctx.startActivity(
+                                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        } catch (e: Exception) {
+                        }
+                    }.padding(10.dp),
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Coba lagi",
+                    color = Color(0xFF9E9E9E),
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable {
+                        blank = false
+                        web?.reload()
+                    }.padding(8.dp),
+                )
+            }
+        }
         if (err.isNotEmpty()) {
             Column(
                 Modifier.fillMaxSize().background(Color(0xCC000000)).padding(20.dp),
