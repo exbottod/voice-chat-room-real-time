@@ -128,10 +128,13 @@ fun OtherProfileScreen(
         // svip cadangan dari RTDB pub/{uid} (kuota terpisah dari Firestore).
         try {
             val u3 = user
-            if (u3 != null && u3.svip.isBlank()) {
+            if (u3 != null) {
                 val s = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("pub/$uid").get().await() }
-                val csv = s?.child("svip")?.getValue(String::class.java) ?: ""
-                if (csv.isNotBlank()) user = u3.copy(svip = csv)
+                // pub punya kunci svip (walau kosong) -> itu nilai terbaru.
+                if (s != null && s.exists() && s.hasChild("svip")) {
+                    val csv = s.child("svip").getValue(String::class.java) ?: ""
+                    user = u3.copy(svip = csv)
+                }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         loading = false
