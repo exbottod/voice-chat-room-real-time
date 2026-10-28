@@ -9,6 +9,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 
@@ -49,6 +50,7 @@ fun PublicUser.svipLevel(): Int {
 
 
 object UserDirectory {
+    private val mirrorScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
     private fun db() = FirebaseFirestore.getInstance()
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("userid", Context.MODE_PRIVATE)
 
@@ -81,10 +83,16 @@ object UserDirectory {
      * Firestore tetap memakai ID lamanya.
      */
     suspend fun ensureUserId(ctx: Context, uid: String): String {
-        cachedId(ctx, uid)?.let { return it }
-        // 1) User lama: ID yang sudah ada di Firestore tetap dipakai.
+        cachedId(ctx, uid)?.takeIf { it.isNotBlank() && it != "..." }?.let { return it }
+        // 1) Sudah punya ID di Realtime Database? Pakai itu (cepat, tanpa Firestore).
+        rtdbOfficialId(uid)?.let {
+            prefs(ctx).edit().putString(uid, it).apply()
+            publishPubId(uid, it)
+            return it
+        }
+        // 2) User lama: ID yang sudah ada di Firestore tetap dipakai (hanya cadangan, timeout singkat).
         try {
-            val d = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+            val d = kotlinx.coroutines.withTimeoutOrNull(2500L) {
                 db().collection("users").document(uid).get().await()
             }
             val fsId = d?.getString("userId")?.takeIf { it.isNotBlank() }
@@ -97,23 +105,23 @@ object UserDirectory {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) { }
-        // 2) ID baru dibuat di Realtime Database.
+        // 3) Akun baru: ID dibuat di Realtime Database.
         val id = rtdbEnsureId(uid)
         prefs(ctx).edit().putString(uid, id).apply()
         publishPubId(uid, id)
-        // 3) Cermin best-effort ke Firestore agar fitur lama tetap jalan.
-        try {
-            kotlinx.coroutines.withTimeoutOrNull(4000L) {
-                db().collection("users").document(uid).set(
-                    hashMapOf("userId" to id), SetOptions.merge(),
-                ).await()
-                db().collection("userIds").document(id).set(
-                    hashMapOf("uid" to uid), SetOptions.merge(),
-                ).await()
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) { }
+        // 4) Cermin best-effort ke Firestore di BELAKANG layar (tidak menahan tampilan ID).
+        mirrorScope.launch {
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                    db().collection("users").document(uid).set(
+                        hashMapOf("userId" to id), SetOptions.merge(),
+                    ).await()
+                    db().collection("userIds").document(id).set(
+                        hashMapOf("uid" to uid), SetOptions.merge(),
+                    ).await()
+                }
+            } catch (e: Exception) { }
+        }
         return id
     }
 
@@ -156,7 +164,7 @@ object UserDirectory {
     /** Transaksi pembuatan ID di Realtime Database (seed dari counter Firestore lama). */
     private suspend fun rtdbEnsureId(uid: String): String {
         val seed: Long = try {
-            val c = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+            val c = kotlinx.coroutines.withTimeoutOrNull(2000L) {
                 db().collection("counters").document("userIds").get().await()
             }
             (c?.getLong("next") ?: FIRST_USER_ID).coerceAtLeast(FIRST_USER_ID)

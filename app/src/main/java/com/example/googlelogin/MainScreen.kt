@@ -174,15 +174,17 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             ProfileRepo.saveLocal(context, user.email, it)
         }
         // Daftar akun: ID dibuat lewat Realtime Database; coba sampai 3x.
-        repeat(3) { attempt ->
-            if (userId.isNotBlank()) return@repeat
+        // userId awalnya "..." (placeholder), jadi dianggap BELUM ADA sampai angka asli terisi.
+        fun idReady() = userId.isNotBlank() && userId != "..." && userId.all { it.isDigit() }
+        repeat(6) { attempt ->
+            if (idReady()) return@repeat
             try {
                 userId = UserDirectory.ensureUserId(context, uid)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (attempt == 2) Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
-                else kotlinx.coroutines.delay(2000L)
+                if (attempt == 5) Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
+                else kotlinx.coroutines.delay(1500L)
             }
         }
         try {
