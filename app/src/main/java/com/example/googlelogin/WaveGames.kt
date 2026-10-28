@@ -330,6 +330,8 @@ private fun WaveGameView(
     var prog by remember { mutableStateOf(0) }
     var err by remember { mutableStateOf("") }
     var blank by remember { mutableStateOf(false) }
+    var diag by remember { mutableStateOf("") }
+    var logs by remember { mutableStateOf("") }
     BackHandler {
         val w = web
         if (w != null && w.canGoBack()) w.goBack() else onBack()
@@ -350,14 +352,12 @@ private fun WaveGameView(
                     settings.setSupportMultipleWindows(false)
                     settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
-                    // Banyak halaman game menolak WebView default; pakai UA Chrome mobile
-                    settings.userAgentString = settings.userAgentString
-                        .replace("; wv", "")
-                        .replace("Version/4.0 ", "")
                     android.webkit.CookieManager.getInstance().setAcceptCookie(true)
                     android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webChromeClient = object : WebChromeClient() {
                         override fun onConsoleMessage(m: android.webkit.ConsoleMessage?): Boolean {
+                            val txt = m?.message().orEmpty()
+                            if (txt.isNotBlank() && logs.length < 400) logs = (logs + txt.take(120) + " | ").take(400)
                             return true
                         }
                         override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -396,9 +396,20 @@ private fun WaveGameView(
                     postDelayed({
                         evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0)") { out ->
                             val n = out.trim().removeSurrounding("\"").toIntOrNull() ?: 0
-                            if (n < 5) blank = true
+                            if (n < 40) {
+                                blank = true
+                                evaluateJavascript("(document.body ? document.body.innerText.slice(0,200) : 'tanpa body')") { t ->
+                                    diag = t.trim().removeSurrounding("\"")
+                                }
+                            }
                         }
                     }, 6500)
+                    postDelayed({
+                        evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0)") { out ->
+                            val n2 = out.trim().removeSurrounding("\"").toIntOrNull() ?: 0
+                            if (n2 < 40) blank = true
+                        }
+                    }, 15000)
                 }
             },
             onRelease = { it.destroy() },
@@ -411,7 +422,15 @@ private fun WaveGameView(
             ) {
                 Text("Game belum tampil di dalam aplikasi", color = Color.White, fontSize = 15.sp, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
-                Text("Pembaca game di HP ini terlalu lama memuat. Buka di browser supaya bisa main.", color = Color(0xFFBDBDBD), fontSize = 12.sp, textAlign = TextAlign.Center)
+                Text("Pembaca game di HP ini belum selesai memuat.", color = Color(0xFFBDBDBD), fontSize = 12.sp, textAlign = TextAlign.Center)
+                if (diag.isNotBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(diag, color = Color(0xFF9E9E9E), fontSize = 10.sp, textAlign = TextAlign.Center)
+                }
+                if (logs.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(logs, color = Color(0xFF7A7A7A), fontSize = 9.sp, textAlign = TextAlign.Center)
+                }
                 Spacer(Modifier.height(16.dp))
                 Text(
                     "Buka di browser",
