@@ -315,7 +315,8 @@ object SvipRepo {
             try { SvipInv.grant(uid, tier) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
             // 1c) Pasang otomatis bila slot masih kosong / masih item VIP lama.
             try { SvipInv.autoEquip(uid, w, tier) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-            WalletRepo.emitBackup(uid, w)
+            // Gabung item SVIP (termasuk medali) supaya langsung tampil di My Item & MY MEDALS.
+            WalletRepo.emitBackup(uid, SvipInv.apply(uid, w))
         }
         // 2) Baca daftar level SVIP yang sudah dibeli (Realtime Database).
         val now = System.currentTimeMillis()

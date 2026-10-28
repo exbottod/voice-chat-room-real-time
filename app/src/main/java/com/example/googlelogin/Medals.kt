@@ -27,6 +27,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -176,8 +177,36 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     var tab by remember { mutableStateOf(0) }
     var buying by remember { mutableStateOf<CatalogItem?>(null) }
     LaunchedEffect(Unit) { StoreCatalog.start(); VipAssets.load() }
-    val worn = activeMedalIds(wallet)
-    val ownedIds = ownedMedalIds(wallet)
+    // Medal SVIP disimpan di Realtime Database (pub/{uid}/svipInv). Di sini dibaca
+    // langsung dan digabung, supaya medal yang dibeli LANGSUNG tampil di MY MEDALS.
+    var svInv by remember(uid) { mutableStateOf<Map<String, Long>>(emptyMap()) }
+    DisposableEffect(uid) {
+        SvipInv.observe(uid)
+        val r = Rtdb.listen(Rtdb.ref("pub/$uid/svipInv")) { sn ->
+            svInv = sn.children.mapNotNull { c ->
+                c.key?.let { k -> k to ((c.value as? Long) ?: 0L) }
+            }.toMap()
+        }
+        onDispose { r.remove() }
+    }
+    // Perbaikan otomatis: kalau SVIP aktif tapi medal tier-nya belum ada
+    // (pembelian sebelum perbaikan ini), lengkapi sekarang juga.
+    LaunchedEffect(uid) {
+        val lv = try { SvipLocal.vip(uid).first } catch (e: Exception) { 0 }
+        if (lv in 1..9) {
+            val now = System.currentTimeMillis()
+            if ((1..lv).any { (svInv["svm_$it"] ?: 0L) <= now }) {
+                try { SvipInv.grant(uid, lv) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            }
+        }
+    }
+    val walletMerged = remember(wallet, svInv) {
+        val inv = wallet.inv.toMutableMap()
+        svInv.forEach { (id, until) -> if (until > (inv[id] ?: 0L)) inv[id] = until }
+        wallet.copy(inv = inv)
+    }
+    val worn = activeMedalIds(walletMerged)
+    val ownedIds = ownedMedalIds(walletMerged)
     val mine = ownedIds.map { MedalEntry(it, findItem(it)?.name ?: it, true) }
     val shop = StoreCatalog.bySlot("medal")
         .filter { "sx_${it.id}" !in ownedIds }
