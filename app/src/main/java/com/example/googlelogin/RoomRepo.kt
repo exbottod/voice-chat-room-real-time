@@ -177,6 +177,29 @@ object RoomRepo {
     fun observeRoom(id: String, onChange: (RoomInfo?) -> Unit): ListenerRegistration =
         roomRef(id).addSnapshotListener { snap, _ -> onChange(snap?.toRoom()) }
 
+    /** Room dari mirror Realtime Database roomsPub/{id}: dipakai sebagai cadangan
+     *  saat Firestore macet / kuota habis supaya masuk room tidak muter-muter. */
+    fun pubToRoom(id: String, s: com.google.firebase.database.DataSnapshot): RoomInfo? {
+        if (!s.exists()) return null
+        fun str(k: String): String = s.child(k).value as? String ?: ""
+        return RoomInfo(
+            id = id,
+            roomNo = str("roomNo"),
+            name = str("name").ifBlank { "Room" },
+            ownerUid = str("ownerUid"),
+            ownerName = str("ownerName"),
+            photoB64 = str("photoB64").ifBlank { null },
+            backgroundB64 = null,
+            announcement = str("announcement"),
+            micCount = ((s.child("micCount").value as? Long) ?: 8L).toInt(),
+            lockHash = str("lockHash"),
+            online = 0,
+            lockedSeats = emptyList(),
+            pinned = s.child("pinned").value as? Boolean ?: false,
+            pinnedAt = (s.child("pinnedAt").value as? Long) ?: 0L,
+        )
+    }
+
     suspend fun getRoom(id: String): RoomInfo? = try {
         db().collection("rooms").document(id).get().await().toRoom()
     } catch (e: kotlinx.coroutines.CancellationException) {
