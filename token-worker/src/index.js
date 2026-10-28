@@ -1,5 +1,78 @@
 import { RtcTokenBuilder, RtcRole } from 'agora-token';
 
+// ---------- Proxy coin game (WaveGames) ----------
+// WaveGames memanggil Base URL lalu meneruskan token pemain. Karena bentuk
+// kiriman mereka tidak selalu sama (header/query/body), proxy ini menerima
+// semuanya, mencatat permintaan terakhir, lalu meneruskan ke wallet-api.
+const WAVE_SUPA = 'https://poeqhncfrxssilhjvibf.supabase.co/functions/v1/wallet-api';
+
+function pickToken(req, bodyText) {
+  const h = req.headers;
+  const names = ['authorization', 'token', 'usertoken', 'user-token', 'x-user-token', 'x-auth-token', 'authtoken', 'x-access-token'];
+  for (const n of names) {
+    const v = h.get(n);
+    if (v && v.trim()) return v.replace(/^Bearer\s+/i, '').trim();
+  }
+  const sp = new URL(req.url).searchParams;
+  for (const k of ['token', 'userToken', 'user_token', 'ut', 't', 'authToken']) {
+    const v = sp.get(k);
+    if (v && v.trim()) return v.trim();
+  }
+  if (bodyText) {
+    try {
+      const j = JSON.parse(bodyText);
+      for (const k of ['token', 'userToken', 'user_token', 'authToken']) {
+        if (typeof j?.[k] === 'string' && j[k].trim()) return j[k].trim();
+      }
+    } catch { /* bukan JSON */ }
+  }
+  return '';
+}
+
+async function logWave(env, entry) {
+  try {
+    const raw = await env.BKW.get('wlog/last');
+    const arr = raw ? JSON.parse(raw) : [];
+    arr.unshift(entry);
+    await env.BKW.put('wlog/last', JSON.stringify(arr.slice(0, 8)), { expirationTtl: 86400 });
+  } catch { /* log gagal tidak boleh mematikan game */ }
+}
+
+async function proxyWave(req, env) {
+  const bodyText = req.method === 'POST' ? await req.text() : '';
+  const token = pickToken(req, bodyText);
+  const isSubmit = new URL(req.url).pathname.toLowerCase().includes('submitflow');
+  const url = `${WAVE_SUPA}/wave/game/${isSubmit ? 'submitFlow' : 'userInfo'}`;
+  await logWave(env, {
+    at: new Date().toISOString(),
+    method: req.method,
+    path: new URL(req.url).pathname,
+    query: new URL(req.url).search.replace(/(token|t|ut)=[^&]+/gi, '$1=<hidden>').slice(0, 200),
+    header: [...req.headers.keys()].join(','),
+    hasToken: Boolean(token),
+    tokenEnd: token ? token.slice(-8) : '',
+    body: bodyText.slice(0, 400),
+  });
+  const headers = { 'content-type': 'application/json', accept: 'application/json' };
+  if (token) headers.authorization = `Bearer ${token}`;
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: isSubmit ? 'POST' : 'GET',
+      headers,
+      body: isSubmit ? (bodyText || '{}') : undefined,
+    });
+  } catch (e) {
+    return json({ success: false, message: 'proxy error: ' + (e && e.message) }, 502);
+  }
+  const text = await resp.text();
+  return new Response(text, {
+    status: resp.status,
+    headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },
+  });
+}
+
+
 const JWKS_URL = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
 const TTL = 86400; // 24 jam (maksimum Agora)
 
@@ -184,6 +257,14 @@ small{color:#757575}
 export default {
   async fetch(req, env) {
     const path = new URL(req.url).pathname.replace(/\/+$/, '');
+    const lowPath = path.toLowerCase();
+    if (path === '/wlog') {
+      const raw = await env.BKW.get('wlog/last');
+      return json({ entries: raw ? JSON.parse(raw) : [] });
+    }
+    if (lowPath.includes('userinfo') || lowPath.includes('submitflow') || lowPath.startsWith('/wave')) {
+      return await proxyWave(req, env);
+    }
     // Link room publik (seperti link invite): /r/<roomId>
     if (path.startsWith('/r/')) return roomPage(path.slice(3));
     // Database cadangan wallet: /w (user) dan /w-admin (admin topup user lain).
