@@ -122,10 +122,15 @@ object FamilyRepo {
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
 
     /** Cari family dari nama (untuk label family di profil & room). */
+    /** Ambil sebagian daftar family lalu saring di aplikasi. Cadangan kalau query
+     *  terindeks gagal (rules .indexOn belum dipublish) sehingga hasil tidak kosong. */
+    private suspend fun scanAll(): List<Family> =
+        readOnce(Rtdb.ref("fm").limitToFirst(300)) { s -> s.children.mapNotNull { it.toFamily() } } ?: emptyList()
+
     suspend fun findByName(name: String): Family? =
-        readOnce(Rtdb.ref("fm").orderByChild("name").equalTo(name).limitToFirst(1)) { s ->
+        (readOnce(Rtdb.ref("fm").orderByChild("name").equalTo(name).limitToFirst(1)) { s ->
             s.children.firstOrNull()?.toFamily()
-        }
+        }) ?: scanAll().firstOrNull { it.name.equals(name, ignoreCase = true) }
 
     private fun listen(r: com.google.firebase.database.Query, on: (DataSnapshot) -> Unit): Reg {
         val l = object : ValueEventListener {
@@ -206,9 +211,13 @@ object FamilyRepo {
             s.children.mapNotNull { it.toFamily() }
         } ?: emptyList()
         if (byId.isNotEmpty()) return byId
-        return readOnce(Rtdb.ref("fm").orderByChild("name").startAt(t).endAt(t + "\uf8ff").limitToFirst(20)) { s ->
+        val byName = readOnce(Rtdb.ref("fm").orderByChild("name").startAt(t).endAt(t + "\uf8ff").limitToFirst(20)) { s ->
             s.children.mapNotNull { it.toFamily() }
         } ?: emptyList()
+        if (byName.isNotEmpty()) return byName
+        // Cadangan: saring di aplikasi (nama mengandung kata / numId sama), tanpa peduli huruf besar-kecil.
+        val low = t.lowercase()
+        return scanAll().filter { it.name.lowercase().contains(low) || it.numId == t }.take(20)
     }
 
     suspend fun topFamilies(): List<Family> =

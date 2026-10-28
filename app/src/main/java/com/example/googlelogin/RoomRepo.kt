@@ -411,6 +411,17 @@ object RoomRepo {
         }
     }
 
+    /** Turunkan user lain dari kursi mic (owner / admin room). null = sukses. */
+    suspend fun removeFromSeat(roomId: String, index: Int): String? = try {
+        Rtdb.ref("seats/$roomId/$index").removeValue().await()
+        Rtdb.ref("micPoints/$roomId/$index").removeValue()
+        null
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        e.message ?: "Gagal menurunkan dari mic"
+    }
+
     suspend fun setSeatMuted(roomId: String, index: Int, muted: Boolean) {
         try {
             Rtdb.tx(Rtdb.ref("seats/$roomId/$index")) { d ->
