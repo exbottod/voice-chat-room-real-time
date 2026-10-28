@@ -64,6 +64,12 @@ object SupaRepo {
             }
         }
 
+    /** Simpan nama + foto pemain untuk game WaveGames (dipakai userInfo). */
+    suspend fun wavePrepare(name: String, avatar: String): String? {
+        val r = call("wave_prepare", org.json.JSONObject().put("name", name).put("avatar", avatar))
+        return r.error
+    }
+
     fun parseWallet(o: org.json.JSONObject?): Wallet {
         if (o == null) return Wallet()
         val inv = HashMap<String, Long>()

@@ -82,6 +82,7 @@ const ACTIONS: Record<string, string> = {
   equip: "w_equip",
   claim_level: "w_claim_level",
   backfill: "w_backfill_vip",
+  wave_prepare: "w_wave_prepare",
 };
 
 const CORS = {
@@ -111,8 +112,94 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+
+// ================= GAME WAVEGAMES (Teen Patti, Dragon Vs Tiger, dll) =================
+// WaveGames memanggil dua endpoint ini:
+//   GET  /wave/game/userInfo   -> profil + saldo coin pemain
+//   POST /wave/game/submitFlow -> potong coin saat bet (type 1), tambah saat menang (type 2)
+// Token yang dikirim WaveGames = token login Firebase milik pemain (parameter
+// "token" di URL game). Semua perubahan coin tetap di tabel wallets.
+
+async function wavePlayer(uid: string) {
+  const r = await rpc("w_wave_player", { p_uid: uid });
+  if (!r.ok) return null;
+  const rows = await r.json().catch(() => null);
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  if (!row) return null;
+  return {
+    id: uid,
+    name: String(row.name ?? "Player"),
+    balance: Number(row.balance ?? 0),
+    profilePicture: String(row.avatar ?? ""),
+  };
+}
+
+function bearer(req: Request): string {
+  const a = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+  return a.toLowerCase().startsWith("bearer ") ? a.slice(7).trim() : "";
+}
+
+async function waveUserInfo(req: Request): Promise<Response> {
+  try {
+    const uid = await verifyFirebase(bearer(req));
+    const p = await wavePlayer(uid);
+    if (!p) return json({ success: false, message: "Pemain tidak ditemukan" }, 200);
+    return json({ success: true, message: "User info fetched successfully", data: p });
+  } catch (e) {
+    return json({ success: false, message: e instanceof Error ? e.message : "Token tidak valid" }, 401);
+  }
+}
+
+async function waveSubmitFlow(req: Request): Promise<Response> {
+  let body: { betAmount?: number; type?: number; transactionId?: string; gameName?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ success: false, message: "Permintaan tidak valid" }, 400);
+  }
+  let uid: string;
+  try {
+    uid = await verifyFirebase(bearer(req));
+  } catch (e) {
+    return json({ success: false, message: e instanceof Error ? e.message : "Token tidak valid" }, 401);
+  }
+  const amount = Math.trunc(Number(body.betAmount ?? 0));
+  const kind = Math.trunc(Number(body.type ?? 0));
+  const tx = String(body.transactionId ?? "");
+  if (!Number.isFinite(amount) || amount < 0 || (kind !== 1 && kind !== 2) || !tx) {
+    return json({ success: false, message: "Data transaksi tidak valid" }, 400);
+  }
+  const r = await rpc("w_wave_flow", {
+    p_uid: uid,
+    p_amount: amount,
+    p_kind: kind,
+    p_tx: tx,
+    p_game: body.gameName ?? null,
+  });
+  const text = await r.text();
+  if (!r.ok) {
+    let msg = "Transaksi ditolak";
+    try {
+      const j = JSON.parse(text);
+      msg = j.message ?? msg;
+    } catch { /* default */ }
+    if (msg.includes("SALDO_KURANG") || msg.includes("saldo")) msg = "Saldo coin tidak cukup";
+    if (msg.includes("NOMINAL")) msg = "Nominal tidak valid";
+    return json({ success: false, message: msg }, 200);
+  }
+  const p = await wavePlayer(uid);
+  return json({
+    success: true,
+    message: "OK",
+    data: p ?? { id: uid, name: "Player", balance: 0, profilePicture: "" },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  const wpath = new URL(req.url).pathname.replace(/\/+$/, "");
+  if (wpath.endsWith("/wave/game/userInfo")) return await waveUserInfo(req);
+  if (wpath.endsWith("/wave/game/submitFlow")) return await waveSubmitFlow(req);
   if (req.method !== "POST") return json({ ok: 0, e: "Method tidak didukung" }, 405);
 
   let body: { a?: string; t?: string; p?: Record<string, unknown> };
@@ -144,6 +231,9 @@ Deno.serve(async (req) => {
         p_vip: p.vip, p_vip_until: p.vipUntil, p_lv_claimed: p.lvClaimed,
         p_inv: p.inv ?? {}, p_equip: p.equip ?? {},
       };
+      break;
+    case "wave_prepare":
+      params = { p_uid: uid, p_name: p.name ?? "Player", p_avatar: p.avatar ?? "" };
       break;
     case "topup":
       params = { p_uid: uid, p_coins: p.coins };
