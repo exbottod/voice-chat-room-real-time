@@ -1,4 +1,3 @@
-
 {
   "rules": {
     ".read": false,
@@ -151,6 +150,22 @@
     "vipCfg": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+    },
+    "ids": {
+      ".read": "auth != null",
+      "u": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      },
+      "i": {
+        "$id": {
+          ".write": "auth != null"
+        }
+      },
+      "next": {
+        ".write": "auth != null"
+      }
     }
   }
 }
