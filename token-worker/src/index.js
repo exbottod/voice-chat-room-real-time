@@ -258,6 +258,15 @@ export default {
   async fetch(req, env) {
     const path = new URL(req.url).pathname.replace(/\/+$/, '');
     const lowPath = path.toLowerCase();
+    // CORS preflight dari WebView game: jawab langsung.
+    if (req.method === 'OPTIONS' && (lowPath.includes('userinfo') || lowPath.includes('submitflow') || lowPath.includes('/wave'))) {
+      return new Response(null, { status: 204, headers: {
+        'access-control-allow-origin': '*',
+        'access-control-allow-methods': 'GET, POST, OPTIONS',
+        'access-control-allow-headers': req.headers.get('access-control-request-headers') || '*',
+        'access-control-max-age': '86400',
+      } });
+    }
     if (path === '/wlog') {
       const raw = await env.BKW.get('wlog/last');
       return json({ entries: raw ? JSON.parse(raw) : [] });
