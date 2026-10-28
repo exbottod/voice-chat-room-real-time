@@ -527,7 +527,6 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     Text("🏮", fontSize = 40.sp)
                     Text("🏮", fontSize = 40.sp)
                 }
-                Text("🦌", fontSize = 130.sp, modifier = Modifier.offset(y = 14.dp))
                 // MEDAL VIP: aset terpisah (slot "medal", kotak 1:1) tampil di posisi
                 // mahkota. Gelar VIP (slot "title") tetap dipakai seperti dulu (VipTag).
                 // Kalau medal belum diupload, tetap tampil mahkota.
