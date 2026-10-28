@@ -1,5 +1,6 @@
 package com.example.googlelogin
 
+import com.google.firebase.auth.FirebaseAuth
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -249,6 +250,9 @@ fun RoomScreen(
             Box(Modifier.fillMaxSize().background(Color(0x88000000)))
         }
         val isOwner = r.ownerUid == myUid
+        // Admin aplikasi (developer) juga boleh mengelola semua room.
+        val isDevAdmin = FirebaseAuth.getInstance().currentUser?.email.equals("developerex100@gmail.com", ignoreCase = true)
+        val canManage = isOwner || isDevAdmin
         var ownerUserId by remember(r.ownerUid) {
             mutableStateOf(
                 if (r.ownerUid == myUid) UserDirectory.cachedId(context, myUid) else UserCache.peek(r.ownerUid)?.userId,
@@ -504,12 +508,23 @@ fun RoomScreen(
                     onChat = { u -> seatSheet = null; appActions.openChat(u) },
                     onFollowChanged = { },
                     onOpenFull = { seatSheet = null; appActions.openFullProfile(s.uid) },
-                    topAction = if (isOwner && s.uid != myUid) {
+                    topAction = if (canManage && s.uid != myUid) {
                         {
                             var menu by remember { mutableStateOf(false) }
                             Box {
                                 Text("⋮", color = GoldLight, fontSize = 26.sp, modifier = Modifier.padding(6.dp).clickable { menu = true })
                                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Color(0xFF1E1A16)) {
+                                    DropdownMenuItem(
+                                        text = { Text(tr("Turunkan dari mic"), color = Color.White) },
+                                        onClick = {
+                                            menu = false
+                                            seatSheet = null
+                                            scope.launch {
+                                                val err = RoomRepo.removeFromSeat(r.id, idx)
+                                                if (err != null) toast(err) else toast("${s.name} diturunkan dari mic")
+                                            }
+                                        },
+                                    )
                                     DropdownMenuItem(
                                         text = { Text(tr("Kick dari room"), color = Color(0xFFFF6B6B)) },
                                         onClick = {
@@ -569,7 +584,7 @@ fun RoomScreen(
                     }
                     Spacer(Modifier.height(16.dp))
                     if (seatLocked) {
-                        if (isOwner) {
+                        if (canManage) {
                             GoldButton(tr("Buka kunci mic")) {
                                 seatSheet = null
                                 scope.launch { RoomExtras.unlockSeat(r.id, idx)?.let { toast(it) } }
@@ -580,7 +595,7 @@ fun RoomScreen(
                             seatSheet = null
                             scope.launch { RoomRepo.takeSeat(r.id, idx, myUid, myName, myAvatarB64)?.let { toast(it) } }
                         }
-                        if (isOwner) {
+                        if (canManage) {
                             Spacer(Modifier.height(10.dp))
                             OutlineButton(tr("Undang ke mic")) {
                                 seatSheet = null

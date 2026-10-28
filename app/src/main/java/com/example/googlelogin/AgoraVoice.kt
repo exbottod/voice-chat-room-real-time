@@ -46,9 +46,24 @@ object AgoraVoice {
     @Volatile private var muteRemote = false
     private var joinJob: Job? = null
 
+    /** Status terakhir untuk diagnosa (ditampilkan sebagai toast bila gagal). */
+    @Volatile var lastStatus: String = ""
+        private set
+    @Volatile var onProblem: ((String) -> Unit)? = null
+    private fun problem(msg: String) {
+        lastStatus = msg
+        Log.e(TAG, msg)
+        try { onProblem?.invoke(msg) } catch (e: Exception) { }
+    }
+
     private val handler = object : IRtcEngineEventHandler() {
         override fun onError(err: Int) {
-            Log.e(TAG, "onError $err")
+            problem("Suara error $err")
+        }
+
+        override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
+            lastStatus = "OK joined $channel"
+            Log.i(TAG, lastStatus)
         }
 
         override fun onTokenPrivilegeWillExpire(token: String?) {
@@ -60,7 +75,7 @@ object AgoraVoice {
     private fun ensure(ctx: Context): RtcEngine? {
         engine?.let { return it }
         if (BuildConfig.AGORA_APP_ID.isBlank()) {
-            Log.e(TAG, "AGORA_APP_ID kosong")
+            problem("Suara mati: AGORA_APP_ID kosong di build")
             return null
         }
         return try {
@@ -84,11 +99,12 @@ object AgoraVoice {
     private suspend fun fetchToken(channel: String): String? {
         val url = BuildConfig.AGORA_TOKEN_URL
         if (url.isBlank()) {
-            Log.e(TAG, "AGORA_TOKEN_URL kosong")
+            problem("Suara mati: AGORA_TOKEN_URL kosong di build")
             return null
         }
         return try {
-            val idToken = FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token ?: return null
+            val idToken = FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
+            if (idToken == null) { problem("Suara mati: belum login"); return null }
             val c = (URL(url).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 10000
@@ -99,14 +115,15 @@ object AgoraVoice {
             }
             c.outputStream.use { it.write(JSONObject().put("channel", channel).toString().toByteArray()) }
             if (c.responseCode != 200) {
-                Log.e(TAG, "token gagal ${c.responseCode}: ${c.errorStream?.bufferedReader()?.readText()}")
+                val body = c.errorStream?.bufferedReader()?.readText().orEmpty()
+                problem("Suara mati: token gagal ${c.responseCode} $body".take(140))
                 return null
             }
             JSONObject(c.inputStream.bufferedReader().readText()).getString("token")
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "token error", e)
+            problem("Suara mati: token error ${e.message}".take(140))
             null
         }
     }
@@ -132,7 +149,7 @@ object AgoraVoice {
             }
             val r = e.joinChannel(token, id, 0, opt)
             if (r != 0) {
-                Log.e(TAG, "joinChannel gagal: $r")
+                problem("Suara mati: joinChannel gagal $r")
                 return@launch
             }
             inChannel = true
@@ -241,6 +258,8 @@ fun AgoraRoomBridge(roomId: String, myUid: String) {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
 
     DisposableEffect(roomId) {
+        val main = android.os.Handler(android.os.Looper.getMainLooper())
+        AgoraVoice.onProblem = { m -> main.post { android.widget.Toast.makeText(ctx, m, android.widget.Toast.LENGTH_LONG).show() } }
         AgoraVoice.join(ctx, roomId)
         val a = RoomRepo.observeMembers(roomId) { members = it }
         val b = RoomRepo.observeSeats(roomId) { seats ->
@@ -249,11 +268,15 @@ fun AgoraRoomBridge(roomId: String, myUid: String) {
         onDispose {
             a.remove()
             b.remove()
+            AgoraVoice.onProblem = null
             AgoraVoice.leave()
         }
     }
 
-    val onSeat = mySeat != null && myUid in members
+    // Mic ditentukan oleh KURSI saja. Sebelumnya juga butuh myUid di members, padahal
+    // user dengan "Invisible in rooms" (SVIP7) / join gagal tidak masuk members,
+    // sehingga suaranya tidak pernah terkirim.
+    val onSeat = mySeat != null
     LaunchedEffect(onSeat) { if (onSeat && !granted) launcher.launch(Manifest.permission.RECORD_AUDIO) }
     LaunchedEffect(onSeat, mySeat?.muted, granted) {
         AgoraVoice.setSpeaking(onSeat && granted && mySeat?.muted == false)
