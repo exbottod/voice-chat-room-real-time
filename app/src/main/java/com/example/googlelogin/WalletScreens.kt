@@ -134,7 +134,9 @@ object WalletRepo {
     /** Pemanggil sudah tahu dompet terbaru (misal hasil transaksi): perbarui cache + tampilan. */
     fun emitBackup(uid: String, w: Wallet) {
         try { WalletCache.save(uid, w) } catch (e: Exception) { }
-        backupCbs.forEach { try { it(uid, w) } catch (e: Exception) { } }
+        // Item SVIP dari Realtime Database digabung untuk tampilan/logika.
+        val merged = SvipInv.apply(uid, w)
+        backupCbs.forEach { try { it(uid, merged) } catch (e: Exception) { } }
     }
 
     fun emit(uid: String, w: Wallet) = emitBackup(uid, w)
@@ -151,7 +153,8 @@ object WalletRepo {
      * Firestore tidak lagi dibaca terus-menerus: kuota hemat total.
      */
     fun observe(uid: String, onChange: (Wallet) -> Unit): ListenerRegistration {
-        WalletCache.load(uid)?.let(onChange)
+        SvipInv.observe(uid)
+        WalletCache.load(uid)?.let { onChange(SvipInv.apply(uid, it)) }
         val cb: (String, Wallet) -> Unit = { u, w -> if (u == uid) onChange(w) }
         backupCbs.add(cb)
         val job = kotlinx.coroutines.GlobalScope.launch {
@@ -162,10 +165,7 @@ object WalletRepo {
                     val legacy = readLegacy(uid) ?: Wallet()
                     res = SupaRepo.migrate(uid, legacy)
                 }
-                res.wallet?.let {
-                    WalletCache.save(uid, it)
-                    emitBackup(uid, it)
-                }
+                res.wallet?.let { emitBackup(uid, it) }
                 kotlinx.coroutines.delay(15_000L)
             }
         }
