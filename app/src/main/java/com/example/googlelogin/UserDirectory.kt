@@ -161,8 +161,14 @@ object UserDirectory {
         } catch (e: Exception) { }
     }
 
-    /** Transaksi pembuatan ID di Realtime Database (seed dari counter Firestore lama). */
+    /**
+     * Buat ID di Realtime Database. Transaksi HANYA di ids/next (izin tulis ada di
+     * rules), lalu ids/u/{uid} + ids/i/{id} ditulis per-path. Tidak lagi memakai
+     * transaksi di node induk "ids" yang ditolak rules (PERMISSION_DENIED).
+     */
     private suspend fun rtdbEnsureId(uid: String): String {
+        // Sudah punya ID? pakai itu.
+        rtdbOfficialId(uid)?.let { return it }
         val seed: Long = try {
             val c = kotlinx.coroutines.withTimeoutOrNull(2000L) {
                 db().collection("counters").document("userIds").get().await()
@@ -171,30 +177,48 @@ object UserDirectory {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) { FIRST_USER_ID }
-        return suspendCancellableCoroutine { cont ->
-            Rtdb.ref("ids").runTransaction(object : com.google.firebase.database.Transaction.Handler {
-                override fun doTransaction(current: com.google.firebase.database.MutableData): com.google.firebase.database.Transaction.Result {
-                    val mine = current.child("u").child(uid).value
-                    if (mine == null) {
-                        val next = (current.child("next").value as? Long) ?: seed
-                        current.child("next").value = next + 1
-                        current.child("u").child(uid).value = next.toString()
-                        current.child("i").child(next.toString()).value = uid
-                    }
-                    return com.google.firebase.database.Transaction.success(current)
+        var lastErr: Exception? = null
+        repeat(8) {
+            try {
+                val claimed: Long = suspendCancellableCoroutine { cont ->
+                    Rtdb.ref("ids/next").runTransaction(object : com.google.firebase.database.Transaction.Handler {
+                        override fun doTransaction(cur: com.google.firebase.database.MutableData): com.google.firebase.database.Transaction.Result {
+                            val n = (cur.value as? Long) ?: seed
+                            cur.value = n + 1
+                            return com.google.firebase.database.Transaction.success(cur)
+                        }
+                        override fun onComplete(
+                            err: com.google.firebase.database.DatabaseError?,
+                            committed: Boolean,
+                            snap: com.google.firebase.database.DataSnapshot?,
+                        ) {
+                            if (!cont.isActive) return
+                            val v = (snap?.value as? Long)
+                            if (err == null && committed && v != null) cont.resume(v - 1)
+                            else cont.resumeWithException(err?.toException() ?: IllegalStateException("Gagal mengambil nomor ID"))
+                        }
+                    })
                 }
-                override fun onComplete(
-                    err: com.google.firebase.database.DatabaseError?,
-                    committed: Boolean,
-                    current: com.google.firebase.database.DataSnapshot?,
-                ) {
-                    if (!cont.isActive) return
-                    val v = current?.child("u")?.child(uid)?.value
-                    if (err == null && v != null) cont.resume(v.toString())
-                    else cont.resumeWithException(err?.toException() ?: IllegalStateException("Gagal membuat ID, coba lagi"))
-                }
-            })
+                val idStr = claimed.toString()
+                // Pastikan nomor belum dipakai orang lain (ids/i/{id}).
+                val taken = Rtdb.ref("ids/i/$idStr").get().await().value
+                if (taken != null && taken.toString() != uid) return@repeat
+                Rtdb.ref().updateChildren(
+                    hashMapOf<String, Any?>(
+                        "ids/u/$uid" to idStr,
+                        "ids/i/$idStr" to uid,
+                        "pub/$uid/id" to idStr,
+                    ),
+                ).await()
+                return idStr
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                lastErr = e
+                kotlinx.coroutines.delay(600L)
+            }
         }
+        throw lastErr ?: IllegalStateException("Gagal membuat ID, coba lagi")
     }
 
     /** Data publik (nama, avatar, negara, bio) agar bisa dicari lewat ID. */
