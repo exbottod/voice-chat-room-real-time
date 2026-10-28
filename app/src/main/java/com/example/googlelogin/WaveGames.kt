@@ -338,14 +338,14 @@ private fun WaveGameView(
                         override fun onConsoleMessage(m: android.webkit.ConsoleMessage?): Boolean {
                             return true
                         }
+                        override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                            prog = newProgress
+                        }
                     }
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(v: WebView?, u: String?, f: android.graphics.Bitmap?) {
                             err = ""
                             prog = 0
-                        }
-                        override fun onProgressChanged(v: WebView?, p: Int) {
-                            prog = p
                         }
                         override fun onPageFinished(v: WebView?, u: String?) {
                             prog = 100

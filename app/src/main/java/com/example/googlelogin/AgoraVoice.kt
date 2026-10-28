@@ -75,7 +75,13 @@ object AgoraVoice {
 
     private fun ensure(ctx: Context, appId: String): RtcEngine? {
         val use = appId.ifBlank { BuildConfig.AGORA_APP_ID }
-        engine?.let { if (appIdInUse == use) return it else { try { it.leaveChannel() } catch (e: Exception) { }; it.release(); engine = null } }
+        engine?.let {
+            if (appIdInUse == use) return it
+            try { it.leaveChannel() } catch (e: Exception) { }
+            try { RtcEngine.destroy() } catch (e: Exception) { }
+            engine = null
+            inChannel = false
+        }
         if (use.isBlank()) {
             problem("Suara mati: AGORA_APP_ID kosong di build")
             return null
