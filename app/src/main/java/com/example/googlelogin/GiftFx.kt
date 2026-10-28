@@ -193,6 +193,11 @@ object GiftFx {
             hashMapOf<String, Any?>(
                 "roomId" to roomId,
                 "roomName" to (room?.name ?: ""),
+                "roomNo" to (room?.roomNo ?: ""),
+                "ownerUid" to (room?.ownerUid ?: ""),
+                "ownerName" to (room?.ownerName ?: ""),
+                "micCount" to (room?.micCount ?: 8).toLong(),
+                "lockHash" to (room?.lockHash ?: ""),
                 "from" to name,
                 "gift" to g.name,
                 "emoji" to g.emoji,
@@ -326,6 +331,11 @@ object GiftFx {
 private data class GlobalBannerData(
     val roomId: String,
     val roomName: String,
+    val roomNo: String = "",
+    val ownerUid: String = "",
+    val ownerName: String = "",
+    val micCount: Int = 8,
+    val lockHash: String = "",
     val from: String,
     val gift: String,
     val emoji: String,
@@ -433,7 +443,7 @@ private fun kindOf(url: String): String {
  * Klik = langsung masuk ke room tempat gift dikirim.
  */
 @Composable
-fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
+fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (RoomInfo) -> Unit) {
     var data by remember { mutableStateOf<GlobalBannerData?>(null) }
     var lastTs by remember { mutableStateOf<Long?>(null) }
 
@@ -455,6 +465,11 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
             data = GlobalBannerData(
                 roomId = snap.child("roomId").getValue(String::class.java) ?: "",
                 roomName = snap.child("roomName").getValue(String::class.java) ?: "",
+                roomNo = snap.child("roomNo").getValue(String::class.java) ?: "",
+                ownerUid = snap.child("ownerUid").getValue(String::class.java) ?: "",
+                ownerName = snap.child("ownerName").getValue(String::class.java) ?: "",
+                micCount = ((snap.child("micCount").value as? Number)?.toInt() ?: 8),
+                lockHash = snap.child("lockHash").getValue(String::class.java) ?: "",
                 from = snap.child("from").getValue(String::class.java) ?: "",
                 gift = snap.child("gift").getValue(String::class.java) ?: "",
                 emoji = snap.child("emoji").getValue(String::class.java) ?: "🎁",
@@ -491,7 +506,16 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
                     ),
                 )
                 .border(1.dp, Gold, RoundedCornerShape(50))
-                .clickable { onOpenRoom(d.roomId) }
+                .clickable {
+                    onOpenRoom(
+                        RoomInfo(
+                            id = d.roomId, roomNo = d.roomNo, name = d.roomName.ifBlank { "Room" },
+                            ownerUid = d.ownerUid, ownerName = d.ownerName, photoB64 = null,
+                            backgroundB64 = null, announcement = "", micCount = d.micCount,
+                            lockHash = d.lockHash, online = 0,
+                        ),
+                    )
+                }
                 .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

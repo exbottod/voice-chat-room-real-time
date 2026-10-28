@@ -422,9 +422,15 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onOpenUser = { fullProfileUid = it },
                 )
             }
-            GlobalGiftBanner(currentRoomId = activeRoom?.id) { rid ->
-                if (rid.isNotBlank()) {
-                    scope.launch { RoomRepo.getRoom(rid)?.let { enterRoom(it) } }
+            GlobalGiftBanner(currentRoomId = activeRoom?.id) { quick ->
+                if (quick.id.isNotBlank()) {
+                    // Masuk SEKETIKA dari data di banner (tanpa menunggu database),
+                    // lalu RoomScreen melengkapi foto/pengumuman dari RTDB/Firestore.
+                    enterRoom(quick)
+                    scope.launch {
+                        val full = RoomRepo.getRoom(quick.id)
+                        if (full != null && activeRoom?.id == full.id) activeRoom = full
+                    }
                 }
             }
             BanGate(uid = uid, onSignOut = onSignOutClick, onBanned = { if (activeRoom != null) exitRoom() })
