@@ -135,12 +135,15 @@ object UserCache {
                 exp = (s.child("exp").value as? Number)?.toLong() ?: b.exp,
                 vip = (s.child("vip").value as? Number)?.toInt() ?: b.vip,
                 vipUntil = (s.child("vipUntil").value as? Number)?.toLong() ?: b.vipUntil,
-                frame = s.child("frame").getValue(String::class.java) ?: b.frame,
-                bubble = s.child("bubble").getValue(String::class.java) ?: b.bubble,
-                badge = s.child("badge").getValue(String::class.java) ?: b.badge,
-                medals = s.child("medals").getValue(String::class.java)?.ifBlank { b.medals } ?: b.medals,
-                fam = s.child("fam").getValue(String::class.java)?.ifBlank { b.fam } ?: b.fam,
-                svip = s.child("svip").getValue(String::class.java) ?: b.svip,
+                // FIX on/off: kalau kunci ADA di pub (walau nilainya kosong), itu
+                // nilai sebenarnya. Jangan pakai nilai lama, biar mematikan
+                // lencana/svip/medal langsung terlihat di profil orang lain.
+                frame = if (s.hasChild("frame")) s.child("frame").getValue(String::class.java) ?: b.frame else b.frame,
+                bubble = if (s.hasChild("bubble")) s.child("bubble").getValue(String::class.java) ?: b.bubble else b.bubble,
+                badge = if (s.hasChild("badge")) s.child("badge").getValue(String::class.java) ?: b.badge else b.badge,
+                medals = if (s.hasChild("medals")) s.child("medals").getValue(String::class.java) ?: b.medals else b.medals,
+                fam = if (s.hasChild("fam")) s.child("fam").getValue(String::class.java) ?: b.fam else b.fam,
+                svip = if (s.hasChild("svip")) s.child("svip").getValue(String::class.java) ?: b.svip else b.svip,
                 ad = s.child("ad").getValue(String::class.java) ?: b.ad,
                 // FIX avatar: foto profil ikut dibaca dari RTDB pub (field "av")
                 // supaya avatar tetap tampil saat kuota Firestore habis.
@@ -205,13 +208,14 @@ object UserCache {
             countryCode = new.countryCode.ifBlank { old.countryCode },
             bio = new.bio.ifBlank { old.bio },
             gender = new.gender.ifBlank { old.gender },
-            frame = new.frame.ifBlank { old.frame },
-            badge = new.badge.ifBlank { old.badge },
-            bubble = new.bubble.ifBlank { old.bubble },
-            medals = new.medals.ifBlank { old.medals },
+            // FIX on/off: nilai kosong (mematikan) tidak ditimpa nilai lama lagi.
+            frame = new.frame,
+            badge = new.badge,
+            bubble = new.bubble,
+            medals = new.medals,
             vip = if (new.vip == 0 && vipActive(old.vip, old.vipUntil)) old.vip else new.vip,
             vipUntil = if (new.vip == 0 && vipActive(old.vip, old.vipUntil)) old.vipUntil else new.vipUntil,
-            svip = new.svip.ifBlank { old.svip },
+            svip = new.svip,
             fam = new.fam.ifBlank { old.fam },
         )
     }
