@@ -167,12 +167,8 @@ fun RoomScreen(
         resetDrafts()
         // Riwayat chat/gift lama tidak ditampilkan lagi saat masuk room (hanya pesan setelah masuk)
         clearedAt = System.currentTimeMillis()
-        val a = RoomRepo.observeRoom(roomId) { room = it }
-        // Cadangan: kalau Firestore macet (kuota habis / error), room dimuat dari
-        // Realtime Database roomsPub supaya masuk room tidak muter-muter.
-        val pub = Rtdb.listen(Rtdb.ref("roomsPub/$roomId")) { snap ->
-            if (room == null && snap.exists()) room = RoomRepo.pubToRoom(roomId, snap)
-        }
+        // Room dimuat dari Realtime Database (bebas kuota Firestore).
+        val a = RoomRepo.observeRoom(roomId) { got -> if (got != null) room = got }
         val b = RoomRepo.observeSeats(roomId) { rawSeats = it }
         // Status follow room (RTDB, hemat kuota Firestore).
         val freg = Rtdb.listen(Rtdb.ref("followRooms/" + myUid + "/" + roomId)) { snap ->
@@ -204,7 +200,6 @@ fun RoomScreen(
             d.remove()
             e1.remove()
             e2.remove()
-            pub.remove()
             mp.remove()
             freg.remove()
             f.remove()
