@@ -60,7 +60,8 @@ import java.net.URLEncoder
  * App hanya perlu membuka URL game dengan token login pemain.
  */
 object WaveGames {
-    const val APP_KEY = "AM8Nc1KMn6"
+    // App key PRODUKSI (bukan testing AM8Nc1KMn6).
+    const val APP_KEY = "6oVRL5qsw0"
     private const val CATALOG = "https://my.wavegames.online/admin/game/list?appKey=$APP_KEY"
     private const val FRONT = "https://wavegames.online"
 
@@ -83,21 +84,21 @@ object WaveGames {
             }
             val txt = c.inputStream.bufferedReader().use { it.readText() }
             val arr = JSONObject(txt).optJSONObject("data")?.optJSONArray("games")
-            buildList {
-                if (arr != null) for (i in 0 until arr.length()) {
-                    val g = arr.optJSONObject(i) ?: continue
-                    if (!g.optBoolean("playable", true)) continue
-                    add(
-                        Game(
-                            id = g.optInt("gameId"),
-                            name = g.optString("name"),
-                            slug = g.optString("routeSlug"),
-                            image = g.optJSONObject("images")?.optString("listing").orEmpty(),
-                            maxBet = g.optLong("maxBetLimit"),
-                        ),
-                    )
-                }
+            val out = ArrayList<Game>()
+            if (arr != null) for (i in 0 until arr.length()) {
+                val g = arr.optJSONObject(i) ?: continue
+                if (!g.optBoolean("playable", true)) continue
+                out.add(
+                    Game(
+                        id = g.optInt("gameId"),
+                        name = g.optString("name"),
+                        slug = g.optString("routeSlug"),
+                        image = g.optJSONObject("images")?.optString("listing").orEmpty(),
+                        maxBet = g.optLong("maxBetLimit"),
+                    ),
+                )
             }
+            out
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
