@@ -283,7 +283,7 @@ async function proxyWave(req, env) {
   const text = await resp.text();
   return new Response(text, {
     status: resp.status,
-    headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },
+    headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' },
   });
 }
 
@@ -292,6 +292,15 @@ export default {
     const path = new URL(req.url).pathname.replace(/\/+$/, '');
     const lowPath = path.toLowerCase();
     // Catatan permintaan WaveGames (untuk diagnosis).
+    // CORS preflight dari WebView game: jawab langsung.
+    if (req.method === 'OPTIONS' && (lowPath.includes('userinfo') || lowPath.includes('submitflow') || lowPath.includes('/wave'))) {
+      return new Response(null, { status: 204, headers: {
+        'access-control-allow-origin': '*',
+        'access-control-allow-methods': 'GET, POST, OPTIONS',
+        'access-control-allow-headers': req.headers.get('access-control-request-headers') || '*',
+        'access-control-max-age': '86400',
+      } });
+    }
     if (path === '/wlog') {
       const raw = await env.BKW.get('wlog/last');
       return json({ entries: raw ? JSON.parse(raw) : [] });
