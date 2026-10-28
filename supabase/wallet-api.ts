@@ -160,10 +160,15 @@ async function waveUserInfo(req: Request): Promise<Response> {
     }
     const uid = await verifyFirebase(bearer(req, bodyToken));
     const p = await wavePlayer(uid);
-    if (!p) return json({ success: false, message: "Pemain tidak ditemukan" }, 200);
+    if (!p) return json({ success: false, message: "User not found" }, 404);
     return json({ success: true, message: "User info fetched successfully", data: p });
   } catch (e) {
-    return json({ success: false, message: e instanceof Error ? e.message : "Token tidak valid" }, 401);
+    const tok = (() => { try { return bearer(req); } catch { return ""; } })();
+    // 401 = header token tidak ada, 233 = token ada tapi tidak valid (sesuai dokumen WaveGames)
+    return json(
+      { success: false, message: e instanceof Error ? e.message : "Invalid or missing user information in the token." },
+      tok ? 233 : 401,
+    );
   }
 }
 
@@ -179,19 +184,23 @@ async function waveSubmitFlow(req: Request): Promise<Response> {
   try {
     body = await req.json();
   } catch {
-    return json({ success: false, message: "Permintaan tidak valid" }, 400);
+    return json({ success: false, message: "Invalid data" }, 422);
   }
   let uid: string;
+  const subTok = bearer(req, body.token ?? body.userToken ?? body.user_token);
   try {
-    uid = await verifyFirebase(bearer(req, body.token ?? body.userToken ?? body.user_token));
+    uid = await verifyFirebase(subTok);
   } catch (e) {
-    return json({ success: false, message: e instanceof Error ? e.message : "Token tidak valid" }, 401);
+    return json(
+      { success: false, message: e instanceof Error ? e.message : "Invalid or missing user information in the token." },
+      subTok ? 233 : 401,
+    );
   }
   const amount = Math.trunc(Number(body.betAmount ?? 0));
   const kind = Math.trunc(Number(body.type ?? 0));
   const tx = String(body.transactionId ?? "");
   if (!Number.isFinite(amount) || amount < 0 || (kind !== 1 && kind !== 2) || !tx) {
-    return json({ success: false, message: "Data transaksi tidak valid" }, 400);
+    return json({ success: false, message: "Please Provide betAmount and type." }, 422);
   }
   const r = await rpc("w_wave_flow", {
     p_uid: uid,
