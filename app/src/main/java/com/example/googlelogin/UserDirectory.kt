@@ -201,12 +201,12 @@ object UserDirectory {
                 }
                 val idStr = claimed.toString()
                 // Pastikan nomor belum dipakai orang lain (ids/i/{id}).
-                val taken = Rtdb.ref("ids/i/$idStr").get().await().value
+                val taken = Rtdb.ref("ids/i/$idStr/uid").get().await().value
                 if (taken != null && taken.toString() != uid) return@repeat
-                Rtdb.ref().updateChildren(
+                Rtdb.root().updateChildren(
                     hashMapOf<String, Any?>(
                         "ids/u/$uid" to idStr,
-                        "ids/i/$idStr" to uid,
+                        "ids/i/$idStr/uid" to uid,
                         "pub/$uid/id" to idStr,
                     ),
                 ).await()
@@ -358,25 +358,19 @@ object UserDirectory {
 
     /** Simpan label family di profil publik (dipanggil saat create/join/leave family). */
     suspend fun setFam(uid: String, fam: String): String? {
-        // Realtime Database: label family di profil publik RTDB.
-        try {
-            val rid = rtdbIdOf(uid)
-            if (rid != null) kotlinx.coroutines.withTimeoutOrNull(3000L) {
+        // Realtime Database: label family di profil publik (tanpa Firestore).
+        return try {
+            val rid = rtdbOfficialId(uid) ?: rtdbIdOf(uid)
+            if (rid != null) kotlinx.coroutines.withTimeoutOrNull(4000L) {
                 Rtdb.ref("ids/i/$rid/fam").setValue(fam).await()
             }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) { }
-        return try {
-        val q = db().collection("userIds").whereEqualTo("uid", uid).limit(1).get().await()
-        val doc = q.documents.firstOrNull() ?: return null
-        db().collection("userIds").document(doc.id).set(
-            hashMapOf<String, Any?>("fam" to fam), SetOptions.merge(),
-        ).await()
-        null
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
+            kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                Rtdb.ref("pub/$uid/fam").setValue(fam).await()
+            }
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { e.message }
     }
-    
+
     // ---------- Undangan ----------
 
     suspend fun invitedBy(uid: String): String? =
