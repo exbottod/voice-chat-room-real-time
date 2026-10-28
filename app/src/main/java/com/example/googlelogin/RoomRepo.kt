@@ -200,12 +200,23 @@ object RoomRepo {
         )
     }
 
-    suspend fun getRoom(id: String): RoomInfo? = try {
-        db().collection("rooms").document(id).get().await().toRoom()
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        null
+    suspend fun getRoom(id: String): RoomInfo? {
+        // REALTIME DATABASE dulu (bebas kuota Firestore): roomsPub/{id}.
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(5000L) { Rtdb.ref("roomsPub/$id").get().await() }
+            val rt = snap?.let { pubToRoom(id, it) }
+            if (rt != null) return rt
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Cadangan Firestore (kalau mirror RTDB belum ada).
+        return try {
+            db().collection("rooms").document(id).get().await().toRoom()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun observeSeats(id: String, onChange: (Map<Int, Seat>) -> Unit): Reg =
