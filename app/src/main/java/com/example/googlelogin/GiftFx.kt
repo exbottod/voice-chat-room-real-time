@@ -44,35 +44,71 @@ import java.net.URL
 object GiftCatalog {
     var list by mutableStateOf<List<Gift>>(emptyList())
         private set
+
+    /** Gift kustom saja (dipakai Panel Developer). */
+    var custom by mutableStateOf<List<Gift>>(emptyList())
+        private set
     private var started = false
+    private val rtdbMap = HashMap<String, Gift>()   // UTAMA: Realtime Database giftCfg
+    private val legacyMap = HashMap<String, Gift>()  // gift lama di Firestore
+    private fun apply() {
+        custom = rtdbMap.values + legacyMap.values
+        list = GIFTS + custom
+    }
 
     fun start() {
         if (started) return
         started = true
         if (list.isEmpty()) list = GIFTS
-        FirebaseFirestore.getInstance().collection("gifts").addSnapshotListener { snap, e ->
-            if (e != null) {
-                // Kuota Firestore habis: gift bawaan tetap tampil, kasih tahu user.
-                QuotaGuard.handle(e)
-                return@addSnapshotListener
-            }
-            if (snap == null) return@addSnapshotListener
-            val custom = snap.documents.mapNotNull { d ->
-                val name = d.getString("name") ?: return@mapNotNull null
-                Gift(
-                    id = d.id,
+        // REALTIME DATABASE (utama): node giftCfg/{id} - tidak kena kuota Firestore.
+        Rtdb.listen(Rtdb.ref("giftCfg")) { snap ->
+            rtdbMap.clear()
+            for (c in snap.children) {
+                val name = c.child("name").getValue(String::class.java) ?: continue
+                val id = c.key ?: continue
+                rtdbMap[id] = Gift(
+                    id = id,
                     name = name,
-                    emoji = d.getString("emoji") ?: "🎁",
-                    price = d.getLong("price") ?: 100L,
-                    mediaUrl = d.getString("mediaUrl") ?: "",
-                    mediaType = d.getString("mediaType") ?: "",
-                    special = d.getBoolean("special") ?: false,
-                    jpRate = (d.getLong("jpRate") ?: 0L).toInt(),
-                    jpMult = d.getLong("jpMult") ?: 0L,
-                    cbRate = (d.getLong("cbRate") ?: 0L).toInt(),
+                    emoji = c.child("emoji").getValue(String::class.java) ?: "🎁",
+                    price = c.child("price").getValue(Long::class.java) ?: 100L,
+                    mediaUrl = c.child("mediaUrl").getValue(String::class.java) ?: "",
+                    mediaType = c.child("mediaType").getValue(String::class.java) ?: "",
+                    special = c.child("special").getValue(Boolean::class.java) ?: false,
+                    jpRate = (c.child("jpRate").getValue(Long::class.java) ?: 0L).toInt(),
+                    jpMult = c.child("jpMult").getValue(Long::class.java) ?: 0L,
+                    cbRate = (c.child("cbRate").getValue(Long::class.java) ?: 0L).toInt(),
                 )
             }
-            list = GIFTS + custom
+            apply()
+        }
+        // FIRESTORE (warisan lama): dimuat SEKALI per buka app (hemat kuota baca).
+        kotlinx.coroutines.GlobalScope.launch {
+            try {
+                val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                    FirebaseFirestore.getInstance().collection("gifts").get().await()
+                }
+                if (snap != null) {
+                    for (d in snap.documents) {
+                        val name = d.getString("name") ?: continue
+                        legacyMap[d.id] = Gift(
+                            id = d.id,
+                            name = name,
+                            emoji = d.getString("emoji") ?: "🎁",
+                            price = d.getLong("price") ?: 100L,
+                            mediaUrl = d.getString("mediaUrl") ?: "",
+                            mediaType = d.getString("mediaType") ?: "",
+                            special = d.getBoolean("special") ?: false,
+                            jpRate = (d.getLong("jpRate") ?: 0L).toInt(),
+                            jpMult = d.getLong("jpMult") ?: 0L,
+                            cbRate = (d.getLong("cbRate") ?: 0L).toInt(),
+                        )
+                    }
+                    apply()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+            } catch (e: Exception) {
+                QuotaGuard.handle(e)
+            }
         }
     }
 }
@@ -497,7 +533,8 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (String) -> Unit) {
 fun DeveloperGiftPanel(onBack: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
-    var gifts by remember { mutableStateOf<List<Gift>>(emptyList()) }
+    // Daftar gift kustom langsung dari Realtime Database (GiftCatalog).
+    val gifts = GiftCatalog.custom
     var name by remember { mutableStateOf("") }
     var emoji by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
@@ -508,29 +545,6 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
     var cbRate by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<String?>(null) }
-
-    DisposableEffect(Unit) {
-        val reg = FirebaseFirestore.getInstance().collection("gifts").addSnapshotListener { snap, _ ->
-            if (snap != null) {
-                gifts = snap.documents.mapNotNull { d ->
-                    val n = d.getString("name") ?: return@mapNotNull null
-                    Gift(
-                        id = d.id,
-                        name = n,
-                        emoji = d.getString("emoji") ?: "🎁",
-                        price = d.getLong("price") ?: 0L,
-                        mediaUrl = d.getString("mediaUrl") ?: "",
-                        mediaType = d.getString("mediaType") ?: "",
-                        special = d.getBoolean("special") ?: false,
-                        jpRate = (d.getLong("jpRate") ?: 0L).toInt(),
-                        jpMult = d.getLong("jpMult") ?: 0L,
-                        cbRate = (d.getLong("cbRate") ?: 0L).toInt(),
-                    )
-                }
-            }
-        }
-        onDispose { reg.remove() }
-    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
@@ -640,19 +654,25 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                     val id = name.lowercase()
                         .replace(Regex("[^a-z0-9]"), "")
                         .ifBlank { "gift${System.currentTimeMillis()}" }
-                    FirebaseFirestore.getInstance().collection("gifts").document(id).set(
-                        hashMapOf<String, Any?>(
-                            "name" to name.trim(),
-                            "emoji" to emoji.trim().ifBlank { "🎁" },
-                            "price" to p,
-                            "mediaUrl" to url.trim(),
-                            "mediaType" to url.trim().substringAfterLast('.', "").lowercase(),
-                            "special" to special,
-                            "jpRate" to (jpRate.toIntOrNull() ?: 0).coerceIn(0, 100),
-                            "jpMult" to (jpMult.toLongOrNull() ?: 0L),
-                            "cbRate" to (cbRate.toIntOrNull() ?: 0).coerceIn(0, 100),
-                        ),
-                    ).await()
+                    val data = hashMapOf<String, Any?>(
+                        "name" to name.trim(),
+                        "emoji" to emoji.trim().ifBlank { "🎁" },
+                        "price" to p,
+                        "mediaUrl" to url.trim(),
+                        "mediaType" to url.trim().substringAfterLast('.', "").lowercase(),
+                        "special" to special,
+                        "jpRate" to (jpRate.toIntOrNull() ?: 0).coerceIn(0, 100),
+                        "jpMult" to (jpMult.toLongOrNull() ?: 0L),
+                        "cbRate" to (cbRate.toIntOrNull() ?: 0).coerceIn(0, 100),
+                    )
+                    // UTAMA: Realtime Database giftCfg/{id} (tidak kena kuota Firestore).
+                    Rtdb.ref("giftCfg/$id").updateChildren(data).await()
+                    // Cermin Firestore best-effort untuk versi app lama.
+                    try {
+                        kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                            FirebaseFirestore.getInstance().collection("gifts").document(id).set(data).await()
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
                     msg = "Gift tersimpan: ${name.trim()}"
                     name = ""
                     emoji = ""
@@ -712,7 +732,10 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                     modifier = Modifier.clickable(enabled = !busy) {
                         scope.launch {
                             try {
-                                FirebaseFirestore.getInstance().collection("gifts").document(g.id).delete().await()
+                                Rtdb.ref("giftCfg/${g.id}").removeValue().await()
+                                try {
+                                    FirebaseFirestore.getInstance().collection("gifts").document(g.id).delete().await()
+                                } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
                                 msg = "Dihapus: ${g.name}"
                             } catch (e: kotlinx.coroutines.CancellationException) {
                                 throw e

@@ -278,8 +278,41 @@ object FollowRepo {
     private fun db() = FirebaseFirestore.getInstance()
     private fun docId(a: String, b: String) = "${a}_$b"
 
-    suspend fun isFollowing(me: String, target: String): Boolean =
-        db().collection("follows").document(docId(me, target)).get().await().exists()
+    /** Daftar follow di Realtime Database: {path}/{uidOrTarget} = createdAt. */
+    private suspend fun rtdbMap(path: String): Map<String, Long> = try {
+        val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref(path).get().await() }
+        val m = HashMap<String, Long>()
+        s?.children?.forEach { c ->
+            val k = c.key ?: return@forEach
+            (c.value as? Long)?.let { m[k] = it }
+        }
+        m
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyMap() }
+
+    /** Data follow lama di Firestore (sebelum migrasi Realtime Database). */
+    private suspend fun legacyMap(uid: String, byFollower: Boolean): Map<String, Long> = try {
+        val q = if (byFollower)
+            db().collection("follows").whereEqualTo("followerUid", uid).limit(200).get().await()
+        else
+            db().collection("follows").whereEqualTo("targetUid", uid).limit(200).get().await()
+        val m = HashMap<String, Long>()
+        q.documents.forEach { d ->
+            val k = if (byFollower) d.getString("targetUid") else d.getString("followerUid")
+            if (!k.isNullOrBlank()) m[k] = d.getLong("createdAt") ?: 0L
+        }
+        m
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyMap() }
+
+    suspend fun isFollowing(me: String, target: String): Boolean {
+        // REALTIME DATABASE dulu (hemat kuota Firestore), Firestore cadangan.
+        try {
+            val s = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("follows/$me/$target").get().await() }
+            if (s?.exists() == true) return true
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        return try {
+            db().collection("follows").document(docId(me, target)).get().await().exists()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { false }
+    }
 
     suspend fun follow(me: String, target: String) {
         // Can't be followed (SVIP3): user yang mengaktifkan tidak bisa diikuti.
@@ -289,57 +322,59 @@ object FollowRepo {
         if (pub != null && vipActive(pub.vip, pub.vipUntil) && pub.vip >= 3 && pub.svipOn("cantFollow")) {
             throw IllegalStateException("User ini mengaktifkan Can't be followed")
         }
-        db().collection("follows").document(docId(me, target)).set(
-            hashMapOf<String, Any?>(
-                "followerUid" to me,
-                "targetUid" to target,
-                "createdAt" to System.currentTimeMillis(),
-            ),
-        ).await()
+        // UTAMA: Realtime Database follows/{me}/{target} + followers/{target}/{me}.
+        val now = System.currentTimeMillis()
+        kotlinx.coroutines.withTimeoutOrNull(4000L) {
+            Rtdb.ref("follows/$me/$target").setValue(now).await()
+            Rtdb.ref("followers/$target/$me").setValue(now).await()
+        }
+        // Cermin Firestore (versi app lama tetap jalan).
+        try {
+            db().collection("follows").document(docId(me, target)).set(
+                hashMapOf<String, Any?>(
+                    "followerUid" to me,
+                    "targetUid" to target,
+                    "createdAt" to now,
+                ),
+            ).await()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
     }
 
     suspend fun unfollow(me: String, target: String) {
-        db().collection("follows").document(docId(me, target)).delete().await()
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                Rtdb.ref("follows/$me/$target").removeValue().await()
+                Rtdb.ref("followers/$target/$me").removeValue().await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        try {
+            db().collection("follows").document(docId(me, target)).delete().await()
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
     }
 
     /** Daftar uid yang diikuti (terbaru dulukan). Limit default 30 untuk hemat kuota.
      *  Tanpa orderBy di server: kombinasi where + orderBy minta composite index
      *  (belum dibuat), query malah gagal dan daftar tampak kosong.
      *  Urutkan createdAt di perangkat saja, hasilnya sama. */
-    suspend fun listFollowing(uid: String, limit: Long = 30): List<String> = try {
-        db().collection("follows").whereEqualTo("followerUid", uid).limit(limit).get().await()
-            .documents.mapNotNull { d ->
-                val t = d.getString("targetUid")?.ifBlank { null } ?: return@mapNotNull null
-                t to (d.getLong("createdAt") ?: 0L)
-            }
-            .sortedByDescending { it.second }
-            .map { it.first }
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
+    suspend fun listFollowing(uid: String, limit: Long = 30): List<String> {
+        val m = rtdbMap("follows/$uid")
+        legacyMap(uid, byFollower = true).forEach { (k, v) -> if (!m.containsKey(k)) m[k] = v }
+        return m.entries.sortedByDescending { it.value }.take(limit.toInt()).map { it.key }
+    }
 
     /** Daftar uid pengikut / fans (terbaru dulukan). Limit default 30 untuk hemat kuota. */
-    suspend fun listFans(uid: String, limit: Long = 30): List<String> = try {
-        db().collection("follows").whereEqualTo("targetUid", uid).limit(limit).get().await()
-            .documents.mapNotNull { d ->
-                val f = d.getString("followerUid")?.ifBlank { null } ?: return@mapNotNull null
-                f to (d.getLong("createdAt") ?: 0L)
-            }
-            .sortedByDescending { it.second }
-            .map { it.first }
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() }
+    suspend fun listFans(uid: String, limit: Long = 30): List<String> {
+        val m = rtdbMap("followers/$uid")
+        legacyMap(uid, byFollower = false).forEach { (k, v) -> if (!m.containsKey(k)) m[k] = v }
+        return m.entries.sortedByDescending { it.value }.take(limit.toInt()).map { it.key }
+    }
 
     /** Jumlah fans seorang user (untuk baris daftar). */
-    suspend fun fansCount(uid: String): Long = try {
-        db().collection("follows").whereEqualTo("targetUid", uid)
-            .count().get(AggregateSource.SERVER).await().count
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { 0L }
+    suspend fun fansCount(uid: String): Long = listFans(uid, 500).size.toLong()
 
     /** Pair(mengikuti, fans) */
-    suspend fun counts(uid: String): Pair<Long, Long> {
-        val c = db().collection("follows")
-        val following = c.whereEqualTo("followerUid", uid).count().get(AggregateSource.SERVER).await().count
-        val fans = c.whereEqualTo("targetUid", uid).count().get(AggregateSource.SERVER).await().count
-        return following to fans
-    }
+    suspend fun counts(uid: String): Pair<Long, Long> =
+        listFollowing(uid, 500).size.toLong() to listFans(uid, 500).size.toLong()
 }
 
 @Composable

@@ -12,3 +12,9 @@ token-worker/node_modules/
 token-worker/.wrangler/
 token-worker/.dev.vars
 build.log
+
+# File hasil build lokal - jangan di-commit (bikin repo besar)
+artifact.zip
+apk_out/
+*.apk
+*.keystore
