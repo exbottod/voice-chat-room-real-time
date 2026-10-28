@@ -145,6 +145,26 @@ object WaveGames {
     }
 }
 
+
+/** Buka URL game lewat Chrome Custom Tab (tampil di dalam aplikasi, mesin Chrome). */
+private fun openInChrome(ctx: android.content.Context, url: String) {
+    try {
+        val intent = androidx.browser.customtabs.CustomTabsIntent.Builder()
+            .setShowTitle(true)
+            .build()
+        intent.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.launchUrl(ctx, android.net.Uri.parse(url))
+    } catch (e: Exception) {
+        try {
+            ctx.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        } catch (e2: Exception) {
+        }
+    }
+}
+
 /** Daftar game + WebView. Ditampilkan penuh di atas layar room. */
 @Composable
 fun WaveGamesScreen(
@@ -275,7 +295,14 @@ fun WaveGamesScreen(
                                                 err = "Gagal membuat sesi game, coba lagi"
                                             } else {
                                                 val bad = SupaRepo.waveCheck()
-                                                if (bad != null) err = bad else playing = g to u
+                                                if (bad != null) {
+                                                    err = bad
+                                                } else {
+                                                    // WebView di sebagian HP (Android 9) tidak mampu
+                                                    // merender game, jadi mainkan lewat Chrome Custom Tab:
+                                                    // tetap di dalam aplikasi, tapi memakai mesin Chrome.
+                                                    openInChrome(ctx, u)
+                                                }
                                             }
                                         }
                                     },
