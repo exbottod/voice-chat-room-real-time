@@ -1039,7 +1039,26 @@ $("userLoad").onclick = async () => {
       }
       box.appendChild(row);
     });
-    $("userCount").textContent = shown + " dari " + list.length + " akun (" + list.filter(x => !x.id).length + " tanpa ID)";
+    const tanpa = list.filter(x => !x.id).length;
+    $("userCount").textContent = shown + " dari " + list.length + " akun (" + tanpa + " tanpa ID)";
+    if (tanpa > 0) {
+      const bulk = document.createElement("button");
+      bulk.className = "btn";
+      bulk.textContent = "Buat ID untuk " + tanpa + " akun";
+      bulk.style.marginTop = "10px";
+      bulk.onclick = async () => {
+        if (!confirm("Buat ID untuk " + tanpa + " akun yang belum punya ID?")) return;
+        bulk.disabled = true;
+        let ok = 0, gagal = 0;
+        for (const u of list.filter(x => !x.id)) {
+          try { await allocId(u.uid, u.name, u.avatarB64); ok++; } catch (e) { gagal++; }
+          bulk.textContent = "Memproses " + (ok + gagal) + "/" + tanpa + " (gagal " + gagal + ")";
+        }
+        toast("Selesai ✅ " + ok + " akun dapat ID, gagal " + gagal);
+        $("userLoad").click();
+      };
+      box.appendChild(bulk);
+    }
   } catch (e) {
     box.textContent = e.code === "permission-denied" ? "Ditolak rules Firestore. Pastikan rules sudah di-Publish dan isAdmin() memakai email Anda." : "Gagal: " + e.message;
   }
