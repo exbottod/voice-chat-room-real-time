@@ -99,6 +99,43 @@ object SupaRepo {
         }
     }
 
+
+    /**
+     * Potong (kind 1) atau tambah (kind 2) coin dari dalam game.
+     * Endpoint sama dengan yang dipakai WaveGames, jadi aturan saldo tetap di server.
+     */
+    suspend fun waveFlow(amount: Long, kind: Int, tx: String, game: String): Long? =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = com.google.firebase.auth.FirebaseAuth.getInstance()
+                    .currentUser?.getIdToken(true)?.await()?.token ?: return@withContext null
+                val body = org.json.JSONObject()
+                    .put("betAmount", amount)
+                    .put("type", kind)
+                    .put("transactionId", tx)
+                    .put("gameName", game)
+                    .put("token", token)
+                val conn = (URL("$FN/wave/game/submitFlow").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 8000
+                    readTimeout = 15000
+                    doOutput = true
+                    setRequestProperty("apikey", KEY)
+                    setRequestProperty("Content-Type", "application/json")
+                }
+                conn.outputStream.use { it.write(body.toString().toByteArray()) }
+                val code = conn.responseCode
+                val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val o = try { org.json.JSONObject(txt) } catch (e: Exception) { org.json.JSONObject() }
+                if (o.optBoolean("success")) o.optJSONObject("data")?.optLong("balance") else null
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        }
+
     /** Simpan nama + foto pemain untuk game WaveGames (dipakai userInfo). */
     suspend fun wavePrepare(name: String, avatar: String): String? {
         val r = call("wave_prepare", org.json.JSONObject().put("name", name).put("avatar", avatar))
