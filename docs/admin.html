@@ -347,6 +347,20 @@ async function lookup(raw){
   } catch (e) {
     throw new Error(/permission/i.test(e.message || "") ? "Ditolak rules Realtime Database (ids). Publish database.rules.json." : e.message);
   }
+  // Cadangan: cari di profil publik (pub) yang belum punya catatan ids/i.
+  if (!x) {
+    try {
+      const pub = await rtdb.ref("pub").get();
+      if (pub.exists()) {
+        let hit = null;
+        pub.forEach(c => {
+          const v = c.val() || {};
+          if (String(v.id || "") === id) hit = Object.assign({ uid: c.key }, v);
+        });
+        if (hit) x = hit;
+      }
+    } catch (e) { /* lanjut */ }
+  }
   // Cadangan: data lama yang masih di Firestore.
   if (!x) {
     try {
@@ -942,36 +956,84 @@ function goFind(tab, inputId, btnId, id){
   document.querySelector('.tab[data-t="' + tab + '"]').click();
   $(inputId).value = id; $(btnId).click();
 }
+/** Beri ID baru di Realtime Database untuk akun yang belum punya. */
+async function allocId(uid, name, avatarB64){
+  const FIRST = 100001;
+  const nextSnap = await rtdb.ref("ids/next").get();
+  let n = Number(nextSnap.val() || FIRST);
+  let id = "";
+  for (let i = 0; i < 20; i++) {
+    const cand = String(n);
+    const taken = await rtdb.ref("ids/i/" + cand + "/uid").get();
+    if (!taken.exists()) { id = cand; break; }
+    n++;
+  }
+  if (!id) throw new Error("Tidak dapat nomor ID");
+  await rtdb.ref("ids/i/" + id).update({ uid: uid, name: name || ("Pengguna " + id), avatarB64: avatarB64 || null });
+  await rtdb.ref("pub/" + uid + "/id").set(id);
+  await rtdb.ref("ids/next").set(Number(id) + 1);
+  logAction({ type: "allocId", targetId: id, uid: uid });
+  return id;
+}
+
 $("userLoad").onclick = async () => {
   const box = $("userList"); box.textContent = "Memuat...";
   try {
-    const snap = await rtdb.ref("ids/i").limitToLast(300).get();
+    const byUid = {}, byId = {};
+    const pub = await rtdb.ref("pub").get();
+    if (pub.exists()) pub.forEach(c => { byUid[c.key] = c.val() || {}; });
+    const ids = await rtdb.ref("ids/i").get();
+    if (ids.exists()) ids.forEach(c => { byId[c.key] = c.val() || {}; });
+
+    const list = [];
+    Object.keys(byUid).forEach(uid => {
+      const p = byUid[uid];
+      const id = String(p.id || (String((byId[String(p.id)] || {}).uid || "") === uid ? p.id : ""));
+      list.push({ uid, id: id, name: p.name || "(belum ada nama)", avatarB64: p.av || p.avatarB64 || null });
+    });
+    // Akun yang punya ID tapi profil pub-nya tidak ada.
+    Object.keys(byId).forEach(id => {
+      const v = byId[id] || {};
+      if (v.uid && !byUid[v.uid]) list.push({ uid: v.uid, id: id, name: v.name || ("Pengguna " + id), avatarB64: v.avatarB64 || null });
+    });
+
     box.textContent = "";
-    if (!snap.exists()) { $("userCount").textContent = "0 user"; box.textContent = "Belum ada user."; return; }
     const q = $("userQ").value.trim().toLowerCase();
-    const docs = [];
-    snap.forEach(c => { docs.push({ id: c.key, x: c.val() || {} }); });
-    docs.sort((a, b) => Number(a.id) - Number(b.id));
+    list.sort((a, b) => (Number(a.id || 999999999)) - (Number(b.id || 999999999)));
     let shown = 0;
-    docs.forEach(d => {
-      const x = d.x, name = x.name || "(belum ada nama)";
-      if (q && !(d.id.includes(q) || name.toLowerCase().includes(q))) return;
+    list.forEach(d => {
+      const name = d.name, idTxt = d.id || "-";
+      if (q && !(idTxt.includes(q) || name.toLowerCase().includes(q))) return;
       shown++;
       const row = document.createElement("div"); row.className = "item";
       let av;
-      if (x.avatarB64) { av = document.createElement("img"); av.src = "data:image/jpeg;base64," + x.avatarB64; av.style.cssText = "width:40px;height:40px;border-radius:50%;aspect-ratio:1"; }
+      if (d.avatarB64) { av = document.createElement("img"); av.src = "data:image/jpeg;base64," + d.avatarB64; av.style.cssText = "width:40px;height:40px;border-radius:50%;aspect-ratio:1"; }
       else { av = document.createElement("div"); av.className = "ph"; av.style.cssText = "width:40px;height:40px;border-radius:50%;background:#263238;display:flex;align-items:center;justify-content:center;flex:none"; av.textContent = name.slice(0, 1).toUpperCase(); }
       const info = document.createElement("div"); info.className = "info";
       const t = document.createElement("b"); t.textContent = name;
-      const s = document.createElement("span"); s.className = "muted"; s.textContent = "ID " + d.id;
+      const s = document.createElement("span"); s.className = "muted"; s.textContent = d.id ? ("ID " + d.id) : "belum punya ID";
       info.append(t, s);
       const b1 = document.createElement("button"); b1.className = "btn bad"; b1.textContent = "Ban";
-      b1.onclick = () => goFind("ban", "banId", "banFind", d.id);
+      b1.onclick = () => { if (!d.id) return toast("Akun ini belum punya ID"); goFind("ban", "banId", "banFind", d.id); };
       const b2 = document.createElement("button"); b2.className = "btn"; b2.textContent = "Coin";
-      b2.onclick = () => goFind("coin", "coinId", "coinFind", d.id);
-      row.append(av, info, b1, b2); box.appendChild(row);
+      b2.onclick = () => { if (!d.id) return toast("Akun ini belum punya ID"); goFind("coin", "coinId", "coinFind", d.id); };
+      row.append(av, info, b1, b2);
+      if (!d.id) {
+        const b3 = document.createElement("button"); b3.className = "btn"; b3.textContent = "Buat ID";
+        b3.onclick = async () => {
+          if (!confirm("Buat ID untuk " + name + "?")) return;
+          b3.disabled = true;
+          try {
+            const baru = await allocId(d.uid, name, d.avatarB64);
+            toast("Berhasil ✅ ID " + baru + " untuk " + name);
+            $("userLoad").click();
+          } catch (e) { toast("Gagal: " + e.message); b3.disabled = false; }
+        };
+        row.append(b3);
+      }
+      box.appendChild(row);
     });
-    $("userCount").textContent = shown + " dari " + snap.size + " user";
+    $("userCount").textContent = shown + " dari " + list.length + " akun (" + list.filter(x => !x.id).length + " tanpa ID)";
   } catch (e) {
     box.textContent = e.code === "permission-denied" ? "Ditolak rules Firestore. Pastikan rules sudah di-Publish dan isAdmin() memakai email Anda." : "Gagal: " + e.message;
   }
