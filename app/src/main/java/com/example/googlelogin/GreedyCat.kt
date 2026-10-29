@@ -1,11 +1,8 @@
 package com.example.googlelogin
 
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -403,8 +400,12 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                     Spacer(Modifier.width(6.dp))
 
                     // ---- pola bulat: 8 makanan mengelilingi kucing
-                    BoxWithConstraints(Modifier.weight(1f).fillMaxSize()) {
-                        val ringR = maxWidth * 0.33f
+                    Box(
+                        Modifier.weight(1f).fillMaxWidth().height(300.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0x33FFFFFF)),
+                    ) {
+                        // pusat: kucing + waktu
                         Column(
                             Modifier.align(Alignment.Center),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -428,7 +429,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                                 }
                             }
                             Box(
-                                Modifier.offset(y = (-6).dp).clip(RoundedCornerShape(50))
+                                Modifier.clip(RoundedCornerShape(50))
                                     .background(Color(0xFF5D4037)).padding(horizontal = 12.dp, vertical = 2.dp),
                             ) {
                                 Text(
@@ -438,19 +439,28 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                             }
                         }
 
-                        // 8 makanan pada lingkaran, mulai dari atas lalu searah jarum jam
+                        // 8 makanan mengelilingi pusat
+                        val spots = listOf(
+                            Triple(Alignment.TopCenter, 0, -6),
+                            Triple(Alignment.TopEnd, -6, 20),
+                            Triple(Alignment.CenterEnd, -2, -2),
+                            Triple(Alignment.BottomEnd, -6, -20),
+                            Triple(Alignment.BottomCenter, 0, 6),
+                            Triple(Alignment.BottomStart, 6, -20),
+                            Triple(Alignment.CenterStart, 2, -2),
+                            Triple(Alignment.TopStart, 6, 20),
+                        )
                         CAT_FOODS.forEachIndexed { idx, f ->
-                            val deg = -90.0 + idx * 45.0
-                            val rad = Math.toRadians(deg)
-                            val dx = (ringR.value * Math.cos(rad)).toFloat().dp
-                            val dy = (ringR.value * Math.sin(rad)).toFloat().dp
+                            val spot = spots[idx]
                             val amount = bets[f.key] ?: 0L
                             Column(
-                                Modifier.align(Alignment.Center).offset(x = dx, y = dy),
+                                Modifier.align(spot.first)
+                                    .offset(x = spot.second.dp, y = spot.third.dp)
+                                    .padding(2.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Box(
-                                    Modifier.size(64.dp).clip(CircleShape)
+                                    Modifier.size(62.dp).clip(CircleShape)
                                         .background(Brush.radialGradient(listOf(Color.White, Color(0xFFFFF9C4))))
                                         .border(
                                             if (amount > 0L) 3.dp else 2.dp,
@@ -461,7 +471,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(f.icon, fontSize = 20.sp)
+                                        Text(f.icon, fontSize = 19.sp)
                                         Box(
                                             Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFFFEC8B))
                                                 .border(1.dp, CatWood, RoundedCornerShape(6.dp))
@@ -472,15 +482,13 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                                     }
                                 }
                                 Text("🐾🐾🐾", fontSize = 6.sp)
-                                Box(
-                                    Modifier.clip(RoundedCornerShape(50))
-                                        .background(if (amount > 0L) CatRed else Color(0x33FFFFFF))
-                                        .padding(horizontal = 7.dp),
-                                ) {
-                                    Text(
-                                        if (amount > 0L) fmtCat(amount) else "",
-                                        color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold,
-                                    )
+                                if (amount > 0L) {
+                                    Box(
+                                        Modifier.clip(RoundedCornerShape(50)).background(CatRed)
+                                            .padding(horizontal = 7.dp),
+                                    ) {
+                                        Text(fmtCat(amount), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
@@ -585,7 +593,9 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                         if (rank.isEmpty()) {
                             Text("Belum ada data ronde", color = Color(0xFFE3F2FD), fontSize = 12.sp)
                         } else {
-                            rank.forEachIndexed { i, (n, w) ->
+                            rank.forEachIndexed { i, item ->
+                                val n = item.first
+                                val w = item.second
                                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         when (i) { 0 -> "🥇"; 1 -> "🥈"; 2 -> "🥉"; else -> (i + 1).toString() },
