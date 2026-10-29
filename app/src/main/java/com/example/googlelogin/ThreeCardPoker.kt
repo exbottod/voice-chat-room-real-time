@@ -80,7 +80,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
     var msg by remember { mutableStateOf("Pilih nominal, lalu ketuk perisai") }
     var history by remember { mutableStateOf(listOf(1, 2, 0, 1, 0, 1, 2)) }
     var dealt by remember { mutableStateOf(false) }
-    var roundId by remember { mutableStateOf(1) }
+    var roundId by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
         balance = SupaRepo.get(myUid).wallet?.coins ?: 0L

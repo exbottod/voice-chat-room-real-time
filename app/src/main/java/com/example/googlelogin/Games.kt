@@ -69,10 +69,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
         "dvt" -> DragonTigerScreen(myUid = myUid, onClose = { open = "" })
         "lucky77" -> Lucky77WheelScreen(myUid = myUid, onClose = { open = "" })
         "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
-        "greedy" -> SlotGameScreen(
-            myUid = myUid, title = "Greedy King",
-            symbols = listOf("👑", "💎", "💰", "🍇", "🔔", "⭐"), onClose = { open = "" },
-        )
+        "greedy" -> GreedyCatScreen(myUid = myUid, onClose = { open = "" })
         "slot" -> SlotGameScreen(
             myUid = myUid, title = "Slot Buah",
             symbols = listOf("🍒", "🍋", "🍇", "🔔", "⭐", "💎"), onClose = { open = "" },
@@ -93,7 +90,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                     GameTile("Dragon and Tiger", "Naga, Seri x45, Tiger", Color(0xFF8E1B1B)) { open = "dvt" }
                     GameTile("Lucky 77", "Roda ceri, semangka, 77", Color(0xFF7A4B12)) { open = "lucky77" }
                     GameTile("3 Card Poker", "Wolf, Lion, Fish", Color(0xFF4B2A8B)) { open = "poker" }
-                    GameTile("Greedy King", "Slot mahkota", Color(0xFF4B2A6B)) { open = "greedy" }
+                    GameTile("Greedy Cat", "8 makanan, auto repeat", Color(0xFF4B2A6B)) { open = "greedy" }
                     GameTile("Slot Buah", "Slot klasik", Color(0xFF1B5E20)) { open = "slot" }
                     GameTile("Teen Patti", "3 kartu lawan 3 bot", Color(0xFF17356B)) { open = "teenpatti" }
                 }
