@@ -36,6 +36,13 @@ async function getKeys(): Promise<Record<string, unknown>[]> {
 
 /** Verifikasi token Firebase (RS256) dan kembalikan uid. */
 async function verifyFirebase(token: string): Promise<string> {
+  return (await verifyFirebaseFull(token)).uid;
+}
+
+const ADMIN_EMAIL = "developerex100@gmail.com";
+
+/** Sama seperti verifyFirebase, tapi juga mengembalikan email token. */
+async function verifyFirebaseFull(token: string): Promise<{ uid: string; email: string }> {
   const parts = token.split(".");
   if (parts.length !== 3) throw new Error("Token tidak valid");
   let header: Record<string, unknown>;
@@ -78,7 +85,7 @@ async function verifyFirebase(token: string): Promise<string> {
   if (p.iss !== `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`) throw new Error("Token tidak valid");
   if (typeof p.exp !== "number" || p.exp <= now) throw new Error("Sesi habis, buka ulang aplikasinya");
   if (typeof p.sub !== "string" || !p.sub) throw new Error("Token tidak valid");
-  return p.sub;
+  return { uid: p.sub, email: typeof p.email === "string" ? p.email.toLowerCase() : "" };
 }
 
 const ACTIONS: Record<string, string> = {
@@ -238,6 +245,126 @@ async function waveSubmitFlow(req: Request): Promise<Response> {
   });
 }
 
+
+// ---------- Aksi admin (hanya token milik developer) ----------
+async function sbRest(path: string, init: RequestInit = {}): Promise<Response> {
+  const sr = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  return await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/${path}`, {
+    ...init,
+    headers: {
+      apikey: sr,
+      Authorization: `Bearer ${sr}`,
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  });
+}
+
+async function adminWallet(uid: string): Promise<Record<string, unknown> | null> {
+  const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(uid)}&select=*`);
+  if (!r.ok) return null;
+  const rows = await r.json().catch(() => null);
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): Promise<Response> {
+  let who: { uid: string; email: string };
+  try {
+    who = await verifyFirebaseFull(body.t ?? "");
+  } catch (e) {
+    return json({ ok: 0, e: e instanceof Error ? e.message : "Token tidak valid" }, 401);
+  }
+  if (who.email !== ADMIN_EMAIL) return json({ ok: 0, e: "Hanya admin" }, 403);
+
+  const p = body.p ?? {};
+  const op = String(p.op ?? "");
+  const target = String(p.uid ?? "");
+  if (op !== "reset_all" && !target) return json({ ok: 0, e: "uid kosong" }, 400);
+
+  const num = (v: unknown) => {
+    const n = Math.trunc(Number(v));
+    return Number.isSafeInteger(n) ? n : NaN;
+  };
+
+  if (op === "get") {
+    const w = await adminWallet(target);
+    return json({ ok: 1, w: w ?? { uid: target, coins: 0, diamonds: 0, exp: 0, vip: 0, vip_until: 0 } });
+  }
+
+  if (op === "add") {
+    const coins = p.coins === undefined ? 0 : num(p.coins);
+    const exp = p.exp === undefined ? 0 : num(p.exp);
+    if (Number.isNaN(coins) || Number.isNaN(exp) || Math.abs(coins) > 1e12 || Math.abs(exp) > 1e12) {
+      return json({ ok: 0, e: "Jumlah tidak valid" }, 400);
+    }
+    await sbRest("wallets?on_conflict=uid", {
+      method: "POST",
+      headers: { Prefer: "resolution=ignore-duplicates" },
+      body: JSON.stringify({ uid: target }),
+    });
+    const cur = await adminWallet(target);
+    const nc = Number(cur?.coins ?? 0) + coins;
+    const ne = Number(cur?.exp ?? 0) + exp;
+    const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(target)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ coins: nc < 0 ? 0 : nc, exp: ne < 0 ? 0 : ne, updated_at: new Date().toISOString() }),
+    });
+    if (!r.ok) return json({ ok: 0, e: "Gagal menyimpan saldo" }, 200);
+    if (coins !== 0) {
+      await sbRest("money_tx", {
+        method: "POST",
+        body: JSON.stringify({ uid: target, kind: "admin_coin", item_id: who.email, amount: coins }),
+      });
+    }
+    return json({ ok: 1, w: (await adminWallet(target)) });
+  }
+
+  if (op === "vip") {
+    const tier = num(p.tier);
+    const until = num(p.until);
+    if (!(tier >= 0 && tier <= 9) || Number.isNaN(until)) return json({ ok: 0, e: "VIP tidak valid" }, 400);
+    await sbRest("wallets?on_conflict=uid", {
+      method: "POST",
+      headers: { Prefer: "resolution=ignore-duplicates" },
+      body: JSON.stringify({ uid: target }),
+    });
+    const cur = await adminWallet(target);
+    const inv = { ...((cur?.inv as Record<string, unknown>) ?? {}) };
+    if (tier > 0) {
+      for (const k of ["vipt_", "vipf_", "vipb_", "vipe_"]) inv[k + tier] = until;
+    }
+    const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(target)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ vip: tier, vip_until: until, inv, updated_at: new Date().toISOString() }),
+    });
+    if (!r.ok) return json({ ok: 0, e: "Gagal menyimpan VIP" }, 200);
+    return json({ ok: 1, w: (await adminWallet(target)) });
+  }
+
+  if (op === "reset") {
+    const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(target)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ coins: 0, updated_at: new Date().toISOString() }),
+    });
+    if (!r.ok) return json({ ok: 0, e: "Gagal reset" }, 200);
+    return json({ ok: 1, w: (await adminWallet(target)) });
+  }
+
+  if (op === "reset_all") {
+    const r = await sbRest("wallets?coins=neq.0", {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ coins: 0, updated_at: new Date().toISOString() }),
+    });
+    if (!r.ok) return json({ ok: 0, e: "Gagal reset semua" }, 200);
+    const rows = await r.json().catch(() => []);
+    return json({ ok: 1, count: Array.isArray(rows) ? rows.length : 0 });
+  }
+
+  return json({ ok: 0, e: "Operasi tidak dikenal" }, 400);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   const wpath = new URL(req.url).pathname.replace(/\/+$/, "").toLowerCase();
@@ -253,6 +380,7 @@ Deno.serve(async (req) => {
   }
 
   const action = body.a ?? "";
+  if (action === "admin") return await handleAdmin(body);
   const fn = ACTIONS[action];
   if (!fn || !body.t) return json({ ok: 0, e: "Permintaan tidak valid" }, 400);
 
