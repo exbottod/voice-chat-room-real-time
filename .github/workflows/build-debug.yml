@@ -46,6 +46,17 @@ jobs:
           echo "### Error build" >> "$GITHUB_STEP_SUMMARY"
           grep -E "^e: |error:|What went wrong|FAILED" -A4 build.log | head -80 >> "$GITHUB_STEP_SUMMARY" || true
 
+      - name: Simpan log error ke repo
+        if: failure()
+        run: |
+          { grep -nE "^e: |error:|FAILED|What went wrong|Caused by" -A3 build.log | head -80; } > build-error.txt || true
+          [ -s build-error.txt ] || echo "log kosong" > build-error.txt
+          git config user.email ci@local
+          git config user.name ci
+          git add build-error.txt
+          git commit -m "ci: log error build [skip ci]" || true
+          git push origin HEAD:main || true
+
       - uses: actions/upload-artifact@v4
         with:
           name: app-apk
