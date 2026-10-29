@@ -136,6 +136,45 @@ object SupaRepo {
             }
         }
 
+    /** Sama seperti waveFlow, tapi mengembalikan pesan server supaya bisa ditampilkan. */
+    suspend fun waveFlowMsg(amount: Long, kind: Int, tx: String, game: String): Pair<Long?, String> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = com.google.firebase.auth.FirebaseAuth.getInstance()
+                    .currentUser?.getIdToken(true)?.await()?.token
+                    ?: return@withContext Pair(null, "Belum login, buka ulang aplikasi")
+                val body = org.json.JSONObject()
+                    .put("betAmount", amount)
+                    .put("type", kind)
+                    .put("transactionId", tx)
+                    .put("gameName", game)
+                    .put("token", token)
+                val conn = (URL("$FN/wave/game/submitFlow").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 8000
+                    readTimeout = 15000
+                    doOutput = true
+                    setRequestProperty("apikey", KEY)
+                    setRequestProperty("Content-Type", "application/json")
+                }
+                conn.outputStream.use { it.write(body.toString().toByteArray()) }
+                val code = conn.responseCode
+                val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val o = try { org.json.JSONObject(txt) } catch (e: Exception) { org.json.JSONObject() }
+                if (o.optBoolean("success")) {
+                    Pair(o.optJSONObject("data")?.optLong("balance"), "OK")
+                } else {
+                    val m = o.optString("message")
+                    Pair(null, if (m.isBlank()) "HTTP " + code else m)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Pair(null, "Jaringan: " + (e.message ?: "gagal"))
+            }
+        }
+
     /** Simpan nama + foto pemain untuk game WaveGames (dipakai userInfo). */
     suspend fun wavePrepare(name: String, avatar: String): String? {
         val r = call("wave_prepare", org.json.JSONObject().put("name", name).put("avatar", avatar))
