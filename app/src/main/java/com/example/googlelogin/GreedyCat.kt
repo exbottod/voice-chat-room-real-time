@@ -263,9 +263,10 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
             return
         }
         scope.launch {
-            val nb = SupaRepo.waveFlow(chip, 1, UUID.randomUUID().toString(), "Greedy Cat")
+            val res = SupaRepo.waveFlowMsg(chip, 1, UUID.randomUUID().toString(), "Greedy Cat")
+            val nb = res.first
             if (nb == null) {
-                msg = "Gagal memotong coin, coba lagi"
+                msg = "Bet gagal: " + res.second
                 return@launch
             }
             coins = nb
