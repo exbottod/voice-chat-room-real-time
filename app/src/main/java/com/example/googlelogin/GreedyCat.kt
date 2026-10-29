@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
 import java.util.UUID
 import kotlin.random.Random
@@ -82,10 +83,29 @@ private fun fmtCat(n: Long): String = when {
     else -> n.toString()
 }
 
+private const val BET_SEC = 30
+private const val RESULT_SEC = 5
+private const val CYCLE_MS = (BET_SEC + RESULT_SEC) * 1000L
+private const val ROUND_BASE = 1_000_000L // nomor ronde mulai dari 0 pada titik ini
+
+/** Nomor ronde dan sisa waktu dihitung dari jam server, jadi sama di semua HP. */
+private fun cycleNow(): Pair<Long, Long> {
+    val now = Rtdb.serverNow()
+    val idx = now / CYCLE_MS
+    val into = now % CYCLE_MS
+    return Pair(idx, into)
+}
+
+/** Makanan pemenang ditentukan dari nomor ronde saja, jadi semua pemain melihat hasil yang sama. */
+private fun winnerOf(roundIdx: Long): Food {
+    val h = java.util.Random(roundIdx * 7919L + 104729L).nextInt(CAT_FOODS.size)
+    return CAT_FOODS[h]
+}
+
 private data class CatResult(val icon: String, val round: Int, val mult: String)
 
 @Composable
-fun GreedyCatScreen(myUid: String, onClose: () -> Unit) {
+fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Unit) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var coins by remember { mutableStateOf(0L) }
     var todayWin by remember { mutableStateOf(0L) }
@@ -101,53 +121,87 @@ fun GreedyCatScreen(myUid: String, onClose: () -> Unit) {
     var winAmt by remember { mutableStateOf(0L) }
     var winBet by remember { mutableStateOf(0L) }
     var showWin by remember { mutableStateOf(false) }
+    var top3 by remember { mutableStateOf(listOf<Triple<String, Long, Long>>()) }
 
     LaunchedEffect(Unit) {
         coins = SupaRepo.get(myUid).wallet?.coins ?: 0L
     }
 
-    // Ronda 30 detik, lalu hasil, lalu ronde baru.
-    LaunchedEffect(roundNum) {
-        timer = 30
-        active = true
-        while (timer > 0) {
-            delay(1000)
-            timer -= 1
+    // Sinkron jam server: semua pemain berada di detik dan ronde yang sama.
+    LaunchedEffect(Unit) {
+        Rtdb.startClockSync()
+        var lastIdx = -1L
+        var settledIdx = -1L
+        while (true) {
+            val (idx, into) = cycleNow()
+            val sec = (into / 1000L).toInt()
+            if (idx != lastIdx) {
+                // ronde baru dimulai (atau baru masuk di tengah ronde)
+                if (lastIdx != -1L) {
+                    bets = mapOf()
+                    showWin = false
+                    msg = "Ronde baru • pasang taruhan di makanan"
+                }
+                lastIdx = idx
+            }
+            roundNum = (idx % 100000L).toInt()
+            if (sec < BET_SEC) {
+                active = true
+                timer = BET_SEC - sec
+            } else {
+                active = false
+                timer = 0
+                if (settledIdx != idx) {
+                    settledIdx = idx
+                    val winner = winnerOf(idx)
+                    var payout = 0L
+                    var staked = 0L
+                    bets.forEach { (k, v) ->
+                        staked += v
+                        val ff = CAT_FOODS.firstOrNull { it.key == k } ?: return@forEach
+                        if (ff.meat == winner.meat) payout += v * ff.mult
+                    }
+                    if (payout > 0L) {
+                        val nb = SupaRepo.waveFlow(payout, 2, "cat-$idx-$myUid", "Greedy Cat")
+                        if (nb != null) coins = nb
+                        todayWin += payout
+                    }
+                    if (bets.isNotEmpty()) lastBets = bets
+                    history = (listOf(CatResult(winner.icon, (idx % 100000L).toInt(), winner.mult.toString() + "X")) + history).take(8)
+                    winFood = winner
+                    winAmt = payout
+                    winBet = staked
+                    top3 = listOf()
+                    showWin = true
+                    // catat hasil saya, lalu baca semua pemain di ronde ini
+                    val settleIdx = idx
+                    launch {
+                        try {
+                            if (staked > 0L) {
+                                Rtdb.ref("gameRounds/greedycat/" + settleIdx + "/" + myUid).setValue(
+                                    hashMapOf<String, Any>("name" to myName.take(30).ifBlank { "Player" }, "bet" to staked, "win" to payout),
+                                )
+                            }
+                            delay(1200)
+                            val snap = Rtdb.ref("gameRounds/greedycat/" + settleIdx).get().await()
+                            val rows = mutableListOf<Triple<String, Long, Long>>()
+                            snap.children.forEach { c ->
+                                val n = c.child("name").getValue(String::class.java) ?: "Player"
+                                val b = c.child("bet").getValue(Long::class.java) ?: 0L
+                                val w = c.child("win").getValue(Long::class.java) ?: 0L
+                                rows.add(Triple(n, b, w))
+                            }
+                            top3 = rows.filter { it.third > 0L }.sortedByDescending { it.third }.take(3)
+                        } catch (e: Exception) { }
+                    }
+                }
+            }
+            delay(250)
         }
-        active = false
-        val placed = bets.keys.toList()
-        val winner: Food = if (placed.isNotEmpty() && Random.nextInt(100) < 92) {
-            CAT_FOODS.first { it.key == placed[Random.nextInt(placed.size)] }
-        } else {
-            CAT_FOODS[Random.nextInt(CAT_FOODS.size)]
-        }
-        var payout = 0L
-        var staked = 0L
-        bets.forEach { (k, v) ->
-            staked += v
-            val f = CAT_FOODS.firstOrNull { it.key == k } ?: return@forEach
-            if (f.meat == winner.meat) payout += v * f.mult
-        }
-        if (payout > 0L) {
-            val nb = SupaRepo.waveFlow(payout, 2, "cat-$roundNum-$myUid", "Greedy Cat")
-            if (nb != null) coins = nb
-            todayWin += payout
-        }
-        if (bets.isNotEmpty()) lastBets = bets
-        history = (listOf(CatResult(winner.icon, roundNum, winner.mult.toString() + "X")) + history).take(8)
-        winFood = winner
-        winAmt = payout
-        winBet = staked
-        showWin = true
-        delay(3000)
-        showWin = false
-        bets = mapOf()
-        roundNum += 1
-        msg = "Ronde baru • pasang taruhan di makanan"
     }
 
     fun placeBet(f: Food) {
-        if (!active || timer <= 5) {
+        if (!active || timer <= 3) {
             msg = "Terkunci, tunggu ronde berikutnya"
             return
         }
@@ -290,7 +344,7 @@ fun GreedyCatScreen(myUid: String, onClose: () -> Unit) {
                                                     Text(
                                                         when {
                                                             !active -> "RESULT"
-                                                            timer > 5 -> "BETTING"
+                                                            timer > 3 -> "BETTING"
                                                             else -> "LOCKING"
                                                         },
                                                         color = Color(0xFF0D47A1), fontSize = 7.sp, fontWeight = FontWeight.Bold,
@@ -447,7 +501,23 @@ fun GreedyCatScreen(myUid: String, onClose: () -> Unit) {
                             Spacer(Modifier.width(14.dp))
                             Text("🔪", fontSize = 22.sp)
                         }
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(10.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            val medals = listOf("🥇", "🥈", "🥉")
+                            for (i in 0 until 3) {
+                                val r = top3.getOrNull(i)
+                                Column(
+                                    Modifier.weight(1f).padding(horizontal = 3.dp).clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0x33FFFFFF)).padding(vertical = 5.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    Text(medals[i] + " Top " + (i + 1), color = Color(0xFFFFE082), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text(r?.first ?: "-", color = Color.White, fontSize = 10.sp, maxLines = 1)
+                                    Text(if (r != null) "🪙 " + fmtCat(r.third) else "", color = Color(0xFFFFEC8B), fontSize = 10.sp)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 Modifier.size(52.dp).clip(CircleShape).background(Color.White)
