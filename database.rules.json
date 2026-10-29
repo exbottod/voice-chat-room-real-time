@@ -211,6 +211,17 @@
       "next": {
         ".write": "auth != null"
       }
+    },
+    "gameRounds": {
+      ".read": "auth != null",
+      "$game": {
+        "$round": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['name','bet','win']) && newData.child('bet').isNumber() && newData.child('win').isNumber() && newData.child('name').isString() && newData.child('name').val().length < 40"
+          }
+        }
+      }
     }
   }
 }

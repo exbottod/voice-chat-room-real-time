@@ -20,6 +20,25 @@ class Reg(private val onRemove: () -> Unit) {
 
 object Rtdb {
     fun root(): DatabaseReference = FirebaseDatabase.getInstance(RTDB_URL).reference
+
+    @Volatile private var clockOffset: Long = 0L
+    @Volatile private var clockReady = false
+
+    /** Mulai membaca selisih jam HP dengan jam server Firebase (sekali saja). */
+    fun startClockSync() {
+        if (clockReady) return
+        clockReady = true
+        FirebaseDatabase.getInstance(RTDB_URL).getReference(".info/serverTimeOffset")
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    clockOffset = snapshot.getValue(Long::class.java) ?: 0L
+                }
+                override fun onCancelled(error: DatabaseError) {}
+            })
+    }
+
+    /** Waktu sekarang menurut server, sama untuk semua pemain. */
+    fun serverNow(): Long = System.currentTimeMillis() + clockOffset
     fun ref(path: String): DatabaseReference = root().child(path)
 
     fun listen(q: Query, onData: (DataSnapshot) -> Unit): Reg {

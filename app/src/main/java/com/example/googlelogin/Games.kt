@@ -78,7 +78,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
         "dvt" -> DragonTigerScreen(myUid = myUid, onClose = { open = "" })
         "lucky77" -> Lucky77WheelScreen(myUid = myUid, onClose = { open = "" })
         "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
-        "greedy" -> GreedyCatScreen(myUid = myUid, onClose = { open = "" })
+        "greedy" -> GreedyCatScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
         "slot" -> SlotGameScreen(
             myUid = myUid, title = "Slot Buah",
             symbols = listOf("🍒", "🍋", "🍇", "🔔", "⭐", "💎"), onClose = { open = "" },
