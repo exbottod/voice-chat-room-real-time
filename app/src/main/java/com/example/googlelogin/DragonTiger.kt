@@ -73,6 +73,7 @@ fun DragonTigerScreen(
     var left by remember { mutableStateOf(20) }
     var msg by remember { mutableStateOf("Pilih Dragon, Tiger, atau Tie lalu tunggu kartu dibuka") }
     var busy by remember { mutableStateOf(false) }
+    var lastWin by remember { mutableStateOf(0L) }
 
     LaunchedEffect(Unit) {
         SupaRepo.wavePrepare("Player", "")
@@ -99,13 +100,14 @@ fun DragonTigerScreen(
                 }
                 if (staked > 0L) {
                     val payout = when {
-                        pick == "TIE" && win == "TIE" -> staked * 22
+                        pick == "TIE" && win == "TIE" -> staked * 45
                         pick == win -> staked * 2
                         else -> 0L
                     }
                     if (payout > 0L) {
                         val nb = SupaRepo.waveFlow(payout, 2, UUID.randomUUID().toString(), "dragon-tiger")
                         if (nb != null) balance = nb
+                        lastWin = payout
                         msg = "Kamu menang " + fmt(payout) + " coin!"
                     } else {
                         msg = if (win == "TIE") "Seri. Taruhan hangus." else "Kalah. Coba lagi."
@@ -145,76 +147,189 @@ fun DragonTigerScreen(
         }
     }
 
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF14121A), Color(0xFF0A0A0C)))),
-        ) {
-            Row(
-                Modifier.fillMaxWidth().background(Color(0xFF1B1B22)).padding(horizontal = 10.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("‹ Kembali", color = Gold2, fontSize = 15.sp, modifier = Modifier.clickable { onClose() }.padding(6.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Dragon Vs Tiger", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text(fmt(balance) + " coin", color = Gold2, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+    val history = remember { mutableStateOf(listOf("DRAGON", "TIGER", "DRAGON", "DRAGON", "TIGER", "DRAGON", "DRAGON", "TIGER")) }
+    var pots by remember { mutableStateOf(listOf(0L, 0L, 0L)) }
+    LaunchedEffect(dragon, tiger) {
+        val d = dragon
+        val t = tiger
+        if (d != null && t != null) {
+            val w = when {
+                d.value == t.value -> "TIE"
+                d.value > t.value -> "DRAGON"
+                else -> "TIGER"
             }
+            history.value = (listOf(w) + history.value).take(8)
+            pots = listOf(0L, 0L, 0L)
+        }
+    }
 
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CardBox(Modifier.weight(1f), dragon, "DRAGON", Color(0xFF8E1B1B))
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp)) {
-                    Box(
-                        Modifier.size(48.dp).clip(CircleShape).background(Color(0xFF2A2118))
-                            .border(2.dp, Gold2, CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(if (dragon == null) left.toString() else "•", color = Gold2, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize()) {
+            // latar: kiri merah (Naga), kanan biru (Tiger)
+            Row(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f).fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF8A1608), Color(0xFF3C0707)))))
+                Box(Modifier.weight(1f).fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF0B2C86), Color(0xFF060F36)))))
+            }
+            Column(Modifier.fillMaxSize()) {
+                // bilah atas
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("‹ Kembali", color = Gold2, fontSize = 14.sp, modifier = Modifier.clickable { onClose() }.padding(4.dp))
+                    Spacer(Modifier.weight(1f))
+                    Text("Dragon and Tiger Slot", color = Gold2, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.weight(1f))
+                    Text("win: " + fmt(lastWin), color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // hitung mundur + dua kartu
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        MiniCard(dragon, Color(0xFF9C1C12))
+                        Text("Naga", color = Color(0xFFFFB199), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("hitung mundur", color = Color(0xFFFFE082), fontSize = 10.sp)
+                        Text(
+                            if (dragon == null) left.toString() + "s" else "•",
+                            color = Gold2, fontSize = 32.sp, fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        MiniCard(tiger, Color(0xFF1B3FA8))
+                        Text("Tiger", color = Color(0xFF9CC2FF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-                CardBox(Modifier.weight(1f), tiger, "TIGER", Color(0xFF17356B))
-            }
 
-            Text(
-                msg,
-                color = Color(0xFFCFCFCF),
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            )
+                // riwayat
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Last", color = Color(0xFFE0E0E0), fontSize = 10.sp)
+                    Spacer(Modifier.width(6.dp))
+                    history.value.forEach { h ->
+                        Box(
+                            Modifier.padding(end = 5.dp).size(22.dp).clip(CircleShape)
+                                .background(
+                                    when (h) {
+                                        "DRAGON" -> Color(0xFFD84315)
+                                        "TIGER" -> Color(0xFF1E5BDB)
+                                        else -> Color(0xFF8D6E1B)
+                                    },
+                                )
+                                .border(1.dp, Color(0xFFFFE082), CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                when (h) { "DRAGON" -> "N"; "TIGER" -> "T"; else -> "S" },
+                                color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text("lainnya ›", color = Color(0xFFFFE082), fontSize = 10.sp)
+                }
 
-            Spacer(Modifier.height(10.dp))
+                // tiga kolom: Naga / Seri / Tiger
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    DtLane("Naga", "x2.0", pots[0], if (pick == "DRAGON") staked else 0L, Color(0xFF8E1B1B), pick == "DRAGON", Modifier.weight(1f)) { place("DRAGON") }
+                    DtLane("Seri", "x45.0", pots[1], if (pick == "TIE") staked else 0L, Color(0xFF7A4A12), pick == "TIE", Modifier.weight(1f)) { place("TIE") }
+                    DtLane("Tiger", "x2.0", pots[2], if (pick == "TIGER") staked else 0L, Color(0xFF14398F), pick == "TIGER", Modifier.weight(1f)) { place("TIGER") }
+                }
 
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SideButton("DRAGON", Color(0xFF8E1B1B), pick == "DRAGON", Modifier.weight(1f)) { place("DRAGON") }
-                SideButton("TIE x22", Color(0xFF6B4A16), pick == "TIE", Modifier.weight(0.8f)) { place("TIE") }
-                SideButton("TIGER", Color(0xFF17356B), pick == "TIGER", Modifier.weight(1f)) { place("TIGER") }
-            }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    msg, color = Color(0xFFFFE9C7), fontSize = 11.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                )
 
-            Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.weight(1f))
 
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                listOf(500L, 1000L, 5000L, 10000L).forEach { v ->
-                    val on = bet == v
-                    Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
-                            .background(if (on) Gold2 else Color(0xFF23232B))
-                            .clickable { bet = v }.padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(fmt(v), color = if (on) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                // saldo + chip
+                Column(
+                    Modifier.fillMaxWidth()
+                        .background(Brush.verticalGradient(listOf(Color(0x00000000), Color(0xFF3A0808))))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                ) {
+                    Text("Saldo koin saya:", color = Color(0xFFFFE082), fontSize = 12.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🪙 " + balance.toString(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.weight(1f))
+                        listOf(500L to Color(0xFFB8860B), 1000L to Color(0xFF6A1B9A), 5000L to Color(0xFF1E88E5), 10000L to Color(0xFFD84315)).forEach { (v, c) ->
+                            val on = bet == v
+                            Box(
+                                Modifier.padding(start = 6.dp).size(44.dp).clip(CircleShape)
+                                    .background(if (on) c else c.copy(alpha = 0.65f))
+                                    .border(if (on) 3.dp else 1.dp, if (on) Gold2 else Color(0xFFFFE9C7), CircleShape)
+                                    .clickable { bet = v },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    if (v >= 1000) (v / 1000).toString() + "K" else v.toString(),
+                                    color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MiniCard(card: Card?, back: Color) {
+    Box(
+        Modifier.size(width = 52.dp, height = 70.dp).clip(RoundedCornerShape(8.dp))
+            .background(if (card == null) back else Color(0xFFF6F6F6))
+            .border(2.dp, Color(0xFFFFE082), RoundedCornerShape(8.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (card == null) {
+            Text("♦", color = Color(0xFFFFE082), fontSize = 22.sp)
+        } else {
+            Text(
+                card.rank + card.suit,
+                color = if (card.suit == "♥" || card.suit == "♦") Color(0xFFC62828) else Color(0xFF111111),
+                fontSize = 18.sp, fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DtLane(
+    title: String, mult: String, pot: Long, mine: Long, tint: Color, selected: Boolean,
+    mod: Modifier, onClick: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = mod) {
+        Box(
+            Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(10.dp))
+                .background(tint.copy(alpha = 0.55f))
+                .border(if (selected) 3.dp else 2.dp, if (selected) Color(0xFFFFF59D) else Color(0xFFE0A93B), RoundedCornerShape(10.dp))
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(title, color = Color.White.copy(alpha = 0.55f), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                Box(
+                    Modifier.padding(bottom = 6.dp).clip(RoundedCornerShape(50))
+                        .background(Color(0xFF7A1010)).border(1.dp, Color(0xFFE0A93B), RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 2.dp),
+                ) { Text(mult, color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            }
+        }
+        Text("Pot:" + pot, color = Color(0xFFE0E0E0), fontSize = 10.sp)
+        Text("Me:" + mine, color = Color(0xFFE0E0E0), fontSize = 10.sp)
     }
 }
 
