@@ -134,7 +134,7 @@ fun RoomScreen(
                 joinedOnce = true
             } else if (joinedOnce && !kickedOut) {
                 kickedOut = true
-                toast("Kamu dikeluarkan owner dari room ini")
+                Toast.makeText(context, "Kamu dikeluarkan owner dari room ini", Toast.LENGTH_LONG).show()
                 onExit()
             }
         }
