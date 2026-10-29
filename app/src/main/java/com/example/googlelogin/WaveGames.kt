@@ -361,7 +361,11 @@ private fun WaveGameView(
                     settings.userAgentString = "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
                         "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                     android.webkit.WebView.setWebContentsDebuggingEnabled(true)
-                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+                    // Sebagian HP (vivo/Android 9) gagal menggambar canvas/WebGL dengan layer hardware.
+                    // Pakai software layer untuk WebView ini.
+                    setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+                    setBackgroundColor(android.graphics.Color.parseColor("#0B0B0B"))
+                    settings.offscreenPreRaster = false
                     android.webkit.CookieManager.getInstance().setAcceptCookie(true)
                     android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webChromeClient = object : WebChromeClient() {
