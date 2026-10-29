@@ -62,7 +62,7 @@
     "pub": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
       }
     },
     "blacklist": {
@@ -155,7 +155,7 @@
       ".read": "auth != null",
       "u": {
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid"
+          ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
         }
       },
       "i": {
