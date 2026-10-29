@@ -105,6 +105,8 @@ private const val P_MUSIC = 7
 
 private const val P_BLACKLIST = 8
 
+private const val P_MEMBERS = 9
+
 private val Teal = Color(0xFF2BD9C4)
 
 @Composable
@@ -122,6 +124,24 @@ fun RoomScreen(
         myFam = try { UserDirectory.findByUid(myUid)?.fam ?: "" } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { "" }
     }
     val scope = rememberCoroutineScope()
+
+    // --- Owner bisa mengeluarkan user: kalau keanggotaan kita hilang, keluar dari room.
+    var joinedOnce by remember { mutableStateOf(false) }
+    var kickedOut by remember { mutableStateOf(false) }
+    LaunchedEffect(roomId, myUid) {
+        val reg = Rtdb.listen(Rtdb.ref("members/" + roomId + "/" + myUid)) { snap ->
+            if (snap.exists()) {
+                joinedOnce = true
+            } else if (joinedOnce && !kickedOut) {
+                kickedOut = true
+                toast("Kamu dikeluarkan owner dari room ini")
+                onExit()
+            }
+        }
+        kotlinx.coroutines.delay(600000)
+        reg.remove()
+    }
+
     val appActions = LocalActions.current
 
     var room by remember { mutableStateOf<RoomInfo?>(null) }
@@ -515,7 +535,7 @@ fun RoomScreen(
                     onChat = { u -> seatSheet = null; appActions.openChat(u) },
                     onFollowChanged = { },
                     onOpenFull = { seatSheet = null; appActions.openFullProfile(s.uid) },
-                    topAction = if (canManage && s.uid != myUid) {
+                    topAction = if (isOwner && s.uid != myUid) {
                         {
                             var menu by remember { mutableStateOf(false) }
                             Box {
@@ -746,6 +766,9 @@ fun RoomScreen(
                     if (isOwner) {
                         RmTool("Daftar hitam", onClick = { panel = P_BLACKLIST }) { Text("🚫", fontSize = 24.sp) }
                     }
+                    if (isOwner) {
+                        RmTool("Anggota", onClick = { panel = P_MEMBERS }) { Text("👥", fontSize = 22.sp) }
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -810,6 +833,63 @@ fun RoomScreen(
                 }
             }
         }
+        if (panel == P_MEMBERS && isOwner) {
+            val others = members.filter { it != myUid }
+            var info by remember(others) { mutableStateOf<Map<String, PublicUser?>>(emptyMap()) }
+            LaunchedEffect(others) {
+                val m = HashMap<String, PublicUser?>()
+                for (u in others) {
+                    m[u] = try { UserCache.byUid(u) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+                }
+                info = m
+            }
+            RmPanel(onDismiss = { panel = P_NONE }) {
+                Text(tr("Anggota room"), color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text(tr("Hanya owner yang bisa menurunkan dari mic atau mengeluarkan user."), color = Color(0xFFBDBDBD), fontSize = 12.sp)
+                Spacer(Modifier.height(12.dp))
+                if (others.isEmpty()) {
+                    Text(tr("Belum ada anggota lain"), color = Color(0xFFBDBDBD))
+                } else {
+                    LazyColumn(Modifier.heightIn(max = 320.dp)) {
+                        items(others.size) { i ->
+                            val uid = others.elementAt(i)
+                            val pu = info[uid]
+                            val seatIdx = seats.entries.firstOrNull { it.value.uid == uid }?.key
+                            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                InvAvatar(pu, uid)
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(pu?.name ?: ("UID " + uid), color = Color.White, fontSize = 14.sp, maxLines = 1)
+                                    Text(if (seatIdx != null) "Mic " + (seatIdx + 1) else "Penonton", color = Color(0xFF9A9A9A), fontSize = 11.sp)
+                                }
+                                if (seatIdx != null) {
+                                    OutlineButton(tr("Turunkan")) {
+                                        scope.launch {
+                                            val err = RoomRepo.removeFromSeat(r.id, seatIdx)
+                                            toast(err ?: ((pu?.name ?: "User") + " diturunkan dari mic"))
+                                        }
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                OutlineButton(tr("Kick")) {
+                                    scope.launch {
+                                        val err = RoomRepo.kickFromRoom(r.id, uid)
+                                        if (err != null) {
+                                            toast(err)
+                                        } else {
+                                            toast((pu?.name ?: "User") + " dikeluarkan dari room")
+                                            RoomExtras.sendChat(r.id, myUid, myName, "🦾 " + (pu?.name ?: "User") + " dikeluarkan dari room")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         if (panel == P_MODE) RmPanel(onDismiss = { panel = P_NONE }) { RmMode(r) { panel = P_NONE } }
         if (panel == P_SETTINGS) RmPanel(onDismiss = { panel = P_NONE }) { RmSettings(r) { panel = P_NONE } }
         if (panel == P_LOCK) RmPanel(onDismiss = { panel = P_NONE }) { RmLock(r) { panel = P_NONE } }

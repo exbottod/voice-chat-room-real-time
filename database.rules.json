@@ -6,7 +6,7 @@
       ".read": "auth != null",
       "$roomId": {
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && (auth.uid === $uid || root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid)",
           ".validate": "newData.val() === true"
         }
       }
