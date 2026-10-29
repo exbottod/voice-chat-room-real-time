@@ -56,7 +56,7 @@ private fun fmtG(n: Long): String {
 
 /** Halaman daftar game. */
 @Composable
-fun GamesHub(myUid: String, roomId: String, onClose: () -> Unit) {
+fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> Unit) {
     var open by remember { mutableStateOf("") }
     var balance by remember { mutableStateOf(0L) }
 
@@ -67,10 +67,8 @@ fun GamesHub(myUid: String, roomId: String, onClose: () -> Unit) {
 
     when (open) {
         "dvt" -> DragonTigerScreen(myUid = myUid, onClose = { open = "" })
-        "lucky77" -> SlotGameScreen(
-            myUid = myUid, title = "Lucky 77",
-            symbols = listOf("7", "🍒", "🔔", "💰", "🍋", "⭐"), onClose = { open = "" },
-        )
+        "lucky77" -> Lucky77WheelScreen(myUid = myUid, onClose = { open = "" })
+        "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
         "greedy" -> SlotGameScreen(
             myUid = myUid, title = "Greedy King",
             symbols = listOf("👑", "💎", "💰", "🍇", "🔔", "⭐"), onClose = { open = "" },
@@ -92,8 +90,9 @@ fun GamesHub(myUid: String, roomId: String, onClose: () -> Unit) {
                     Text(fmtG(balance) + " coin", color = GoldG, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
                 Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GameTile("Dragon Vs Tiger", "Real time, satu ronde satu room", Color(0xFF8E1B1B)) { open = "dvt" }
-                    GameTile("Lucky 77", "Slot 3 gulungan", Color(0xFF7A4B12)) { open = "lucky77" }
+                    GameTile("Dragon and Tiger", "Naga, Seri x45, Tiger", Color(0xFF8E1B1B)) { open = "dvt" }
+                    GameTile("Lucky 77", "Roda ceri, semangka, 77", Color(0xFF7A4B12)) { open = "lucky77" }
+                    GameTile("3 Card Poker", "Wolf, Lion, Fish", Color(0xFF4B2A8B)) { open = "poker" }
                     GameTile("Greedy King", "Slot mahkota", Color(0xFF4B2A6B)) { open = "greedy" }
                     GameTile("Slot Buah", "Slot klasik", Color(0xFF1B5E20)) { open = "slot" }
                     GameTile("Teen Patti", "3 kartu lawan 3 bot", Color(0xFF17356B)) { open = "teenpatti" }
@@ -363,7 +362,7 @@ private fun CardChip(card: String, small: Boolean = false) {
     }
 }
 
-private fun tpDeck(): List<String> {
+internal fun tpDeck(): List<String> {
     val suits = listOf("♠", "♥", "♦", "♣")
     val ranks = listOf("2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A")
     val out = ArrayList<String>()
@@ -372,7 +371,7 @@ private fun tpDeck(): List<String> {
 }
 
 /** Nilai tangan Teen Patti: 6 trail, 5 pure sequence, 4 sequence, 3 warna, 2 pair, 1 kartu tertinggi. */
-private fun tpScore(cards: List<String>): Int {
+internal fun tpScore(cards: List<String>): Int {
     val vals = cards.map { c ->
         when (c.dropLast(1)) {
             "A" -> 14; "K" -> 13; "Q" -> 12; "J" -> 11
