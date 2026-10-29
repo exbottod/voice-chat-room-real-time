@@ -367,7 +367,10 @@ private fun WaveGameView(
                     webChromeClient = object : WebChromeClient() {
                         override fun onConsoleMessage(m: android.webkit.ConsoleMessage?): Boolean {
                             val txt = m?.message().orEmpty()
-                            if (txt.isNotBlank() && logs.length < 400) logs = (logs + txt.take(120) + " | ").take(400)
+                            val lvl = m?.messageLevel()
+                            if (txt.isNotBlank() && lvl == android.webkit.ConsoleMessage.MessageLevel.ERROR && logs.length < 500) {
+                                logs = (logs + txt.take(150) + " | ").take(500)
+                            }
                             return true
                         }
                         override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -389,6 +392,9 @@ private fun WaveGameView(
                         ) {
                             if (r?.isForMainFrame == true) {
                                 err = "Gagal memuat game: " + (e?.description ?: "koneksi ditolak")
+                            } else if (logs.length < 500) {
+                                val h = r?.url?.host.orEmpty()
+                                logs = (logs + "res:" + h + " " + (e?.description ?: "?") + " | ").take(500)
                             }
                         }
                         override fun onReceivedHttpError(
@@ -469,6 +475,19 @@ private fun WaveGameView(
                         blank = false
                         web?.reload()
                     }.padding(8.dp),
+                )
+            }
+        }
+        if (logs.isNotBlank()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                Text(
+                    logs,
+                    color = Color(0xFFFF8A80),
+                    fontSize = 9.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xE6000000))
+                        .padding(6.dp),
                 )
             }
         }
