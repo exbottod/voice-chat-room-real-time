@@ -74,7 +74,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
     var balance by remember { mutableStateOf(0L) }
     var bet by remember { mutableStateOf(500L) }
     var pot by remember { mutableStateOf(listOf(0L, 0L, 0L)) }
-    var mine by remember { mutableStateOf<LongArray?>(null) }
+    var stakes by remember { mutableStateOf(listOf(0L, 0L, 0L)) }
     var hands by remember { mutableStateOf(listOf(listOf<String>(), listOf<String>(), listOf<String>())) }
     var left by remember { mutableStateOf(15) }
     var msg by remember { mutableStateOf("Pilih nominal, lalu ketuk perisai") }
@@ -100,15 +100,13 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
         dealt = true
         val scores = h.map { tpScore(it) }
         val winner = scores.indexOf(scores.maxOrNull() ?: 0)
-        val bettor = mine
-        if (bettor != null) {
-            val idx = bettor[0].toInt()
-            val amount = bettor[1]
-            if (idx == winner) {
-                val payout = amount * 3
-                val nb = SupaRepo.waveFlow(payout, 2, "3cp-$roundId-$myUid", "3 Card Poker")
+        val total = stakes.sum()
+        if (total > 0L) {
+            val win = stakes[winner] * 3
+            if (win > 0L) {
+                val nb = SupaRepo.waveFlow(win, 2, "3cp-$roundId-$myUid", "3 Card Poker")
                 if (nb != null) balance = nb
-                msg = "Kolom " + listOf("Wolf", "Lion", "Fish")[idx] + " menang. Kamu dapat " + fmtP(payout) + " coin"
+                msg = "Kolom " + listOf("Wolf", "Lion", "Fish")[winner] + " menang. Kamu dapat " + fmtP(win) + " coin"
             } else {
                 msg = "Kolom " + listOf("Wolf", "Lion", "Fish")[winner] + " menang. Kamu kalah"
             }
@@ -117,18 +115,14 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
         }
         history = (listOf(winner) + history).take(8)
         pot = listOf(0L, 0L, 0L)
-        mine = null
+        stakes = listOf(0L, 0L, 0L)
         delay(5000)
         roundId += 1
     }
 
     fun placeLane(lane: Int) {
-        if (dealt || left <= 6) {
-            msg = "Waktu taruhan hampir habis, tunggu ronde berikutnya"
-            return
-        }
-        if (mine != null) {
-            msg = "Sudah bertaruh di ronde ini"
+        if (dealt || left <= 2) {
+            msg = "Waktu taruhan sudah habis, tunggu ronde berikutnya"
             return
         }
         if (bet > balance) {
@@ -136,15 +130,15 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
             return
         }
         scope.launch {
-            val nb = SupaRepo.waveFlow(bet, 1, "3cp-bet-$roundId-$myUid", "3 Card Poker")
+            val nb = SupaRepo.waveFlow(bet, 1, UUID.randomUUID().toString(), "3 Card Poker")
             if (nb == null) {
                 msg = "Gagal memotong coin, coba lagi"
                 return@launch
             }
             balance = nb
-            mine = longArrayOf(lane.toLong(), bet)
-            pot = pot.toMutableList().also { it[lane] = bet }
-            msg = "Taruhan " + fmtP(bet) + " di " + listOf("Wolf", "Lion", "Fish")[lane]
+            stakes = stakes.toMutableList().also { it[lane] = it[lane] + bet }
+            pot = pot.toMutableList().also { it[lane] = it[lane] + bet }
+            msg = "Taruhan " + fmtP(stakes[lane]) + " di " + listOf("Wolf", "Lion", "Fish")[lane]
         }
     }
 
@@ -261,8 +255,8 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                         Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
                             .background(Color(0xFF231234).copy(alpha = 0.9f))
                             .border(
-                                if (mine?.get(0)?.toInt() == idx) 2.dp else 1.dp,
-                                if (mine?.get(0)?.toInt() == idx) GoldP else Color(0xFF4A2E6B),
+                                if (stakes[idx] > 0L) 2.dp else 1.dp,
+                                if (stakes[idx] > 0L) GoldP else Color(0xFF4A2E6B),
                                 RoundedCornerShape(10.dp),
                             )
                             .clickable { placeLane(idx) }
@@ -298,7 +292,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                         } else {
                             Text("Pot " + fmtP(pot.getOrElse(idx) { 0L }), color = GoldP, fontSize = 10.sp)
                             Text(
-                                "Me " + if (mine?.get(0)?.toInt() == idx) fmtP(mine!![1]) else "0",
+                                "Me " + fmtP(stakes[idx]),
                                 color = Color(0xFFB39DDB), fontSize = 9.sp,
                             )
                         }

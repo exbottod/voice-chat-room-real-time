@@ -66,14 +66,16 @@ fun DragonTigerScreen(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var balance by remember { mutableStateOf(0L) }
     var bet by remember { mutableStateOf(1000L) }
-    var pick by remember { mutableStateOf("") }        // DRAGON / TIGER / TIE
-    var staked by remember { mutableStateOf(0L) }
+    var pick by remember { mutableStateOf("") }        // kolom terakhir dipilih
+    var staked by remember { mutableStateOf(0L) }       // total taruhan ronde ini
+    var laneBet by remember { mutableStateOf(mapOf<String, Long>()) }
     var dragon by remember { mutableStateOf<Card?>(null) }
     var tiger by remember { mutableStateOf<Card?>(null) }
     var left by remember { mutableStateOf(20) }
     var msg by remember { mutableStateOf("Pilih Dragon, Tiger, atau Tie lalu tunggu kartu dibuka") }
     var busy by remember { mutableStateOf(false) }
     var lastWin by remember { mutableStateOf(0L) }
+    var pots by remember { mutableStateOf(listOf(0L, 0L, 0L)) }
 
     LaunchedEffect(Unit) {
         SupaRepo.wavePrepare("Player", "")
@@ -98,12 +100,8 @@ fun DragonTigerScreen(
                     d.value > t.value -> "DRAGON"
                     else -> "TIGER"
                 }
-                if (staked > 0L) {
-                    val payout = when {
-                        pick == "TIE" && win == "TIE" -> staked * 45
-                        pick == win -> staked * 2
-                        else -> 0L
-                    }
+                if (laneBet.isNotEmpty()) {
+                    val payout = (laneBet[win] ?: 0L) * (if (win == "TIE") 45L else 2L)
                     if (payout > 0L) {
                         val nb = SupaRepo.waveFlow(payout, 2, UUID.randomUUID().toString(), "dragon-tiger")
                         if (nb != null) balance = nb
@@ -119,6 +117,8 @@ fun DragonTigerScreen(
                 dragon = null
                 tiger = null
                 staked = 0L
+                laneBet = emptyMap()
+                pots = listOf(0L, 0L, 0L)
                 pick = ""
                 msg = "Ronde baru. Pilih Dragon, Tiger, atau Tie."
             }
@@ -126,29 +126,34 @@ fun DragonTigerScreen(
     }
 
     fun place(side: String) {
-        if (busy || dragon != null) return
+        if (dragon != null || left <= 2) {
+            msg = "Waktu taruhan sudah habis"
+            return
+        }
+        if (busy) return
         if (bet > balance) {
             msg = "Coin tidak cukup"
             return
         }
         busy = true
         scope.launch {
-            val tx = UUID.randomUUID().toString()
-            val nb = SupaRepo.waveFlow(bet, 1, tx, "dragon-tiger")
+            val nb = SupaRepo.waveFlow(bet, 1, UUID.randomUUID().toString(), "dragon-tiger")
             if (nb == null) {
                 msg = "Gagal memotong coin, coba lagi"
             } else {
                 balance = nb
-                staked = bet
+                staked += bet
                 pick = side
-                msg = "Taruhan " + fmt(bet) + " coin di " + side
+                laneBet = laneBet + (side to ((laneBet[side] ?: 0L) + bet))
+                val i = when (side) { "DRAGON" -> 0; "TIE" -> 1; else -> 2 }
+                pots = pots.toMutableList().also { it[i] = it[i] + bet }
+                msg = "Taruhan " + fmt(laneBet[side] ?: bet) + " di " + side
             }
             busy = false
         }
     }
 
     val history = remember { mutableStateOf(listOf("DRAGON", "TIGER", "DRAGON", "DRAGON", "TIGER", "DRAGON", "DRAGON", "TIGER")) }
-    var pots by remember { mutableStateOf(listOf(0L, 0L, 0L)) }
     LaunchedEffect(dragon, tiger) {
         val d = dragon
         val t = tiger
@@ -159,7 +164,6 @@ fun DragonTigerScreen(
                 else -> "TIGER"
             }
             history.value = (listOf(w) + history.value).take(8)
-            pots = listOf(0L, 0L, 0L)
         }
     }
 
@@ -241,9 +245,9 @@ fun DragonTigerScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    DtLane("Naga", "x2.0", pots[0], if (pick == "DRAGON") staked else 0L, Color(0xFF8E1B1B), pick == "DRAGON", Modifier.weight(1f)) { place("DRAGON") }
-                    DtLane("Seri", "x45.0", pots[1], if (pick == "TIE") staked else 0L, Color(0xFF7A4A12), pick == "TIE", Modifier.weight(1f)) { place("TIE") }
-                    DtLane("Tiger", "x2.0", pots[2], if (pick == "TIGER") staked else 0L, Color(0xFF14398F), pick == "TIGER", Modifier.weight(1f)) { place("TIGER") }
+                    DtLane("Naga", "x2.0", pots[0], laneBet["DRAGON"] ?: 0L, Color(0xFF8E1B1B), (laneBet["DRAGON"] ?: 0L) > 0L, Modifier.weight(1f)) { place("DRAGON") }
+                    DtLane("Seri", "x45.0", pots[1], laneBet["TIE"] ?: 0L, Color(0xFF7A4A12), (laneBet["TIE"] ?: 0L) > 0L, Modifier.weight(1f)) { place("TIE") }
+                    DtLane("Tiger", "x2.0", pots[2], laneBet["TIGER"] ?: 0L, Color(0xFF14398F), (laneBet["TIGER"] ?: 0L) > 0L, Modifier.weight(1f)) { place("TIGER") }
                 }
 
                 Spacer(Modifier.height(6.dp))
@@ -264,6 +268,19 @@ fun DragonTigerScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("🪙 " + balance.toString(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.weight(1f))
+                        Box(
+                            Modifier.padding(start = 6.dp).size(46.dp).clip(CircleShape)
+                                .background(Color(0xFFD84315))
+                                .border(2.dp, Gold2, CircleShape)
+                                .clickable {
+                                    // taruhan ganda: ulangi taruhan kolom terakhir sekali lagi
+                                    val side = pick
+                                    if (side.isNotEmpty()) place(side) else msg = "Pilih kolom dulu"
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("x2", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                         listOf(500L to Color(0xFFB8860B), 1000L to Color(0xFF6A1B9A), 5000L to Color(0xFF1E88E5), 10000L to Color(0xFFD84315)).forEach { (v, c) ->
                             val on = bet == v
                             Box(
