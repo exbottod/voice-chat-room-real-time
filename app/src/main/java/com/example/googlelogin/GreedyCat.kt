@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -390,83 +391,81 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
 
                     Spacer(Modifier.width(6.dp))
 
-                    // ---- roda makanan 3x3 dengan kucing di tengah
-                    Column(Modifier.weight(1f).fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
-                        val rows = listOf(listOf(0, 1, 2), listOf(7, -1, 3), listOf(6, 5, 4))
-                        rows.forEach { row ->
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically,
+                    // ---- pola bulat: 8 makanan mengelilingi kucing
+                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(300.dp)) {
+                            // pusat: kucing + waktu
+                            Column(
+                                Modifier.align(Alignment.Center),
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                row.forEach { idx ->
-                                    if (idx < 0) {
-                                        // pusat: kucing + timer
+                                Box(
+                                    Modifier.size(88.dp).clip(CircleShape)
+                                        .background(Brush.radialGradient(listOf(Color.White, Color(0xFFFFECB3))))
+                                        .border(4.dp, CatWood, CircleShape),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("🐱", fontSize = 30.sp)
+                                        Text(
+                                            when {
+                                                !active -> "RESULT"
+                                                timer > 3 -> "Select Time"
+                                                else -> "LOCKING"
+                                            },
+                                            color = Color(0xFF0D47A1), fontSize = 7.sp, fontWeight = FontWeight.Bold,
+                                        )
+                                    }
+                                }
+                                Box(
+                                    Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF5D4037))
+                                        .padding(horizontal = 10.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        if (active) timer.toString() + "s" else "•",
+                                        color = Color(0xFFFFEC8B), fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+
+                            // 8 makanan pada lingkaran (offsets tetap, tanpa hitungan sudut)
+                            val dxs = floatArrayOf(0f, 78f, 110f, 78f, 0f, -78f, -110f, -78f)
+                            val dys = floatArrayOf(-110f, -78f, 0f, 78f, 110f, 78f, 0f, -78f)
+                            CAT_FOODS.forEachIndexed { idx, fd ->
+                                val amount = bets[fd.key] ?: 0L
+                                Column(
+                                    Modifier.align(Alignment.Center)
+                                        .offset(x = dxs[idx].dp, y = dys[idx].dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    Box(
+                                        Modifier.size(66.dp).clip(CircleShape)
+                                            .background(Brush.radialGradient(listOf(Color.White, Color(0xFFFFF9C4))))
+                                            .border(
+                                                if (amount > 0L) 3.dp else 2.dp,
+                                                if (amount > 0L) Color(0xFF00C853) else CatWood,
+                                                CircleShape,
+                                            )
+                                            .clickable { placeBet(fd) },
+                                        contentAlignment = Alignment.Center,
+                                    ) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text(fd.icon, fontSize = 21.sp)
                                             Box(
-                                                Modifier.size(84.dp).clip(CircleShape)
-                                                    .background(Brush.radialGradient(listOf(Color.White, Color(0xFFFFECB3))))
-                                                    .border(4.dp, CatWood, CircleShape),
-                                                contentAlignment = Alignment.Center,
+                                                Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFFFEC8B))
+                                                    .border(1.dp, CatWood, RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 4.dp),
                                             ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Text("🐱", fontSize = 30.sp)
-                                                    Text(
-                                                        when {
-                                                            !active -> "RESULT"
-                                                            timer > 3 -> "BETTING"
-                                                            else -> "LOCKING"
-                                                        },
-                                                        color = Color(0xFF0D47A1), fontSize = 7.sp, fontWeight = FontWeight.Bold,
-                                                    )
-                                                }
-                                            }
-                                            Box(
-                                                Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF5D4037))
-                                                    .padding(horizontal = 10.dp, vertical = 2.dp),
-                                            ) {
-                                                Text(
-                                                    if (active) timer.toString() + "s" else "•",
-                                                    color = Color(0xFFFFEC8B), fontSize = 15.sp, fontWeight = FontWeight.Bold,
-                                                )
+                                                Text(fd.mult.toString() + "X", color = Color(0xFF5D4037), fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                             }
                                         }
-                                    } else {
-                                        val f = CAT_FOODS[idx]
-                                        val amount = bets[f.key] ?: 0L
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Box(
-                                                Modifier.size(72.dp).clip(CircleShape)
-                                                    .background(Brush.radialGradient(listOf(Color.White, Color(0xFFFFF9C4))))
-                                                    .border(
-                                                        if (amount > 0L) 3.dp else 2.dp,
-                                                        if (amount > 0L) Color(0xFF00C853) else CatWood,
-                                                        CircleShape,
-                                                    )
-                                                    .clickable { placeBet(f) },
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Text(f.icon, fontSize = 22.sp)
-                                                    Box(
-                                                        Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFFFEC8B))
-                                                            .border(1.dp, CatWood, RoundedCornerShape(6.dp))
-                                                            .padding(horizontal = 4.dp),
-                                                    ) {
-                                                        Text(f.mult.toString() + "X", color = Color(0xFF5D4037), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                                    }
-                                                }
-                                            }
-                                            Box(
-                                                Modifier.clip(RoundedCornerShape(50))
-                                                    .background(if (amount > 0L) CatRed else Color(0x33FFFFFF))
-                                                    .padding(horizontal = 8.dp, vertical = 1.dp),
-                                            ) {
-                                                Text(
-                                                    if (amount > 0L) fmtCat(amount) else "-",
-                                                    color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold,
-                                                )
-                                            }
+                                    }
+                                    if (amount > 0L) {
+                                        Box(
+                                            Modifier.clip(RoundedCornerShape(50)).background(CatRed)
+                                                .padding(horizontal = 8.dp, vertical = 1.dp),
+                                        ) {
+                                            Text(fmtCat(amount), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
