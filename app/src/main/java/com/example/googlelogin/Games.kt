@@ -1,5 +1,14 @@
 package com.example.googlelogin
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -76,26 +85,166 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
         )
         "teenpatti" -> TeenPattiScreen(myUid = myUid, onClose = { open = "" })
         else -> Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF14121A), Color(0xFF07070A))))) {
-                Row(
-                    Modifier.fillMaxWidth().background(Color(0xFF1B1B22)).padding(horizontal = 10.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            // Bottom sheet "Game Center": area atas tembus pandang, sheet coklat di bawah.
+            Box(Modifier.fillMaxSize().clickable(
+                indication = null,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+            ) { onClose() }) {
+                Column(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxSize(0.62f)
+                        .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+                        .background(Brush.verticalGradient(listOf(Color(0xFF4A2F1B), Color(0xFF2B190E))))
+                        .border(1.dp, Color(0xFF8A5A2B), RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        ) { },
                 ) {
-                    Text("Tutup", color = GoldG, fontSize = 15.sp, modifier = Modifier.clickable { onClose() }.padding(6.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text("🎮 Game", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text(fmtG(balance) + " coin", color = GoldG, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    // hiasan puncak sheet
+                    Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
+                        Text("◆", color = Color(0xFFE0553A), fontSize = 12.sp)
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("〰", color = Color(0xFFB08A5A), fontSize = 14.sp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Game Center", color = Color(0xFFF0DDBF), fontSize = 17.sp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("〰", color = Color(0xFFB08A5A), fontSize = 14.sp)
+                    }
+
+                    Column(
+                        Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
+                            .padding(horizontal = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        // ---- Dimainkan terkini
+                        GcSection("Dimainkan terkini") {
+                            GcRow(
+                                listOf(
+                                    GcItem("DragonTiger", R.drawable.ic_game_dvt, "dvt"),
+                                    GcItem("TeenPatti", R.drawable.ic_game_poker, "teenpatti"),
+                                    GcItem("Lucky77", R.drawable.ic_game_lucky, "lucky77"),
+                                    GcItem("GreedyCat", R.drawable.ic_game_cat, "greedy"),
+                                ),
+                            ) { open = it }
+                        }
+
+                        // ---- Rekomendasi game
+                        GcSection("Rekomendasi game") {
+                            GcRow(
+                                listOf(
+                                    GcItem("DragonTigerPk", R.drawable.ic_game_dvt, "dvt"),
+                                    GcItem("3CardPoker", R.drawable.ic_game_poker, "poker"),
+                                    GcItem("Lucky77", R.drawable.ic_game_lucky, "lucky77"),
+                                    GcItem("SlotBuah", R.drawable.ic_game_slot, "slot"),
+                                ),
+                            ) { open = it }
+                            Spacer(Modifier.height(8.dp))
+                            GcRow(
+                                listOf(
+                                    GcItem("TeenPatti", R.drawable.ic_game_poker, "teenpatti"),
+                                    GcItem("GreedyCat", R.drawable.ic_game_cat, "greedy"),
+                                ),
+                            ) { open = it }
+                        }
+
+                        // ---- Daftar peringkat
+                        Box(
+                            Modifier.fillMaxWidth().height(70.dp).clip(RoundedCornerShape(14.dp))
+                                .background(Brush.horizontalGradient(listOf(Color(0xFF9EE0E8), Color(0xFFB9A8F0), Color(0xFFA8E6C8)))),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
+                            Text(
+                                "Daftar peringkat", color = Color.White.copy(alpha = 0.9f),
+                                fontSize = 13.sp, modifier = Modifier.padding(start = 12.dp, bottom = 28.dp),
+                            )
+                            Row(Modifier.padding(start = 90.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf("1", "2", "3").forEach { n ->
+                                    Box(
+                                        Modifier.size(38.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                                            .background(Color(0xFF2E7D32))
+                                            .border(2.dp, Color(0xFFFFE082), androidx.compose.foundation.shape.CircleShape),
+                                        contentAlignment = Alignment.Center,
+                                    ) { Text(n, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(70.dp))
+                    }
                 }
-                Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    GameTile("Dragon and Tiger", "Naga, Seri x45, Tiger", Color(0xFF8E1B1B)) { open = "dvt" }
-                    GameTile("Lucky 77", "Roda ceri, semangka, 77", Color(0xFF7A4B12)) { open = "lucky77" }
-                    GameTile("3 Card Poker", "Wolf, Lion, Fish", Color(0xFF4B2A8B)) { open = "poker" }
-                    GameTile("Greedy Cat", "8 makanan, auto repeat", Color(0xFF4B2A6B)) { open = "greedy" }
-                    GameTile("Slot Buah", "Slot klasik", Color(0xFF1B5E20)) { open = "slot" }
-                    GameTile("Teen Patti", "3 kartu lawan 3 bot", Color(0xFF17356B)) { open = "teenpatti" }
+
+                // ---- bilah bawah: game yang sedang dipakai
+                Row(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFF4A2F1B))
+                        .border(2.dp, Color(0xFFB07A3A), RoundedCornerShape(50))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    listOf(
+                        GcItem("Greedy", R.drawable.ic_game_cat, "greedy"),
+                        GcItem("Lucky77", R.drawable.ic_game_lucky, "lucky77"),
+                    ).forEach { it2 ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable { open = it2.key },
+                        ) {
+                            Image(
+                                painterResource(it2.icon), contentDescription = it2.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(46.dp).clip(RoundedCornerShape(10.dp)),
+                            )
+                            Text(it2.name, color = Color(0xFFD9C3A0), fontSize = 10.sp)
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+private data class GcItem(val name: String, val icon: Int, val key: String)
+
+@Composable
+private fun GcSection(title: String, content: @Composable () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFF5A3C27)).padding(horizontal = 12.dp, vertical = 12.dp),
+    ) {
+        Text(title, color = Color(0xFFF0DDBF), fontSize = 15.sp)
+        Spacer(Modifier.height(10.dp))
+        content()
+    }
+}
+
+@Composable
+private fun GcRow(items: List<GcItem>, onPick: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        items.forEach { g ->
+            Column(
+                Modifier.weight(1f).clickable { onPick(g.key) },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp))
+                        .border(2.dp, Color(0xFFE0B54A), RoundedCornerShape(16.dp)),
+                ) {
+                    Image(
+                        painterResource(g.icon), contentDescription = g.name,
+                        contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(g.name, color = Color(0xFFF0DDBF), fontSize = 11.sp, maxLines = 1)
+            }
+        }
+        // isi sisa kolom supaya ukuran ikon sama
+        repeat(4 - items.size) { Spacer(Modifier.weight(1f)) }
     }
 }
 
