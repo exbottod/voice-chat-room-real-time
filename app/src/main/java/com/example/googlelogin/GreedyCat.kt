@@ -1,8 +1,5 @@
 package com.example.googlelogin
 
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -129,28 +127,21 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
     var musicOn by remember { mutableStateOf(true) }
     var showRank by remember { mutableStateOf(false) }
     var showHelp by remember { mutableStateOf(false) }
-    var rank by remember { mutableStateOf(listOf<Pair<String, Long>>()) }
-
-    suspend fun loadBalance() {
-        try {
-            SupaRepo.wavePrepare(myName, "")
-        } catch (e: Exception) {
-        }
-        repeat(3) { i ->
-            val w = SupaRepo.get(myUid).wallet
-            if (w != null && w.coins > 0L) {
-                coins = w.coins
-                return
-            }
-            coins = w?.coins ?: 0L
-            if (i < 2) delay(1200)
-        }
-    }
+    var rank by remember { mutableStateOf(listOf<String>()) }
 
     var reloadTick by remember { mutableStateOf(0) }
+
     LaunchedEffect(reloadTick) {
-        loadBalance()
-        if (coins <= 0L) msg = "Saldo belum termuat. Ketuk 🪙 untuk muat ulang."
+        try { SupaRepo.wavePrepare(myName, "") } catch (e: Exception) { }
+        var loaded = 0L
+        for (i in 0..2) {
+            val w = SupaRepo.get(myUid).wallet
+            loaded = w?.coins ?: 0L
+            if (loaded > 0L) break
+            delay(1200)
+        }
+        coins = loaded
+        if (loaded <= 0L) msg = "Saldo belum termuat. Ketuk tombol 🪙 untuk muat ulang."
     }
 
     val ctx = LocalContext.current
@@ -161,23 +152,26 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
         onDispose { GreedyMusic.stop() }
     }
 
-    // daftar peringkat: jumlahkan kemenangan tiap nama dari ronde terakhir
+    // daftar peringkat dari ronde terakhir
     LaunchedEffect(showRank) {
         if (!showRank) return@LaunchedEffect
-        rank = listOf()
+        val rows = ArrayList<String>()
         try {
             val snap = Rtdb.ref("gameRounds/greedycat").get().await()
-            val rounds = snap.children.toList().mapNotNull { it.key?.toLongOrNull() }.sortedDescending().take(60)
-            val total = HashMap<String, Long>()
-            rounds.forEach { r ->
-                snap.child(r.toString()).children.forEach { c ->
-                    val n = c.child("name").getValue(String::class.java) ?: return@forEach
-                    val w = c.child("win").getValue(Long::class.java) ?: 0L
-                    if (w > 0L) total[n] = (total[n] ?: 0L) + w
+            val totals = HashMap<String, Long>()
+            for (round in snap.children) {
+                for (player in round.children) {
+                    val nm = player.child("name").getValue(String::class.java)
+                    val wn = player.child("win").getValue(Long::class.java)
+                    if (nm != null && wn != null && wn > 0L) {
+                        totals[nm] = (totals[nm] ?: 0L) + wn
+                    }
                 }
             }
-            rank = total.entries.sortedByDescending { it.value }.take(20).map { it.key to it.value }
+            val sorted = totals.entries.sortedByDescending { it.value }.take(20)
+            for (e in sorted) rows.add(e.key + "|" + e.value)
         } catch (e: Exception) { }
+        rank = rows
     }
 
     // Sinkron jam server: semua pemain berada di detik dan ronde yang sama.
@@ -260,7 +254,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
         }
         if (coins <= 0L) {
             reloadTick += 1
-            msg = "Memuat saldo… coba ketuk lagi sebentar"
+            msg = "Memuat saldo… ketuk lagi sebentar"
             return
         }
         if (chip > coins) {
@@ -289,13 +283,8 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
             return
         }
         val need = lastBets.values.sum()
-        if (coins <= 0L) {
-            reloadTick += 1
-            msg = "Memuat saldo… coba lagi"
-            return
-        }
         if (need > coins) {
-            msg = "Coin kurang, butuh " + fmtCat(need) + " saldo " + fmtCat(coins)
+            msg = "Coin kurang, butuh " + fmtCat(need)
             return
         }
         scope.launch {
@@ -334,9 +323,9 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                         Modifier.clip(RoundedCornerShape(50))
                             .background(Brush.horizontalGradient(listOf(Color(0xFFFFEA5C), CatGold)))
                             .border(2.dp, Color(0xFFFF8A00), RoundedCornerShape(50))
-                            .padding(horizontal = 10.dp, vertical = 3.dp),
+                            .padding(horizontal = 12.dp, vertical = 3.dp),
                     ) { Text("Normal", color = Color(0xFF5D4037), fontSize = 9.sp, fontWeight = FontWeight.Bold) }
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(5.dp))
                     Box(
                         Modifier.size(30.dp).clip(CircleShape).background(Color.White)
                             .border(2.dp, Color(0xFFFF7A00), CircleShape).clickable { musicOn = !musicOn },
@@ -401,95 +390,84 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
 
                     Spacer(Modifier.width(6.dp))
 
-                    // ---- pola bulat: 8 makanan mengelilingi kucing
-                    Box(
-                        Modifier.weight(1f).fillMaxWidth().height(300.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0x33FFFFFF)),
-                    ) {
-                        // pusat: kucing + waktu
-                        Column(
-                            Modifier.align(Alignment.Center),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Box(
-                                Modifier.size(92.dp).clip(CircleShape)
-                                    .background(Brush.radialGradient(listOf(Color.White, Color(0xFFFFECB3))))
-                                    .border(4.dp, CatWood, CircleShape),
-                                contentAlignment = Alignment.Center,
+                    // ---- roda makanan 3x3 dengan kucing di tengah
+                    Column(Modifier.weight(1f).fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
+                        val rows = listOf(listOf(0, 1, 2), listOf(7, -1, 3), listOf(6, 5, 4))
+                        rows.forEach { row ->
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("🐱", fontSize = 32.sp)
-                                    Text(
-                                        when {
-                                            !active -> "RESULT"
-                                            timer > 3 -> "Select Time"
-                                            else -> "LOCKING"
-                                        },
-                                        color = Color(0xFF0D47A1), fontSize = 7.sp, fontWeight = FontWeight.Bold,
-                                    )
-                                }
-                            }
-                            Box(
-                                Modifier.clip(RoundedCornerShape(50))
-                                    .background(Color(0xFF5D4037)).padding(horizontal = 12.dp, vertical = 2.dp),
-                            ) {
-                                Text(
-                                    if (active) timer.toString() + "s" else "•",
-                                    color = Color(0xFFFFEC8B), fontSize = 15.sp, fontWeight = FontWeight.Bold,
-                                )
-                            }
-                        }
-
-                        // 8 makanan mengelilingi pusat
-                        val spots = listOf(
-                            Triple(Alignment.TopCenter, 0, -6),
-                            Triple(Alignment.TopEnd, -6, 20),
-                            Triple(Alignment.CenterEnd, -2, -2),
-                            Triple(Alignment.BottomEnd, -6, -20),
-                            Triple(Alignment.BottomCenter, 0, 6),
-                            Triple(Alignment.BottomStart, 6, -20),
-                            Triple(Alignment.CenterStart, 2, -2),
-                            Triple(Alignment.TopStart, 6, 20),
-                        )
-                        CAT_FOODS.forEachIndexed { idx, f ->
-                            val spot = spots[idx]
-                            val amount = bets[f.key] ?: 0L
-                            Column(
-                                Modifier.align(spot.first)
-                                    .offset(x = spot.second.dp, y = spot.third.dp)
-                                    .padding(2.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Box(
-                                    Modifier.size(62.dp).clip(CircleShape)
-                                        .background(Brush.radialGradient(listOf(Color.White, Color(0xFFFFF9C4))))
-                                        .border(
-                                            if (amount > 0L) 3.dp else 2.dp,
-                                            if (amount > 0L) Color(0xFF00C853) else CatWood,
-                                            CircleShape,
-                                        )
-                                        .clickable { placeBet(f) },
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(f.icon, fontSize = 19.sp)
-                                        Box(
-                                            Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFFFEC8B))
-                                                .border(1.dp, CatWood, RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 4.dp),
-                                        ) {
-                                            Text(f.mult.toString() + "X", color = Color(0xFF5D4037), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                row.forEach { idx ->
+                                    if (idx < 0) {
+                                        // pusat: kucing + timer
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Box(
+                                                Modifier.size(84.dp).clip(CircleShape)
+                                                    .background(Brush.radialGradient(listOf(Color.White, Color(0xFFFFECB3))))
+                                                    .border(4.dp, CatWood, CircleShape),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("🐱", fontSize = 30.sp)
+                                                    Text(
+                                                        when {
+                                                            !active -> "RESULT"
+                                                            timer > 3 -> "BETTING"
+                                                            else -> "LOCKING"
+                                                        },
+                                                        color = Color(0xFF0D47A1), fontSize = 7.sp, fontWeight = FontWeight.Bold,
+                                                    )
+                                                }
+                                            }
+                                            Box(
+                                                Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF5D4037))
+                                                    .padding(horizontal = 10.dp, vertical = 2.dp),
+                                            ) {
+                                                Text(
+                                                    if (active) timer.toString() + "s" else "•",
+                                                    color = Color(0xFFFFEC8B), fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                                                )
+                                            }
                                         }
-                                    }
-                                }
-                                Text("🐾🐾🐾", fontSize = 6.sp)
-                                if (amount > 0L) {
-                                    Box(
-                                        Modifier.clip(RoundedCornerShape(50)).background(CatRed)
-                                            .padding(horizontal = 7.dp),
-                                    ) {
-                                        Text(fmtCat(amount), color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                    } else {
+                                        val f = CAT_FOODS[idx]
+                                        val amount = bets[f.key] ?: 0L
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Box(
+                                                Modifier.size(72.dp).clip(CircleShape)
+                                                    .background(Brush.radialGradient(listOf(Color.White, Color(0xFFFFF9C4))))
+                                                    .border(
+                                                        if (amount > 0L) 3.dp else 2.dp,
+                                                        if (amount > 0L) Color(0xFF00C853) else CatWood,
+                                                        CircleShape,
+                                                    )
+                                                    .clickable { placeBet(f) },
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(f.icon, fontSize = 22.sp)
+                                                    Box(
+                                                        Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFFFEC8B))
+                                                            .border(1.dp, CatWood, RoundedCornerShape(6.dp))
+                                                            .padding(horizontal = 4.dp),
+                                                    ) {
+                                                        Text(f.mult.toString() + "X", color = Color(0xFF5D4037), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                                    }
+                                                }
+                                            }
+                                            Box(
+                                                Modifier.clip(RoundedCornerShape(50))
+                                                    .background(if (amount > 0L) CatRed else Color(0x33FFFFFF))
+                                                    .padding(horizontal = 8.dp, vertical = 1.dp),
+                                            ) {
+                                                Text(
+                                                    if (amount > 0L) fmtCat(amount) else "-",
+                                                    color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -536,8 +514,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color.White)
-                                .clickable { reloadTick += 1 }.padding(6.dp),
+                            Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color.White).padding(6.dp),
                         ) {
                             Text("🪙 " + fmtCat(coins), color = Color(0xFF333333), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
@@ -572,39 +549,35 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
 
             // ---- daftar peringkat
             if (showRank) {
-                Box(
-                    Modifier.fillMaxSize().background(Color(0xAA000000)).clickable { showRank = false },
-                    contentAlignment = Alignment.Center,
-                ) {
+                Box(Modifier.fillMaxSize().background(Color(0xAA000000))) {
                     Column(
-                        Modifier.fillMaxWidth(0.88f).clip(RoundedCornerShape(18.dp))
+                        Modifier.align(Alignment.Center).fillMaxWidth(0.9f)
+                            .clip(RoundedCornerShape(18.dp))
                             .background(Brush.verticalGradient(listOf(Color(0xFF5B8DE8), Color(0xFF3A6FD8))))
                             .border(2.dp, CatGold, RoundedCornerShape(18.dp))
-                            .padding(14.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                            ) { },
+                            .padding(14.dp),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🏆 Peringkat Greedy Cat", color = Color(0xFFFFE082), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text("🏆 Peringkat", color = Color(0xFFFFE082), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.weight(1f))
-                            Text("Tutup", color = Color.White, fontSize = 12.sp, modifier = Modifier.clickable { showRank = false })
+                            Text("Tutup", color = Color.White, fontSize = 12.sp,
+                                modifier = Modifier.clickable { showRank = false }.padding(4.dp))
                         }
                         Spacer(Modifier.height(8.dp))
                         if (rank.isEmpty()) {
-                            Text("Belum ada data ronde", color = Color(0xFFE3F2FD), fontSize = 12.sp)
+                            Text("Belum ada data", color = Color(0xFFE3F2FD), fontSize = 12.sp)
                         } else {
-                            rank.forEachIndexed { i, item ->
-                                val n = item.first
-                                val w = item.second
-                                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            rank.forEachIndexed { i, row ->
+                                val parts = row.split("|")
+                                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                                     Text(
-                                        when (i) { 0 -> "🥇"; 1 -> "🥈"; 2 -> "🥉"; else -> (i + 1).toString() },
-                                        fontSize = 13.sp, modifier = Modifier.width(28.dp),
+                                        if (i == 0) "🥇" else if (i == 1) "🥈" else if (i == 2) "🥉" else (i + 1).toString(),
+                                        fontSize = 12.sp, modifier = Modifier.width(26.dp),
                                     )
-                                    Text(n, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f), maxLines = 1)
-                                    Text("🪙 " + fmtCat(w), color = Color(0xFFFFEC8B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(parts.getOrElse(0) { "" }, color = Color.White, fontSize = 12.sp,
+                                        modifier = Modifier.weight(1f))
+                                    Text("🪙 " + fmtCat(parts.getOrElse(1) { "0" }.toLongOrNull() ?: 0L),
+                                        color = Color(0xFFFFEC8B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -614,32 +587,20 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
 
             // ---- bantuan
             if (showHelp) {
-                Box(
-                    Modifier.fillMaxSize().background(Color(0xAA000000)).clickable { showHelp = false },
-                    contentAlignment = Alignment.Center,
-                ) {
+                Box(Modifier.fillMaxSize().background(Color(0xAA000000))) {
                     Column(
-                        Modifier.fillMaxWidth(0.9f).clip(RoundedCornerShape(18.dp)).background(Color.White)
-                            .padding(16.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                            ) { },
+                        Modifier.align(Alignment.Center).fillMaxWidth(0.9f)
+                            .clip(RoundedCornerShape(18.dp)).background(Color.White).padding(16.dp),
                     ) {
                         Text("Cara main Greedy Cat", color = Color(0xFF0D47A1), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "1. Pilih nominal chip.
-" +
-                                "2. Ketuk makanan di lingkaran untuk memasang. Bisa berkali-kali.
-" +
-                                "3. Ronde 30 detik, 3 detik terakhir terkunci.
-" +
-                                "4. Kalau yang keluar makanan daging, semua taruhan daging menang.
-" +
-                                "5. Auto Repeat memasang lagi pola terakhir persis.
-" +
-                                "6. Semua pemain di room melihat detik dan hasil yang sama.",
+                            "1. Pilih nominal chip.\n" +
+                                "2. Ketuk makanan untuk memasang, boleh berkali-kali.\n" +
+                                "3. Ronde 30 detik, 3 detik terakhir terkunci.\n" +
+                                "4. Kalau keluar makanan daging, semua taruhan daging menang.\n" +
+                                "5. Auto Repeat memasang lagi pola terakhir persis.\n" +
+                                "6. Semua pemain melihat detik dan hasil yang sama.",
                             color = Color(0xFF333333), fontSize = 12.sp,
                         )
                         Spacer(Modifier.height(10.dp))
