@@ -984,6 +984,12 @@ $("userLoad").onclick = async () => {
     if (pub.exists()) pub.forEach(c => { byUid[c.key] = c.val() || {}; });
     const ids = await rtdb.ref("ids/i").get();
     if (ids.exists()) ids.forEach(c => { byId[c.key] = c.val() || {}; });
+    // Akun yang hanya punya peta uid -> id (profil pub belum terbentuk).
+    const rev = await rtdb.ref("ids/u").get();
+    if (rev.exists()) rev.forEach(c => {
+      const idU = String(c.val() || "");
+      if (!byUid[c.key] && idU) byUid[c.key] = { id: idU, name: ((byId[idU] || {}).name) || ("Pengguna " + idU) };
+    });
 
     const list = [];
     Object.keys(byUid).forEach(uid => {
