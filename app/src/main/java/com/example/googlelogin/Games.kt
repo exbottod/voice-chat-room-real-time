@@ -66,7 +66,7 @@ fun GamesHub(myUid: String, roomId: String, onClose: () -> Unit) {
     }
 
     when (open) {
-        "dvt" -> DragonTigerRT(roomId = roomId, myUid = myUid, onClose = { open = "" })
+        "dvt" -> DragonTigerScreen(myUid = myUid, onClose = { open = "" })
         "lucky77" -> SlotGameScreen(
             myUid = myUid, title = "Lucky 77",
             symbols = listOf("7", "🍒", "🔔", "💰", "🍋", "⭐"), onClose = { open = "" },
