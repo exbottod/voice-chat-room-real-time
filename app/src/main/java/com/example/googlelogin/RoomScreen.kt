@@ -498,9 +498,9 @@ fun RoomScreen(
             }
         }
 
-        // Game pihak ketiga (WaveGames)
+        // Game milik sendiri (digambar di dalam app, aman untuk Android 8+)
         if (waveOpen) {
-            WaveGamesScreen(myName = myName, myAvatarB64 = myAvatarB64, onClose = { waveOpen = false })
+            DragonTigerScreen(myUid = myUid, onClose = { waveOpen = false })
         }
 
         // Dialog seat mic
