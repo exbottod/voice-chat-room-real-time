@@ -133,8 +133,26 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
     var showHelp by remember { mutableStateOf(false) }
     var rank by remember { mutableStateOf(listOf<Pair<String, Long>>()) }
 
-    LaunchedEffect(Unit) {
-        coins = SupaRepo.get(myUid).wallet?.coins ?: 0L
+    suspend fun loadBalance() {
+        try {
+            SupaRepo.wavePrepare(myName, "")
+        } catch (e: Exception) {
+        }
+        repeat(3) { i ->
+            val w = SupaRepo.get(myUid).wallet
+            if (w != null && w.coins > 0L) {
+                coins = w.coins
+                return
+            }
+            coins = w?.coins ?: 0L
+            if (i < 2) delay(1200)
+        }
+    }
+
+    var reloadTick by remember { mutableStateOf(0) }
+    LaunchedEffect(reloadTick) {
+        loadBalance()
+        if (coins <= 0L) msg = "Saldo belum termuat. Ketuk 🪙 untuk muat ulang."
     }
 
     LaunchedEffect(musicOn) {
@@ -241,8 +259,13 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
             msg = "Terkunci, tunggu ronde berikutnya"
             return
         }
+        if (coins <= 0L) {
+            reloadTick += 1
+            msg = "Memuat saldo… coba ketuk lagi sebentar"
+            return
+        }
         if (chip > coins) {
-            msg = "Coin tidak cukup"
+            msg = "Coin tidak cukup (saldo " + fmtCat(coins) + ")"
             return
         }
         scope.launch {
@@ -267,8 +290,13 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
             return
         }
         val need = lastBets.values.sum()
+        if (coins <= 0L) {
+            reloadTick += 1
+            msg = "Memuat saldo… coba lagi"
+            return
+        }
         if (need > coins) {
-            msg = "Coin kurang, butuh " + fmtCat(need)
+            msg = "Coin kurang, butuh " + fmtCat(need) + " saldo " + fmtCat(coins)
             return
         }
         scope.launch {
@@ -414,8 +442,8 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                         CAT_FOODS.forEachIndexed { idx, f ->
                             val deg = -90.0 + idx * 45.0
                             val rad = Math.toRadians(deg)
-                            val dx = (ringR.value * Math.cos(rad)).dp
-                            val dy = (ringR.value * Math.sin(rad)).dp
+                            val dx = (ringR.value * Math.cos(rad)).toFloat().dp
+                            val dy = (ringR.value * Math.sin(rad)).toFloat().dp
                             val amount = bets[f.key] ?: 0L
                             Column(
                                 Modifier.align(Alignment.Center).offset(x = dx, y = dy),
@@ -498,7 +526,8 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color.White).padding(6.dp),
+                            Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color.White)
+                                .clickable { reloadTick += 1 }.padding(6.dp),
                         ) {
                             Text("🪙 " + fmtCat(coins), color = Color(0xFF333333), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
