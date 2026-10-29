@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -152,8 +153,9 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
         if (coins <= 0L) msg = "Saldo belum termuat. Ketuk 🪙 untuk muat ulang."
     }
 
+    val ctx = LocalContext.current
     LaunchedEffect(musicOn) {
-        if (musicOn) GreedyMusic.start() else GreedyMusic.stop()
+        if (musicOn) GreedyMusic.start(ctx) else GreedyMusic.stop()
     }
     DisposableEffect(Unit) {
         onDispose { GreedyMusic.stop() }
