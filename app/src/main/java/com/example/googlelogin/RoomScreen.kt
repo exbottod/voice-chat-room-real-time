@@ -389,7 +389,7 @@ fun RoomScreen(
                             // Link https (bisa diklik di WhatsApp) yang meneruskan ke rezo://room/<id>
                             val shareText =
                                 "Ayo ngobrol bareng di room " + r.name + " di REZO CHAT VOICE! \uD83D\uDD25\n" +
-                                "Masuk room ini lewat link: https://rawcdn.githack.com/exbottod/voice-chat-room-real-time/39c75f3/docs/room.html?id=" + r.id
+                                "Masuk room ini lewat link: https://rawcdn.githack.com/exbottod/voice-chat-room-real-time/de7e476/docs/room.html?id=" + r.id
                             val send = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, shareText)
