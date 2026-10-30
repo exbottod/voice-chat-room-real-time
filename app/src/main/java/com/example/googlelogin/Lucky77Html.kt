@@ -29,6 +29,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 /**
@@ -37,7 +38,7 @@ import java.util.UUID
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun Lucky77HtmlScreen(myUid: String, onClose: () -> Unit) {
+fun Lucky77HtmlScreen(myUid: String, myName: String = "Player", onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     var balance by remember { mutableStateOf(0L) }
 
@@ -56,6 +57,7 @@ fun Lucky77HtmlScreen(myUid: String, onClose: () -> Unit) {
                         addJavascriptInterface(
                             GameBridge(
                                 myUid = myUid,
+                                myName = myName,
                                 onBalance = { balance = it },
                                 onClose = onClose,
                                 scope = scope,
@@ -81,10 +83,13 @@ fun Lucky77HtmlScreen(myUid: String, onClose: () -> Unit) {
 /** Jembatan JS -> dompet Supabase. Dipanggil dari JavaScript halaman game. */
 private class GameBridge(
     private val myUid: String,
+    private val myName: String,
     private val onBalance: (Long) -> Unit,
     private val onClose: () -> Unit,
     private val scope: kotlinx.coroutines.CoroutineScope,
 ) {
+    private var lastErr: String = ""
+
     @JavascriptInterface
     fun balance(): Long = runBlocking {
         val b = try {
@@ -99,14 +104,55 @@ private class GameBridge(
     /** Potong coin untuk taruhan. Kembalikan saldo baru, atau -1 kalau gagal. */
     @JavascriptInterface
     fun bet(amount: Long): Long = runBlocking {
-        val nb = try {
-            SupaRepo.waveFlow(amount, 1, UUID.randomUUID().toString(), "Lucky 77")
+        val r = try {
+            SupaRepo.waveFlowMsg(amount, 1, UUID.randomUUID().toString(), "Lucky 77")
         } catch (e: Exception) {
-            null
+            Pair<Long?, String>(null, e.message ?: "gagal")
         }
-        if (nb == null) -1L else {
+        val nb = r.first
+        if (nb == null) {
+            lastErr = if (r.second.isBlank()) "gagal memotong coin" else r.second
+            -1L
+        } else {
+            lastErr = ""
             onBalance(nb)
             nb
+        }
+    }
+
+    /** Alasan terakhir saat coin gagal dipotong (ditampilkan di game). */
+    @JavascriptInterface
+    fun lastError(): String = lastErr
+
+    /** Catat hasil ronde ke Realtime Database, lalu kembalikan Top 3 sebagai JSON. */
+    @JavascriptInterface
+    fun report(round: Long, betTotal: Long, winTotal: Long): String = runBlocking {
+        try {
+            val key = if (round > 0) round.toString() else "now"
+            Rtdb.ref("gameRounds/lucky77/" + key + "/" + myUid).setValue(
+                hashMapOf(
+                    "name" to myName.ifBlank { "Player" },
+                    "bet" to betTotal,
+                    "win" to winTotal,
+                )
+            ).await()
+            val snap = Rtdb.ref("gameRounds/lucky77/" + key).get().await()
+            val rows = ArrayList<Pair<String, Long>>()
+            for (c in snap.children) {
+                val n = c.child("name").getValue(String::class.java)?.ifBlank { "Player" } ?: "Player"
+                val w = c.child("win").getValue(Long::class.java) ?: 0L
+                rows.add(Pair(n, w))
+            }
+            val sb = StringBuilder("[")
+            rows.sortedByDescending { it.second }.take(3).forEachIndexed { i, p ->
+                if (i > 0) sb.append(",")
+                sb.append("{\"n\":\"").append(p.first.replace("\"", "")).append("\",\"w\":").append(p.second).append("}")
+            }
+            sb.append("]")
+            sb.toString()
+        } catch (e: Exception) {
+            lastErr = e.message ?: "gagal mencatat hasil"
+            "[]"
         }
     }
 
