@@ -213,6 +213,17 @@ internal class GameBridge(
         }
     }
 
+    /** Waktu server (ms) dari Realtime Database, agar ronde sama di semua HP. */
+    @JavascriptInterface
+    fun serverTime(): Long = runBlocking {
+        try {
+            val off = Rtdb.ref(".info/serverTimeOffset").get().await().getValue(Long::class.java) ?: 0L
+            System.currentTimeMillis() + off
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
+
     @JavascriptInterface
     fun close() {
         scope.launch { onClose() }

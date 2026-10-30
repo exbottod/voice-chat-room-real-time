@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Greedy Baby</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<div id="root" class="gg-root">
+  <div class="gg-machine">
+    <div class="gg-title">Greedy</div>
+    <div class="gg-lights"></div>
+    <div class="gg-top">
+      <button class="gg-icon" id="btnRules">?</button>
+      <span class="gg-win">win: 🪙 <span id="lastWin">0</span></span>
+    </div>
+    <div class="gg-jackpot">JACKPOT: <b id="jackpot">0</b></div>
+    <div class="gg-roundline">
+      <span>putaran saat ini: <span id="roundNo">0</span></span>
+      <span class="gg-pill" id="myBets">0</span>
+    </div>
+    <div class="gg-wheel" id="wheel">
+      <div class="gg-legs"></div><div class="gg-spokes"></div><div class="gg-ring"></div>
+      <div class="gg-center" id="center"></div>
+    </div>
+    <div class="gg-history" id="history"></div>
+    <div class="gg-chips" id="chips">
+      <div class="gg-saldo">Saldo koin saya<b>🪙 <span id="balance">0</span></b></div>
+    </div>
+  </div>
+  <div class="gg-modal" id="modal" style="display:none"></div>
+  <div class="gg-rules" id="rules" style="display:none">
+    <div class="gg-rules-head"><button id="btnRulesClose">‹</button><span>aturan pasang taruhan</span></div>
+    <ol>
+      <li>Ada waktu taruhan selama 30 detik untuk setiap putaran. Sebelum hitungan mundur berakhir, pemain dapat memasang taruhan pada 8 jenis buah sekaligus di putaran yang sama. Setiap taruhan menambah kolam bonus JACKPOT.</li>
+      <li>Setelah hitungan mundur selesai, sistem membuka undian. Pemain mendapat koin jika bertaruh pada buah yang benar. Hasil undian sama untuk semua pemain.</li>
+      <li>Setelah pengundian, layar menampilkan Top 3 pemenang putaran tersebut.</li>
+    </ol>
+  </div>
+  <div class="gg-toast" id="toast"></div>
+</div>
+<script src="script.js"></script>
+</body></html>
