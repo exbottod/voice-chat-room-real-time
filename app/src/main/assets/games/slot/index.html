@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
     <title>Sloty</title>
     <link rel="stylesheet" href="./style.css">
+    <script src="./engine.js" defer></script>
     <script src="./script.js" defer></script>
 <script>
 window.addEventListener('load',function(){
   var t=document.getElementById('payTable');
   if(!t)return;
-  var rows=[[ '🍒','100K'],['🍋','150K'],['🍊','200K'],['🍎','300K'],['🍌','400K'],
-            ['🍐','600K'],['🍇','800K'],['🍉','1M'],['🍑','1.5M'],['7️⃣','5M']];
+  var rows=[['🍓','42K'],['🍇','16.8K'],['🍑','10K'],['🍐','8.4K'],['🍊','8.4K'],['🍒','6.7K'],['🍎','2.1K'],['7️⃣','scatter']];
   t.innerHTML=rows.map(function(r){return '<div>'+r[0]+'<br>'+r[1]+'</div>';}).join('');
 });
 </script>
