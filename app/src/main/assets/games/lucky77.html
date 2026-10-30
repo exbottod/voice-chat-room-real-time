@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#360143">
+<title>Lucky 77 — Game Room</title>
+<style>
+:root{--gold:#ffe174;--yellow:#ffc943;--purple:#5b076b;--magenta:#a71196;--text:#fff2c9}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:#14001c;color:white;font-family:Arial,Helvetica,sans-serif}
+button{font:inherit;cursor:pointer;touch-action:manipulation}
+.game{width:min(100%,480px);margin:auto;min-height:100dvh;overflow:hidden;position:relative;padding:12px 11px 22px;background:radial-gradient(ellipse at 45% 51%,#a825af 0%,#7d128e 48%,#350442 92%)}
+.game:before{content:"";position:absolute;left:-15%;right:-15%;top:0;height:65px;background:repeating-radial-gradient(ellipse at center,#80258a 0 5px,#4f0758 7px 15px);opacity:.65;pointer-events:none}
+.top{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.circle-btn{flex:none;width:53px;height:53px;border:3px solid #efbf61;border-radius:50%;color:white;font-size:27px;display:grid;place-items:center;background:linear-gradient(160deg,#d66add,#77148b 70%);box-shadow:0 3px 0 #541336,0 2px 11px #24002866}
+.heading{flex:1;min-width:0;text-align:center;font-size:clamp(22px,6vw,31px);font-weight:1000;line-height:1.1;color:#ffe37b;letter-spacing:1px;text-shadow:0 3px #8c3214,0 0 9px #f06bf6}
+.subline{position:relative;margin-top:5px;text-align:center;font-size:12px;color:#ffe9bd;min-height:21px}
+.subline .live{display:inline-block;width:7px;height:7px;border-radius:50%;background:#59f5bd;box-shadow:0 0 7px #62ffab;margin-right:3px}
+.wheel-wrap{position:relative;width:min(calc(100vw - 27px),450px);margin:12px auto 14px;aspect-ratio:1}
+.wheel{width:100%;height:100%;position:relative;overflow:hidden;border:8px solid #ffe072;border-radius:50%;background:conic-gradient(from -22.5deg,#c72988 0 45deg,#12a48d 45deg 90deg,#c72988 90deg 135deg,#14a88f 135deg 180deg,#c72b8d 180deg 225deg,#12a88f 225deg 270deg,#cf348e 270deg 315deg,#12a791 315deg 360deg);box-shadow:0 0 0 3px #dd7cff,0 0 0 7px #f9bb44,0 10px 25px #20001d8c;will-change:transform}
+.wheel:after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background:repeating-conic-gradient(from -22.5deg,transparent 0 43.5deg,#ffcd62 43.5deg 45deg)}
+.symbol,.multi{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(var(--angle)) translateY(calc(-1 * var(--distance))) rotate(calc(-1 * var(--angle)));z-index:2;user-select:none;white-space:nowrap}
+.symbol{--distance:clamp(100px,33vw,150px);font-size:clamp(35px,10vw,56px);filter:drop-shadow(0 3px 2px #4d1136)}
+.symbol.seven{font-size:clamp(46px,13vw,69px);font-weight:1000;font-style:italic;color:#df28df;-webkit-text-stroke:2px #ffce3a;text-shadow:3px 4px #702d78}
+.inner{position:absolute;inset:24%;z-index:3;overflow:hidden;border:7px solid #ffe27d;border-radius:50%;background:conic-gradient(from -22.5deg,#535bc1 0 45deg,#f19a29 45deg 90deg,#555cc0 90deg 135deg,#eb364e 135deg 180deg,#575bbf 180deg 225deg,#505dc4 225deg 270deg,#e847a9 270deg 315deg,#505abc 315deg 360deg);box-shadow:0 0 0 2px #ac6a25}
+.inner:after{content:"";position:absolute;inset:0;background:repeating-conic-gradient(from -22.5deg,transparent 0 43deg,#ffd36a 43deg 45deg);pointer-events:none}
+.multi{--distance:clamp(45px,16vw,72px);z-index:2;font-size:clamp(12px,4vw,22px);font-weight:900;color:#ffe46b;text-shadow:1px 2px #6a2277}
+.center{position:absolute;inset:34%;z-index:5;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:50%;background:radial-gradient(circle at 42% 37%,#f8a75c,#df532e 48%,#9d2527);border:clamp(7px,2.5vw,12px) ridge #ffe274;box-shadow:0 0 0 3px #d9901d,inset 0 3px 15px #8a1b1c8c;color:#ffe978;text-shadow:2px 3px #a4500b}
+.count{font-size:clamp(31px,10.3vw,57px);font-weight:1000;line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.phase{font-size:clamp(8px,2.3vw,11px);font-weight:bold;color:#fff4c7;text-shadow:0 1px #6c1839;margin-top:3px}
+.pointer{position:absolute;left:50%;top:-13px;transform:translateX(-50%);z-index:8;filter:drop-shadow(0 3px 2px #65113d);height:61px;width:42px}
+.pointer:before{content:"";display:block;position:absolute;left:3px;top:0;width:35px;height:44px;background:linear-gradient(110deg,#ffefab,#ffb82a 28%,#ed2063 30%,#b50048 73%,#ffd75a 74%);border:3px solid #ffdb71;border-radius:50% 50% 48% 48%;box-shadow:0 2px 0 #9b4214}
+.pointer:after{content:"";position:absolute;left:10px;top:32px;width:22px;height:26px;background:#f1b731;clip-path:polygon(0 0,100% 0,50% 100%)}
+.status{text-align:center;min-height:18px;font-size:13px;color:#ffdd91;font-weight:700}
+.options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.option{min-width:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:hidden;height:clamp(118px,32vw,153px);padding:10px 2px 0;background:linear-gradient(#42045c 0 78%,#c50947 78%);border:5px solid #ffd66a;border-radius:18px;box-shadow:0 4px #751e53, inset 0 0 13px #9f38ad}
+.option.active{outline:2px solid #fff0a4;box-shadow:0 0 17px #ffe66b,0 4px #751e53}
+.option .fruit{font-size:clamp(44px,12vw,67px);line-height:1.12;filter:drop-shadow(0 3px 3px #0005)}
+.option .seven-art{font-size:clamp(39px,11vw,63px);font-style:italic;font-weight:1000;color:#e023e0;-webkit-text-stroke:2px #fbd461;text-shadow:3px 4px #6e198c}
+.option .rate{position:absolute;top:4px;right:7px;font-size:clamp(18px,5vw,25px);font-weight:1000;color:#ffe177;text-shadow:0 2px #b36b12}
+.option .amount{width:100%;min-height:28px;display:grid;place-items:center;font-size:clamp(16px,5vw,24px);font-weight:900;background:#bd104c}
+.balance{display:flex;align-items:center;gap:7px;margin:12px 0 15px;padding:5px 10px 5px 6px;border:3px solid #bb61da;border-radius:35px;background:#3d085f;box-shadow:0 0 0 2px #5c146b;font-weight:900;color:#ffe695;font-size:clamp(16px,5vw,23px)}
+.coin{display:grid;place-items:center;flex:none;width:42px;height:42px;border:4px double #ffdf65;border-radius:50%;background:linear-gradient(#f8b923,#cb7b0a);font-size:28px;color:#ffed91;text-shadow:0 2px #a05b06}
+.balance-value{flex:1;min-width:0;font-variant-numeric:tabular-nums;text-align:center}
+.plus{border:2px solid #ffe381;border-radius:50%;background:#f59d28;width:35px;height:35px;color:#fff;font-size:23px;font-weight:900}
+.chips{display:flex;gap:clamp(7px,2vw,12px);justify-content:space-evenly;align-items:center;margin:5px 0 12px;padding:0 12px}
+.chip{flex:0 1 19%;min-width:0;max-width:78px;aspect-ratio:1;border-radius:50%;border:5px dashed #ffffff80;box-shadow:inset 0 0 0 4px #fff6,0 0 0 2px #deb058,0 3px #471464;color:#fff8e6;font-size:clamp(11px,3.4vw,16px);font-weight:1000;text-shadow:1px 2px #412a57}
+.chip:nth-child(1){background:radial-gradient(#68eeb3,#058c64)}.chip:nth-child(2){background:radial-gradient(#a2d9ff,#2d68bd)}.chip:nth-child(3){background:radial-gradient(#d7b4fa,#7a35b5)}.chip:nth-child(4){background:radial-gradient(#ffcfad,#c76540)}
+.chip.selected{outline:3px solid #fff171;transform:translateY(-4px);box-shadow:0 0 13px #ffdf6b,inset 0 0 0 4px #fff7}
+.actions{display:flex;gap:9px;justify-content:center}.actions button{flex:0 1 210px;border:3px solid #ffdb74;border-radius:14px;background:linear-gradient(#edb54b,#b86216);color:#fff7d7;font-weight:900;font-size:14px;padding:11px 4px;box-shadow:0 3px #6d2a35}.actions button:disabled{filter:grayscale(.7);opacity:.65}
+.history-title{font-size:12px;text-align:center;margin:15px 0 6px;color:#ffdfaa}.history{display:flex;align-items:center;justify-content:space-around;gap:5px;padding:8px 4px;background:#480857;border:2px solid #b352c6;border-radius:29px;white-space:nowrap;overflow:hidden;font-size:clamp(21px,7vw,32px)}
+.history span:first-child{filter:drop-shadow(0 0 5px #ffd751)}.note{text-align:center;color:#efc7ee;font-size:11px;line-height:1.5;margin:10px 0 0}
+.overlay{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;padding:18px;background:#100016b8;backdrop-filter:blur(3px)}.overlay.show{display:flex}
+.modal{max-width:410px;width:100%;border:7px solid #ffd66f;border-radius:23px;padding:14px;background:linear-gradient(#660e87,#501169);box-shadow:0 0 0 3px #a35c19,0 18px 50px #000a}
+.modal-head{margin:-35px 20px 20px;padding:14px 8px;text-align:center;background:linear-gradient(#ffedac,#efac3a);border-radius:25px 25px 12px 12px;color:#7c3d0c;font-size:27px;font-weight:1000;text-shadow:0 1px #fff6;box-shadow:0 3px 0 #ca8625}
+.rules-body{min-height:260px;line-height:1.45;font-size:16px;padding:0 4px}.rules-body p{margin:9px 0}.modal small{color:#ffe1a1}
+.close{display:block;margin:19px auto 3px;border:3px solid #ffe291;border-radius:28px;background:linear-gradient(#ffda7b,#ee9b34);padding:10px 27px;color:#6a2a16;font-weight:900}
+.result-modal{background:radial-gradient(ellipse at 50% 20%,#8e1a9b,#3c075d 95%);text-align:center}
+.outcome{display:flex;align-items:center;justify-content:center;gap:8px;font-size:18px;font-weight:900;color:#ffe479}
+.outcome .large{font-size:55px;line-height:1.2}
+.score-message{font-size:14px;margin:6px auto 17px;color:#ffedbb}
+/* Panel menu tegak seperti referensi, berada di atas roda. */
+.menu-stack{position:absolute;top:64px;right:10px;z-index:25;display:none;flex-direction:column;gap:8px;padding:9px 7px;border:2px solid #d5a1e6a8;border-radius:15px;background:linear-gradient(180deg,#471151ee,#671d74ef);box-shadow:0 8px 28px #1b0026ae}
+.menu-stack.open{display:flex}
+.menu-item{height:49px;width:49px;display:grid;place-items:center;border:3px solid #f6a843;border-radius:50%;font-size:27px;color:#fff2c9;background:radial-gradient(circle at 38% 20%,#ffca66,#ef9230 58%,#d06e20);box-shadow:0 3px 0 #813750,0 0 4px #fbe28b}
+.menu-item.exit{border-radius:11px;background:linear-gradient(#eb7650,#b4394d);font-size:25px}
+.menu-item svg{width:30px;height:30px;stroke:#fff3c6;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.circle-btn.menu-toggle{border-color:#eebf76;background:linear-gradient(150deg,#e971f3,#8a10a7);font-size:32px;line-height:1}
+.circle-btn.menu-toggle[aria-expanded=true]{box-shadow:0 0 12px #ffe079}
+.my-result{border:2px solid #f7d27d;border-radius:15px;padding:16px;margin:14px 0 4px;background:linear-gradient(#892f9c,#551361);font-weight:bold;color:#ffe8a3}
+.my-result .player-badge{display:inline-grid;place-items:center;width:43px;height:43px;border-radius:50%;margin-right:8px;background:#ffc155;color:#722757;font-size:23px;vertical-align:middle}
+.my-result .player-name{font-size:17px;color:#fff}
+.my-result .player-score{display:block;font-size:14px;margin-top:12px}
+.modal-detail{min-height:85px;font-size:15px;line-height:1.6}
+.modal-detail label{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:12px 0}
+.modal-detail input{accent-color:#f5b544;width:22px;height:22px}
+.history-pop{display:flex;flex-wrap:wrap;gap:9px;font-size:29px;justify-content:center;padding:18px 0}
+.toast{position:absolute;z-index:21;left:50%;bottom:70px;transform:translateX(-50%);width:max-content;max-width:95%;text-align:center;padding:9px 14px;border-radius:20px;background:#320747ee;border:1px solid #e3a952;font-size:12px;opacity:0;pointer-events:none;transition:opacity .2s}.toast.visible{opacity:1}
+@media(max-width:350px){.game{padding-left:7px;padding-right:7px}.wheel-wrap{width:calc(100vw - 24px)}.symbol{--distance:31vw}.multi{--distance:15vw}.option{border-width:4px}.chip{border-width:4px}}
+@media(prefers-reduced-motion:reduce){.chip.selected{transform:none}}
+</style>
+</head>
+<body>
+<main class="game">
+  <header class="top"><button class="circle-btn" id="playersBtn" aria-label="Profil saya">👤</button><div class="heading">✦ LUCKY 77 ✦</div><button class="circle-btn menu-toggle" id="menuBtn" aria-label="Buka menu" aria-expanded="false" aria-controls="menuStack">☰</button></header>
+  <nav class="menu-stack" id="menuStack" aria-label="Menu Lucky 77">
+    <button class="menu-item" id="rankMenu" aria-label="Hasil saya" title="Hasil saya">🏆</button>
+    <button class="menu-item" id="historyMenu" aria-label="Riwayat hasil" title="Riwayat hasil"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 4h17v9M5 4v24h14"/><path d="M9 10h9M9 15h7"/><circle cx="21.5" cy="21" r="8"/><path d="M21.5 16v5l3.5 2"/></svg></button>
+    <button class="menu-item" id="rulesMenu" aria-label="Rules" title="Rules">?</button>
+    <button class="menu-item" id="settingsMenu" aria-label="Pengaturan" title="Pengaturan">⚙</button>
+    <button class="menu-item exit" id="exitMenu" aria-label="Keluar dari game" title="Keluar">⇥</button>
+  </nav>
+  <div class="subline"><span class="live"></span> <span id="playerName">Kamu</span></div>
+  <div class="wheel-wrap"><div class="pointer" aria-hidden="true"></div><div class="wheel" id="wheel"><div id="symbols"></div><div class="inner" id="inner"><div id="multipliers"></div></div><div class="center"><span class="count" id="countdown" aria-live="off">30</span><span class="phase" id="phase">PILIH POLA</span></div></div></div>
+  <div class="status" id="status">Pilih chip dan tebak simbol sebelum waktu habis</div>
+  <section class="options" aria-label="Pilihan simbol">
+    <button class="option" data-symbol="cherry"><span class="rate">×2</span><span class="fruit">🍒</span><span class="amount" id="amount-cherry">0</span></button>
+    <button class="option" data-symbol="seven"><span class="rate">×8</span><span class="fruit seven-art">777</span><span class="amount" id="amount-seven">0</span></button>
+    <button class="option" data-symbol="melon"><span class="rate">×2</span><span class="fruit">🍉</span><span class="amount" id="amount-melon">0</span></button>
+  </section>
+  <div class="balance"><span class="coin">★</span><span class="balance-value" id="balance">10.000.000.000</span><button class="plus" id="plusBtn" aria-label="Info koin">+</button></div>
+  <section class="chips" aria-label="Pilih nilai chip">
+    <button class="chip selected" data-value="30000">30K</button><button class="chip" data-value="150000">150K</button><button class="chip" data-value="300000">300K</button><button class="chip" data-value="1500000">1.5M</button>
+  </section>
+  <div class="actions"><button id="resetBtn">HAPUS PILIHAN</button></div>
+  <div class="history-title">HASIL POLA SEBELUMNYA</div><div class="history" id="history" aria-label="Riwayat hasil"></div>
+  <div class="toast" id="toast" role="status"></div>
+</main>
+<div class="overlay" id="rulesOverlay" role="dialog" aria-modal="true" aria-label="Rules">
+  <div class="modal"><h2 class="modal-head">★ Rules ★</h2><div class="rules-body">
+    <p>1. Please first select the chip value.</p>
+    <p>2. Click any lucky area to select a symbol. You can select the same area repeatedly or choose multiple areas.</p>
+    <p>3. Each round lasts 30 seconds. When time runs out, the wheel spins and the winning symbol is shown.</p>
+    <p>4. The maximum selection for a single lucky area is <b>150M</b>.</p>
+  </div><button class="close" id="closeRules">Click here to close</button></div>
+</div>
+<div class="overlay" id="resultOverlay" role="dialog" aria-modal="true" aria-label="Hasil ronde">
+  <div class="modal result-modal"><h2 class="modal-head">🏆 HASIL RONDE 🏆</h2><div class="outcome"><span class="large" id="outcomeIcon">🍉</span><span id="outcomeText">POLA SEMANGKA</span></div><div class="my-result" id="myResult"><span class="player-badge">👤</span><span class="player-name" id="resultPlayerName">Kamu</span><span class="player-score" id="scoreMessage">Hasil ronde</span></div></div>
+</div>
+<div class="overlay" id="detailOverlay" role="dialog" aria-modal="true" aria-labelledby="detailTitle"><div class="modal"><h2 class="modal-head" id="detailTitle">Info</h2><div class="modal-detail" id="detailContent"></div><button class="close" id="closeDetail">TUTUP</button></div></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const format=n=>Math.max(0,Math.floor(n)).toLocaleString('id-ID');
+const patterns=['melon','cherry','melon','seven','cherry','melon','cherry','melon'];
+const faces={melon:'🍉',cherry:'🍒',seven:'777'};
+const labels={melon:'SEMANGKA',cherry:'CERI',seven:'777'};
+const multiplier=[1,1,1.2,2,1,1,1.5,1];
+let playerName='Kamu';
+let lastBonus=0;
+let lastWinner=null;
+let showResultPopup=true;
+let balance=(window.AndroidGame&&AndroidGame.balance)?Number(AndroidGame.balance()):0;
+let selectedChip=30000;
+let picks={melon:0,cherry:0,seven:0};
+let resultHistory=['melon','cherry','seven','cherry','melon','cherry','melon','cherry'];
+let rotation=0;
+let phase='choose';
+let seconds=30;
+let deadline=0;
+let serverClockOffset=0; // Selisih jam server dan jam perangkat (milidetik).
+const now=()=>Date.now()+serverClockOffset;
+let timerInterval=null;
+let spinTimeout=null;
+let resultTimeout=null;
+let roundNumber=0;
+let toastTimeout=null;
+const symbols=$('symbols');
+const mul=$('multipliers');
+patterns.forEach((pattern,i)=>{
+  const s=document.createElement('div');s.className='symbol'+(pattern==='seven'?' seven':'');s.style.setProperty('--angle',(i*45)+'deg');s.textContent=faces[pattern];symbols.appendChild(s);
+  const m=document.createElement('div');m.className='multi';m.style.setProperty('--angle',(i*45)+'deg');m.textContent='×'+multiplier[i];mul.appendChild(m);
+});
+function toast(message){const t=$('toast');t.textContent=message;t.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>t.classList.remove('visible'),2500)}
+function render(){
+  $('balance').textContent=format(balance);
+  for(const p of Object.keys(picks)){
+    $('amount-'+p).textContent=format(picks[p]);
+    document.querySelector('[data-symbol="'+p+'"]').classList.toggle('active',picks[p]>0);
+  }
+  $('history').replaceChildren(...resultHistory.map((p,i)=>{const span=document.createElement('span');span.textContent=faces[p];if(p==='seven'){span.style.color='#ffe26a';span.style.fontWeight='bold';span.style.fontSize='0.85em'}span.title='Hasil '+(i+1)+': '+labels[p];return span}));
+  $('resetBtn').disabled=phase!=='choose';
+}
+function updateClock(){
+  const remaining=Math.max(0,Math.ceil((deadline-now())/1000));
+  if(phase!=='choose')return;
+  seconds=remaining;
+  $('countdown').textContent=String(remaining);
+  if(remaining<=5){$('countdown').style.color='#fff9f1';$('status').textContent='Waktu hampir habis!';}
+  else{$('countdown').style.color='#ffe978';$('status').textContent='Pilih chip dan tebak simbol sebelum waktu habis';}
+  if(remaining===0)startSpin();
+}
+function startRound(){
+  clearInterval(timerInterval);clearTimeout(spinTimeout);clearTimeout(resultTimeout);
+  $('resultOverlay').classList.remove('show');
+  roundNumber++;
+  phase='choose';
+  picks={melon:0,cherry:0,seven:0};
+  seconds=30;
+  deadline=now()+30000;
+  $('countdown').textContent='30';
+  $('countdown').style.color='#ffe978';
+  $('phase').textContent='PILIH POLA';
+  $('status').textContent='Pilih chip dan tebak simbol sebelum waktu habis';
+  render();
+  timerInterval=setInterval(updateClock,120);
+}
+function startSpin(){
+  if(phase!=='choose')return;
+  clearInterval(timerInterval);
+  phase='spin';
+  $('countdown').textContent='77';
+  $('phase').textContent='MEMUTAR';
+  $('status').textContent='Menentukan pola kemenangan...';
+  render();
+  const chosenIndex=Math.floor(Math.random()*patterns.length);
+  const desired=(360-chosenIndex*45)%360;
+  const current=((rotation%360)+360)%360;
+  const delta=(desired-current+360)%360;
+  rotation+=360*6+delta;
+  $('wheel').style.transition='transform 4.4s cubic-bezier(.12,.76,.13,1)';
+  requestAnimationFrame(()=>{$('wheel').style.transform='rotate('+rotation+'deg)'});
+  spinTimeout=setTimeout(()=>showResult(chosenIndex),4550);
+}
+function showResult(i){
+  const winner=patterns[i];
+  const myScore=Math.floor(picks[winner]*(winner==='seven'?8:2));
+  lastBonus=myScore;lastWinner=winner;
+  if(myScore>0&&window.AndroidGame&&AndroidGame.win){
+    const nb3=Number(AndroidGame.win(myScore));
+    if(nb3>=0)balance=nb3; else balance+=myScore;
+  }else{balance+=myScore;}
+  if(myScore>0)document.dispatchEvent(new CustomEvent('lucky77:coinchange',{detail:{type:'hadiah',symbol:winner,amount:myScore,balance,round:roundNumber}}));
+  resultHistory.unshift(winner);
+  resultHistory=resultHistory.slice(0,8);
+  phase='result';
+  $('countdown').textContent='✓';
+  $('phase').textContent='HASIL';
+  $('status').textContent='Pola keluar: '+labels[winner]+' · ronde baru dalam 3 detik';
+  $('outcomeIcon').textContent=faces[winner];
+  $('outcomeText').textContent='POLA '+labels[winner];
+  $('resultPlayerName').textContent=playerName;
+  $('scoreMessage').textContent=myScore>0?'Kamu mendapat +'+format(myScore)+' koin':'Belum cocok dengan pilihanmu pada ronde ini';
+  if(showResultPopup)$('resultOverlay').classList.add('show');
+  document.dispatchEvent(new CustomEvent('lucky77:result',{detail:{round:roundNumber,symbol:winner,bonus:myScore,balance}}));
+  render();
+  resultTimeout=setTimeout(startRound,3000);
+}
+document.querySelectorAll('.chip').forEach(chip=>chip.addEventListener('click',()=>{
+  selectedChip=Number(chip.dataset.value);
+  document.querySelectorAll('.chip').forEach(item=>item.classList.toggle('selected',item===chip));
+}));
+document.querySelectorAll('.option').forEach(opt=>opt.addEventListener('click',()=>{
+  if(phase!=='choose'){toast('Tunggu ronde berikutnya');return}
+  const p=opt.dataset.symbol;
+  if(picks[p]+selectedChip>150000000){toast('Maksimum 150M per area');return}
+  if(balance<selectedChip){toast('Koin tidak cukup');return}
+  // Kurangi saldo saat chip benar-benar dipasang, bukan setelah roda selesai.
+  if(window.AndroidGame&&AndroidGame.bet){
+    const nb=Number(AndroidGame.bet(selectedChip));
+    if(nb<0){toast('Coin gagal dipotong');return}
+    balance=nb;
+  }else{balance-=selectedChip;}
+  picks[p]+=selectedChip;
+  render();
+  document.dispatchEvent(new CustomEvent('lucky77:coinchange',{detail:{type:'pasang',symbol:p,amount:-selectedChip,balance,round:roundNumber}}));
+}));
+$('resetBtn').addEventListener('click',()=>{
+  if(phase!=='choose')return;
+  const refund=Object.values(picks).reduce((sum,value)=>sum+value,0);
+  if(!refund)return;
+  if(window.AndroidGame&&AndroidGame.win){
+    const nb2=Number(AndroidGame.win(refund));
+    if(nb2>=0)balance=nb2; else balance+=refund;
+  }else{balance+=refund;}
+  picks={melon:0,cherry:0,seven:0};
+  render();
+  document.dispatchEvent(new CustomEvent('lucky77:coinchange',{detail:{type:'batal',amount:refund,balance,round:roundNumber}}));
+  toast('Koin dikembalikan: +'+format(refund));
+});
+function setMenu(open){$('menuStack').classList.toggle('open',open);$('menuBtn').setAttribute('aria-expanded',String(open));}
+function hideOverlays(){document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show'))}
+function openDetail(title){$('detailTitle').textContent=title;$('detailContent').replaceChildren();$('detailOverlay').classList.add('show')}
+function addDetailText(message){const p=document.createElement('p');p.textContent=message;$('detailContent').appendChild(p)}
+function showMyResult(){openDetail('🏆 Hasil Saya');addDetailText('Pemain: '+playerName);addDetailText('Ronde terakhir: '+(lastWinner?labels[lastWinner]:'Belum ada hasil'));addDetailText('Bonus terakhir: +'+format(lastBonus)+' koin');}
+$('menuBtn').addEventListener('click',()=>setMenu(!$('menuStack').classList.contains('open')));
+$('rankMenu').addEventListener('click',()=>{setMenu(false);showMyResult()});
+$('historyMenu').addEventListener('click',()=>{setMenu(false);openDetail('📜 Riwayat');const row=document.createElement('div');row.className='history-pop';resultHistory.forEach(pattern=>{const s=document.createElement('span');s.textContent=faces[pattern];row.appendChild(s)});$('detailContent').appendChild(row)});
+$('rulesMenu').addEventListener('click',()=>{setMenu(false);$('rulesOverlay').classList.add('show')});
+$('settingsMenu').addEventListener('click',()=>{setMenu(false);openDetail('⚙ Pengaturan');const row=document.createElement('label');const txt=document.createElement('span');txt.textContent='Tampilkan dialog hasil';const input=document.createElement('input');input.type='checkbox';input.checked=showResultPopup;input.addEventListener('change',()=>{showResultPopup=input.checked});row.append(txt,input);$('detailContent').appendChild(row)});
+$('exitMenu').addEventListener('click',()=>{setMenu(false);document.dispatchEvent(new CustomEvent('lucky77:exit'));if(typeof window.Lucky77OnExit==='function'){window.Lucky77OnExit()}else if(window.history.length>1){window.history.back()}else{toast('Tekan tombol kembali untuk keluar')}});
+$('closeDetail').addEventListener('click',()=> $('detailOverlay').classList.remove('show'));
+window.Lucky77Bridge={
+  setPlayer(name){playerName=String(name||'Kamu').slice(0,32);$('playerName').textContent=playerName;$('resultPlayerName').textContent=playerName},
+  getState(){return {round:roundNumber,phase,seconds,balance,selectedChip,picks:{...picks},lastWinner,lastBonus}},
+  setExitHandler(handler){window.Lucky77OnExit=handler},
+  // Integrasi opsional: server mengirim waktu sekarang dan batas waktu ronde (Unix ms).
+  // Contoh: Lucky77Bridge.syncCountdown({serverNow: 1790000000000, endsAt: 1790000030000})
+  syncCountdown({serverNow,endsAt}={}){
+    if(!Number.isFinite(serverNow)||!Number.isFinite(endsAt)||endsAt<=serverNow) return false;
+    serverClockOffset=serverNow-Date.now();
+    deadline=endsAt;
+    if(phase==='choose')updateClock();
+    return true;
+  }
+};
+$('closeRules').addEventListener('click',()=> $('rulesOverlay').classList.remove('show'));
+document.addEventListener('click',e=>{if(!$('menuStack').contains(e.target)&&!$('menuBtn').contains(e.target))setMenu(false)});
+$('plusBtn').addEventListener('click',()=>toast('Saldo: '+format(balance)+' koin'));
+$('playersBtn').addEventListener('click',()=>{setMenu(false);showMyResult()});
+// The countdown uses elapsed time, rather than relying on a fixed number of timer callbacks.
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&phase==='choose')updateClock()});
+render();startRound();
+</script>
+</body>
+</html>
