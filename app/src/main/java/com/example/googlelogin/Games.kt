@@ -79,7 +79,6 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
         "lucky77" -> Lucky77HtmlScreen(myUid = myUid, myName = myName, onClose = { open = "" })
         "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
         "greedy" -> GreedyCatScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
-        "slot" -> SlotHtmlScreen(myUid = myUid, myName = myName, onClose = { open = "" })
         "teenpatti" -> TeenPattiScreen(myUid = myUid, onClose = { open = "" })
         else -> Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             // Bottom sheet "Game Center": area atas tembus pandang, sheet coklat di bawah.
@@ -137,7 +136,6 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                                     GcItem("DragonTigerPk", R.drawable.ic_game_dvt, "dvt"),
                                     GcItem("3CardPoker", R.drawable.ic_game_poker, "poker"),
                                     GcItem("Lucky77", R.drawable.ic_game_lucky, "lucky77"),
-                                    GcItem("SlotBuah", R.drawable.ic_game_slot, "slot"),
                                 ),
                             ) { open = it }
                             Spacer(Modifier.height(8.dp))
