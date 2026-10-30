@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Buka Room - REZO CHAT VOICE</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#120a1f;color:#fff8e1;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.box{max-width:420px;width:100%;text-align:center}
+h1{font-size:22px;margin:0 0 8px}
+p{font-size:14px;color:#cfc4a8;line-height:1.6}
+.btn{display:block;margin:14px 0;padding:15px;border-radius:14px;font-weight:800;text-decoration:none;font-size:16px}
+.go{background:linear-gradient(#f6c744,#b9821c);color:#2a1a00}
+.dl{background:#2a1f3a;color:#fff8e1;border:1px solid #4a3a63}
+.room{font-size:12px;color:#8f85a8;word-break:break-all;margin-top:10px}
+</style></head><body>
+<div class="box">
+  <h1>🚪 Undangan Room</h1>
+  <p>Kamu diundang masuk room di REZO CHAT VOICE.</p>
+  <a class="btn go" id="go" href="#">Buka di Aplikasi</a>
+  <a class="btn dl" href="https://github.com/exbottod/voice-chat-room-real-time/releases/latest/download/REZO-CHAT-VOICE.apk">Belum punya aplikasi? Unduh APK</a>
+  <p class="room" id="info"></p>
+</div>
+<script>
+(function () {
+  function idFromUrl() {
+    var q = new URLSearchParams(location.search).get('id');
+    if (q) return q;
+    // bentuk cantik: /room/<id>
+    var m = location.pathname.match(/\/room\/([^\/?#]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  var id = idFromUrl();
+  var go = document.getElementById('go');
+  if (!id) {
+    document.getElementById('info').textContent = 'Link room tidak lengkap. Minta ulang link ke temanmu.';
+    go.style.display = 'none';
+    return;
+  }
+  var deep = 'rezo://room/' + id;
+  go.href = deep;
+  document.getElementById('info').textContent = 'ID room: ' + id;
+  // coba buka otomatis sekali
+  var tried = false;
+  function tryOpen() {
+    if (tried) return;
+    tried = true;
+    try { location.href = deep; } catch (e) {}
+  }
+  if (/Android/i.test(navigator.userAgent)) setTimeout(tryOpen, 400);
+})();
+</script>
+</body></html>

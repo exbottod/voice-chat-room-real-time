@@ -386,9 +386,10 @@ fun RoomScreen(
                             // Bagikan room lewat LINK room (rezo://room/<id>): penerima
                             // tinggal buka linknya, app otomatis masuk room ini.
                             // Fitur kode room sudah dihapus.
+                            // Link https (bisa diklik di WhatsApp) yang meneruskan ke rezo://room/<id>
                             val shareText =
                                 "Ayo ngobrol bareng di room " + r.name + " di REZO CHAT VOICE! \uD83D\uDD25\n" +
-                                "Masuk room ini lewat link: rezo://room/" + r.id
+                                "Masuk room ini lewat link: https://exbottod.github.io/voice-chat-room-real-time/room/" + r.id
                             val send = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, shareText)
