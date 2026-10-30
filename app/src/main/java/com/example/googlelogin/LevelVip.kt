@@ -1097,7 +1097,10 @@ object PublicSync {
      *  supaya profil publik (room, kursi) tetap lengkap dan tidak kosong. */
     private suspend fun pushFromCache(uid: String) {
         try {
-            val w = WalletCache.load(uid) ?: BackupRepo.base(uid)?.toWallet() ?: return
+            // Medal SVIP disimpan di pub/{uid}/svipInv, bukan di wallet. Gabungkan dulu
+            // supaya medal SVIP/VIP yang dipasang ikut tampil di profil, room, dan typing.
+            val w0 = WalletCache.load(uid) ?: BackupRepo.base(uid)?.toWallet() ?: return
+            val w = SvipInv.apply(uid, w0)
             val frame = activeEquip(w, "frame")
             val badge = activeEquip(w, "badge")
             // PROFIL UTAMA DI RTDB: nama/ID/bio/negara/gender/foto ikut disinkronkan
@@ -1140,8 +1143,10 @@ object PublicSync {
         try {
             val db = FirebaseFirestore.getInstance()
             // Dompet kini di Supabase (cache dulu, lalu server); Firestore tidak dibaca lagi.
-            val w = WalletCache.load(uid) ?: SupaRepo.get(uid).wallet
-            if (w == null) { pushFromCache(uid); return }
+            val w0 = WalletCache.load(uid) ?: SupaRepo.get(uid).wallet
+            if (w0 == null) { pushFromCache(uid); return }
+            // Medal SVIP ada di pub/{uid}/svipInv; gabungkan agar ikut terkirim ke publik.
+            val w = SvipInv.apply(uid, w0)
             val me = UserCache.meLocal(uid)
             // SVIP dari RTDB: segarkan cache lokal dari Realtime Database dulu
             // (sumber utama panel SVIP) supaya sinkronisasi tidak menimpa

@@ -57,20 +57,38 @@ const val MAX_MEDALS = 999
 fun medalIdList(csv: String?): List<String> =
     (csv ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() }.distinct()
 
+/**
+ * Medal dianggap sah walaupun entri inv-nya tidak lengkap.
+ * Medal VIP (vipt_N) ikut sah selama VIP masih aktif dan tier-nya sudah dicapai,
+ * karena dulu medal ini hilang sendiri setelah app ditutup (inv dari cache kosong).
+ */
+fun medalValid(id: String, w: Wallet, now: Long = System.currentTimeMillis()): Boolean {
+    if ((w.inv[id] ?: 0L) > now) return true
+    if (id.startsWith("vipt_")) {
+        val n = id.removePrefix("vipt_").toIntOrNull() ?: return false
+        return w.vip > 0 && w.vipUntil > now && n <= w.vip
+    }
+    return false
+}
+
 /** Medal yang sedang dipasang dan masih berlaku (dari wallet sendiri). */
 fun activeMedalIds(w: Wallet): List<String> {
     val now = System.currentTimeMillis()
     return medalIdList(w.equip["medals"]).filter {
-        (w.inv[it] ?: 0L) > now && (it.startsWith("vipt_") || findItem(it)?.slot == "medal")
+        medalValid(it, w, now) && (it.startsWith("vipt_") || it.startsWith("svm_") || findItem(it)?.slot == "medal")
     }.take(MAX_MEDALS)
 }
 
 /** Semua medal yang dimiliki: medal VIP (vipt_), medal/lencana dari store. */
 private fun ownedMedalIds(w: Wallet): List<String> {
     val now = System.currentTimeMillis()
-    return w.inv.filter { (id, exp) ->
-        exp > now && (id.startsWith("vipt_") || findItem(id)?.slot == "medal")
-    }.keys.sortedWith(compareBy<String>({ !it.startsWith("vipt_") }, { it }))
+    // Medal milik VIP yang aktif selalu dianggap dimiliki, walau entri inv-nya hilang.
+    val vipMedals = if (w.vip > 0 && w.vipUntil > now) (1..w.vip).map { "vipt_$it" } else emptyList()
+    return (w.inv.filter { (id, exp) ->
+        exp > now && (id.startsWith("vipt_") || id.startsWith("svm_") || findItem(id)?.slot == "medal")
+    }.keys + vipMedals)
+        .distinct()
+        .sortedWith(compareBy<String>({ !it.startsWith("vipt_") }, { it }))
 }
 
 /** Satu ikon medal: medal VIP pakai VipTag, lainnya ikon store. */
