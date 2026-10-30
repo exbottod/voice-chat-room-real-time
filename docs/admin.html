@@ -52,7 +52,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -178,6 +178,22 @@ label{font-size:12px;color:var(--mut)}
       <p class="muted">Atur latar belakang tiap tab aplikasi: Default (kerajaan), Gambar (upload, full screen), atau Gradien (2 warna). Perubahan langsung tampil di semua user.</p>
     </div>
     <div id="bgList"></div>
+</div>
+
+
+<div id="tab-signin" class="hide">
+  <div class="card">
+    <h2>Cek in harian (sign-in)</h2>
+    <p class="muted">Atur hadiah cek in hari 1 sampai 7. Hadiah bisa coin, item (bingkai/badge/medal/kartu), dan VIP.
+      Dialog cek in muncul otomatis sekali sehari di aplikasi.</p>
+    <label class="muted">Aktifkan fitur cek in</label>
+    <input type="checkbox" id="siOn" checked style="width:auto;margin:6px 0 12px">
+    <label class="muted">Target hari untuk peti hadiah</label>
+    <input type="number" id="siTarget" value="18" min="1" max="999">
+    <div id="siDays" style="margin-top:14px"></div>
+    <button class="btn" id="siSave" style="margin-top:14px">Simpan pengaturan cek in</button>
+    <div class="muted" id="siMsg" style="margin-top:8px"></div>
+  </div>
 </div>
 
 <div id="tab-user" class="hide">
@@ -327,14 +343,85 @@ function renderList(snap){
   });
 }
 
+
+/* ================= CEK IN HARIAN ================= */
+const SI_DEFAULT = [
+  { coins: 30000,  item: "",       itemDays: 0, vip: 0 },
+  { coins: 45000,  item: "",       itemDays: 0, vip: 0 },
+  { coins: 60000,  item: "vipt_1", itemDays: 3, vip: 0 },
+  { coins: 67200,  item: "vipf_1", itemDays: 3, vip: 0 },
+  { coins: 70200,  item: "vipe_1", itemDays: 1, vip: 0 },
+  { coins: 81000,  item: "vipf_2", itemDays: 3, vip: 0 },
+  { coins: 120000, item: "vipf_3", itemDays: 3, vip: 1 }
+];
+
+function siRender(days) {
+  const box = document.getElementById("siDays");
+  box.innerHTML = "";
+  for (let i = 1; i <= 7; i++) {
+    const d = days[i - 1] || SI_DEFAULT[i - 1];
+    const div = document.createElement("div");
+    div.style.cssText = "border:1px solid #3a2f1a;border-radius:12px;padding:10px;margin-bottom:8px";
+    div.innerHTML =
+      '<div style="font-weight:700;color:#D4AF37;margin-bottom:6px">Hari ' + i + (i === 7 ? " (Reward Besar)" : "") + '</div>' +
+      '<label class="muted">Coin</label>' +
+      '<input type="number" id="si-c-' + i + '" value="' + (d.coins || 0) + '" min="0">' +
+      '<label class="muted">Item (id, kosongkan jika tidak ada)</label>' +
+      '<input type="text" id="si-i-' + i + '" value="' + (d.item || "") + '" placeholder="vipf_1 / vipb_2 / svm_1 / frame_gold">' +
+      '<label class="muted">Masa aktif item (hari)</label>' +
+      '<input type="number" id="si-d-' + i + '" value="' + (d.itemDays || 0) + '" min="0">' +
+      '<label class="muted">VIP tier (0 = tanpa VIP, 1-9)</label>' +
+      '<input type="number" id="si-v-' + i + '" value="' + (d.vip || 0) + '" min="0" max="9">';
+    box.appendChild(div);
+  }
+}
+
+async function signinStart() {
+  const snap = await rtdb.ref("signinCfg").get();
+  const v = snap.val() || {};
+  document.getElementById("siOn").checked = v.enabled !== false;
+  document.getElementById("siTarget").value = v.target || 18;
+  const days = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = (v.days && v.days[i]) || SI_DEFAULT[i - 1];
+    days.push({ coins: d.coins || 0, item: d.item || "", itemDays: d.itemDays || 0, vip: d.vip || 0 });
+  }
+  siRender(days);
+  document.getElementById("siMsg").textContent = "";
+}
+
+document.getElementById("siSave").onclick = async () => {
+  try {
+    const days = {};
+    for (let i = 1; i <= 7; i++) {
+      days[i] = {
+        coins: Number(document.getElementById("si-c-" + i).value || 0),
+        item: document.getElementById("si-i-" + i).value.trim(),
+        itemDays: Number(document.getElementById("si-d-" + i).value || 0),
+        vip: Number(document.getElementById("si-v-" + i).value || 0)
+      };
+    }
+    await rtdb.ref("signinCfg").set({
+      enabled: document.getElementById("siOn").checked,
+      target: Number(document.getElementById("siTarget").value || 18),
+      days: days,
+      updatedAt: Date.now()
+    });
+    document.getElementById("siMsg").textContent = "Tersimpan. Aplikasi memakai hadiah ini pada cek in berikutnya.";
+  } catch (e) {
+    document.getElementById("siMsg").textContent = "Gagal menyimpan: " + (e.message || e);
+  }
+};
+
 let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
+  if (t.dataset.t === "signin") signinStart();
 });
 
 async function lookup(raw){
