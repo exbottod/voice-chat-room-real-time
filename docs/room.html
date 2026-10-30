@@ -38,14 +38,29 @@ p{font-size:14px;color:#cfc4a8;line-height:1.6}
   var deep = 'rezo://room/' + id;
   go.href = deep;
   document.getElementById('info').textContent = 'ID room: ' + id;
-  // coba buka otomatis sekali
+
+  // Android: intent:// membuka app langsung (lebih andal daripada custom scheme di WebView)
+  var intentUrl = 'intent://room/' + id + '#Intent;scheme=rezo;package=com.example.googlelogin'
+    + ';S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
+  var isAndroid = /Android/i.test(navigator.userAgent);
+
   var tried = false;
   function tryOpen() {
     if (tried) return;
     tried = true;
-    try { location.href = deep; } catch (e) {}
+    try {
+      var f = document.createElement('iframe');
+      f.style.display = 'none';
+      f.src = deep;
+      document.body.appendChild(f);
+      setTimeout(function () { try { f.parentNode.removeChild(f); } catch (e) {} }, 1200);
+    } catch (e) {}
+    setTimeout(function () {
+      // masih di halaman ini? coba intent:// (Chrome), lalu tawarkan tombol
+      if (!document.hidden && isAndroid) { try { location.href = intentUrl; } catch (e) {} }
+    }, 900);
   }
-  if (/Android/i.test(navigator.userAgent)) setTimeout(tryOpen, 400);
+  if (isAndroid) setTimeout(tryOpen, 300);
 })();
 </script>
 </body></html>
