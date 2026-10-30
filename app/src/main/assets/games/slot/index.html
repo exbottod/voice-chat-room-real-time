@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>Sloty</title>
+    <link rel="stylesheet" href="./style.css">
+    <script src="./script.js" defer></script>
+</head>
+<body>
+<div id="walletBar">
+    <div class="wbRow"><span class="wbLabel">Saldo</span><span class="wbVal" id="wbBalance">0</span></div>
+    <div class="wbChips" id="wbChips"></div>
+    <div class="wbMsg" id="wbMsg">Pilih chip lalu tekan Spin</div>
+</div>
+<style>
+#walletBar{width:100%;max-width:460px;margin:0 auto 8px;padding:8px 10px;font-family:Arial,Helvetica,sans-serif;color:#fff}
+#walletBar .wbRow{display:flex;justify-content:space-between;align-items:center;background:#2b0f45;border:2px solid #ffd54f;border-radius:14px;padding:6px 12px;font-weight:900}
+#walletBar .wbLabel{font-size:12px;color:#ffe082}
+#walletBar .wbVal{font-size:16px;color:#fff3c4;font-variant-numeric:tabular-nums}
+#walletBar .wbChips{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:7px}
+#walletBar .wbChip{background:linear-gradient(#fff,#e3f2fd);border:2px solid #0d47a1;border-radius:10px;padding:7px 0;font-size:12px;font-weight:900;color:#0d47a1}
+#walletBar .wbChip.on{background:linear-gradient(#ff5252,#c62828);border-color:#7f0000;color:#fff}
+#walletBar .wbMsg{text-align:center;font-size:12px;font-weight:800;color:#ffe082;margin-top:6px;min-height:16px}
+</style>
+
+
+<div id="container">
+    <div class="window-border">
+        <div class="window">
+            <div class="outer-spacer"></div>
+            <div class="outer-col">
+                <div class="col"></div>
+            </div>
+            <div class="outer-spacer"></div>
+            <div class="outer-col">
+                <div class="col"></div>
+            </div>
+            <div class="outer-spacer"></div>
+            <div class="outer-col">
+                <div class="col"></div>
+            </div>
+            <div class="outer-spacer"></div>
+            <div class="outer-col">
+                <div class="col"></div>
+            </div>
+            <div class="outer-spacer"></div>
+            <div class="outer-col">
+                <div class="col"></div>
+            </div>
+            <div class="outer-spacer"></div>
+        </div>
+    </div>
+
+    <input type="button" onclick="spin(this)" class="start-button" value="Spin"/>
+</div>
+
+</body>
+</html>

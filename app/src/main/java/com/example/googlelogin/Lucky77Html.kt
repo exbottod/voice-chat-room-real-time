@@ -81,7 +81,7 @@ fun Lucky77HtmlScreen(myUid: String, myName: String = "Player", onClose: () -> U
 }
 
 /** Jembatan JS -> dompet Supabase. Dipanggil dari JavaScript halaman game. */
-private class GameBridge(
+internal class GameBridge(
     private val myUid: String,
     private val myName: String,
     private val onBalance: (Long) -> Unit,
