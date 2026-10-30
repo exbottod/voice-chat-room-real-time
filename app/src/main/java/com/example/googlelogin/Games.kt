@@ -77,6 +77,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
     when (open) {
         "dvt" -> DragonTigerScreen(myUid = myUid, onClose = { open = "" })
         "lucky77" -> Lucky77HtmlScreen(myUid = myUid, myName = myName, onClose = { open = "" })
+        "slot" -> SlotHtmlScreen(myUid = myUid, myName = myName, onClose = { open = "" })
         "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
         "greedy" -> GreedyCatScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
         "teenpatti" -> TeenPattiScreen(myUid = myUid, onClose = { open = "" })
@@ -134,6 +135,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                             GcRow(
                                 listOf(
                                     GcItem("DragonTigerPk", R.drawable.ic_game_dvt, "dvt"),
+                                    GcItem("SlotBuah", R.drawable.ic_game_slot, "slot"),
                                     GcItem("3CardPoker", R.drawable.ic_game_poker, "poker"),
                                     GcItem("Lucky77", R.drawable.ic_game_lucky, "lucky77"),
                                 ),

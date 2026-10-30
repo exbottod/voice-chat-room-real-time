@@ -1,7 +1,9 @@
 /* ====== sambungan coin akun (jembatan Android) ====== */
 var CHIPS=[];
 var balance=(window.AndroidGame&&AndroidGame.balance)?Number(AndroidGame.balance()):0;
-var PRIZE={cherry:50000,lemon:75000,orange:100000,apple:150000,banana:200000,pear:300000,grapes:400000,watermelon:500000,apricot:750000,lucky_seven:2000000};
+var PRIZE={cherry:100000,lemon:150000,orange:200000,apple:300000,banana:400000,pear:600000,grapes:800000,watermelon:1000000,apricot:1500000,lucky_seven:5000000};
+var PAIR={cherry:10000,lemon:15000,orange:20000,apple:30000,banana:40000,pear:60000,grapes:80000,watermelon:100000,apricot:150000,lucky_seven:500000};
+var pending=null;
 function fmtC(n){n=Math.floor(n||0);return n.toLocaleString('id-ID');}
 function wbMsg(m){var e=document.getElementById('wbMsg');if(e)e.textContent=m;}
 function wbRender(){
@@ -91,47 +93,59 @@ function spin(elem) {
  * Sets the result items at the beginning and the end of the columns
  */
 function setResult() {
-    for (let col of cols) {
-
-        // generate 3 random items
-        let results = [
-            getRandomIcon(),
-            getRandomIcon(),
-            getRandomIcon()
-        ];
-
-        let icons = col.querySelectorAll('.icon img');
-        // replace the first and last three items of each column with the generated items
-        for (let x = 0; x < 3; x++) {
-            icons[x].setAttribute('src', 'items/' + results[x] + '.png');
-            icons[(icons.length - 3) + x].setAttribute('src', 'items/' + results[x] + '.png');
+    // Tentukan hasil lebih dulu: 8% tiga sama, 47% dua sama, sisanya belum menang.
+    var roll=Math.random();
+    var symbols=[];
+    var mk=function(){return getRandomIcon();};
+    if(roll<0.08){
+        var s=mk();
+        symbols=[mk(),s,s,s,mk()];
+    }else if(roll<0.55){
+        var p=mk();
+        symbols=[mk(),p,p,mk(),mk()];
+        // pastikan lima simbol tidak semuanya sama
+        for(var i=0;i<symbols.length;i++){if(symbols[i]===symbols[1]&&i!==1&&i!==2){symbols[i]=ICONS[(ICONS.indexOf(p)+1+i)%ICONS.length];}}
+    }else{
+        symbols=[mk(),mk(),mk(),mk(),mk()];
+        for(var j=0;j<symbols.length;j++){
+            if(symbols.filter(function(x){return x===symbols[j]}).length>1){symbols[j]=ICONS[(ICONS.indexOf(symbols[j])+1)%ICONS.length];}
         }
+    }
+    pending={symbols:symbols};
+
+    // Isi tiap gulungan; yang terlihat adalah tiga item terakhir, baris tengah = item kedua dari belakang.
+    for(var c=0;c<cols.length;c++){
+        var col=cols[c];
+        var icons=col.querySelectorAll('.icon img');
+        var sym=symbols[c];
+        for(var x=0;x<icons.length;x++){
+            icons[x].setAttribute('src','items/'+getRandomIcon()+'.png');
+        }
+        icons[icons.length-3].setAttribute('src','items/'+getRandomIcon()+'.png');
+        icons[icons.length-2].setAttribute('src','items/'+sym+'.png');
+        icons[icons.length-1].setAttribute('src','items/'+getRandomIcon()+'.png');
+        for(var y=0;y<3;y++){icons[y].setAttribute('src','items/'+getRandomIcon()+'.png');}
     }
 }
 
 function wbSettle(){
-  var shown=[];
-  for(var i=0;i<cols.length;i++){
-    var col=cols[i];
-    var box=col.parentElement.getBoundingClientRect();
-    var best=null,bd=1e9;
-    var list=col.querySelectorAll('.icon');
-    for(var k=0;k<list.length;k++){
-      var r=list[k].getBoundingClientRect();
-      var d=Math.abs((r.top+r.height/2)-(box.top+box.height/2));
-      if(d<bd){bd=d;best=list[k];}
-    }
-    shown.push(best?best.getAttribute('data-item'):null);
-  }
-  var win=shown[0]&&shown[0]===shown[1]&&shown[1]===shown[2];
-  if(win){
-    var payout=PRIZE[shown[0]]||50000;
+  var symbols=(pending&&pending.symbols)||[];
+  if(!symbols.length){wbMsg('Coba spin lagi');return;}
+  var counts={};
+  symbols.forEach(function(s){counts[s]=(counts[s]||0)+1;});
+  var best=null,bestN=0;
+  Object.keys(counts).forEach(function(k){if(counts[k]>bestN){bestN=counts[k];best=k;}});
+  var payout=0,label='';
+  if(bestN>=3){payout=PRIZE[best]||100000;label='3 sama';}
+  else if(bestN===2){payout=PAIR[best]||10000;label='2 sama';}
+  if(payout>0){
     if(window.AndroidGame&&AndroidGame.win){var nb=Number(AndroidGame.win(payout));if(nb>=0)balance=nb;else balance+=payout;}
     else balance+=payout;
-    wbRender();wbMsg('Menang! +'+fmtC(payout)+' coin');
+    wbRender();wbMsg('Menang '+label+' · +'+fmtC(payout)+' coin');
   }else{
-    wbMsg('Belum menang · coba lagi');
+    wbMsg('Belum menang · coba spin lagi');
   }
+  pending=null;
 }
 
 function getRandomIcon() {

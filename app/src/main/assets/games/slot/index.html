@@ -6,6 +6,15 @@
     <title>Sloty</title>
     <link rel="stylesheet" href="./style.css">
     <script src="./script.js" defer></script>
+<script>
+window.addEventListener('load',function(){
+  var t=document.getElementById('payTable');
+  if(!t)return;
+  var rows=[[ '🍒','100K'],['🍋','150K'],['🍊','200K'],['🍎','300K'],['🍌','400K'],
+            ['🍐','600K'],['🍇','800K'],['🍉','1M'],['🍑','1.5M'],['7️⃣','5M']];
+  t.innerHTML=rows.map(function(r){return '<div>'+r[0]+'<br>'+r[1]+'</div>';}).join('');
+});
+</script>
 </head>
 <body>
 <div id="walletBar">
@@ -21,6 +30,8 @@
 #walletBar .wbChip{background:linear-gradient(#fff,#e3f2fd);border:2px solid #0d47a1;border-radius:10px;padding:7px 0;font-size:12px;font-weight:900;color:#0d47a1}
 #walletBar .wbChip.on{background:linear-gradient(#ff5252,#c62828);border-color:#7f0000;color:#fff}
 #walletBar .wbMsg{text-align:center;font-size:12px;font-weight:800;color:#ffe082;margin-top:6px;min-height:16px}
+#payTable{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:7px;font-size:10px;color:#ffe082;text-align:center}
+#payTable div{background:#2b0f45;border:1px solid #7e57c2;border-radius:8px;padding:3px 0;line-height:1.3}
 </style>
 
 
