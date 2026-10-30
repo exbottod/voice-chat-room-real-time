@@ -84,6 +84,7 @@ fun Lucky77HtmlScreen(myUid: String, myName: String = "Player", onClose: () -> U
 internal class GameBridge(
     private val myUid: String,
     private val myName: String,
+    private val label: String = "Lucky 77",
     private val onBalance: (Long) -> Unit,
     private val onClose: () -> Unit,
     private val scope: kotlinx.coroutines.CoroutineScope,
@@ -105,7 +106,7 @@ internal class GameBridge(
     @JavascriptInterface
     fun bet(amount: Long): Long = runBlocking {
         val r = try {
-            SupaRepo.waveFlowMsg(amount, 1, UUID.randomUUID().toString(), "Lucky 77")
+            SupaRepo.waveFlowMsg(amount, 1, UUID.randomUUID().toString(), label)
         } catch (e: Exception) {
             Pair<Long?, String>(null, e.message ?: "gagal")
         }
@@ -160,7 +161,7 @@ internal class GameBridge(
     @JavascriptInterface
     fun win(amount: Long): Long = runBlocking {
         val nb = try {
-            SupaRepo.waveFlow(amount, 2, UUID.randomUUID().toString(), "Lucky 77")
+            SupaRepo.waveFlow(amount, 2, UUID.randomUUID().toString(), label)
         } catch (e: Exception) {
             null
         }
