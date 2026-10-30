@@ -47,6 +47,7 @@ fun Slot777HtmlScreen(myUid: String, myName: String = "Player", onClose: () -> U
                                 myUid = myUid,
                                 myName = myName,
                                 label = "Slot 777",
+                                gameKey = "slot777",
                                 onBalance = { },
                                 onClose = onClose,
                                 scope = scope,

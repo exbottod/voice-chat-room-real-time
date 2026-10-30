@@ -92,6 +92,32 @@ internal class GameBridge(
 ) {
     private var lastErr: String = ""
 
+    /** Foto profil user sebagai data URI (atau URL), dengan cache. */
+    private val avatarCache = HashMap<String, String>()
+    private suspend fun avatarUri(uid: String): String {
+        if (uid.isBlank()) return ""
+        avatarCache[uid]?.let { return it }
+        val v = try {
+            // PROFIL UTAMA DI RTDB: av (base64) / photo (URL) sudah disinkronkan ke pub.
+            val s = kotlinx.coroutines.withTimeoutOrNull(2500L) { Rtdb.ref("pub/$uid").get().await() }
+            val b64 = s?.child("av")?.getValue(String::class.java)?.takeIf { it.isNotBlank() }
+            val photo = s?.child("photo")?.getValue(String::class.java)?.takeIf { it.startsWith("http") }
+            when {
+                b64 != null -> "data:image/jpeg;base64," + b64
+                photo != null -> photo
+                else -> ""
+            }
+        } catch (e: Exception) {
+            ""
+        }
+        avatarCache[uid] = v
+        return v
+    }
+
+    /** Foto profil satu user (data URI), dipakai papan peringkat agar daftar tampil cepat. */
+    @JavascriptInterface
+    fun avatar(uid: String): String = runBlocking { avatarUri(uid) }
+
     @JavascriptInterface
     fun balance(): Long = runBlocking {
         val b = try {
@@ -139,16 +165,17 @@ internal class GameBridge(
                 )
             ).await()
             val snap = Rtdb.ref("gameRounds/" + gameKey + "/" + key).get().await()
-            val rows = ArrayList<Pair<String, Long>>()
+            val rows = ArrayList<Triple<String, Long, String>>()
             for (c in snap.children) {
                 val n = c.child("name").getValue(String::class.java)?.ifBlank { "Player" } ?: "Player"
                 val w = c.child("win").getValue(Long::class.java) ?: 0L
-                rows.add(Pair(n, w))
+                rows.add(Triple(n, w, avatarUri(c.key ?: "")))
             }
             val sb = StringBuilder("[")
             rows.sortedByDescending { it.second }.take(3).forEachIndexed { i, p ->
                 if (i > 0) sb.append(",")
-                sb.append("{\"n\":\"").append(p.first.replace("\"", "")).append("\",\"w\":").append(p.second).append("}")
+                sb.append("{\"n\":\"").append(p.first.replace("\"", "")).append("\",\"w\":").append(p.second)
+                    .append(",\"a\":\"").append(p.third.replace("\"", "")).append("\"}")
             }
             sb.append("]")
             sb.toString()
@@ -224,6 +251,45 @@ internal class GameBridge(
         }
     }
 
+
+    /** Papan peringkat game ini: total kemenangan per pemain, lengkap dengan foto profil. */
+    @JavascriptInterface
+    fun ranking(): String = runBlocking {
+        try {
+            val root = Rtdb.ref("gameRounds/" + gameKey).get().await()
+            val keys = ArrayList<Long>()
+            for (c in root.children) {
+                val k = c.key ?: continue
+                if (k == "seed") continue
+                k.toLongOrNull()?.let { keys.add(it) }
+            }
+            keys.sortDescending()
+            val total = HashMap<String, Long>()
+            val names = HashMap<String, String>()
+            for (k in keys.take(400)) {
+                val c = root.child(k.toString())
+                for (u in c.children) {
+                    val uid = u.key ?: continue
+                    val w = u.child("win").getValue(Long::class.java) ?: 0L
+                    if (w <= 0L) continue
+                    total[uid] = (total[uid] ?: 0L) + w
+                    u.child("name").getValue(String::class.java)?.takeIf { it.isNotBlank() }?.let { names[uid] = it }
+                }
+            }
+            val sb = StringBuilder("[")
+            total.entries.sortedByDescending { it.value }.take(20).forEachIndexed { i, e ->
+                if (i > 0) sb.append(",")
+                val n = (names[e.key] ?: "Player").replace("\"", "")
+                sb.append("{\"u\":\"").append(e.key).append("\",\"n\":\"").append(n)
+                    .append("\",\"w\":").append(e.value)
+                    .append("}")
+            }
+            sb.append("]")
+            sb.toString()
+        } catch (e: Exception) {
+            "[]"
+        }
+    }
     @JavascriptInterface
     fun close() {
         scope.launch { onClose() }
