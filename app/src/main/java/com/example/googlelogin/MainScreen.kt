@@ -79,6 +79,9 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var chatWith by remember { mutableStateOf<PublicUser?>(null) }
     var commentMoment by remember { mutableStateOf<Moment?>(null) }
     var wallet by remember { mutableStateOf(Wallet()) }
+    // ---- cek in harian: muncul otomatis sekali sehari sesudah tanggal berganti
+    var showSignin by remember { mutableStateOf(false) }
+    var signinChecked by remember { mutableStateOf(false) }
     var following by remember { mutableStateOf(0L) }
     var fans by remember { mutableStateOf(0L) }
     var followTick by remember { mutableStateOf(0) }
@@ -159,6 +162,19 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) { }
+    }
+
+    // Cek in harian: kalau hari ini belum klaim, tampilkan dialog otomatis.
+    LaunchedEffect(uid, signinChecked) {
+        if (uid.isEmpty() || signinChecked) return@LaunchedEffect
+        try {
+            val cfg = SigninRepo.loadCfg()
+            val st = SigninRepo.loadState(uid)
+            if (cfg.enabled && SigninRepo.canClaim(st)) showSignin = true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        signinChecked = true
     }
 
     // Muat profil dari Firestore, pastikan ID pengguna (mulai 100000) ada, lalu publikasikan.
@@ -432,6 +448,18 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                         if (full != null && activeRoom?.id == full.id) activeRoom = full
                     }
                 }
+            }
+            if (showSignin) {
+                SigninDialog(
+                    uid = uid,
+                    onClose = { showSignin = false },
+                    onClaimed = { gained ->
+                        scope.launch {
+                            wallet = try { SupaRepo.get(uid).wallet ?: wallet } catch (e: Exception) { wallet }
+                            WalletRepo.emitBackup(uid, wallet.copy(coins = wallet.coins + gained))
+                        }
+                    },
+                )
             }
             BanGate(uid = uid, onSignOut = onSignOutClick, onBanned = { if (activeRoom != null) exitRoom() })
         }
