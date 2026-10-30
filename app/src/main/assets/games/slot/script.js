@@ -93,55 +93,31 @@ function spin(elem) {
  * Sets the result items at the beginning and the end of the columns
  */
 function setResult() {
-    // Tentukan hasil lebih dulu: 8% tiga sama, 47% dua sama, sisanya belum menang.
-    var roll=Math.random();
-    var symbols=[];
-    var mk=function(){return getRandomIcon();};
-    if(roll<0.08){
-        var s=mk();
-        symbols=[mk(),s,s,s,mk()];
-    }else if(roll<0.55){
-        var p=mk();
-        symbols=[mk(),p,p,mk(),mk()];
-        // pastikan lima simbol tidak semuanya sama
-        for(var i=0;i<symbols.length;i++){if(symbols[i]===symbols[1]&&i!==1&&i!==2){symbols[i]=ICONS[(ICONS.indexOf(p)+1+i)%ICONS.length];}}
-    }else{
-        symbols=[mk(),mk(),mk(),mk(),mk()];
-        for(var j=0;j<symbols.length;j++){
-            if(symbols.filter(function(x){return x===symbols[j]}).length>1){symbols[j]=ICONS[(ICONS.indexOf(symbols[j])+1)%ICONS.length];}
-        }
-    }
-    pending={symbols:symbols};
-
-    // Isi tiap gulungan; yang terlihat adalah tiga item terakhir, baris tengah = item kedua dari belakang.
+    pending = (window.ENG ? ENG.spin() : null);
+    if(!pending){return;}
     for(var c=0;c<cols.length;c++){
-        var col=cols[c];
-        var icons=col.querySelectorAll('.icon img');
-        var sym=symbols[c];
+        var icons=cols[c].querySelectorAll('.icon img');
         for(var x=0;x<icons.length;x++){
-            icons[x].setAttribute('src','items/'+getRandomIcon()+'.png');
+            icons[x].setAttribute('src','items/'+ICONS[Math.floor(Math.random()*ICONS.length)]+'.png');
         }
-        icons[icons.length-3].setAttribute('src','items/'+getRandomIcon()+'.png');
-        icons[icons.length-2].setAttribute('src','items/'+sym+'.png');
-        icons[icons.length-1].setAttribute('src','items/'+getRandomIcon()+'.png');
-        for(var y=0;y<3;y++){icons[y].setAttribute('src','items/'+getRandomIcon()+'.png');}
+        for(var r=0;r<3;r++){
+            icons[icons.length-3+r].setAttribute('src','items/'+ENG.SYM[pending.grid[c][r]]+'.png');
+        }
     }
 }
 
 function wbSettle(){
-  var symbols=(pending&&pending.symbols)||[];
-  if(!symbols.length){wbMsg('Coba spin lagi');return;}
-  var counts={};
-  symbols.forEach(function(s){counts[s]=(counts[s]||0)+1;});
-  var best=null,bestN=0;
-  Object.keys(counts).forEach(function(k){if(counts[k]>bestN){bestN=counts[k];best=k;}});
-  var payout=0,label='';
-  if(bestN>=3){payout=PRIZE[best]||100000;label='3 sama';}
-  else if(bestN===2){payout=PAIR[best]||10000;label='2 sama';}
-  if(payout>0){
-    if(window.AndroidGame&&AndroidGame.win){var nb=Number(AndroidGame.win(payout));if(nb>=0)balance=nb;else balance+=payout;}
-    else balance+=payout;
-    wbRender();wbMsg('Menang '+label+' · +'+fmtC(payout)+' coin');
+  if(!pending){wbMsg('Coba spin lagi');return;}
+  var win=pending.win||0;
+  if(win>0){
+    if(window.AndroidGame&&AndroidGame.win){var nb=Number(AndroidGame.win(win));if(nb>=0)balance=nb;else balance+=win;}
+    else balance+=win;
+    wbRender();
+    var best=0,label='';
+    (pending.hits||[]).forEach(function(h){
+      if(h.val>best){best=h.val;label=(h.line===0?('scatter '+h.cnt+'x'):('baris '+h.line+' · '+h.cnt+' sama'));}
+    });
+    wbMsg('Menang! +'+fmtC(win)+' coin'+(label?(' · '+label):''));
   }else{
     wbMsg('Belum menang · coba spin lagi');
   }
