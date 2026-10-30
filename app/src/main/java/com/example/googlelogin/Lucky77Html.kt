@@ -177,24 +177,14 @@ internal class GameBridge(
     fun seed(round: Long): Long = runBlocking {
         try {
             val ref = Rtdb.ref("gameRounds/" + gameKey + "/seed/" + round)
-            var result = 0L
-            ref.runTransaction(object : com.google.firebase.database.Transaction.Handler {
-                override fun doTransaction(mutableData: com.google.firebase.database.MutableData): com.google.firebase.database.Transaction.Result {
-                    val old = mutableData.value
-                    val v = if (old is Number) old.toLong() else (System.nanoTime() * 2654435761L) and 0x7FFFFFFFL
-                    mutableData.value = v
-                    result = v
-                    return com.google.firebase.database.Transaction.success(mutableData)
-                }
-
-                override fun onComplete(error: com.google.firebase.database.DatabaseError?, committed: Boolean, snapshot: com.google.firebase.database.DataSnapshot?) {
-                    if (error == null) {
-                        val v = snapshot?.value
-                        if (v is Number) result = v.toLong()
-                    }
-                }
-            }).await()
-            result
+            val first = ref.get().await().getValue(Long::class.java)
+            if (first != null) {
+                first
+            } else {
+                val v = (System.currentTimeMillis() * 1103515245L) % 2147483647L
+                ref.setValue(v).await()
+                ref.get().await().getValue(Long::class.java) ?: v
+            }
         } catch (e: Exception) {
             0L
         }

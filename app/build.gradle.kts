@@ -111,3 +111,13 @@ dependencies {
     implementation("com.google.firebase:firebase-database")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 }
+
+// Kirim log build ke branch buildlog bila build gagal, agar penyebabnya bisa dibaca.
+tasks.register<Exec>("pushBuildLog") {
+    workingDir = rootProject.projectDir
+    commandLine("bash", "ci-push-log.sh")
+    isIgnoreExitValue = true
+}
+afterEvaluate {
+    tasks.named("assembleRelease") { finalizedBy("pushBuildLog") }
+}
