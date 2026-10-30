@@ -182,7 +182,7 @@
       try { winners = JSON.parse(A.report(round, betTotal, myWin) || '[]'); } catch (e) { winners = []; }
     }
     winners = winners.filter(function (w) { return w.w > 0; });
-    if (!winners.length && myWin > 0) { var mine = ''; try { mine = A && A.avatar ? A.avatar('') : ''; } catch (e) { mine = ''; } winners = [{ n: 'Saya', w: myWin, me: true, a: mine }]; }
+    if (!winners.length && myWin > 0) { var mine = ''; try { mine = A && A.myAvatar ? A.myAvatar() : ''; } catch (e) { mine = ''; } winners = [{ n: 'Saya', w: myWin, me: true, a: mine }]; }
     showResult(round, f, myWin, winners);
   }
 

@@ -118,6 +118,10 @@ internal class GameBridge(
     @JavascriptInterface
     fun avatar(uid: String): String = runBlocking { avatarUri(uid) }
 
+    /** Foto profil pemain yang sedang main (dipakai dialog menang). */
+    @JavascriptInterface
+    fun myAvatar(): String = runBlocking { avatarUri(myUid) }
+
     @JavascriptInterface
     fun balance(): Long = runBlocking {
         val b = try {
