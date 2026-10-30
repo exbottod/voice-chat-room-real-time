@@ -1,21 +1,11 @@
 /* ====== sambungan coin akun (jembatan Android) ====== */
-var CHIPS=[30000,150000,300000,1500000,3000000];
-var bet=CHIPS[0];
+var CHIPS=[];
 var balance=(window.AndroidGame&&AndroidGame.balance)?Number(AndroidGame.balance()):0;
-var MULT={cherry:5,lemon:6,orange:6,apple:7,banana:8,pear:9,grapes:10,watermelon:12,apricot:14,lucky_seven:50};
+var PRIZE={cherry:50000,lemon:75000,orange:100000,apple:150000,banana:200000,pear:300000,grapes:400000,watermelon:500000,apricot:750000,lucky_seven:2000000};
 function fmtC(n){n=Math.floor(n||0);return n.toLocaleString('id-ID');}
 function wbMsg(m){var e=document.getElementById('wbMsg');if(e)e.textContent=m;}
 function wbRender(){
   var b=document.getElementById('wbBalance');if(b)b.textContent=fmtC(balance);
-  var box=document.getElementById('wbChips');
-  if(box&&!box.dataset.built){
-    box.dataset.built='1';box.innerHTML='';
-    CHIPS.forEach(function(v,i){
-      var b2=document.createElement('button');b2.className='wbChip'+(i===0?' on':'');b2.textContent=(v>=1000000?(v/1000000)+'M':(v/1000)+'K');
-      b2.onclick=function(){bet=v;[].forEach.call(box.children,function(c){c.classList.remove('on')});b2.classList.add('on');};
-      box.appendChild(b2);
-    });
-  }
 }
 function wbSetBalance(v){if(v>=0){balance=v;wbRender();}}
 document.addEventListener('DOMContentLoaded',wbRender);
@@ -71,13 +61,7 @@ function setInitialItems() {
  * @param elem The button itself
  */
 function spin(elem) {
-    if(balance<bet){wbMsg('Coin tidak cukup');return;}
-    if(window.AndroidGame&&AndroidGame.bet){
-        var nb=Number(AndroidGame.bet(bet));
-        if(nb<0){var er='Coin gagal dipotong';try{if(AndroidGame.lastError)er=String(AndroidGame.lastError())||er}catch(e){}wbMsg(er);return;}
-        balance=nb;wbRender();
-    }else{balance-=bet;wbRender();}
-    wbMsg('Taruhan '+fmtC(bet)+' · menunggu hasil');
+    wbMsg('Roda berputar…');
     let duration = BASE_SPINNING_DURATION + randomDuration();
 
     for (let col of cols) { // set the animation duration for each column
@@ -141,11 +125,10 @@ function wbSettle(){
   }
   var win=shown[0]&&shown[0]===shown[1]&&shown[1]===shown[2];
   if(win){
-    var mult=MULT[shown[0]]||5;
-    var payout=bet*mult;
+    var payout=PRIZE[shown[0]]||50000;
     if(window.AndroidGame&&AndroidGame.win){var nb=Number(AndroidGame.win(payout));if(nb>=0)balance=nb;else balance+=payout;}
     else balance+=payout;
-    wbRender();wbMsg('Menang x'+mult+' · +'+fmtC(payout)+' coin');
+    wbRender();wbMsg('Menang! +'+fmtC(payout)+' coin');
   }else{
     wbMsg('Belum menang · coba lagi');
   }
