@@ -185,6 +185,7 @@ assetLoader.onLoadFinish((assets) => {
 
   configureTweakPane(slot, engine);
   createPayTable(symbols, payTable, config.ui.modalBody);
+  startOnlineRounds(slot);
 });
 
 assetLoader.start();
@@ -304,6 +305,7 @@ function Slot(options) {
       console.info(`Winner: ${winner.type}, line: ${winner.rowIndex}, win: $${winner.money}`);
     }
 
+    window.__lastWin = (window.__lastWin || 0) + totalWin;
     this.player.addWin(totalWin);
 
     console.info(`Total win: $${totalWin}`);
@@ -1015,4 +1017,88 @@ function VisualEffects(reels) {
       this.highlightBlock(block, reelIndex);
     }
   };
+}
+
+/* ============ Mode online: ronde serentak lewat Realtime Database ============ */
+function startOnlineRounds(slot) {
+  if (!window.AndroidGame || !AndroidGame.seed) return;
+
+  var ROUND_MS = 20000;
+  var spinBtn = document.querySelector('#spin-manual');
+  if (spinBtn) spinBtn.style.display = 'none';
+
+  var bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;top:6px;left:0;right:0;text-align:center;color:#FFE082;font:bold 13px sans-serif;z-index:9999;text-shadow:0 0 6px #000';
+  document.body.appendChild(bar);
+
+  var panel = document.createElement('div');
+  panel.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.82);z-index:10000';
+  document.body.appendChild(panel);
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function showTop(rows) {
+    var html = '<div style="background:#1B1030;border:2px solid #FFE082;border-radius:16px;padding:16px 18px;min-width:240px;font-family:sans-serif">';
+    html += '<div style="color:#FFE082;font-size:12px;font-weight:bold;text-align:center">TOP PEMENANG RONDE INI</div>';
+    if (!rows.length) {
+      html += '<div style="color:#BDBDBD;font-size:12px;text-align:center;margin-top:10px">Belum ada pemenang</div>';
+    } else {
+      rows.forEach(function (r, i) {
+        var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
+        html += '<div style="display:flex;justify-content:space-between;color:#fff;font-size:13px;margin-top:8px">';
+        html += '<span>' + medal + ' ' + r.n + '</span><b style="color:#69F0AE">+' + coinFmt(r.w) + '</b></div>';
+      });
+    }
+    html += '<div style="color:#9E9E9E;font-size:11px;text-align:center;margin-top:12px">Ronde baru sebentar lagi</div></div>';
+    panel.innerHTML = html;
+    panel.style.display = 'flex';
+  }
+
+  var busy = false;
+  var curRound = -1;
+
+  function runRound(rid) {
+    busy = true;
+    window.__lastWin = 0;
+    var seed = Number(AndroidGame.seed(rid)) || (rid * 2654435761) % 2147483647;
+    var rng = mulberry32(seed >>> 0);
+    var origRandom = Math.random;
+    try {
+      Math.random = rng;
+      slot.spin();
+    } catch (e) {
+    } finally {
+      Math.random = origRandom;
+    }
+
+    setTimeout(function () {
+      var win = Math.floor((window.__lastWin || 0) * COIN_PER_CREDIT);
+      var betTotal = slot.player.bet.get() * COIN_PER_CREDIT;
+      try { if (AndroidGame.report) AndroidGame.report(rid, betTotal, win); } catch (e) {}
+      setTimeout(function () {
+        var rows = [];
+        try { rows = JSON.parse(AndroidGame.top(rid) || '[]'); } catch (e) {}
+        showTop(rows);
+        setTimeout(function () { panel.style.display = 'none'; busy = false; }, 3000);
+      }, 400);
+    }, 3200);
+  }
+
+  setInterval(function () {
+    var now = Date.now();
+    var rid = Math.floor(now / ROUND_MS);
+    var left = Math.ceil((ROUND_MS - (now % ROUND_MS)) / 1000);
+    bar.textContent = 'Ronde ' + rid + ' · ' + left + 's';
+    if (!busy && rid !== curRound) {
+      curRound = rid;
+      runRound(rid);
+    }
+  }, 300);
 }

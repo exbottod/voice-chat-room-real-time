@@ -85,6 +85,7 @@ internal class GameBridge(
     private val myUid: String,
     private val myName: String,
     private val label: String = "Lucky 77",
+    private val gameKey: String = "lucky77",
     private val onBalance: (Long) -> Unit,
     private val onClose: () -> Unit,
     private val scope: kotlinx.coroutines.CoroutineScope,
@@ -130,14 +131,14 @@ internal class GameBridge(
     fun report(round: Long, betTotal: Long, winTotal: Long): String = runBlocking {
         try {
             val key = if (round > 0) round.toString() else "now"
-            Rtdb.ref("gameRounds/lucky77/" + key + "/" + myUid).setValue(
+            Rtdb.ref("gameRounds/" + gameKey + "/" + key + "/" + myUid).setValue(
                 hashMapOf(
                     "name" to myName.ifBlank { "Player" },
                     "bet" to betTotal,
                     "win" to winTotal,
                 )
             ).await()
-            val snap = Rtdb.ref("gameRounds/lucky77/" + key).get().await()
+            val snap = Rtdb.ref("gameRounds/" + gameKey + "/" + key).get().await()
             val rows = ArrayList<Pair<String, Long>>()
             for (c in snap.children) {
                 val n = c.child("name").getValue(String::class.java)?.ifBlank { "Player" } ?: "Player"
@@ -168,6 +169,57 @@ internal class GameBridge(
         if (nb == null) -1L else {
             onBalance(nb)
             nb
+        }
+    }
+
+    /** Benih ronde bersama: pemain pertama yang menulis, sisanya membaca. */
+    @JavascriptInterface
+    fun seed(round: Long): Long = runBlocking {
+        try {
+            val ref = Rtdb.ref("gameRounds/" + gameKey + "/seed/" + round)
+            var result = 0L
+            ref.runTransaction(object : com.google.firebase.database.Transaction.Handler {
+                override fun doTransaction(mutableData: com.google.firebase.database.MutableData): com.google.firebase.database.Transaction.Result {
+                    val old = mutableData.value
+                    val v = if (old is Number) old.toLong() else (System.nanoTime() * 2654435761L) and 0x7FFFFFFFL
+                    mutableData.value = v
+                    result = v
+                    return com.google.firebase.database.Transaction.success(mutableData)
+                }
+
+                override fun onComplete(error: com.google.firebase.database.DatabaseError?, committed: Boolean, snapshot: com.google.firebase.database.DataSnapshot?) {
+                    if (error == null) {
+                        val v = snapshot?.value
+                        if (v is Number) result = v.toLong()
+                    }
+                }
+            }).await()
+            result
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    /** Tiga pemenang teratas pada satu ronde, sebagai JSON. */
+    @JavascriptInterface
+    fun top(round: Long): String = runBlocking {
+        try {
+            val snap = Rtdb.ref("gameRounds/" + gameKey + "/" + round).get().await()
+            val rows = ArrayList<Pair<String, Long>>()
+            for (c in snap.children) {
+                val n = c.child("name").getValue(String::class.java)?.ifBlank { "Player" } ?: "Player"
+                val w = c.child("win").getValue(Long::class.java) ?: 0L
+                if (w > 0L) rows.add(Pair(n, w))
+            }
+            val sb = StringBuilder("[")
+            rows.sortedByDescending { it.second }.take(3).forEachIndexed { i, p ->
+                if (i > 0) sb.append(",")
+                sb.append("{\"n\":\"").append(p.first.replace("\"", "")).append("\",\"w\":").append(p.second).append("}")
+            }
+            sb.append("]")
+            sb.toString()
+        } catch (e: Exception) {
+            "[]"
         }
     }
 
