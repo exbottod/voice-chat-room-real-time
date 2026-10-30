@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -61,6 +62,7 @@ private fun drawCard(): Card {
 @Composable
 fun DragonTigerScreen(
     myUid: String,
+    myName: String = "Player",
     onClose: () -> Unit,
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -76,57 +78,97 @@ fun DragonTigerScreen(
     var busy by remember { mutableStateOf(false) }
     var lastWin by remember { mutableStateOf(0L) }
     var pots by remember { mutableStateOf(listOf(0L, 0L, 0L)) }
+    var roundNo by remember { mutableStateOf(0) }
+    var showWin by remember { mutableStateOf(false) }
+    var top3 by remember { mutableStateOf(listOf<Triple<String, Long, Long>>()) }
+    var resultTitle by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         SupaRepo.wavePrepare("Player", "")
         balance = SupaRepo.get(myUid).wallet?.coins ?: 0L
     }
 
-    // Hitung mundur per ronde.
-    LaunchedEffect(dragon, tiger) {
-        if (dragon == null && tiger == null) {
+    // Ronde berulang tanpa henti: taruhan 20 detik, kartu dibuka,
+    // dialog pemenang tampil 3 detik, lalu ronde baru mulai lagi.
+    LaunchedEffect(Unit) {
+        while (true) {
+            dragon = null
+            tiger = null
+            staked = 0L
+            laneBet = emptyMap()
+            pots = listOf(0L, 0L, 0L)
+            pick = ""
+            resultTitle = ""
+            showWin = false
             left = 20
+            msg = "Ronde baru. Pilih Dragon, Tiger, atau Tie."
             while (left > 0) {
                 delay(1000)
                 left -= 1
             }
-            if (!busy) {
-                val d = drawCard()
-                val t = drawCard()
-                dragon = d
-                tiger = t
-                val win = when {
-                    d.value == t.value -> "TIE"
-                    d.value > t.value -> "DRAGON"
-                    else -> "TIGER"
-                }
-                if (laneBet.isNotEmpty()) {
-                    val payout = (laneBet[win] ?: 0L) * (if (win == "TIE") 45L else 2L)
-                    if (payout > 0L) {
-                        val nb = SupaRepo.waveFlow(payout, 2, UUID.randomUUID().toString(), "dragon-tiger")
-                        if (nb != null) balance = nb
-                        lastWin = payout
-                        msg = "Kamu menang " + fmt(payout) + " coin!"
-                    } else {
-                        msg = if (win == "TIE") "Seri. Taruhan hangus." else "Kalah. Coba lagi."
-                    }
-                } else {
-                    msg = "Hasil: " + win
-                }
-                delay(4500)
-                dragon = null
-                tiger = null
-                staked = 0L
-                laneBet = emptyMap()
-                pots = listOf(0L, 0L, 0L)
-                pick = ""
-                msg = "Ronde baru. Pilih Dragon, Tiger, atau Tie."
+
+            val d = drawCard()
+            val t = drawCard()
+            dragon = d
+            tiger = t
+            val win = when {
+                d.value == t.value -> "TIE"
+                d.value > t.value -> "DRAGON"
+                else -> "TIGER"
             }
+
+            var payout = 0L
+            if (laneBet.isNotEmpty()) {
+                val stake = laneBet[win] ?: 0L
+                payout = stake * (if (win == "TIE") 45L else 2L)
+                if (payout > 0L) {
+                    val nb = SupaRepo.waveFlow(payout, 2, UUID.randomUUID().toString(), "dragon-tiger")
+                    if (nb != null) balance = nb
+                    lastWin = payout
+                    resultTitle = "Kamu menang " + fmt(payout) + " coin!"
+                } else {
+                    resultTitle = if (win == "TIE") "Seri. Taruhan hangus." else "Kalah. Coba lagi."
+                }
+            } else {
+                resultTitle = "Hasil ronde: " + win
+            }
+            msg = "Pola keluar: " + win
+            roundNo += 1
+
+            // Catat hasil ronde ini lalu ambil tiga pemenang teratas.
+            top3 = try {
+                val key = roundNo.toString()
+                Rtdb.ref("gameRounds/dragontiger/" + key + "/" + myUid).setValue(
+                    hashMapOf(
+                        "name" to myName.ifBlank { "Player" },
+                        "bet" to staked,
+                        "win" to payout,
+                    )
+                ).await()
+                val snap = Rtdb.ref("gameRounds/dragontiger/" + key).get().await()
+                val rows = ArrayList<Triple<String, Long, Long>>()
+                for (c in snap.children) {
+                    val nm = c.child("name").getValue(String::class.java)?.ifBlank { "Player" } ?: "Player"
+                    val bt = c.child("bet").getValue(Long::class.java) ?: 0L
+                    val wn = c.child("win").getValue(Long::class.java) ?: 0L
+                    if (wn > 0L) rows.add(Triple(nm, bt, wn))
+                }
+                rows.sortedByDescending { it.third }.take(3)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            showWin = true
+            delay(3000)
+            showWin = false
+            delay(150)
         }
     }
 
     fun place(side: String) {
-        if (dragon != null || left <= 2) {
+        if (dragon != null || left <= 2 || showWin) {
             msg = "Waktu taruhan sudah habis"
             return
         }
@@ -296,6 +338,47 @@ fun DragonTigerScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            if (showWin) {
+                Box(
+                    Modifier.fillMaxSize().background(Color(0xD9000000)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth(0.88f)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF1B1030))
+                            .border(2.dp, Color(0xFFFFE082), RoundedCornerShape(18.dp))
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("POLA KELUAR", color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(resultTitle, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(12.dp))
+                        Text("Top pemenang", color = Color(0xFFFFD54F), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(6.dp))
+                        if (top3.isEmpty()) {
+                            Text("Belum ada pemenang ronde ini", color = Color(0xFFBDBDBD), fontSize = 12.sp)
+                        } else {
+                            top3.forEachIndexed { i, row ->
+                                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        when (i) { 0 -> "🥇"; 1 -> "🥈"; else -> "🥉" },
+                                        fontSize = 16.sp,
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(row.first, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                    Text("+" + fmt(row.third), color = Color(0xFF69F0AE), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text("Ronde baru dalam 3 detik", color = Color(0xFF9E9E9E), fontSize = 11.sp)
                     }
                 }
             }
