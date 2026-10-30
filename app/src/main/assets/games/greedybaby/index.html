@@ -9,7 +9,10 @@
     <div class="gg-title">Greedy</div>
     <div class="gg-lights"></div>
     <div class="gg-top">
-      <button class="gg-icon" id="btnRules">?</button>
+      <div class="gg-top-left">
+        <button class="gg-icon" id="btnRank">🏆</button>
+        <button class="gg-icon" id="btnRules">?</button>
+      </div>
       <span class="gg-win">win: 🪙 <span id="lastWin">0</span></span>
     </div>
     <div class="gg-jackpot">JACKPOT: <b id="jackpot">0</b></div>
@@ -34,6 +37,11 @@
       <li>Setelah hitungan mundur selesai, sistem membuka undian. Pemain mendapat koin jika bertaruh pada buah yang benar. Hasil undian sama untuk semua pemain.</li>
       <li>Setelah pengundian, layar menampilkan Top 3 pemenang putaran tersebut.</li>
     </ol>
+  </div>
+  <div class="gg-rank-page" id="rankPage" style="display:none">
+    <div class="gg-rules-head"><button id="btnRankClose">‹</button><span>Papan peringkat</span></div>
+    <div class="gg-rank-sub" id="rankGame">Greedy Baby</div>
+    <ol class="gg-rank-list" id="rankList"></ol>
   </div>
   <div class="gg-toast" id="toast"></div>
 </div>

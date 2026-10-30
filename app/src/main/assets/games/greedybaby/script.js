@@ -36,6 +36,45 @@
   var settled = -1, placing = false, lastRoundSeen = -1, hl = -1;
   var offset = 0; // selisih jam perangkat dengan jam server
 
+  function avatarHtml(url, name) {
+    var initial = String(name || 'P').trim().charAt(0).toUpperCase();
+    if (url) return '<span class="gg-rk-av"><img src="' + url + '" alt="" onerror="this.style.display=\'none\'"></span>';
+    return '<span class="gg-rk-av">' + initial + '</span>';
+  }
+
+  function openRank() {
+    $('rankPage').style.display = 'block';
+    var list = $('rankList');
+    list.innerHTML = '<li style="background:none;justify-content:center">Memuat…</li>';
+    var rows = [];
+    try { rows = A && A.ranking ? JSON.parse(A.ranking() || '[]') : []; } catch (e) { rows = []; }
+    if (!rows.length) {
+      list.innerHTML = '<li style="background:none">Belum ada pemenang. Mainkan satu putaran dulu.</li>';
+      return;
+    }
+    var html = '';
+    rows.forEach(function (r, i) {
+      html += '<li' + (i === 0 ? ' class="top1"' : '') + '<span class="gg-rk-no">' + (i + 1) + '</span>' +
+        avatarHtml(r.a, r.n) + '<span class="gg-rk-name">' + String(r.n).replace(/[<>&]/g, '') + '</span>' +
+        '<span class="gg-rk-win">🪙 ' + fmt(r.w) + '</span></li>';
+    });
+    list.innerHTML = html;
+
+    // foto profil menyusul per baris supaya daftar langsung tampil
+    if (!A || !A.avatar) return;
+    var items = list.querySelectorAll('li');
+    rows.forEach(function (r, i) {
+      if (r.a || !items[i]) return;
+      setTimeout(function () {
+        var url = '';
+        try { url = A.avatar(r.u) || ''; } catch (e) { url = ''; }
+        if (!url) return;
+        var av = items[i].querySelector('.gg-rk-av');
+        if (av) av.innerHTML = '<img src="' + url + '" alt="">';
+      }, 0);
+    });
+  }
+
   function toast(msg) {
     var t = $('toast'); t.textContent = msg; t.style.display = 'block';
     clearTimeout(toast._t); toast._t = setTimeout(function () { t.style.display = 'none'; }, 2200);
@@ -71,6 +110,8 @@
     chipsBox.appendChild(b);
   });
 
+  $('btnRank').onclick = openRank;
+  $('btnRankClose').onclick = function () { $('rankPage').style.display = 'none'; };
   $('btnRules').onclick = function () { $('rules').style.display = 'block'; };
   $('btnRulesClose').onclick = function () { $('rules').style.display = 'none'; };
 
@@ -114,7 +155,8 @@
     if (!winners.length) html += '<p class="gg-sub">Belum ada pemenang di putaran ini</p>';
     html += '<ol class="gg-top3">';
     winners.forEach(function (w, i) {
-      html += '<li' + (w.me ? ' class="is-me"' : '') + '><span class="gg-rank r' + (i + 1) + '">' + (i + 1) +
+      html += '<li' + (w.me ? ' class="is-me"' : '') + '>' + avatarHtml(w.a, w.n) +
+        '<span class="gg-rank r' + (i + 1) + '">' + (i + 1) +
         '</span><span class="gg-wname">' + String(w.n).replace(/[<>&]/g, '') + '</span><span>🪙 ' + fmt(w.w) + '</span></li>';
     });
     html += '</ol></div>';
@@ -140,7 +182,7 @@
       try { winners = JSON.parse(A.report(round, betTotal, myWin) || '[]'); } catch (e) { winners = []; }
     }
     winners = winners.filter(function (w) { return w.w > 0; });
-    if (!winners.length && myWin > 0) winners = [{ n: 'Saya', w: myWin, me: true }];
+    if (!winners.length && myWin > 0) { var mine = ''; try { mine = A && A.avatar ? A.avatar('') : ''; } catch (e) { mine = ''; } winners = [{ n: 'Saya', w: myWin, me: true, a: mine }]; }
     showResult(round, f, myWin, winners);
   }
 

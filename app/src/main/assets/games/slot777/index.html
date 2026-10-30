@@ -67,5 +67,65 @@
   <script src="./lib/table_builder.min.js"></script>
   <script src="./lib/bootstrap.bundle.min.js"></script>
   <script type="module" src="./script.js"></script>
+  <button id="btn-rank" style="position:fixed;left:10px;top:10px;z-index:1200;width:40px;height:40px;border-radius:50%;background:#f6c744;color:#3a2a08;font-size:19px;border:2px solid #fff3c4;font-weight:900;line-height:1;padding:0">🏆</button>
+  <div id="rank-page" style="display:none;position:fixed;left:0;right:0;top:0;bottom:0;z-index:1300;background:linear-gradient(#2a0a0a,#7a1616);color:#fff;padding:16px;overflow:auto">
+    <div style="display:flex;align-items:center;gap:14px;font-size:19px;margin-bottom:14px">
+      <button id="rank-close" style="font-size:30px;line-height:1;background:none;border:0;color:#fff">&#8249;</button>
+      <span>Papan peringkat Slot 777</span>
+    </div>
+    <ol id="rank-list" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px"></ol>
+  </div>
+  <script>
+  (function () {
+    var btn = document.getElementById('btn-rank');
+    var page = document.getElementById('rank-page');
+    var list = document.getElementById('rank-list');
+    var A = window.AndroidGame;
+    function fmt(n) { return Number(n).toLocaleString('id-ID'); }
+    function avHtml(url, name) {
+      var initial = String(name || 'P').trim().charAt(0).toUpperCase();
+      var base = 'width:38px;height:38px;border-radius:50%;flex:none;border:2px solid #f6c744;background:#2b1d0e;display:flex;align-items:center;justify-content:center;font-weight:900;color:#f6c744;overflow:hidden';
+      if (url) {
+        var safe = String(url).replace(/"/g, '&quot;');
+        return '<span style="' + base + '"><img src="' + safe + '" style="width:100%;height:100%;object-fit:cover" alt=""></span>';
+      }
+      return '<span style="' + base + '">' + initial + '</span>';
+    }
+    function open() {
+      page.style.display = 'block';
+      list.innerHTML = '<li style="justify-content:center;display:flex">Memuat...</li>';
+      var rows = [];
+      try { rows = A && A.ranking ? JSON.parse(A.ranking() || '[]') : []; } catch (e) { rows = []; }
+      if (!rows.length) {
+        list.innerHTML = '<li style="display:flex">Belum ada pemenang. Mainkan satu putaran dulu.</li>';
+        return;
+      }
+      var html = '';
+      rows.forEach(function (r, i) {
+        html += '<li style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:rgba(0,0,0,.3);font-size:14px' +
+          (i === 0 ? ';border:2px solid #f6c744' : '') + '">' +
+          '<span style="width:22px;text-align:center;font-weight:900;color:#fff3c4">' + (i + 1) + '</span>' +
+          avHtml(r.a, r.n) +
+          '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + String(r.n).replace(/[<>&]/g, '') + '</span>' +
+          '<span style="font-weight:800;color:#f6c744">' + fmt(r.w) + ' koin</span></li>';
+      });
+      list.innerHTML = html;
+      if (!A || !A.avatar) return;
+      var items = list.querySelectorAll('li');
+      rows.forEach(function (r, i) {
+        if (r.a || !items[i]) return;
+        setTimeout(function () {
+          var url = '';
+          try { url = A.avatar(r.u) || ''; } catch (e) { url = ''; }
+          if (!url) return;
+          var cell = items[i].children[1];
+          if (cell) cell.innerHTML = '<img src="' + String(url).replace(/"/g, '&quot;') + '" style="width:100%;height:100%;object-fit:cover" alt="">';
+        }, 0);
+      });
+    }
+    btn.onclick = open;
+    document.getElementById('rank-close').onclick = function () { page.style.display = 'none'; };
+  })();
+  </script>
 </body>
 </html>
