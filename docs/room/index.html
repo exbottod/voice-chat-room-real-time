@@ -13,7 +13,7 @@ p{font-size:14px;color:#cfc4a8;line-height:1.6}
 .room{font-size:12px;color:#8f85a8;word-break:break-all;margin-top:10px}
 </style></head><body>
 <div class="box">
-  <h1>🚪 Undangan Room</h1>
+  <h1>Undangan Room</h1>
   <p>Kamu diundang masuk room di REZO CHAT VOICE.</p>
   <a class="btn go" id="go" href="#">Buka di Aplikasi</a>
   <a class="btn dl" href="https://github.com/exbottod/voice-chat-room-real-time/releases/latest/download/REZO-CHAT-VOICE.apk">Belum punya aplikasi? Unduh APK</a>
@@ -21,46 +21,33 @@ p{font-size:14px;color:#cfc4a8;line-height:1.6}
 </div>
 <script>
 (function () {
+  var PKG = 'com.rezochatvoice.exceo';
   function idFromUrl() {
     var q = new URLSearchParams(location.search).get('id');
     if (q) return q;
-    // bentuk cantik: /room/<id>
-    var m = location.pathname.match(/\/room\/([^\/?#]+)/) || location.pathname.match(/\/room[\/.]/);
+    var m = location.pathname.match(/\/room[\/.]([^\/?#]+)/);
     return m ? decodeURIComponent(m[1]) : '';
   }
   var id = idFromUrl();
   var go = document.getElementById('go');
+  var info = document.getElementById('info');
   if (!id) {
-    document.getElementById('info').textContent = 'Link room tidak lengkap. Minta ulang link ke temanmu.';
+    info.textContent = 'Link room tidak lengkap. Minta ulang link ke temanmu.';
     go.style.display = 'none';
     return;
   }
   var deep = 'rezo://room/' + id;
-  go.href = deep;
-  document.getElementById('info').textContent = 'ID room: ' + id;
-
-  // Android: intent:// membuka app langsung (lebih andal daripada custom scheme di WebView)
-  var intentUrl = 'intent://room/' + id + '#Intent;scheme=rezo;package=com.example.googlelogin'
-    + ';S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
+  var intentUrl = 'intent://room/' + id + '#Intent;scheme=rezo;package=' + PKG + ';end';
   var isAndroid = /Android/i.test(navigator.userAgent);
+  go.href = isAndroid ? intentUrl : deep;
+  info.textContent = 'ID room: ' + id;
 
-  var tried = false;
-  function tryOpen() {
-    if (tried) return;
-    tried = true;
-    try {
-      var f = document.createElement('iframe');
-      f.style.display = 'none';
-      f.src = deep;
-      document.body.appendChild(f);
-      setTimeout(function () { try { f.parentNode.removeChild(f); } catch (e) {} }, 1200);
-    } catch (e) {}
+  // coba buka otomatis sekali (Android memakai intent:// yang lebih andal)
+  if (isAndroid) {
     setTimeout(function () {
-      // masih di halaman ini? coba intent:// (Chrome), lalu tawarkan tombol
-      if (!document.hidden && isAndroid) { try { location.href = intentUrl; } catch (e) {} }
-    }, 900);
+      try { location.href = intentUrl; } catch (e) {}
+    }, 500);
   }
-  if (isAndroid) setTimeout(tryOpen, 300);
 })();
 </script>
 </body></html>
