@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Membuka room - REZO CHAT VOICE</title>
+<meta http-equiv="refresh" content="0;url=/voice-chat-room-real-time/room/">
+</head><body style="font-family:sans-serif;background:#120a1f;color:#fff8e1;padding:24px">
+<p>Mengalihkan…</p>
+<script>
+(function () {
+  var base = '/voice-chat-room-real-time/';
+  var m = location.pathname.match(/\/room\/([^\/?#]+)/);
+  var q = new URLSearchParams(location.search).get('id');
+  var id = (m && decodeURIComponent(m[1])) || q || '';
+  location.replace(base + 'room/' + (id ? '?id=' + encodeURIComponent(id) : ''));
+})();
+</script>
+</body></html>
