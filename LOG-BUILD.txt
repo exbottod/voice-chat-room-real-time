@@ -1,0 +1,75 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.9/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preReleaseBuild UP-TO-DATE
+> Task :app:mergeReleaseJniLibFolders
+> Task :app:buildKotlinToolingMetadata
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:generateReleaseBuildConfig
+> Task :app:mergeReleaseNativeLibs
+> Task :app:checkReleaseAarMetadata
+> Task :app:generateReleaseResValues
+> Task :app:processReleaseGoogleServices
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
+
+> Task :app:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libagora-fdkaac.so, libagora-ffmpeg.so, libagora-rtc-sdk.so, libagora-soundtouch.so, libagora_ai_echo_cancellation_extension.so, libagora_ai_echo_cancellation_ll_extension.so, libagora_ai_noise_suppression_extension.so, libagora_ai_noise_suppression_ll_extension.so, libagora_audio_beauty_extension.so, libagora_lip_sync_extension.so, libagora_spatial_audio_extension.so, libandroidx.graphics.path.so, libaosl.so.
+
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:packageReleaseResources
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :app:parseReleaseLocalResources
+
+> Task :app:processReleaseMainManifest
+[io.agora.rtc:voice-sdk:4.5.2] /home/runner/.gradle/caches/8.9/transforms/cb706c06c5d188613e6d686685527e34/transformed/voice-sdk-4.5.2/AndroidManifest.xml Warning:
+	Namespace 'io.agora.rtc' is used in multiple modules and/or libraries: io.agora.rtc:voice-sdk:4.5.2, io.agora.rtc:voice-rtc-basic:4.5.2, io.agora.rtc:ains:4.5.2, io.agora.rtc:ains-ll:4.5.2, io.agora.rtc:audio-beauty:4.5.2, io.agora.rtc:spatial-audio:4.5.2, io.agora.rtc:aiaec:4.5.2, io.agora.rtc:aiaec-ll:4.5.2, io.agora.rtc:full-voice-drive:4.5.2, io.agora.infra:aosl:1.2.13.1. Please ensure that all modules and libraries have a unique namespace. For more information, See https://developer.android.com/studio/build/configure-app-module#set-namespace
+/home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:8:5-33:19 Warning:
+	application@android:icon was tagged at AndroidManifest.xml:8 to replace other declarations but no other declaration present
+/home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:8:5-33:19 Warning:
+	application@android:theme was tagged at AndroidManifest.xml:8 to replace other declarations but no other declaration present
+/home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:8:5-33:19 Warning:
+	application@android:supportsRtl was tagged at AndroidManifest.xml:8 to replace other declarations but no other declaration present
+
+> Task :app:processReleaseManifest
+> Task :app:desugarReleaseFileDependencies
+> Task :app:javaPreCompileRelease
+> Task :app:mergeReleaseStartupProfile
+> Task :app:processReleaseManifestForPackage
+> Task :app:mergeReleaseShaders
+> Task :app:mergeReleaseArtProfile
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets
+> Task :app:compressReleaseAssets
+> Task :app:extractReleaseVersionControlInfo
+> Task :app:collectReleaseDependencies
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:mergeReleaseResources
+> Task :app:processReleaseResources
+> Task :app:optimizeReleaseResources
+> Task :app:mergeExtDexRelease
+> Task :app:compileReleaseKotlin
+w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ChatScreens.kt:67:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ChatScreens.kt:239:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:85:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomScreen.kt:944:21 Condition is always 'true'.
+w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/StoreCatalog.kt:131:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/VipAssets.kt:115:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/VipAssets.kt:338:17 'var clearsAfterStop: Boolean' is deprecated. It is recommended to use clearAfterDetached, or manually call to SVGAVideoEntity#clear.If you just consider cleaning up the canvas after playing, you can use FillMode#Clear.
+w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:160:38 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
+w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WaveGames.kt:351:30 'var databaseEnabled: Boolean' is deprecated. Deprecated in Java.
+
+> Task :app:compileReleaseJavaWithJavac
+> Task :app:dexBuilderRelease
+> Task :app:mergeReleaseGlobalSynthetics
+> Task :app:processReleaseJavaRes
+> Task :app:mergeReleaseJavaResource
+> Task :app:mergeDexRelease
+> Task :app:compileReleaseArtProfile
