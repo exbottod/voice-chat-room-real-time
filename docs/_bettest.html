@@ -109,7 +109,7 @@ async function betStart() {
   msg.textContent = cfg ? "Pengaturan dimuat." : "Belum ada pengaturan, memakai nilai bawaan.";
 }
 
-var _save=function(){ = async () => {
+document.getElementById("betSave").onclick = async () => {
   const msg = document.getElementById("betMsg");
   try {
     const out = { updatedAt: Date.now() };
@@ -124,7 +124,6 @@ var _save=function(){ = async () => {
     msg.textContent = "Gagal menyimpan: " + (e.message || e);
   }
 };
-
 
 
 betStart();
