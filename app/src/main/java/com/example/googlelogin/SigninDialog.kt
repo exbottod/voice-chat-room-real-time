@@ -133,10 +133,19 @@ fun SigninDialog(
     var st by remember { mutableStateOf(SigninState()) }
     var claiming by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf("") }
+    var done by remember { mutableStateOf(false) }
 
     LaunchedEffect(uid) {
         cfg = SigninRepo.loadCfg()
         st = SigninRepo.loadState(uid)
+    }
+
+    // Setelah klaim, dialog menutup sendiri: muncul sekali sehari, besok lagi.
+    LaunchedEffect(done) {
+        if (done) {
+            kotlinx.coroutines.delay(1600L)
+            onClose()
+        }
     }
 
     val next = SigninRepo.nextDay(st)
@@ -248,6 +257,7 @@ fun SigninDialog(
                                 cfg.days.getOrNull(day - 1)?.let { if (it.coins > 0) onClaimed(it.coins) }
                                 st = SigninRepo.loadState(uid)
                                 msg = if (day == 7) "Hadiah besar hari ke-7 diterima!" else "Hadiah hari ke-$day diterima!"
+                                done = true
                             }
                         }
                     },
