@@ -82,9 +82,23 @@ fun medalValid(id: String, w: Wallet, now: Long = System.currentTimeMillis()): B
  * Masa aktif hanya menentukan apakah medal muncul di daftar MY MEDALS.
  */
 fun activeMedalIds(w: Wallet): List<String> {
+    val now = System.currentTimeMillis()
     return medalIdList(w.equip["medals"]).filter { id ->
-        id.startsWith("vipt_") || id.startsWith("svm_") || id.startsWith("sx_") || findItem(id) != null
+        when {
+            // Medal dari VIP center: masa aktifnya BARE NG dengan VIP
+            // (lencana, frame, gelembung, efek masuk, medal ikut habis bersamaan).
+            id.startsWith("vipt_") -> vipTierMedalValid(id, w, now)
+            id.startsWith("svm_") -> true
+            id.startsWith("sx_") -> true
+            else -> findItem(id) != null
+        }
     }.take(MAX_MEDALS)
+}
+
+/** Medal VIP sah selama VIP aktif dan tier medal <= tier VIP yang dimiliki. */
+fun vipTierMedalValid(id: String, w: Wallet, now: Long = System.currentTimeMillis()): Boolean {
+    val n = id.removePrefix("vipt_").toIntOrNull() ?: return false
+    return w.vip > 0 && w.vipUntil > now && n <= w.vip
 }
 
 /** Semua medal yang dimiliki: medal VIP (vipt_), medal/lencana dari store. */
@@ -105,7 +119,15 @@ private fun ownedMedalIds(w: Wallet): List<String> {
 fun MedalIcon(id: String, size: Dp, tagModifier: Modifier = Modifier) {
     if (id.startsWith("vipt_")) {
         val n = id.removePrefix("vipt_").toIntOrNull() ?: 0
-        if (n in 1..9) VipTag(n, tagModifier)
+        // Medal 1:1 dari panel VIP center: pakai gambarnya kalau sudah diupload.
+        val medalAsset = if (n in 1..9) VipAssets.get(n, "medal") else null
+        if (medalAsset != null) {
+            androidx.compose.runtime.key(medalAsset.updatedAt) {
+                VipMedia(medalAsset, Modifier.size(size), loop = true)
+            }
+        } else if (n in 1..9) {
+            VipTag(n, tagModifier)
+        }
         return
     }
     val item = findItem(id) ?: return
