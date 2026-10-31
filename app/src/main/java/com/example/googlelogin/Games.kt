@@ -375,12 +375,16 @@ fun TeenPattiScreen(myUid: String, onClose: () -> Unit) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var balance by remember { mutableStateOf(0L) }
     var bet by remember { mutableStateOf(1000L) }
+    var chips by remember { mutableStateOf(listOf(500L, 1000L, 5000L)) }
     var mine by remember { mutableStateOf(listOf<String>()) }
     var bots by remember { mutableStateOf(listOf(listOf<String>(), listOf<String>(), listOf<String>())) }
     var msg by remember { mutableStateOf("Tekan MAIN untuk membagi kartu") }
     var playing by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        val list = BetCfg.load("teenpatti", listOf(500L, 1000L, 5000L))
+        chips = list
+        if (list.none { it == bet }) bet = list.first()
         balance = SupaRepo.get(myUid).wallet?.coins ?: 0L
     }
 
@@ -444,7 +448,7 @@ fun TeenPattiScreen(myUid: String, onClose: () -> Unit) {
         Text(msg, color = Color(0xFFCFCFCF), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(500L, 1000L, 5000L).forEach { v ->
+            chips.forEach { v ->
                 val on = bet == v
                 Box(
                     Modifier.weight(1f).clip(RoundedCornerShape(10.dp))

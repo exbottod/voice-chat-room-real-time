@@ -113,6 +113,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
     var coins by remember { mutableStateOf(0L) }
     var todayWin by remember { mutableStateOf(0L) }
     var chip by remember { mutableStateOf(10_000L) }
+    var chips by remember { mutableStateOf(CAT_CHIPS) }
     var bets by remember { mutableStateOf(mapOf<String, Long>()) }
     var lastBets by remember { mutableStateOf(mapOf<String, Long>()) }
     var timer by remember { mutableStateOf(30) }
@@ -177,6 +178,9 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
 
     // Sinkron jam server: semua pemain berada di detik dan ronde yang sama.
     LaunchedEffect(Unit) {
+        val list = BetCfg.load("greedy", CAT_CHIPS)
+        chips = list
+        if (list.none { it == chip }) chip = list.first()
         Rtdb.startClockSync()
         var lastIdx = -1L
         var settledIdx = -1L
@@ -486,7 +490,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                     )
                     Spacer(Modifier.height(4.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        CAT_CHIPS.forEach { v ->
+                        chips.forEach { v ->
                             val on = chip == v
                             Box(
                                 Modifier.weight(1f).height(34.dp).clip(RoundedCornerShape(12.dp))
