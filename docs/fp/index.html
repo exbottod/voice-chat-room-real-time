@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Fruits Party</title>
+    <script>
+      window.__errs = [];
+      window.addEventListener('error', function (e) {
+        window.__errs.push(String(e.message) + ' @' + (e.filename||'').split('/').pop() + ':' + e.lineno);
+        document.title = 'ERR: ' + window.__errs.join(' | ');
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        window.__errs.push('promise: ' + String(e.reason));
+        document.title = 'ERR: ' + window.__errs.join(' | ');
+      });
+    </script>
+    <script type="module" crossorigin src="./assets/fruitsparty-cp11tlTS.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/fruitsparty-w2zljq1o.css">
+  </head>
+  <body class="dark">
+    <script src="./sound.js"></script>
+    <div id="root"></div>
+  </body>
+</html>
