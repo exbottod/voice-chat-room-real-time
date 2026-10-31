@@ -77,6 +77,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
     when (open) {
         "slot777" -> Slot777HtmlScreen(myUid = myUid, myName = myName, onClose = { open = "" })
         "greedybaby" -> GreedyBabyHtmlScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
+        "fruitsparty" -> FruitsPartyHtmlScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
     "dvt" -> DragonTigerScreen(myUid = myUid, myName = myName, onClose = { open = "" })
         "lucky77" -> Lucky77HtmlScreen(myUid = myUid, myName = myName, onClose = { open = "" })
         "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
@@ -129,6 +130,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                                     GcItem("GreedyCat", R.drawable.ic_game_cat, "greedy"),
                                     GcItem("Slot777", R.drawable.ic_game_slot, "slot777"),
                                     GcItem("GreedyBaby", R.drawable.ic_game_baby, "greedybaby"),
+                                    GcItem("FruitsParty", R.drawable.ic_game_fruits, "fruitsparty"),
                                 ),
                             ) { open = it }
                         }
@@ -148,6 +150,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                                     GcItem("TeenPatti", R.drawable.ic_game_poker, "teenpatti"),
                                     GcItem("GreedyCat", R.drawable.ic_game_cat, "greedy"),
                                     GcItem("GreedyBaby", R.drawable.ic_game_baby, "greedybaby"),
+                                    GcItem("FruitsParty", R.drawable.ic_game_fruits, "fruitsparty"),
                                 ),
                             ) { open = it }
                         }
