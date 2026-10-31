@@ -1,0 +1,131 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tes panel bet</title><style>
+:root{--bg:#0b0b0b;--card:#161616;--line:#2a2a2a;--gold:#d4af37;--gold2:#f3d97a;--txt:#eee;--mut:#9a9a9a;--bad:#e5484d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif;padding:16px;max-width:720px;margin-inline:auto}
+h1{color:var(--gold2);font-size:20px;margin:6px 0 14px}
+h2{color:var(--gold2);font-size:16px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.btn{background:var(--gold);color:#000;border:0;border-radius:10px;padding:11px 16px;font-weight:700;font-size:14px;cursor:pointer}
+.btn.out{background:transparent;color:var(--gold2);border:1px solid var(--gold)}
+.btn.bad{background:var(--bad);color:#fff}
+.btn:disabled{opacity:.5}
+input[type=text],input[type=number]{width:100%;background:#0f0f0f;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px;font-size:14px;margin:4px 0 10px}
+label{font-size:12px;color:var(--mut)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:8px 14px;border-radius:50px;border:1px solid var(--line);color:var(--mut);cursor:pointer;font-size:14px}
+.tab.on{border-color:var(--gold);color:var(--gold2)}
+#prev{aspect-ratio:3/1 !important}
+.prev{width:100%;aspect-ratio:5/2;border-radius:12px;border:1px dashed var(--gold);background:#0f0f0f;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:13px;overflow:hidden;cursor:pointer}
+.prev img{width:100%;height:100%;object-fit:cover}
+.item{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.item img{width:110px;aspect-ratio:5/2;object-fit:cover;border-radius:8px;flex:none}
+.item .info{flex:1;min-width:0;font-size:13px}
+.item .info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item input[type=number]{width:64px;margin:0;padding:6px}
+.muted{color:var(--mut);font-size:13px}
+.hide{display:none!important}
+#msg{position:fixed;left:12px;right:12px;bottom:14px;background:#222;border:1px solid var(--gold);padding:10px 14px;border-radius:12px;text-align:center;font-size:14px}
+.u{display:flex;gap:10px;align-items:center;margin:10px 0}.u img,.u .ph{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#263238;flex:none;display:flex;align-items:center;justify-content:center;color:var(--gold2);font-weight:700}.u b{display:block}</style></head><body class="wrap">
+<h1>🎰 Tes tab Bet Game</h1>
+<div id="tab-bet">
+  <div class="card">
+    <h2>Nilai taruhan game</h2>
+    <p class="muted">Atur nominal chip taruhan tiap game. Isi dengan angka dipisah koma, urut dari kecil ke besar,
+      maksimal 6 chip. Contoh: 1000, 10000, 100000, 1000000. Perubahan langsung dipakai game saat dibuka berikutnya.</p>
+    <div id="betGames" style="margin-top:12px"></div>
+    <button class="btn" id="betSave" style="margin-top:14px">Simpan nilai taruhan</button>
+    <div class="muted" id="betMsg" style="margin-top:8px"></div>
+  </div>
+</div>
+
+
+<script>
+function $(id){return document.getElementById(id);}
+var rtdb = { ref: function(){ return { get: function(){ return Promise.resolve({ val: function(){ return { fruitsparty:{chips:[1000,10000,100000]}, greedybaby:{chips:[500,5000,50000]} }; } }); }, set: function(o){ window.__saved=o; return Promise.resolve(); } }; } };
+var cldUpload=null, vipKind=null, rtSet=null;
+/* ---------- Bet game ---------- */
+const BET_GAMES = [
+  { k: "fruitsparty", n: "Fruits Party", d: [50000, 500000, 1000000, 5000000] },
+  { k: "greedybaby", n: "Greedy Baby", d: [100, 1000, 10000, 100000, 1000000] },
+  { k: "slot777", n: "Slot 777", d: [1000, 10000, 100000, 1000000] },
+  { k: "lucky77", n: "Lucky 77", d: [1000, 10000, 100000] },
+  { k: "dvt", n: "Dragon Tiger", d: [1000, 10000, 100000] },
+  { k: "teenpatti", n: "Teen Patti", d: [1000, 10000, 100000] },
+  { k: "poker", n: "3 Card Poker", d: [1000, 10000, 100000] },
+  { k: "greedy", n: "Greedy Cat", d: [100, 1000, 10000, 100000, 1000000] }
+];
+
+function betRender(cfg) {
+  const box = document.getElementById("betGames");
+  box.innerHTML = "";
+  BET_GAMES.forEach(g => {
+    const cur = (cfg && cfg[g.k] && cfg[g.k].chips && cfg[g.k].chips.length) ? cfg[g.k].chips : g.d;
+    const div = document.createElement("div");
+    div.style.marginBottom = "12px";
+    div.innerHTML = '<label class="muted">' + g.n + '</label>' +
+      '<input type="text" id="bet-' + g.k + '" value="' + cur.join(", ") + '" placeholder="angka dipisah koma">' +
+      '<div class="muted" id="betp-' + g.k + '" style="margin-top:4px;font-size:12px"></div>';
+    box.appendChild(div);
+    const inp = document.getElementById("bet-" + g.k);
+    const prev = () => {
+      const vs = betParse(inp.value);
+      document.getElementById("betp-" + g.k).textContent = vs.length
+        ? "Chip: " + vs.map(betShort).join(" · ")
+        : "Isi minimal satu angka";
+    };
+    inp.oninput = prev;
+    prev();
+  });
+}
+
+function betParse(txt) {
+  return String(txt || "")
+    .split(/[,;\s]+/)
+    .map(x => Number(String(x).replace(/[^0-9]/g, "")))
+    .filter(v => v > 0)
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => a - b)
+    .slice(0, 6);
+}
+
+function betShort(v) {
+  if (v >= 1000000) return (v / 1000000).toString().replace(/\.0$/, "") + "M";
+  if (v >= 1000) return (v / 1000).toString().replace(/\.0$/, "") + "K";
+  return String(v);
+}
+
+async function betStart() {
+  const msg = document.getElementById("betMsg");
+  msg.textContent = "Memuat pengaturan…";
+  let cfg = null;
+  try {
+    const snap = await rtdb.ref("betCfg").get();
+    cfg = snap.val() || null;
+  } catch (e) { cfg = null; }
+  betRender(cfg);
+  msg.textContent = cfg ? "Pengaturan dimuat." : "Belum ada pengaturan, memakai nilai bawaan.";
+}
+
+var _save=function(){ = async () => {
+  const msg = document.getElementById("betMsg");
+  try {
+    const out = { updatedAt: Date.now() };
+    for (const g of BET_GAMES) {
+      const vs = betParse(document.getElementById("bet-" + g.k).value);
+      if (!vs.length) throw new Error("Nilai taruhan " + g.n + " masih kosong");
+      out[g.k] = { chips: vs, updatedAt: Date.now() };
+    }
+    await rtdb.ref("betCfg").set(out);
+    msg.textContent = "Tersimpan. Game memakai nilai taruhan ini saat dibuka berikutnya.";
+  } catch (e) {
+    msg.textContent = "Gagal menyimpan: " + (e.message || e);
+  }
+};
+
+
+
+betStart();
+</script></body></html>
