@@ -451,6 +451,9 @@ fun RoomScreen(
             }
 
             // Pengumuman dan notifikasi masuk
+            // Banner kemenangan game (terbang di atas daftar chat publik).
+            GameWinBanner()
+
             LazyColumn(
                 Modifier.weight(1f).fillMaxWidth(),
                 state = listState,

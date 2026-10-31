@@ -192,6 +192,7 @@ internal class GameBridge(
     /** Tambah coin saat menang atau batal taruhan. */
     @JavascriptInterface
     fun win(amount: Long): Long = runBlocking {
+        if (amount > 0) GameBanner.publish(myName, label, amount)
         val nb = try {
             SupaRepo.waveFlow(amount, 2, UUID.randomUUID().toString(), label)
         } catch (e: Exception) {
