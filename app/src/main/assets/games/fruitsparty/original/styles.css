@@ -1,0 +1,39 @@
+/* CSS asli komponen Fruits Party (dari bundle Lovable) */
+:root{--fp-bg:oklch(22% .09 300);--fp-bg-2:oklch(32% .14 305);--fp-cabinet:oklch(48% .16 290);--fp-cabinet-dark:oklch(36% .15 288);--fp-cabinet-light:oklch(70% .13 295);--fp-tile-teal:oklch(30% .06 220);--fp-tile-purple:oklch(28% .12 295);--fp-tile-active:oklch(55% .2 255);--fp-gold:oklch(88% .17 92);--fp-gold-dark:oklch(62% .15 60);--fp-red:oklch(60% .22 25);--fp-chip:oklch(72% .17 0);--fp-text:oklch(97% .01 300);--fp-dim:oklch(80% .05 300);--fp-panel:oklch(35% .1 290/.92)}
+.border-fp-gold{border-color:var(--fp-gold)}
+.text-fp-dim{color:var(--fp-dim)}
+.text-fp-gold{color:var(--fp-gold)}
+.text-fp-red{color:var(--fp-red)}
+.text-fp-text{color:var(--fp-text)}
+:root{--fp-bg:oklch(22% .09 300);--fp-bg-2:oklch(32% .14 305);--fp-cabinet:oklch(48% .16 290);--fp-cabinet-dark:oklch(36% .15 288);--fp-cabinet-light:oklch(70% .13 295);--fp-tile-teal:oklch(30% .06 220);--fp-tile-purple:oklch(28% .12 295);--fp-tile-active:oklch(55% .2 255);--fp-gold:oklch(88% .17 92);--fp-gold-dark:oklch(62% .15 60);--fp-red:oklch(60% .22 25);--fp-chip:oklch(72% .17 0);--fp-text:oklch(97% .01 300);--fp-dim:oklch(80% .05 300);--fp-panel:oklch(35% .1 290/.92)}
+.fp-root{font-family:var(--font-fp);color:var(--fp-text);background:radial-gradient(ellipse at 50% 20%, var(--fp-bg-2), var(--fp-bg) 70%)}
+.fp-cabinet{background:linear-gradient(180deg, var(--fp-cabinet-light), var(--fp-cabinet) 12%, var(--fp-cabinet-dark));box-shadow:inset 0 2px oklch(100% 0 0/.35),0 10px 30px oklch(0% 0 0/.5)}
+.fp-board{background:linear-gradient(oklch(62% .14 295),oklch(50% .15 292));box-shadow:inset 0 0 0 3px oklch(80% .1 295),inset 0 0 0 6px oklch(38% .14 290)}
+.fp-tile{border-radius:.75rem;transition:transform .1s;box-shadow:inset 0 2px oklch(100% 0 0/.12),inset 0 -4px 8px oklch(0% 0 0/.4),0 2px oklch(30% .1 290)}
+.fp-tile:active{transform:scale(.96)}
+.fp-tile-teal{background:radial-gradient(circle at 50% 40%, oklch(38% .07 210), var(--fp-tile-teal))}
+.fp-tile-purple{background:radial-gradient(circle at 50% 40%, oklch(42% .18 300), var(--fp-tile-purple))}
+.fp-tile-on{background:radial-gradient(circle at 50% 40%,oklch(62% .2 250),oklch(38% .2 260));box-shadow:0 0 0 3px oklch(85% .12 230),0 0 18px oklch(75% .18 230)}
+.fp-tile-win{animation:.35s ease-in-out infinite alternate fp-win}
+to{box-shadow:0 0 0 4px var(--fp-gold), 0 0 28px var(--fp-gold)}
+.fp-timer{outline:4px solid var(--fp-red);background:radial-gradient(circle,oklch(32% .14 20),oklch(20% .1 20));border:4px dotted oklch(95% .02 0);border-radius:.75rem}
+.fp-digit{color:var(--fp-gold);text-shadow:0 0 12px var(--fp-gold-dark);font-family:Orbitron,monospace}
+.fp-jackpot-title{background:linear-gradient(180deg, oklch(98% .1 95), var(--fp-gold) 45%, var(--fp-gold-dark));color:#0000;filter:drop-shadow(0 3px oklch(45% .12 50))drop-shadow(0 0 10px oklch(60% .25 330));letter-spacing:-.02em;-webkit-background-clip:text;background-clip:text;font-weight:900}
+.fp-jackpot-box{border:3px solid var(--fp-gold);background:linear-gradient(oklch(42% .2 300),oklch(28% .16 295));box-shadow:0 0 0 3px oklch(55% .2 30),0 6px 16px oklch(0% 0 0/.5)}
+.fp-gold-text{color:var(--fp-gold);text-shadow:0 2px oklch(45% .12 50)}
+.fp-reel{border:2px solid var(--fp-gold-dark);background:linear-gradient(oklch(95% .01 300),oklch(75% .03 300),oklch(95% .01 300))}
+.fp-diamond{background:linear-gradient(135deg, var(--fp-gold), var(--fp-gold-dark));box-shadow:inset 0 0 0 3px oklch(55% .22 10)}
+.fp-chip{background:radial-gradient(circle at 40% 35%, oklch(88% .1 0), var(--fp-chip));color:oklch(45% .18 0);border:2px dashed oklch(100% 0 0/.8)}
+.fp-pill{background:linear-gradient(oklch(55% .17 280),oklch(42% .18 275));box-shadow:inset 0 0 0 2px oklch(75% .12 280)}
+.fp-pill-on{background:linear-gradient(oklch(70% .18 25),oklch(55% .2 25));box-shadow:inset 0 0 0 2px oklch(90% .08 30),0 0 12px oklch(70% .2 25)}
+.fp-btn-blue{background:radial-gradient(at 50% 30%,oklch(80% .12 240),oklch(50% .2 255));box-shadow:0 5px oklch(30% .08 270),0 7px oklch(20% .05 270)}
+.fp-btn-red{background:radial-gradient(at 50% 30%,oklch(85% .12 30),oklch(60% .22 28));box-shadow:0 5px oklch(30% .08 270),0 7px oklch(20% .05 270),0 0 18px oklch(70% .2 30)}
+.fp-stat{background:linear-gradient(oklch(42% .14 288),oklch(50% .15 290));box-shadow:inset 0 0 0 2px oklch(70% .12 292),inset 0 3px 6px oklch(0% 0 0/.35)}
+.fp-icon-btn{color:oklch(75% .15 240);background:linear-gradient(oklch(40% .12 260),oklch(25% .1 265));box-shadow:inset 0 0 0 2px oklch(60% .15 250),0 3px oklch(15% .05 265)}
+.fp-coin{background:radial-gradient(circle at 40% 35%, oklch(95% .12 95), var(--fp-gold) 50%, var(--fp-gold-dark));border-radius:9999px;display:inline-block;box-shadow:inset 0 0 0 2px oklch(70% .15 70)}
+.fp-panel{background:var(--fp-panel);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:3px solid oklch(82% .08 295);box-shadow:0 10px 40px oklch(0% 0 0/.6)}
+.fp-panel-head{background:linear-gradient(oklch(58% .14 290),oklch(48% .15 290));border-bottom:2px solid oklch(82% .08 295)}
+.fp-lights{background-image:radial-gradient(circle,oklch(85% .12 220) 2px,#0000 3px);background-size:8px 22px;animation:1s steps(2,end) infinite fp-blink}
+.fp-fade-in{animation:.25s ease-out fp-pop}
+.fp-load-track{background:oklch(20% .08 300/.7);border:2px solid oklch(85% .05 300/.8)}
+.fp-load-bar{background:repeating-linear-gradient(-45deg,oklch(75% .15 280) 0 8px,oklch(92% .06 280) 8px 16px) 0 0/22.6px 22.6px;animation:.6s linear infinite fp-stripes}
