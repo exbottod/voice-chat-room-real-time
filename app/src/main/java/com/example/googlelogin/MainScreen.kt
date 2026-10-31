@@ -164,6 +164,12 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         } catch (e: Exception) { }
     }
 
+    // Medal SVIP disimpan di RTDB. Muat sejak awal supaya medal yang dipasang
+    // tidak sempat dianggap kosong saat app baru dibuka (dulu tampak hilang).
+    LaunchedEffect(uid) {
+        if (uid.isNotBlank()) SvipInv.observe(uid)
+    }
+
     // Cek in harian: kalau hari ini belum klaim, tampilkan dialog otomatis.
     LaunchedEffect(uid, signinChecked) {
         if (uid.isEmpty() || signinChecked) return@LaunchedEffect

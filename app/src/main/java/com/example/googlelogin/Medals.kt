@@ -63,19 +63,27 @@ fun medalIdList(csv: String?): List<String> =
  * karena dulu medal ini hilang sendiri setelah app ditutup (inv dari cache kosong).
  */
 fun medalValid(id: String, w: Wallet, now: Long = System.currentTimeMillis()): Boolean {
-    if ((w.inv[id] ?: 0L) > now) return true
+    val exp = w.inv[id]
+    // Pernah punya catatan di dompet: ikuti masa aktifnya.
+    if (exp != null) return exp > now
+    // Medal VIP: sah selama VIP aktif dan tier-nya tercapai.
     if (id.startsWith("vipt_")) {
         val n = id.removePrefix("vipt_").toIntOrNull() ?: return false
         return w.vip > 0 && w.vipUntil > now && n <= w.vip
     }
-    return false
+    // Medal dari katalog tanpa catatan dompet (hadiah/admin): tetap dianggap sah,
+    // supaya tidak hilang sendiri setelah app ditutup.
+    return findItem(id) != null
 }
 
-/** Medal yang sedang dipasang dan masih berlaku (dari wallet sendiri). */
+/**
+ * Medal yang sedang dipasang. Sama seperti medal lain: apa pun yang dipasang
+ * tetap terpasang (tidak hilang sendiri) selama itemnya dikenal katalog.
+ * Masa aktif hanya menentukan apakah medal muncul di daftar MY MEDALS.
+ */
 fun activeMedalIds(w: Wallet): List<String> {
-    val now = System.currentTimeMillis()
-    return medalIdList(w.equip["medals"]).filter {
-        medalValid(it, w, now) && (it.startsWith("vipt_") || it.startsWith("svm_") || findItem(it)?.slot == "medal")
+    return medalIdList(w.equip["medals"]).filter { id ->
+        id.startsWith("vipt_") || id.startsWith("svm_") || id.startsWith("sx_") || findItem(id) != null
     }.take(MAX_MEDALS)
 }
 
@@ -84,9 +92,10 @@ private fun ownedMedalIds(w: Wallet): List<String> {
     val now = System.currentTimeMillis()
     // Medal milik VIP yang aktif selalu dianggap dimiliki, walau entri inv-nya hilang.
     val vipMedals = if (w.vip > 0 && w.vipUntil > now) (1..w.vip).map { "vipt_$it" } else emptyList()
+    val worn = medalIdList(w.equip["medals"]).filter { findItem(it) != null }
     return (w.inv.filter { (id, exp) ->
         exp > now && (id.startsWith("vipt_") || id.startsWith("svm_") || findItem(id)?.slot == "medal")
-    }.keys + vipMedals)
+    }.keys + vipMedals + worn)
         .distinct()
         .sortedWith(compareBy<String>({ !it.startsWith("vipt_") }, { it }))
 }
