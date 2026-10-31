@@ -152,6 +152,22 @@ internal class GameBridge(
         }
     }
 
+    /** Nilai chip taruhan game ini dari panel developer (betCfg di Realtime Database). */
+    @JavascriptInterface
+    fun bets(): String = runBlocking {
+        try {
+            val s = Rtdb.ref("betCfg/" + gameKey + "/chips").get().await()
+            val arr = org.json.JSONArray()
+            for (c in s.children) {
+                val v = c.getValue(Long::class.java) ?: c.getValue(Int::class.java)?.toLong() ?: 0L
+                if (v > 0L) arr.put(v)
+            }
+            arr.toString()
+        } catch (e: Exception) {
+            "[]"
+        }
+    }
+
     /** Alasan terakhir saat coin gagal dipotong (ditampilkan di game). */
     @JavascriptInterface
     fun lastError(): String = lastErr

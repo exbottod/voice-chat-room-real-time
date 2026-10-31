@@ -21,6 +21,20 @@
   var R = 40;
 
   var A = window.AndroidGame || null;
+  // nilai chip taruhan dari panel developer (betCfg), kalau diatur admin
+  try {
+    var bc = (A && A.bets) ? JSON.parse(A.bets()) : [];
+    if (bc && bc.length) {
+      var lbl = function (v) {
+        if (v >= 1000000) return String(v / 1000000).replace('.0', '') + 'M';
+        if (v >= 1000) return String(v / 1000).replace('.0', '') + 'K';
+        return String(v);
+      };
+      CHIPS = bc.map(function (v, i) {
+        return { v: v, l: lbl(v), c: CHIPS[Math.min(i, CHIPS.length - 1)].c };
+      });
+    }
+  } catch (e) {}
   var $ = function (id) { return document.getElementById(id); };
   var fmt = function (n) { return Number(n).toLocaleString('id-ID'); };
 
