@@ -135,7 +135,7 @@ fun FruitsPartyHtmlScreen(myUid: String, myName: String = "Player", onClose: () 
                             ),
                             "AndroidGame",
                         )
-                        loadUrl("https://appassets.androidplatform.net/assets/games/fruitsparty/index.html")
+                        loadUrl("file:///android_asset/games/fruitsparty/index.html")
                     }
                 },
             )
