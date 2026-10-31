@@ -52,7 +52,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -193,6 +193,17 @@ label{font-size:12px;color:var(--mut)}
     <div id="siDays" style="margin-top:14px"></div>
     <button class="btn" id="siSave" style="margin-top:14px">Simpan pengaturan cek in</button>
     <div class="muted" id="siMsg" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="tab-bet" class="hide">
+  <div class="card">
+    <h2>Nilai taruhan game</h2>
+    <p class="muted">Atur nominal chip taruhan tiap game. Isi dengan angka dipisah koma, urut dari kecil ke besar,
+      maksimal 6 chip. Contoh: 1000, 10000, 100000, 1000000. Perubahan langsung dipakai game saat dibuka berikutnya.</p>
+    <div id="betGames" style="margin-top:12px"></div>
+    <button class="btn" id="betSave" style="margin-top:14px">Simpan nilai taruhan</button>
+    <div class="muted" id="betMsg" style="margin-top:8px"></div>
   </div>
 </div>
 
@@ -456,15 +467,95 @@ document.getElementById("siSave").onclick = async () => {
   }
 };
 
+/* ---------- Bet game ---------- */
+const BET_GAMES = [
+  { k: "fruitsparty", n: "Fruits Party", d: [50000, 500000, 1000000, 5000000] },
+  { k: "greedybaby", n: "Greedy Baby", d: [100, 1000, 10000, 100000, 1000000] },
+  { k: "slot777", n: "Slot 777", d: [1000, 10000, 100000, 1000000] },
+  { k: "lucky77", n: "Lucky 77", d: [1000, 10000, 100000] },
+  { k: "dvt", n: "Dragon Tiger", d: [1000, 10000, 100000] },
+  { k: "teenpatti", n: "Teen Patti", d: [1000, 10000, 100000] },
+  { k: "poker", n: "3 Card Poker", d: [1000, 10000, 100000] },
+  { k: "greedy", n: "Greedy Cat", d: [100, 1000, 10000, 100000, 1000000] }
+];
+
+function betRender(cfg) {
+  const box = document.getElementById("betGames");
+  box.innerHTML = "";
+  BET_GAMES.forEach(g => {
+    const cur = (cfg && cfg[g.k] && cfg[g.k].chips && cfg[g.k].chips.length) ? cfg[g.k].chips : g.d;
+    const div = document.createElement("div");
+    div.style.marginBottom = "12px";
+    div.innerHTML = '<label class="muted">' + g.n + '</label>' +
+      '<input type="text" id="bet-' + g.k + '" value="' + cur.join(", ") + '" placeholder="angka dipisah koma">' +
+      '<div class="muted" id="betp-' + g.k + '" style="margin-top:4px;font-size:12px"></div>';
+    box.appendChild(div);
+    const inp = document.getElementById("bet-" + g.k);
+    const prev = () => {
+      const vs = betParse(inp.value);
+      document.getElementById("betp-" + g.k).textContent = vs.length
+        ? "Chip: " + vs.map(betShort).join(" · ")
+        : "Isi minimal satu angka";
+    };
+    inp.oninput = prev;
+    prev();
+  });
+}
+
+function betParse(txt) {
+  return String(txt || "")
+    .split(/[,;\s]+/)
+    .map(x => Number(String(x).replace(/[^0-9]/g, "")))
+    .filter(v => v > 0)
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => a - b)
+    .slice(0, 6);
+}
+
+function betShort(v) {
+  if (v >= 1000000) return (v / 1000000).toString().replace(/\.0$/, "") + "M";
+  if (v >= 1000) return (v / 1000).toString().replace(/\.0$/, "") + "K";
+  return String(v);
+}
+
+async function betStart() {
+  const msg = document.getElementById("betMsg");
+  msg.textContent = "Memuat pengaturan…";
+  let cfg = null;
+  try {
+    const snap = await rtdb.ref("betCfg").get();
+    cfg = snap.val() || null;
+  } catch (e) { cfg = null; }
+  betRender(cfg);
+  msg.textContent = cfg ? "Pengaturan dimuat." : "Belum ada pengaturan, memakai nilai bawaan.";
+}
+
+document.getElementById("betSave").onclick = async () => {
+  const msg = document.getElementById("betMsg");
+  try {
+    const out = { updatedAt: Date.now() };
+    for (const g of BET_GAMES) {
+      const vs = betParse(document.getElementById("bet-" + g.k).value);
+      if (!vs.length) throw new Error("Nilai taruhan " + g.n + " masih kosong");
+      out[g.k] = { chips: vs, updatedAt: Date.now() };
+    }
+    await rtdb.ref("betCfg").set(out);
+    msg.textContent = "Tersimpan. Game memakai nilai taruhan ini saat dibuka berikutnya.";
+  } catch (e) {
+    msg.textContent = "Gagal menyimpan: " + (e.message || e);
+  }
+};
+
 let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
   if (t.dataset.t === "signin") signinStart();
+  if (t.dataset.t === "bet") betStart();
 });
 
 async function lookup(raw){
