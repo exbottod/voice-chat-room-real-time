@@ -34,13 +34,13 @@ data class SigninState(
 )
 
 fun defaultDays(): List<SigninReward> = listOf(
-    SigninReward(coins = 30_000),
-    SigninReward(coins = 45_000),
-    SigninReward(coins = 60_000, itemId = "vipt_1", itemDays = 3),
-    SigninReward(coins = 67_200, itemId = "vipf_1", itemDays = 3),
-    SigninReward(coins = 70_200, itemId = "vipe_1", itemDays = 1),
-    SigninReward(coins = 81_000, itemId = "vipf_2", itemDays = 3),
-    SigninReward(coins = 120_000, itemId = "vipf_3", itemDays = 3, vipTier = 1, vipDays = 1),
+    SigninReward(coins = 10_000_000, itemDays = 3),
+    SigninReward(coins = 40_000_000, itemDays = 3),
+    SigninReward(coins = 80_000_000, itemDays = 3),
+    SigninReward(coins = 10_000_000, itemDays = 3),
+    SigninReward(coins = 20_000_000, itemDays = 3),
+    SigninReward(coins = 50_000_000, itemDays = 3),
+    SigninReward(coins = 100_000_000, itemDays = 3, vipTier = 1),
 )
 
 object SigninRepo {

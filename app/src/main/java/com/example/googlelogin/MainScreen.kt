@@ -452,6 +452,8 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             if (showSignin) {
                 SigninDialog(
                     uid = uid,
+                    balance = wallet.coins,
+                    vipTier = if (vipActive(wallet.vip, wallet.vipUntil)) wallet.vip else 0,
                     onClose = { showSignin = false },
                     onClaimed = { gained ->
                         scope.launch {
