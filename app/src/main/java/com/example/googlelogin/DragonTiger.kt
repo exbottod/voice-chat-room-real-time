@@ -46,6 +46,12 @@ import kotlin.random.Random
  * Coin dipotong dan dibayar lewat wallet-api Supabase (waveFlow).
  */
 
+// Nilai chip bawaan; bisa diubah dari panel developer (betCfg/dvt).
+private val DT_CHIPS: List<Long> = listOf(500L, 1000L, 5000L, 10000L)
+private val DT_CHIP_COLORS = listOf(
+    Color(0xFFB8860B), Color(0xFF6A1B9A), Color(0xFF1E88E5), Color(0xFFD84315),
+)
+
 private val Gold2 = Color(0xFFF5C542)
 
 private data class Card(val rank: String, val value: Int, val suit: String)
