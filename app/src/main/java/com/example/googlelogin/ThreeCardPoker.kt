@@ -73,6 +73,12 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var balance by remember { mutableStateOf(0L) }
     var bet by remember { mutableStateOf(500L) }
+    var chips by remember { mutableStateOf(ChipColors.map { it.first }) }
+    LaunchedEffect(Unit) {
+        val list = BetCfg.load("poker", ChipColors.map { it.first })
+        chips = list
+        if (list.none { it == bet }) bet = list.first()
+    }
     var pot by remember { mutableStateOf(listOf(0L, 0L, 0L)) }
     var stakes by remember { mutableStateOf(listOf(0L, 0L, 0L)) }
     var hands by remember { mutableStateOf(listOf(listOf<String>(), listOf<String>(), listOf<String>())) }
@@ -322,7 +328,8 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                ChipColors.forEach { (v, c) ->
+                chips.forEachIndexed { i, v ->
+                    val c = ChipColors[i % ChipColors.size].second
                     val on = bet == v
                     Box(
                         Modifier.weight(1f).height(30.dp).clip(CircleShape)
@@ -332,7 +339,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            if (v >= 1000) (v / 1000).toString() + "K" else v.toString(),
+                            BetCfg.label(v),
                             color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold,
                         )
                     }

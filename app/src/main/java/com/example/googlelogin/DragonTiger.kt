@@ -68,6 +68,12 @@ fun DragonTigerScreen(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var balance by remember { mutableStateOf(0L) }
     var bet by remember { mutableStateOf(1000L) }
+    var chips by remember { mutableStateOf(DT_CHIPS) }
+    LaunchedEffect(Unit) {
+        val list = BetCfg.load("dvt", DT_CHIPS)
+        chips = list
+        if (list.none { it == bet }) bet = list.first()
+    }
     var pick by remember { mutableStateOf("") }        // kolom terakhir dipilih
     var staked by remember { mutableStateOf(0L) }       // total taruhan ronde ini
     var laneBet by remember { mutableStateOf(mapOf<String, Long>()) }
@@ -323,7 +329,8 @@ fun DragonTigerScreen(
                         ) {
                             Text("x2", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
-                        listOf(500L to Color(0xFFB8860B), 1000L to Color(0xFF6A1B9A), 5000L to Color(0xFF1E88E5), 10000L to Color(0xFFD84315)).forEach { (v, c) ->
+                        chips.forEachIndexed { i, v ->
+                            val c = DT_CHIP_COLORS[i % DT_CHIP_COLORS.size]
                             val on = bet == v
                             Box(
                                 Modifier.padding(start = 6.dp).size(44.dp).clip(CircleShape)
@@ -333,7 +340,7 @@ fun DragonTigerScreen(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    if (v >= 1000) (v / 1000).toString() + "K" else v.toString(),
+                                    BetCfg.label(v),
                                     color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold,
                                 )
                             }
