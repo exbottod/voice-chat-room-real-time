@@ -444,6 +444,26 @@ function cbPick(rows: CbRow[]): CbRow {
   return rows[rows.length - 1];
 }
 
+/**
+ * Pecahan tampilan cashback: angka dari daftar aset SVGA yang sudah ada di aplikasi.
+ * Hanya dipakai kalau total tidak lebih dari 50.000; di atas itu cukup totalnya saja.
+ */
+const CB_LADDER = [10000, 9000, 8000, 6000, 4000, 3000, 2000, 1000, 888, 666, 500, 400, 300, 200, 100, 88, 66, 50, 30, 20, 10];
+
+function cbSplit(total: number): number[] {
+  if (!(total > 0) || total > 50000) return [];
+  const out: number[] = [];
+  let rem = Math.floor(total);
+  let guard = 0;
+  while (rem >= 10 && out.length < 5 && guard++ < 12) {
+    const v = CB_LADDER.find((x) => x <= rem);
+    if (!v) break;
+    out.push(v);
+    rem -= v;
+  }
+  return out;
+}
+
 async function giftCashback(uid: string, p: Record<string, unknown>): Promise<Response> {
   try {
     const cfg = await cashbackCfg();
@@ -454,10 +474,14 @@ async function giftCashback(uid: string, p: Record<string, unknown>): Promise<Re
     const value = price * count;
     if (value <= 0) return json({ ok: 0, e: "Nilai gift tidak valid" }, 200);
 
-    // Batas aman: cashback tidak boleh melebihi 30x nilai gift.
-    const cap = Math.max(1, value * 30);
+    // Tabel panel berisi PENGALI gift (x0, x1, x2, x5, x10, x50, x250 dst).
+    // Total cashback = harga gift x pengali yang keluar dari undian.
     const row = cbPick(cbTierOf(cfg, value));
-    const amount = Math.min(row.v, cap);
+    const mult = Math.max(0, Math.min(500, Math.floor(row.v)));
+    const target = value * mult;
+    // Total dipecah jadi beberapa pecahan dari daftar aset (10..10000).
+    const parts = cbSplit(target);
+    const amount = parts.length ? parts.reduce((a, b) => a + b, 0) : target;
 
     // Kredit cashback ke pengirim.
     let paid = 0;
@@ -484,10 +508,12 @@ async function giftCashback(uid: string, p: Record<string, unknown>): Promise<Re
     return json({
       ok: 1,
       amount: paid,
-      pecahan: row.v,
+      mult: mult,
+      parts: parts.slice(0, 8),
+      pecahan: parts[0] ?? row.v,
       recv: recvPaid,
       jp: paid >= jpMin ? 1 : 0,
-      asset: String(((cfg.assets ?? {}) as Record<string, unknown>)[String(row.v)] ?? ""),
+      asset: "",
     });
   } catch {
     return json({ ok: 0, e: "Server sibuk, coba lagi" }, 200);

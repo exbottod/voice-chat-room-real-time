@@ -179,6 +179,7 @@ object GiftFx {
         var cbWin = 0L
         var cbPecahan = 0L
         var cbAsset = ""
+        var cbParts = ""
         var cbJp = false
         var comboN = 0
         if (g.special) {
@@ -197,8 +198,9 @@ object GiftFx {
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
             if (cb != null && cb.error == null && cb.amount > 0) {
                 cbWin = cb.amount
-                cbPecahan = cb.pecahan
-                cbAsset = cb.asset
+                cbPecahan = if (cb.parts.isNotEmpty()) cb.parts.first() else cb.pecahan
+                cbAsset = ""
+                cbParts = cb.parts.joinToString(",")
                 cbJp = cb.jp
                 try {
                     Rtdb.ref("cashback/$uid/total").setValue(ServerValue.increment(cbWin))
@@ -231,6 +233,7 @@ object GiftFx {
                     "price" to g.price * count,
                     "cb" to cbWin,
                     "pecahan" to cbPecahan,
+                    "parts" to cbParts,
                     "asset" to cbAsset,
                     "jp" to cbJp,
                     "ts" to System.currentTimeMillis(),
@@ -1013,6 +1016,7 @@ fun GiftSvga(
     var bytes by remember(url) { mutableStateOf(svgaCache[url]) }
 
     LaunchedEffect(url, mode) {
+        if (url.startsWith("asset/")) return@LaunchedEffect
         if (mode != 1 || bytes != null) return@LaunchedEffect
         val got = withContext(Dispatchers.IO) {
             try {
@@ -1067,7 +1071,18 @@ fun GiftSvga(
                             mode = if (mode == 0) 1 else 2
                         }
                     }
-                    if (mode == 0) {
+                    // "asset/..." = file SVGA yang sudah ikut di dalam aplikasi.
+                    if (url.startsWith("asset/")) {
+                        val path = url.removePrefix("asset/")
+                        try {
+                            val b = c.assets.open(path).use { it.readBytes() }
+                            parser.decodeFromInputStream(
+                                java.io.ByteArrayInputStream(b), path, done, true,
+                            )
+                        } catch (e: Exception) {
+                            mode = 2
+                        }
+                    } else if (mode == 0) {
                         try {
                             parser.decodeFromURL(java.net.URL(url), done)
                         } catch (e: Exception) {

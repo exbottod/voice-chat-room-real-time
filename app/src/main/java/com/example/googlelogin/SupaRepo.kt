@@ -246,6 +246,8 @@ object SupaRepo {
         val jp: Boolean,
         val asset: String,
         val error: String?,
+        val mult: Int = 0,
+        val parts: List<Long> = emptyList(),
     )
 
     suspend fun giftCashback(uid: String, price: Long, count: Int, to: String = ""): CashbackRes {
@@ -256,6 +258,10 @@ object SupaRepo {
         if (j.optInt("ok") != 1) {
             return CashbackRes(0, 0, 0, false, "", j.optString("e").ifBlank { "Cashback gagal" })
         }
+        val parts = ArrayList<Long>()
+        j.optJSONArray("parts")?.let { a ->
+            for (i in 0 until a.length()) parts.add(a.optLong(i))
+        }
         return CashbackRes(
             amount = j.optLong("amount"),
             pecahan = j.optLong("pecahan"),
@@ -263,6 +269,8 @@ object SupaRepo {
             jp = j.optInt("jp") == 1,
             asset = j.optString("asset"),
             error = null,
+            mult = j.optInt("mult"),
+            parts = parts,
         )
     }
 

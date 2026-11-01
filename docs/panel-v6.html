@@ -289,9 +289,10 @@ label{font-size:12px;color:var(--mut)}
   </div>
 
   <div class="card">
-    <h2>Tabel pecahan</h2>
-    <p class="muted">Pilih tingkatan harga gift, lalu isi bobot tiap pecahan. Bobot besar = pecahan itu lebih sering keluar.
-      Kolom RTP menunjukkan rata-rata pengembalian dibanding harga gift tingkat itu.</p>
+    <h2>Tabel pengali</h2>
+    <p class="muted">Isi bobot untuk tiap pengali. Pengali besar = cashback besar tapi jarang.
+      Total cashback = harga gift x pengali yang keluar, lalu dipecah jadi angka-angka kecil
+      (10 sampai 10000) yang muncul di layar. Baris bawah menunjukkan RTP hasil bobot ini.</p>
     <div id="cbTiers" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"></div>
     <div id="cbRows"></div>
     <div class="muted" id="cbEv" style="margin-top:10px"></div>
@@ -300,17 +301,13 @@ label{font-size:12px;color:var(--mut)}
   </div>
 
   <div class="card">
-    <h2>Aset pecahan (SVGA)</h2>
-    <p class="muted">Upload file wois_gift_number_10.svga sampai wois_gift_number_10000.svga.
-      Nama file dipakai untuk mencocokkan pecahannya. File ke Cloudinary, datanya ke Realtime Database.</p>
-    <input type="file" id="cbFiles" accept=".svga,.mp4,.gif,.png,.webp" multiple style="margin:8px 0">
-    <button class="btn" id="cbUpload">Upload aset</button>
-    <div class="muted" id="cbAssetMsg" style="margin-top:8px"></div>
-    <div id="cbAssetList" style="margin-top:10px"></div>
+    <h2>Aset pecahan</h2>
+    <p class="muted">Aset pecahan (wois_gift_number_10 sampai 10000) sudah ikut di dalam aplikasi,
+      tidak perlu upload dari panel. Gift dan pecahan diputar terpisah: gift terbang ke kursi penerima,
+      lalu angka pecahan muncul di titik itu. Yang diatur di panel hanya bobot dan peluangnya.</p>
   </div>
 </div>
 
-<div id="tab-bet" class="hide">
   <div class="card">
     <h2>Nilai taruhan game</h2>
     <p class="muted">Atur nominal chip taruhan tiap game. Isi dengan angka dipisah koma, urut dari kecil ke besar,
@@ -939,7 +936,7 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
 });
 
 /* ---------- Cashback gift: RTP, bobot pecahan, aset SVGA ---------- */
-const CB_VALS = [10,20,30,50,66,88,100,200,300,400,500,666,888,1000,2000,3000,4000,6000,8000,9000,10000];
+const CB_VALS = [0,1,2,3,5,10,20,50,100,250];
 const CB_TIERS = [["t1","Tingkat 1","0"],["t2","Tingkat 2","1000"],["t3","Tingkat 3","10000"],["t4","Tingkat 4","100000"]];
 let cbSel = "t1", cbCfg = {}, cbOff = null;
 function cbMirror(path){ return String(path || "").replace(/^cashbackCfg\//, "pub/_cashbackCfg/"); }
@@ -983,7 +980,7 @@ function cbRender(){
     CB_VALS.forEach(v => {
       const row = document.createElement("div");
       row.className = "item";
-      row.innerHTML = '<div class="info"><div class="t">Pecahan ' + v + '</div>' +
+      row.innerHTML = '<div class="info"><div class="t">Pengali x' + v + '</div>' +
         '<div class="s">bobot / peluang</div></div>' +
         '<input type="number" min="0" step="0.01" id="cbw_' + v + '" value="' + (chart[String(v)] != null ? chart[String(v)] : 0) + '">';
       box.appendChild(row);
@@ -1008,10 +1005,8 @@ function cbEv(){
   const tw = rows.reduce((s, r) => s + r.w, 0);
   if (!tw) { el.textContent = "Belum ada bobot di tingkat ini."; return; }
   const ev = rows.reduce((s, r) => s + r.v * r.w, 0) / tw;
-  const min = Number((CB_TIERS.filter(t => t[0] === cbSel)[0] || [])[2] || 0) || 1;
-  const base = Math.max(min, 1000);
-  el.textContent = "Rata-rata cashback tingkat ini " + Math.round(ev) + " koin. " +
-    "Dibanding harga gift " + base + " koin = " + Math.round(ev / base * 100) + "% (target " +
+  el.textContent = "Rata-rata pengali x" + (Math.round(ev * 100) / 100) +
+    " = RTP " + Math.round(ev * 100) + "% dari nilai gift (target " +
     ($("cbRtp") ? $("cbRtp").value : 75) + "%).";
 }
 function cbAssets(){

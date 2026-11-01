@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +37,7 @@ data class GiftFly(
     val price: Long,
     val cb: Long,
     val pecahan: Long,
+    val parts: List<Long> = emptyList(),
     val asset: String,
     val jp: Boolean,
     val ts: Long,
@@ -77,6 +79,8 @@ fun GiftFlyOverlay(roomId: String, seatPoints: Map<Int, Offset>) {
                     price = c.child("price").getValue(Long::class.java) ?: 0L,
                     cb = c.child("cb").getValue(Long::class.java) ?: 0L,
                     pecahan = c.child("pecahan").getValue(Long::class.java) ?: 0L,
+                    parts = (c.child("parts").getValue(String::class.java) ?: "")
+                        .split(",").mapNotNull { it.trim().toLongOrNull() }.filter { it > 0L },
                     asset = c.child("asset").getValue(String::class.java) ?: "",
                     jp = c.child("jp").getValue(Boolean::class.java) ?: false,
                     ts = ts,
@@ -123,11 +127,24 @@ private fun GiftFlyOnce(
         Offset(p.x - origin.x, p.y - origin.y)
     }
     val start = Offset(box.width * 0.14f, box.height * 0.88f)
+    // Aset pecahan sudah ikut di dalam aplikasi: cashback/wois_gift_number_<nilai>.svga
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val localAsset = remember(f.ts, f.pecahan, ctx) {
+        val path = "cashback/wois_gift_number_${f.pecahan}.svga"
+        try {
+            if (f.pecahan <= 0L) "" else {
+                ctx.assets.open(path).close()
+                "asset/$path"
+            }
+        } catch (e: Exception) { "" }
+    }
+    val playSrc = localAsset.ifBlank { f.asset }
 
     LaunchedEffect(f.ts) {
         prog.animateTo(1f, tween(durationMillis = 750, easing = FastOutSlowInEasing))
         landed = true
-        delay(if (f.asset.isNotBlank()) 3400L else 2200L)
+        // Tunggu semua pecahan selesai diputar sebelum efektor dilepas.
+        delay(1400L + f.parts.size * 260L)
         onDone()
     }
 
@@ -153,11 +170,12 @@ private fun GiftFlyOnce(
             .size(280.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (f.asset.isNotBlank()) {
-            GiftSvga(f.asset, f.emoji, Modifier.fillMaxSize()) { }
-        } else {
-            Text(f.emoji.ifBlank { "🎁" }, fontSize = 56.sp)
+        // Gift dan pecahan diputar terpisah: gift tetap di sini, lalu angka pecahan
+        // (hasil harga gift x pengali) muncul satu per satu di sekitar titik ini.
+        Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+            Text(f.emoji.ifBlank { "🎁" }, fontSize = 34.sp)
         }
+        f.parts.forEachIndexed { i, v -> PartPop(v, i, target) }
     }
     if (f.cb > 0) {
         Box(
@@ -192,6 +210,35 @@ private fun GiftFlyOnce(
                     fontWeight = FontWeight.Bold,
                 )
             }
+        }
+    }
+}
+
+
+/**
+ * Satu pecahan cashback: angka besar (SVGA dari aset aplikasi) muncul bergantian
+ * di sekitar avatar penerima. Nilai pecahan = harga gift x pengali undian.
+ */
+@Composable
+private fun PartPop(value: Long, index: Int, center: Offset) {
+    val scale = remember { Animatable(0.6f) }
+    LaunchedEffect(value, index) {
+        kotlinx.coroutines.delay(index * 260L)
+        scale.animateTo(1.15f, tween(220))
+        scale.animateTo(1f, tween(120))
+    }
+    val jitter = listOf(
+        Pair(0f, -84f), Pair(-86f, -34f), Pair(86f, -34f),
+        Pair(-52f, 46f), Pair(52f, 46f), Pair(0f, -150f),
+    )[index % 6]
+    Box(
+        Modifier
+            .offset { IntOffset((center.x - 78f + jitter.first).toInt(), (center.y - 78f + jitter.second).toInt()) }
+            .size(156.dp)
+            .graphicsLayer { scaleX = scale.value; scaleY = scale.value },
+        contentAlignment = Alignment.Center,
+    ) {
+        GiftSvga("asset/cashback/wois_gift_number_" + value + ".svga", "🪙", Modifier.fillMaxSize()) {
         }
     }
 }
