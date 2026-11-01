@@ -292,6 +292,12 @@
       "$room": {
         ".write": "auth != null"
       }
+    },
+    "signin": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')",
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
+      }
     }
   }
 }

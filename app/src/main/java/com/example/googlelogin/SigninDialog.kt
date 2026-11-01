@@ -168,7 +168,8 @@ fun SigninDialog(
                     Box(
                         Modifier.weight(1f).height(10.dp).clip(CircleShape).background(Color(0xFFE4DDC6)),
                     ) {
-                        val frac = (st.total.toFloat() / cfg.target.coerceAtLeast(1)).coerceIn(0.04f, 1f)
+                        // Penanda mengikuti hari ke-1 sampai ke-7, bukan total hadiah.
+                        val frac = (next.toFloat() / 7f).coerceIn(0.08f, 1f)
                         Box(
                             Modifier.fillMaxHeight().fillMaxWidth(frac).clip(CircleShape)
                                 .background(Brush.horizontalGradient(listOf(SinTeal, Color(0xFF20B2AA)))),
@@ -178,9 +179,12 @@ fun SigninDialog(
                     Text("🧰", fontSize = 18.sp)
                 }
                 Spacer(Modifier.height(3.dp))
-                Text("(${st.total} hari/${cfg.target} hari)", fontSize = 11.sp, color = Color(0xFF6B6250))
                 Text(
-                    if (canClaim) "Sign-in hari ke-$next minggu ini" else "Hari ke-${st.day} sudah sign-in",
+                    "Hari ke-${if (canClaim) next else st.day.coerceAtLeast(1)} dari 7",
+                    fontSize = 11.sp, color = Color(0xFF6B6250),
+                )
+                Text(
+                    if (canClaim) "Sign-in hari ke-$next minggu ini" else "Hari ke-${st.day} sudah sign-in, besok lanjut hari ke-$next",
                     fontSize = 11.sp, color = SinTealDark, fontWeight = FontWeight.Bold,
                 )
             }
@@ -249,15 +253,28 @@ fun SigninDialog(
                         claiming = true
                         msg = ""
                         scope.launch {
-                            val (day, err) = SigninRepo.claim(uid)
-                            claiming = false
-                            if (err != null) {
-                                msg = err
-                            } else {
-                                cfg.days.getOrNull(day - 1)?.let { if (it.coins > 0) onClaimed(it.coins) }
-                                st = SigninRepo.loadState(uid)
-                                msg = if (day == 7) "Hadiah besar hari ke-7 diterima!" else "Hadiah hari ke-$day diterima!"
-                                done = true
+                            try {
+                                val (day, err) = SigninRepo.claim(uid)
+                                claiming = false
+                                if (day <= 0) {
+                                    msg = err ?: "Gagal cek in, coba lagi"
+                                } else {
+                                    cfg.days.getOrNull(day - 1)?.let { if (it.coins > 0) onClaimed(it.coins) }
+                                    st = SigninRepo.loadState(uid)
+                                    msg = if (err != null) {
+                                        "Hadiah hari ke-$day diterima. $err"
+                                    } else if (day == 7) {
+                                        "Hadiah besar hari ke-7 diterima!"
+                                    } else {
+                                        "Hadiah hari ke-$day diterima!"
+                                    }
+                                    done = err == null
+                                }
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                claiming = false
+                                msg = "Gagal cek in: ${e.message ?: "koneksi bermasalah"}"
                             }
                         }
                     },

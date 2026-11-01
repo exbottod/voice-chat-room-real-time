@@ -489,8 +489,13 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onClose = { showSignin = false },
                     onClaimed = { gained ->
                         scope.launch {
-                            wallet = try { SupaRepo.get(uid).wallet ?: wallet } catch (e: Exception) { wallet }
-                            WalletRepo.emitBackup(uid, wallet.copy(coins = wallet.coins + gained))
+                            try {
+                                wallet = SupaRepo.get(uid).wallet ?: wallet
+                                WalletRepo.emitBackup(uid, wallet.copy(coins = wallet.coins + gained))
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                            }
                         }
                     },
                 )

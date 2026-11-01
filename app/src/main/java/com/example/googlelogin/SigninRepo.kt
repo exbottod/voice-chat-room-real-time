@@ -88,7 +88,13 @@ object SigninRepo {
 
     fun dayIndexFor(st: SigninState): Int = nextDay(st)
 
-    /** Klaim hadiah hari ini. Mengembalikan pasangan (hari ke, pesan error). */
+    /**
+     * Klaim hadiah hari ini. Mengembalikan pasangan (hari ke, pesan error).
+     *
+     * Setiap hadiah dicoba satu per satu dan kegagalannya tidak menghentikan
+     * proses, karena status "sudah sign-in hari ini" WAJIB tersimpan supaya
+     * dialog tidak muncul lagi di hari yang sama.
+     */
     suspend fun claim(uid: String): Pair<Int, String?> {
         val st = loadState(uid)
         if (!canClaim(st)) return 0 to "Sudah cek in hari ini"
@@ -96,40 +102,69 @@ object SigninRepo {
         val idx = nextDay(st) - 1
         val r = cfg.days.getOrNull(idx) ?: return 0 to "Hadiah belum diatur"
 
+        var gagal = ""
+        fun catat(pesan: String) { if (gagal.isBlank()) gagal = pesan }
+
         // 1) Coin masuk dompet (server Supabase, tercatat di money_tx)
         if (r.coins > 0) {
-            SupaRepo.waveFlow(r.coins, 2, UUID.randomUUID().toString(), "Sign-in")
+            try {
+                val ok = SupaRepo.waveFlow(r.coins, 2, UUID.randomUUID().toString(), "Sign-in")
+                if (ok == null) catat("Coin belum masuk, coba lagi nanti")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                catat("Coin tertunda: ${e.message}")
+            }
         }
         // 2) Item (bingkai / badge / medal / kartu) masuk My Item
         if (r.itemId.isNotBlank()) {
-            val it = findItem(r.itemId)
-            if (it != null) {
-                SupaRepo.buyItem(uid, it.copy(price = 0, days = if (r.itemDays > 0) r.itemDays else it.days))
+            try {
+                val it = findItem(r.itemId)
+                if (it != null) {
+                    SupaRepo.buyItem(uid, it.copy(price = 0, days = if (r.itemDays > 0) r.itemDays else it.days))
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                catat("Item tertunda: ${e.message}")
             }
         }
         // 3) VIP: tambah coin sebesar harga lalu beli tier-nya (server tetap yang menghitung).
         if (r.vipTier in 1..9) {
-            val price = when (r.vipTier) {
-                1 -> 500_000L; 2 -> 1_500_000L; 3 -> 3_000_000L; 4 -> 6_000_000L
-                5 -> 12_000_000L; 6 -> 25_000_000L; 7 -> 50_000_000L; 8 -> 100_000_000L
-                else -> 250_000_000L
+            try {
+                val price = when (r.vipTier) {
+                    1 -> 500_000L; 2 -> 1_500_000L; 3 -> 3_000_000L; 4 -> 6_000_000L
+                    5 -> 12_000_000L; 6 -> 25_000_000L; 7 -> 50_000_000L; 8 -> 100_000_000L
+                    else -> 250_000_000L
+                }
+                val ok = SupaRepo.waveFlow(price, 2, UUID.randomUUID().toString(), "Sign-in VIP")
+                if (ok == null) catat("VIP belum masuk, coba lagi nanti")
+                SupaRepo.buyVip(uid, r.vipTier)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                catat("VIP tertunda: ${e.message}")
             }
-            SupaRepo.waveFlow(price, 2, UUID.randomUUID().toString(), "Sign-in VIP")
-            SupaRepo.buyVip(uid, r.vipTier)
         }
 
-        // 4) Catat status
-        try {
+        // 4) Catat status (paling akhir, dan tidak boleh gagal diam-diam)
+        val simpan = try {
             Rtdb.ref("signin/$uid").setValue(
                 hashMapOf(
                     "last" to today(),
-                    "day" to idx + 1L,
+                    "day" to (idx + 1).toLong(),
                     "total" to (st.total + 1).toLong(),
                     "at" to System.currentTimeMillis(),
                 ),
             ).await()
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+            true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
         try { PublicSync.push(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-        return (idx + 1) to null
+        if (!simpan) return (idx + 1) to "Hadiah masuk, tapi status gagal disimpan. Pasang rules database terbaru."
+        return (idx + 1) to gagal.ifBlank { null }
     }
 }
