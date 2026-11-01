@@ -91,6 +91,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+        CrashGuard.install(this)
         AppLang.load(this)
         WalletCache.init(this)
         setContent {
@@ -100,7 +101,9 @@ class MainActivity : ComponentActivity() {
             ) {
                 MaterialTheme(colorScheme = darkColorScheme()) {
                     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+                        var crashText by remember { mutableStateOf(CrashGuard.take(this@MainActivity)) }
                         AppRoot()
+                        crashText?.let { CrashReportOverlay(it) { crashText = null } }
                     }
                 }
             }
