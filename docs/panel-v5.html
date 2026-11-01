@@ -59,7 +59,7 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
   <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="rocket">🚀 Roket</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="rocket">🚀 Roket</div><div class="tab" data-t="cb">💵 Cashback</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -264,6 +264,49 @@ label{font-size:12px;color:var(--mut)}
       dengan tombol Okey.</p>
     <div id="rkFly"></div>
     <div class="muted" id="rkMsg" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="tab-cb" class="hide">
+  <div class="card">
+    <h2>Cashback gift</h2>
+    <p class="muted">Saat gift dikirim, gift terbang ke avatar penerima lalu pecahan cashback muncul di titik itu.
+      Server (wallet-api) yang mengundi pecahannya, jadi angka tidak bisa diatur dari aplikasi.
+      Pengirim menerima cashback, penerima menerima bonus persen dari nilai gift.</p>
+    <div class="row" style="margin:8px 0">
+      <button class="btn" id="cbOn">Cashback aktif</button>
+      <button class="btn bad" id="cbOff2">Matikan</button>
+      <span class="muted" id="cbNow"></span>
+    </div>
+    <label>Bonus penerima (% dari nilai gift)</label>
+    <input type="number" id="cbRecv" min="0" max="100" step="1" value="5">
+    <label>Batas JP (cashback minimal yang memunculkan banner JP)</label>
+    <input type="number" id="cbJp" min="0" step="1" value="1000">
+    <label>Target RTP (%)</label>
+    <input type="number" id="cbRtp" min="1" max="100" step="1" value="75">
+    <button class="btn" id="cbSaveBase" style="margin-top:8px">Simpan pengaturan</button>
+    <div class="muted" id="cbBaseMsg" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Tabel pecahan</h2>
+    <p class="muted">Pilih tingkatan harga gift, lalu isi bobot tiap pecahan. Bobot besar = pecahan itu lebih sering keluar.
+      Kolom RTP menunjukkan rata-rata pengembalian dibanding harga gift tingkat itu.</p>
+    <div id="cbTiers" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"></div>
+    <div id="cbRows"></div>
+    <div class="muted" id="cbEv" style="margin-top:10px"></div>
+    <button class="btn" id="cbSaveRows" style="margin-top:10px">Simpan tabel</button>
+    <div class="muted" id="cbRowsMsg" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Aset pecahan (SVGA)</h2>
+    <p class="muted">Upload file wois_gift_number_10.svga sampai wois_gift_number_10000.svga.
+      Nama file dipakai untuk mencocokkan pecahannya. File ke Cloudinary, datanya ke Realtime Database.</p>
+    <input type="file" id="cbFiles" accept=".svga,.mp4,.gif,.png,.webp" multiple style="margin:8px 0">
+    <button class="btn" id="cbUpload">Upload aset</button>
+    <div class="muted" id="cbAssetMsg" style="margin-top:8px"></div>
+    <div id="cbAssetList" style="margin-top:10px"></div>
   </div>
 </div>
 
@@ -884,15 +927,146 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "rocket"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "rocket", "cb"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
   if (t.dataset.t === "signin") signinStart();
   if (t.dataset.t === "bet") betStart();
   if (t.dataset.t === "rocket") rocketStart();
+  if (t.dataset.t === "cb") cbStart();
   if (t.dataset.t === "topup") { payLoad(); manualLoad(false); }
 });
+
+/* ---------- Cashback gift: RTP, bobot pecahan, aset SVGA ---------- */
+const CB_VALS = [10,20,30,50,66,88,100,200,300,400,500,666,888,1000,2000,3000,4000,6000,8000,9000,10000];
+const CB_TIERS = [["t1","Tingkat 1","0"],["t2","Tingkat 2","1000"],["t3","Tingkat 3","10000"],["t4","Tingkat 4","100000"]];
+let cbSel = "t1", cbCfg = {}, cbOff = null;
+function cbMirror(path){ return String(path || "").replace(/^cashbackCfg\//, "pub/_cashbackCfg/"); }
+async function cbSave(path, obj){
+  await rtSet(path, obj);
+  try { await rtSet(cbMirror(path), obj); } catch (e) {}
+}
+function cbMsg(id, t){ const e = $(id); if (e) e.textContent = t; toast(t); }
+function cbStart(){
+  if (cbOff) { cbRender(); return; }
+  const ref = rtdb.ref("cashbackCfg");
+  const cb = ref.on("value", snap => { cbCfg = snap.val() || {}; cbRender(); });
+  cbOff = () => ref.off("value", cb);
+}
+function cbTier(){ return cbCfg[cbSel] || {}; }
+function cbRender(){
+  const now = $("cbNow");
+  if (now) now.textContent = cbCfg.on === false ? "Sedang dimatikan" : "Sedang aktif";
+  const rv = $("cbRecv"); if (rv) rv.value = cbCfg.recvPct != null ? cbCfg.recvPct : 5;
+  const jp = $("cbJp"); if (jp) jp.value = cbCfg.jpMin != null ? cbCfg.jpMin : 1000;
+  const rtp = $("cbRtp"); if (rtp) rtp.value = cbCfg.rtp != null ? cbCfg.rtp : 75;
+
+  const tiers = $("cbTiers");
+  if (tiers) {
+    tiers.innerHTML = "";
+    CB_TIERS.forEach(t => {
+      const b = document.createElement("button");
+      b.className = "btn" + (cbSel === t[0] ? "" : " out");
+      b.textContent = t[1] + " (harga ≥ " + t[2] + ")";
+      b.onclick = () => { cbSel = t[0]; cbRender(); };
+      tiers.appendChild(b);
+    });
+  }
+
+  const box = $("cbRows");
+  const cur = cbTier() || {};
+  const chart = {};
+  (cur.rows || []).forEach(r => { if (r && r.v != null) chart[String(r.v)] = r.w; });
+  if (box) {
+    box.innerHTML = "";
+    CB_VALS.forEach(v => {
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = '<div class="info"><div class="t">Pecahan ' + v + '</div>' +
+        '<div class="s">bobot / peluang</div></div>' +
+        '<input type="number" min="0" step="0.01" id="cbw_' + v + '" value="' + (chart[String(v)] != null ? chart[String(v)] : 0) + '">';
+      box.appendChild(row);
+    });
+  }
+  cbEv();
+  cbAssets();
+}
+function cbRowsRead(){
+  const out = [];
+  CB_VALS.forEach(v => {
+    const el = $("cbw_" + v);
+    const w = el ? Number(el.value) : 0;
+    if (w > 0) out.push({ v: v, w: w });
+  });
+  return out;
+}
+function cbEv(){
+  const el = $("cbEv");
+  if (!el) return;
+  const rows = cbRowsRead();
+  const tw = rows.reduce((s, r) => s + r.w, 0);
+  if (!tw) { el.textContent = "Belum ada bobot di tingkat ini."; return; }
+  const ev = rows.reduce((s, r) => s + r.v * r.w, 0) / tw;
+  const min = Number((CB_TIERS.filter(t => t[0] === cbSel)[0] || [])[2] || 0) || 1;
+  const base = Math.max(min, 1000);
+  el.textContent = "Rata-rata cashback tingkat ini " + Math.round(ev) + " koin. " +
+    "Dibanding harga gift " + base + " koin = " + Math.round(ev / base * 100) + "% (target " +
+    ($("cbRtp") ? $("cbRtp").value : 75) + "%).";
+}
+function cbAssets(){
+  const box = $("cbAssetList");
+  if (!box) return;
+  const a = cbCfg.assets || {};
+  box.innerHTML = CB_VALS.map(v => {
+    const u = a[String(v)];
+    return '<div class="muted" style="padding:3px 0">' + (u ? "✅" : "⬜") + " " + v +
+      (u ? ' <span style="font-size:11px">' + String(u).split("/").pop().slice(0, 28) + "</span>" : "") + "</div>";
+  }).join("");
+}
+async function cbUploadAll(){
+  const inp = $("cbFiles");
+  const files = inp && inp.files ? Array.from(inp.files) : [];
+  if (!files.length) { cbMsg("cbAssetMsg", "Pilih file dulu"); return; }
+  let ok = 0, fail = 0;
+  for (const f of files) {
+    const m = String(f.name).match(/number_(\d+)/i) || String(f.name).match(/(\d+)/);
+    const v = m ? Number(m[1]) : 0;
+    if (!CB_VALS.includes(v)) { fail++; continue; }
+    try {
+      cbMsg("cbAssetMsg", "Upload " + f.name + "...");
+      const url = await cldUpload(f, f.name);
+      await cbSave("cashbackCfg/assets/" + v, url);
+      ok++;
+    } catch (e) { fail++; }
+  }
+  cbMsg("cbAssetMsg", "Selesai. Berhasil " + ok + ", gagal " + fail + ".");
+  cbAssets();
+}
+function cbStartOnce(){
+  const on = $("cbOn"), off = $("cbOff2"), save = $("cbSaveBase"), rows = $("cbSaveRows"), up = $("cbUpload");
+  if (on) on.onclick = async () => { try { await cbSave("cashbackCfg/on", true); cbMsg("cbBaseMsg", "Cashback aktif ✓ tersimpan"); } catch (e) { cbMsg("cbBaseMsg", "Gagal: " + e.message); } };
+  if (off) off.onclick = async () => { try { await cbSave("cashbackCfg/on", false); cbMsg("cbBaseMsg", "Cashback dimatikan ✓ tersimpan"); } catch (e) { cbMsg("cbBaseMsg", "Gagal: " + e.message); } };
+  if (save) save.onclick = async () => {
+    try {
+      await cbSave("cashbackCfg/recvPct", Number($("cbRecv").value || 5));
+      await cbSave("cashbackCfg/jpMin", Number($("cbJp").value || 1000));
+      await cbSave("cashbackCfg/rtp", Number($("cbRtp").value || 75));
+      cbMsg("cbBaseMsg", "Pengaturan ✓ tersimpan");
+    } catch (e) { cbMsg("cbBaseMsg", "Gagal: " + e.message); }
+  };
+  if (rows) rows.onclick = async () => {
+    try {
+      const r = cbRowsRead();
+      if (!r.length) { cbMsg("cbRowsMsg", "Isi bobot dulu"); return; }
+      const min = Number((CB_TIERS.filter(t => t[0] === cbSel)[0] || [])[2] || 0);
+      await cbSave("cashbackCfg/" + cbSel, { min: min, rows: r });
+      cbMsg("cbRowsMsg", "Tabel tingkat ini ✓ tersimpan");
+    } catch (e) { cbMsg("cbRowsMsg", "Gagal: " + e.message); }
+  };
+  if (up) up.onclick = cbUploadAll;
+}
+document.addEventListener("DOMContentLoaded", cbStartOnce);
 
 /* ---------- Roket: hadiah per level + hadiah peringkat ---------- */
 let rkSel = 1, rkCfg = {}, rkOff = null;

@@ -170,9 +170,15 @@ object GiftFx {
         g: Gift,
         count: Int,
         receivers: Int,
+        targetUid: String = "",
+        targetName: String = "",
+        targetSeat: Int = -1,
     ): Pair<Long, Long> {
         var jpWin = 0L
         var cbWin = 0L
+        var cbPecahan = 0L
+        var cbAsset = ""
+        var cbJp = false
         var comboN = 0
         if (g.special) {
             comboN = try {
@@ -182,22 +188,50 @@ object GiftFx {
                 jpWin = g.price * g.jpMult * count
                 WalletRepo.topUp(uid, jpWin)
             }
-            // Cashback: gift khas memberi koin kembali sesuai persen harga (diatur di Panel Developer).
-            if (g.cbRate > 0) {
-                cbWin = g.price * count * g.cbRate / 100
-                if (cbWin > 0) {
-                    WalletRepo.topUp(uid, cbWin)
+            // Cashback: server yang mengundi pecahan (RTP dan tabel diatur di panel).
+            val cb = try {
+                kotlinx.coroutines.withTimeoutOrNull(9000L) {
+                    SupaRepo.giftCashback(uid, g.price, count, targetUid)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+            if (cb != null && cb.error == null && cb.amount > 0) {
+                cbWin = cb.amount
+                cbPecahan = cb.pecahan
+                cbAsset = cb.asset
+                cbJp = cb.jp
+                try {
                     Rtdb.ref("cashback/$uid/total").setValue(ServerValue.increment(cbWin))
                     Rtdb.ref("cashback/$uid/log").push().setValue(
                         hashMapOf<String, Any?>(
                             "g" to g.name,
                             "cb" to cbWin,
+                            "p" to cbPecahan,
                             "ts" to System.currentTimeMillis(),
                         ),
                     )
-                }
+                } catch (e: Exception) { }
             }
         }
+        // Gift terbang ke avatar penerima, lalu pecahan cashback muncul di titik itu.
+        try {
+            Rtdb.ref("giftFly/$roomId").push().setValue(
+                hashMapOf<String, Any?>(
+                    "from" to name,
+                    "toName" to targetName,
+                    "seat" to targetSeat.toLong(),
+                    "gift" to g.name,
+                    "emoji" to g.emoji,
+                    "mediaUrl" to g.mediaUrl,
+                    "mediaType" to g.mediaType,
+                    "price" to g.price * count,
+                    "cb" to cbWin,
+                    "pecahan" to cbPecahan,
+                    "asset" to cbAsset,
+                    "jp" to cbJp,
+                    "ts" to System.currentTimeMillis(),
+                ),
+            )
+        } catch (e: Exception) { }
         // EXP roket: bertambah dari koin yang dipakai mengirim gift.
         RocketRepo.addExp(roomId, name, g.price * count)
         // Efek layar penuh untuk semua orang di room (mp4/gif/svga) atau emoji besar.

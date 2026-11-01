@@ -55,6 +55,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,6 +70,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -154,6 +157,8 @@ fun RoomScreen(
     var followed by remember { mutableStateOf(false) }
     var showRank by remember { mutableStateOf(false) }
     val seats = rawSeats.filterValues { it.uid in members }
+    // Posisi avatar tiap kursi (untuk animasi gift terbang ke penerima).
+    val seatPoints = remember { mutableStateMapOf<Int, Offset>() }
     var messages by remember { mutableStateOf<List<RoomMsg>>(emptyList()) }
     var panel by remember { mutableStateOf(P_NONE) }
     var seatSheet by remember { mutableStateOf<Int?>(null) }
@@ -491,7 +496,10 @@ fun RoomScreen(
                     Row(Modifier.fillMaxWidth()) {
                         for (col in 0 until cols) {
                             val i = row * cols + col
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            Box(
+                                Modifier.weight(1f).onGloballyPositioned { seatPoints[i] = it.positionInRoot() },
+                                contentAlignment = Alignment.Center,
+                            ) {
                                 if (i < r.micCount) {
                                     RmSeatView(
                                         i,
@@ -834,6 +842,8 @@ fun RoomScreen(
         GiftBanner(r.id)
         if (fxEntryOn) VipEntryEffect(r.id)
         if (fxGiftOn) GiftFxOverlay(r.id)
+        // Gift terbang ke avatar penerima lalu pecahan cashback muncul di titik itu.
+        if (fxGiftOn) GiftFlyOverlay(r.id, seatPoints)
         // Peluncuran roket 1..5 berurutan, dengan dialog hadiah bertombol Okey.
         // Build uji: dimatikan sementara untuk mencari penyebab aplikasi macet di room.
         if (ROCKET_ROOM_UI) RocketLaunchOverlay(r.id, myUid)

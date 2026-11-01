@@ -366,6 +366,134 @@ async function rocketClaim(uid: string, p: Record<string, unknown>): Promise<Res
   }
 }
 
+/**
+ * CASHBACK GIFT.
+ * Pengaturan diambil dari panel developer (Realtime Database, salinan publik
+ * "pub/_cashbackCfg") supaya bisa diubah tanpa build aplikasi:
+ *   { on, rtp, recvPct, jpMin, t1..t4: { min, rows: [{ v, w }, ...] }, assets: { "<v>": "<url svga>" } }
+ * Server yang mengundi pecahan cashback; aplikasi hanya menampilkan hasilnya.
+ * Pengirim menerima cashback, penerima menerima bonus recvPct% dari nilai gift.
+ */
+const CASHBACK_CFG_URL =
+  "https://arboreal-cat-511705-p6-default-rtdb.asia-southeast1.firebasedatabase.app/pub/_cashbackCfg.json";
+
+let cbCache: { at: number; data: Record<string, unknown> } | null = null;
+
+async function cashbackCfg(): Promise<Record<string, unknown>> {
+  const now = Date.now();
+  if (cbCache && now - cbCache.at < 60_000) return cbCache.data;
+  try {
+    const r = await fetch(CASHBACK_CFG_URL);
+    if (!r.ok) throw new Error("cfg " + r.status);
+    const d = await r.json();
+    cbCache = { at: now, data: (d && typeof d === "object" ? d : {}) as Record<string, unknown> };
+    return cbCache.data;
+  } catch {
+    return cbCache?.data ?? {};
+  }
+}
+
+type CbRow = { v: number; w: number };
+
+function cbRowsOf(node: unknown): CbRow[] {
+  const o = node as Record<string, unknown> | null;
+  const rows = Array.isArray(o?.rows) ? (o.rows as unknown[]) : [];
+  const out: CbRow[] = [];
+  for (const r of rows) {
+    const x = r as Record<string, unknown>;
+    const v = Math.max(0, Math.floor(Number(x.v ?? 0)));
+    const w = Math.max(0, Number(x.w ?? 0));
+    if (v > 0 && w > 0) out.push({ v, w });
+  }
+  return out;
+}
+
+/** Tier dipilih dari harga gift: t1 kecil, t4 paling besar. */
+function cbTierOf(cfg: Record<string, unknown>, value: number): CbRow[] {
+  let best: CbRow[] = [];
+  let bestMin = -1;
+  for (const k of ["t1", "t2", "t3", "t4"]) {
+    const node = cfg[k] as Record<string, unknown> | null;
+    if (!node) continue;
+    const min = Math.floor(Number(node.min ?? 0));
+    const rows = cbRowsOf(node);
+    if (!rows.length) continue;
+    if (value >= min && min >= bestMin) {
+      best = rows;
+      bestMin = min;
+    }
+  }
+  if (!best.length) {
+    // Bawaan kalau panel belum diisi: pecahan kecil sampai 10000.
+    best = [
+      { v: 10, w: 30 }, { v: 20, w: 20 }, { v: 30, w: 15 }, { v: 50, w: 12 },
+      { v: 66, w: 8 }, { v: 88, w: 6 }, { v: 100, w: 5 }, { v: 200, w: 2.5 },
+      { v: 500, w: 1 }, { v: 1000, w: 0.4 }, { v: 4000, w: 0.08 }, { v: 10000, w: 0.02 },
+    ];
+  }
+  return best;
+}
+
+function cbPick(rows: CbRow[]): CbRow {
+  const total = rows.reduce((s, r) => s + r.w, 0);
+  let x = Math.random() * total;
+  for (const r of rows) {
+    x -= r.w;
+    if (x <= 0) return r;
+  }
+  return rows[rows.length - 1];
+}
+
+async function giftCashback(uid: string, p: Record<string, unknown>): Promise<Response> {
+  try {
+    const cfg = await cashbackCfg();
+    if (cfg.on === false) return json({ ok: 1, amount: 0, off: 1 });
+
+    const price = Math.max(0, Math.floor(Number(p.price ?? 0)));
+    const count = Math.max(1, Math.min(999, Math.floor(Number(p.count ?? 1))));
+    const value = price * count;
+    if (value <= 0) return json({ ok: 0, e: "Nilai gift tidak valid" }, 200);
+
+    // Batas aman: cashback tidak boleh melebihi 30x nilai gift.
+    const cap = Math.max(1, value * 30);
+    const row = cbPick(cbTierOf(cfg, value));
+    const amount = Math.min(row.v, cap);
+
+    // Kredit cashback ke pengirim.
+    let paid = 0;
+    try {
+      const r = await rpc("w_topup", { p_uid: uid, p_coins: amount });
+      if (r.ok) paid = amount;
+      else await r.text().catch(() => "");
+    } catch { /* diabaikan, saldo tidak berubah */ }
+
+    // Bonus untuk penerima gift (bawaan 5% dari nilai gift).
+    const recvPct = Math.max(0, Math.min(100, Number(cfg.recvPct ?? 5)));
+    const to = String(p.to ?? "").trim();
+    const recvBonus = to ? Math.floor((value * recvPct) / 100) : 0;
+    let recvPaid = 0;
+    if (to && recvBonus > 0) {
+      try {
+        const r2 = await rpc("w_topup", { p_uid: to, p_coins: recvBonus });
+        if (r2.ok) recvPaid = recvBonus;
+        else await r2.text().catch(() => "");
+      } catch { /* diabaikan */ }
+    }
+
+    const jpMin = Math.max(0, Math.floor(Number(cfg.jpMin ?? 1000)));
+    return json({
+      ok: 1,
+      amount: paid,
+      pecahan: row.v,
+      recv: recvPaid,
+      jp: paid >= jpMin ? 1 : 0,
+      asset: String(((cfg.assets ?? {}) as Record<string, unknown>)[String(row.v)] ?? ""),
+    });
+  } catch {
+    return json({ ok: 0, e: "Server sibuk, coba lagi" }, 200);
+  }
+}
+
 async function giftCredit(targets: string[], each: number, itemId: string, roomId: string): Promise<number> {
   let ok = 0;
   for (const t of targets) {
@@ -1045,6 +1173,7 @@ Deno.serve(async (req) => {
     "topup_status",
     "topup_history",
     "rocket_claim",
+    "gift_cashback",
   ]);
   const fn = ACTIONS[action];
   if ((!fn && !DIRECT.has(action)) || !body.t) {
@@ -1072,6 +1201,7 @@ Deno.serve(async (req) => {
   if (action === "topup_status") return await topupStatus(uid, p);
   if (action === "topup_history") return await topupHistory(uid);
   if (action === "rocket_claim") return await rocketClaim(uid, p);
+  if (action === "gift_cashback") return await giftCashback(uid, p);
   // Nama parameter HARUS persis dengan definisi fungsi SQL (p_*).
   let params: Record<string, unknown>;
   switch (action) {

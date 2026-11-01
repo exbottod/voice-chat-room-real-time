@@ -238,6 +238,34 @@ object SupaRepo {
         return call("send_gift", p)
     }
 
+    /** Hasil undian cashback gift dari server (amasuk ke pengirim, pecahan untuk animasi). */
+    class CashbackRes(
+        val amount: Long,
+        val pecahan: Long,
+        val recv: Long,
+        val jp: Boolean,
+        val asset: String,
+        val error: String?,
+    )
+
+    suspend fun giftCashback(uid: String, price: Long, count: Int, to: String = ""): CashbackRes {
+        val p = uidJson(uid).put("price", price).put("count", count)
+        if (to.isNotBlank()) p.put("to", to)
+        val j = postRaw("gift_cashback", p)
+            ?: return CashbackRes(0, 0, 0, false, "", "Server tidak merespons")
+        if (j.optInt("ok") != 1) {
+            return CashbackRes(0, 0, 0, false, "", j.optString("e").ifBlank { "Cashback gagal" })
+        }
+        return CashbackRes(
+            amount = j.optLong("amount"),
+            pecahan = j.optLong("pecahan"),
+            recv = j.optLong("recv"),
+            jp = j.optInt("jp") == 1,
+            asset = j.optString("asset"),
+            error = null,
+        )
+    }
+
     /** Hadiah hasil klaim roket dari server. */
     class RocketPrize(val coins: Long, val vip: Int, val days: Int, val error: String?)
 

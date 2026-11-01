@@ -1367,7 +1367,11 @@ fun GiftPanel(
                                     var jp = 0L
                                     var cb = 0L
                                     try {
-                                        val (j, c) = GiftFx.sent(roomId, myUid, myName, g, count, receivers.size)
+                                        val firstSeat = receivers.firstOrNull()
+                                        val (j, c) = GiftFx.sent(
+                                            roomId, myUid, myName, g, count, receivers.size,
+                                            firstSeat?.uid ?: "", firstSeat?.name ?: "", firstSeat?.index ?: -1,
+                                        )
                                         jp = j; cb = c
                                     } catch (e: Exception) { }
                                     if (jp > 0) {
