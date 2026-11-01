@@ -429,7 +429,13 @@ fun GiftFxOverlay(roomId: String) {
     val big = d.jp || d.combo >= 2 || d.mediaUrl.isNotBlank()
 
     LaunchedEffect(d.ts) {
-        delay(if (big) 8000L else 3000L)
+        // SVGA butuh waktu unduh + urai, jadi diberi waktu lebih panjang.
+        val ms = when {
+            d.mediaUrl.isNotBlank() && kindOf(d.mediaUrl, d.mediaType) == "svga" -> 15000L
+            big -> 8000L
+            else -> 3000L
+        }
+        delay(ms)
         fx = null
     }
 
@@ -442,7 +448,7 @@ fun GiftFxOverlay(roomId: String) {
             } else {
                 val kind = kindOf(d.mediaUrl, d.mediaType)
                 if (kind == "svga") {
-                    GiftSvga(d.mediaUrl, Modifier.fillMaxSize(), onEnd = { fx = null })
+                    GiftSvga(d.mediaUrl, d.emoji, Modifier.fillMaxSize(), onEnd = { fx = null })
                 } else {
                     AsyncImage(
                         model = d.mediaUrl,
@@ -905,68 +911,97 @@ fun GiftVideo(
 private val svgaCache = HashMap<String, ByteArray>()
 
 /**
- * Pemutar SVGA gift. File diunduh sendiri (bukan lewat pemutar bawaan) karena
- * file .svga di Cloudinary tersimpan sebagai "raw", dan sebagian HP menolak
- * membacanya langsung. Kalau gagal, efek ditutup supaya layar tidak kosong.
+ * Pemutar SVGA gift, dibuat berlapis supaya animasi tetap jalan di HP yang
+ * rewel soal jaringan:
+ *   1. unduh + urai langsung dari URL (paling tahan, sama seperti efek VIP),
+ *   2. kalau gagal, unduh sendiri lalu urai dari memori,
+ *   3. kalau dua-duanya gagal, tampilkan emoji gift supaya layar tidak kosong.
  */
 @Composable
-fun GiftSvga(url: String, modifier: Modifier = Modifier, onEnd: () -> Unit = {}) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+fun GiftSvga(
+    url: String,
+    emoji: String = "\uD83C\uDF81",
+    modifier: Modifier = Modifier,
+    onEnd: () -> Unit = {},
+) {
     val endRef = rememberUpdatedState(onEnd)
+    // 0 = coba dari URL, 1 = pakai byte hasil unduhan, 2 = gagal total.
+    var mode by remember(url) { mutableStateOf(0) }
     var bytes by remember(url) { mutableStateOf(svgaCache[url]) }
-    var failed by remember(url) { mutableStateOf(false) }
 
-    LaunchedEffect(url) {
-        if (bytes != null) return@LaunchedEffect
+    LaunchedEffect(url, mode) {
+        if (mode != 1 || bytes != null) return@LaunchedEffect
         val got = withContext(Dispatchers.IO) {
             try {
                 val conn = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
                     connectTimeout = 15000
-                    readTimeout = 30000
+                    readTimeout = 60000
                     instanceFollowRedirects = true
+                    setRequestProperty("Accept", "*/*")
                 }
                 conn.inputStream.use { it.readBytes() }
             } catch (e: Exception) {
                 null
             }
         }
-        if (got != null && got.isNotEmpty()) {
+        if (got != null && got.size > 16) {
             svgaCache[url] = got
             bytes = got
         } else {
-            failed = true
-            endRef.value()
+            mode = 2
         }
     }
 
-    val data = bytes
-    if (data == null || failed) return
+    if (mode == 2) {
+        Text(emoji, fontSize = 110.sp)
+        return
+    }
 
-    AndroidView(
-        modifier = modifier,
-        factory = { c ->
-            com.opensource.svgaplayer.SVGAImageView(c).apply {
-                loops = 1
-                clearsAfterStop = true
-                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-                callback = object : com.opensource.svgaplayer.SVGACallback {
-                    override fun onPause() {}
-                    override fun onFinished() { endRef.value() }
-                    override fun onRepeat() {}
-                    override fun onStep(frame: Int, percentage: Double) {}
-                }
-                val done = object : com.opensource.svgaplayer.SVGAParser.ParseCompletion {
-                    override fun onComplete(videoItem: com.opensource.svgaplayer.SVGAVideoEntity) {
-                        setVideoItem(videoItem)
-                        startAnimation()
+    // key(mode) memaksa tampilan baru dibuat saat berpindah dari jalur URL ke byte.
+    key(mode) {
+        AndroidView(
+            modifier = modifier,
+            factory = { c ->
+                com.opensource.svgaplayer.SVGAImageView(c).apply {
+                    loops = 1
+                    clearsAfterStop = true
+                    isClickable = false
+                    scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                    callback = object : com.opensource.svgaplayer.SVGACallback {
+                        override fun onPause() {}
+                        override fun onFinished() { endRef.value() }
+                        override fun onRepeat() {}
+                        override fun onStep(frame: Int, percentage: Double) {}
                     }
+                    val parser = com.opensource.svgaplayer.SVGAParser(c)
+                    val done = object : com.opensource.svgaplayer.SVGAParser.ParseCompletion {
+                        override fun onComplete(videoItem: com.opensource.svgaplayer.SVGAVideoEntity) {
+                            setVideoItem(videoItem)
+                            startAnimation()
+                        }
 
-                    override fun onError() { endRef.value() }
+                        override fun onError() {
+                            mode = if (mode == 0) 1 else 2
+                        }
+                    }
+                    if (mode == 0) {
+                        try {
+                            parser.decodeFromURL(java.net.URL(url), done)
+                        } catch (e: Exception) {
+                            mode = 1
+                        }
+                    } else {
+                        val b = bytes
+                        if (b == null) {
+                            mode = 2
+                        } else {
+                            parser.decodeFromInputStream(
+                                java.io.ByteArrayInputStream(b), "gift_" + url.hashCode(), done, true,
+                            )
+                        }
+                    }
                 }
-                com.opensource.svgaplayer.SVGAParser(c).decodeFromInputStream(
-                    java.io.ByteArrayInputStream(data), "gift_svga", done, true,
-                )
-            }
-        },
-    )
+            },
+        )
+    }
 }
