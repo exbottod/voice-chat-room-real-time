@@ -905,7 +905,7 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
-            if (g.mediaUrl.isNotBlank() && !isVideoMedia(g.mediaUrl, g.mediaType)) {
+            if (g.mediaUrl.isNotBlank() && !isVideoMedia(g.mediaUrl, g.mediaType) && !isSvgaMedia(g.mediaUrl, g.mediaType)) {
                 AsyncImage(
                     model = g.mediaUrl,
                     contentDescription = g.name,
@@ -1007,7 +1007,7 @@ fun CashbackTab(myUid: String) {
                     Modifier.fillMaxWidth().padding(vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (g.mediaUrl.isNotBlank() && !isVideoMedia(g.mediaUrl, g.mediaType)) {
+                    if (g.mediaUrl.isNotBlank() && !isVideoMedia(g.mediaUrl, g.mediaType) && !isSvgaMedia(g.mediaUrl, g.mediaType)) {
                         AsyncImage(
                             model = g.mediaUrl,
                             contentDescription = g.name,

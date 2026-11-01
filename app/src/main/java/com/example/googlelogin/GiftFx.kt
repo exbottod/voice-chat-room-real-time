@@ -115,6 +115,22 @@ object GiftCatalog {
 }
 
 /** Efek gift: kombo, JP (jackpot) dan cashback gift khas, serta banner global antar room. */
+/**
+ * Tentukan format dari isi file kalau nama & MIME tidak membantu.
+ * Galeri Android kerap memberi URI tanpa ekstensi dan MIME octet-stream,
+ * sehingga file .svga (yang sebenarnya ZIP) dulu ditolak "format tidak didukung".
+ */
+private fun sniffExt(b: ByteArray): String {
+    fun at(i: Int) = if (i < b.size) b[i].toInt() and 0xFF else -1
+    if (at(0) == 0x50 && at(1) == 0x4B) return "svga"          // PK.. = zip/svga
+    if (at(0) == 0x89 && at(1) == 0x50) return "png"
+    if (at(0) == 0x47 && at(1) == 0x49 && at(2) == 0x46) return "gif"
+    if (at(0) == 0xFF && at(1) == 0xD8) return "jpg"
+    if (at(0) == 0x52 && at(1) == 0x49 && at(2) == 0x46 && at(3) == 0x46) return "webp"
+    if (at(4) == 0x66 && at(5) == 0x74 && at(6) == 0x79 && at(7) == 0x70) return "mp4"
+    return ""
+}
+
 object GiftFx {
 
     /** Kombo: kirim gift khas lagi dalam 6 detik = kombo naik. Return jumlah kombo. */
@@ -258,13 +274,18 @@ object GiftFx {
         val fname = (uri.lastPathSegment ?: "asset").substringAfterLast('/')
         var ext = fname.substringAfterLast('.', "").lowercase()
         if (ext !in allowed) {
-            ext = when (context.contentResolver.getType(uri) ?: "") {
-                "image/png" -> "png"
-                "image/jpeg" -> "jpg"
-                "image/gif" -> "gif"
-                "image/webp" -> "webp"
-                "video/mp4" -> "mp4"
-                else -> ""
+            val mime = (context.contentResolver.getType(uri) ?: "").lowercase()
+            ext = when {
+                mime.contains("svga") -> "svga"
+                mime == "image/png" -> "png"
+                mime == "image/jpeg" || mime == "image/jpg" -> "jpg"
+                mime == "image/gif" -> "gif"
+                mime == "image/webp" -> "webp"
+                mime == "video/mp4" -> "mp4"
+                mime == "application/zip"
+                    || mime == "application/octet-stream"
+                    || mime == "application/x-zip-compressed" -> sniffExt(bytes)
+                else -> sniffExt(bytes)
             }
         }
         if (ext !in allowed) {
@@ -411,13 +432,7 @@ fun GiftFxOverlay(roomId: String) {
             } else {
                 val kind = kindOf(d.mediaUrl, d.mediaType)
                 if (kind == "svga") {
-                    VipMedia(
-                        VipAsset(n = 0, slot = "gift", kind = "svga", url = d.mediaUrl, hasData = false, updatedAt = d.ts),
-                        Modifier.fillMaxSize(),
-                        loop = false,
-                        contentScale = ContentScale.Fit,
-                        onEnd = { fx = null },
-                    )
+                    GiftSvga(d.mediaUrl, Modifier.fillMaxSize(), onEnd = { fx = null })
                 } else {
                     AsyncImage(
                         model = d.mediaUrl,
@@ -456,6 +471,13 @@ fun isVideoMedia(url: String, mediaType: String = ""): Boolean {
     if (t.startsWith("mp4") || t.startsWith("video") || t == "mov" || t == "m4v") return true
     val u = url.substringBefore('?').lowercase()
     return u.endsWith(".mp4") || u.endsWith(".m4v") || u.endsWith(".mov") || u.contains("/video/upload/")
+}
+
+/** True kalau media gift berupa animasi SVGA. */
+fun isSvgaMedia(url: String, mediaType: String = ""): Boolean {
+    val t = mediaType.substringBefore('?').substringAfterLast('/').lowercase()
+    if (t.startsWith("svga")) return true
+    return url.substringBefore('?').lowercase().endsWith(".svga")
 }
 
 /** Jenis media: mp4, svga, atau image (gif/webp/png). */
@@ -864,6 +886,76 @@ fun GiftVideo(
 
                     override fun onSurfaceTextureUpdated(st: android.graphics.SurfaceTexture) {}
                 }
+            }
+        },
+    )
+}
+
+/** Cache SVGA yang sudah diunduh supaya gift yang sama tidak diunduh berulang. */
+private val svgaCache = HashMap<String, ByteArray>()
+
+/**
+ * Pemutar SVGA gift. File diunduh sendiri (bukan lewat pemutar bawaan) karena
+ * file .svga di Cloudinary tersimpan sebagai "raw", dan sebagian HP menolak
+ * membacanya langsung. Kalau gagal, efek ditutup supaya layar tidak kosong.
+ */
+@Composable
+fun GiftSvga(url: String, modifier: Modifier = Modifier, onEnd: () -> Unit = {}) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val endRef = rememberUpdatedState(onEnd)
+    var bytes by remember(url) { mutableStateOf(svgaCache[url]) }
+    var failed by remember(url) { mutableStateOf(false) }
+
+    LaunchedEffect(url) {
+        if (bytes != null) return@LaunchedEffect
+        val got = withContext(Dispatchers.IO) {
+            try {
+                val conn = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+                    connectTimeout = 15000
+                    readTimeout = 30000
+                    instanceFollowRedirects = true
+                }
+                conn.inputStream.use { it.readBytes() }
+            } catch (e: Exception) {
+                null
+            }
+        }
+        if (got != null && got.isNotEmpty()) {
+            svgaCache[url] = got
+            bytes = got
+        } else {
+            failed = true
+            endRef.value()
+        }
+    }
+
+    val data = bytes
+    if (data == null || failed) return
+
+    AndroidView(
+        modifier = modifier,
+        factory = { c ->
+            com.opensource.svgaplayer.SVGAImageView(c).apply {
+                loops = 1
+                clearsAfterStop = true
+                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                callback = object : com.opensource.svgaplayer.SVGACallback {
+                    override fun onPause() {}
+                    override fun onFinished() { endRef.value() }
+                    override fun onRepeat() {}
+                    override fun onStep(frame: Int, percentage: Double) {}
+                }
+                val done = object : com.opensource.svgaplayer.SVGAParser.ParseCompletion {
+                    override fun onComplete(videoItem: com.opensource.svgaplayer.SVGAVideoEntity) {
+                        setVideoItem(videoItem)
+                        startAnimation()
+                    }
+
+                    override fun onError() { endRef.value() }
+                }
+                com.opensource.svgaplayer.SVGAParser(c).decodeFromInputStream(
+                    java.io.ByteArrayInputStream(data), "gift_svga", done, true,
+                )
             }
         },
     )
