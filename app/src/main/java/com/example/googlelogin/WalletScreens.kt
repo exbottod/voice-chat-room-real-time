@@ -371,14 +371,27 @@ private fun TopupMethodRow(
 }
 
 @Composable
-private fun MethodChip(label: String, active: Boolean, onClick: () -> Unit) {
-    Box(
+private fun MethodChip(label: String, iconRes: Int, active: Boolean, onClick: () -> Unit) {
+    Row(
         Modifier.clip(RoundedCornerShape(50))
             .background(if (active) WalNavy else Color.White)
             .border(1.dp, if (active) WalNavy else Color(0xFFD9D9E3), RoundedCornerShape(50))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 7.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(
+            Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)).background(Color.White).padding(3.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = androidx.compose.ui.res.painterResource(iconRes),
+                contentDescription = label,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Spacer(Modifier.width(6.dp))
         Text(label, color = if (active) Color.White else WalNavy, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
@@ -391,6 +404,21 @@ private fun RezoMark(size: Int = 52) {
         modifier = Modifier.size(size.dp).clip(RoundedCornerShape(14.dp)),
         contentScale = ContentScale.Crop,
     )
+}
+
+@Composable
+private fun PayLogo(resId: Int) {
+    Box(
+        Modifier.size(52.dp).clip(RoundedCornerShape(12.dp)).background(Color.White).padding(7.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = androidx.compose.ui.res.painterResource(resId),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
@@ -504,11 +532,15 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                                 icon = { RezoMark() },
                             ) { showPacks = true }
                             TopupMethodRow("Google Play", icon = { PayDot("GP", Color(0xFF34A853)) }) { showPacks = true }
-                            TopupMethodRow("DANA", icon = { PayDot("DANA", Color(0xFF118EEA)) }) { showPacks = true }
-                            TopupMethodRow("OVO", icon = { PayDot("OVO", Color(0xFF4C2A86)) }) { showPacks = true }
+                            TopupMethodRow("DANA", icon = { PayLogo(R.drawable.logo_dana) }) { showPacks = true }
+                            TopupMethodRow("GoPay", icon = { PayLogo(R.drawable.logo_gopay) }) { showPacks = true }
+                            TopupMethodRow("OVO", icon = { PayLogo(R.drawable.logo_ovo) }) { showPacks = true }
                             TopupMethodRow("ShopeePay", icon = { PayDot("SPay", Color(0xFFEE4D2D)) }) { showPacks = true }
-                            TopupMethodRow("LINKAJA", icon = { PayDot("Link", Color(0xFFE82127)) }) { showPacks = true }
-                            TopupMethodRow("QRIS", icon = { PayDot("QRIS", Color(0xFF222222)) }) { showPacks = true }
+                            TopupMethodRow("LINKAJA", icon = { PayLogo(R.drawable.logo_linkaja) }) { showPacks = true }
+                            TopupMethodRow("QRIS", icon = { PayLogo(R.drawable.logo_qris) }) { showPacks = true }
+                            TopupMethodRow("PayPal", icon = { PayLogo(R.drawable.logo_paypal) }) {
+                                toast("PayPal belum tersedia untuk topup")
+                            }
                         } else {
                             Text(
                                 if (TOPUP_TEST_MODE) "Mode uji: coin ditambahkan gratis (pembayaran belum terhubung)."
@@ -669,13 +701,13 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         // pilihan metode pembayaran
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (payDana.isNotBlank()) {
-                                MethodChip("DANA", payMethod == "dana") { payMethod = "dana" }
+                                MethodChip("DANA", R.drawable.logo_dana, payMethod == "dana") { payMethod = "dana" }
                             }
                             if (payGopay.isNotBlank()) {
-                                MethodChip("GoPay", payMethod == "gopay") { payMethod = "gopay" }
+                                MethodChip("GoPay", R.drawable.logo_gopay, payMethod == "gopay") { payMethod = "gopay" }
                             }
                             if (payQris.isNotBlank()) {
-                                MethodChip("QRIS", payMethod == "qris") { payMethod = "qris" }
+                                MethodChip("QRIS", R.drawable.logo_qris, payMethod == "qris") { payMethod = "qris" }
                             }
                         }
                         Spacer(Modifier.height(12.dp))
