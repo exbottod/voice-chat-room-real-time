@@ -15,7 +15,7 @@
       "$roomId": {
         ".read": "auth != null",
         "$index": {
-          ".write": "auth != null && (data.child('uid').val() === auth.uid || newData.child('uid').val() === auth.uid || root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid)",
+          ".write": "auth != null && (data.child('uid').val() === auth.uid || newData.child('uid').val() === auth.uid || root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')",
           ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'muted']) && newData.child('uid').isString() && newData.child('muted').isBoolean())"
         }
       }
@@ -23,7 +23,7 @@
     "locks": {
       "$roomId": {
         ".read": "auth != null",
-        ".write": "auth != null && (root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid)"
+        ".write": "auth != null && (root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')"
       }
     },
     "messages": {
@@ -31,7 +31,7 @@
         ".read": "auth != null",
         ".write": "auth != null",
         "$msgId": {
-          ".validate": "!newData.exists() || (newData.child('text').isString() && newData.child('text').val().length <= 300 && newData.hasChild('createdAt'))"
+          ".validate": "!newData.exists() || (newData.child('text').isString() && newData.child('text').val().length <= 500 && newData.hasChild('createdAt') && (!newData.hasChild('img') || (newData.child('img').isString() && newData.child('img').val().length <= 500)))"
         }
       }
     },
@@ -46,7 +46,7 @@
     "roomsPub": {
       ".read": "auth != null",
       "$roomId": {
-        ".write": "auth != null"
+        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com' || newData.child('ownerUid').val() === auth.uid || data.child('ownerUid').val() === auth.uid)"
       }
     },
     "rank": {
@@ -69,7 +69,7 @@
       "$roomId": {
         ".read": "auth != null",
         "$uid": {
-          ".write": "auth != null"
+          ".write": "auth != null && (root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')"
         }
       }
     },

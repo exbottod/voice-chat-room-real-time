@@ -1,0 +1,238 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "members": {
+      ".read": "auth != null",
+      "$roomId": {
+        "$uid": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid)",
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+    "seats": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$index": {
+          ".write": "auth != null && (data.child('uid').val() === auth.uid || newData.child('uid').val() === auth.uid || root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')",
+          ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'muted']) && newData.child('uid').isString() && newData.child('muted').isBoolean())"
+        }
+      }
+    },
+    "locks": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')"
+      }
+    },
+    "messages": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$msgId": {
+          ".validate": "!newData.exists() || (newData.child('text').isString() && newData.child('text').val().length <= 500 && newData.hasChild('createdAt') && (!newData.hasChild('img') || (newData.child('img').isString() && newData.child('img').val().length <= 500)))"
+        }
+      }
+    },
+    "emotes": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "roomsPub": {
+      ".read": "auth != null",
+      "$roomId": {
+        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com' || newData.child('ownerUid').val() === auth.uid || data.child('ownerUid').val() === auth.uid)"
+      }
+    },
+    "rank": {
+      ".read": "auth != null",
+      "$col": {
+        "$period": {
+          "$subject": {
+            ".write": "auth != null"
+          }
+        }
+      }
+    },
+    "pub": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
+      }
+    },
+    "blacklist": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && (root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')"
+        }
+      }
+    },
+    "giftBanner": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "giftFx": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$fxId": {
+          ".validate": "!newData.exists() || (newData.child('ts').isNumber() && newData.child('count').isNumber())"
+        }
+      }
+    },
+    "giftCombo": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "cashback": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "music": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "status": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "live": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "micPoints": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$idx": {
+          ".write": "auth != null",
+          ".validate": "!newData.exists() || newData.isNumber()"
+        }
+      }
+    },
+    "followRooms": {
+      "$uid": {
+        ".read": "auth != null",
+        "$roomId": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "!newData.exists() || newData.val() === true"
+        }
+      }
+    },
+    "chats": {
+      ".read": "auth != null",
+      "$chatId": {
+        ".write": "auth != null",
+        "messages": {
+          "$msgId": {
+            ".validate": "newData.hasChildren(['from','text','at']) && newData.child('from').isString() && newData.child('text').isString() && newData.child('text').val().length <= 500 && (newData.child('from').val() === auth.uid)"
+          }
+        }
+      }
+    },
+    "vipCfg": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+    },
+    "ids": {
+      ".read": "auth != null",
+      "u": {
+        "$uid": {
+          ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
+        }
+      },
+      "i": {
+        "$id": {
+          ".write": "auth != null"
+        }
+      },
+      "next": {
+        ".write": "auth != null"
+      }
+    },
+    "follows": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    },
+    "followers": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    },
+    "chatsByUser": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    },
+    "betCfg": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')",
+      "$game": {
+        ".validate": "newData.hasChild('chips')"
+      }
+    },
+    "signinCfg": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+    },
+    "giftCfg": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+    },
+    "fm": {
+      ".read": "auth != null",
+      ".indexOn": [
+        "name",
+        "numId",
+        "exp"
+      ],
+      "$fid": {
+        ".write": "auth != null"
+      }
+    },
+    "fmUser": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    },
+    "fmIdx": {
+      ".read": "auth != null",
+      "next": {
+        ".write": "auth != null"
+      }
+    },
+    "gameRounds": {
+      ".read": "auth != null",
+      "$game": {
+        "$round": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['name','bet','win']) && newData.child('bet').isNumber() && newData.child('win').isNumber() && newData.child('name').isString() && newData.child('name').val().length < 40"
+          }
+        }
+      }
+    }
+  }
+}

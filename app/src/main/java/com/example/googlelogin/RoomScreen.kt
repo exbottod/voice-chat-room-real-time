@@ -172,32 +172,6 @@ fun RoomScreen(
     var sendTick by remember { mutableStateOf(0) }
     val toast = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
 
-    // ---- kirim gambar dari galeri ----
-    var imgBusy by remember { mutableStateOf(false) }
-    var lihatGambar by remember { mutableStateOf<String?>(null) }
-    val imgPicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.GetContent(),
-    ) { uri ->
-        if (uri == null || imgBusy) return@rememberLauncherForActivityResult
-        imgBusy = true
-        scope.launch {
-            val (url, err) = RoomImages.upload(context, uri)
-            imgBusy = false
-            if (url == null) {
-                toast(err ?: "Gagal mengunggah gambar")
-            } else {
-                val sisa = draft.trim()
-                val e = RoomExtras.sendImage(r.id, myUid, myName, url, sisa)
-                if (e == null) {
-                    draft = ""
-                    sendTick++
-                } else {
-                    toast(e)
-                }
-            }
-        }
-    }
-
     // Hapus semua draft/state sementara (ketikan chat, panel gift, emot, dll)
     fun resetDrafts() {
         draft = ""
@@ -300,6 +274,36 @@ fun RoomScreen(
         // Admin aplikasi (developer) juga boleh mengelola semua room.
         val isDevAdmin = FirebaseAuth.getInstance().currentUser?.email.equals("developerex100@gmail.com", ignoreCase = true)
         val canManage = isOwner || isDevAdmin
+        val roomIdNow = r.id
+        val myUidNow = myUid
+        val myNameNow = myName
+
+        // ---- kirim gambar dari galeri ----
+    var imgBusy by remember { mutableStateOf(false) }
+    var lihatGambar by remember { mutableStateOf<String?>(null) }
+    val imgPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri == null || imgBusy) return@rememberLauncherForActivityResult
+        imgBusy = true
+        scope.launch {
+            val (url, err) = RoomImages.upload(context, uri)
+            imgBusy = false
+            if (url == null) {
+                toast(err ?: "Gagal mengunggah gambar")
+            } else {
+                val sisa = draft.trim()
+                val e = RoomExtras.sendImage(roomIdNow, myUidNow, myNameNow, url, sisa)
+                if (e == null) {
+                    draft = ""
+                    sendTick++
+                } else {
+                    toast(e)
+                }
+            }
+        }
+    }
+
         var ownerUserId by remember(r.ownerUid) {
             mutableStateOf(
                 if (r.ownerUid == myUid) UserDirectory.cachedId(context, myUid) else UserCache.peek(r.ownerUid)?.userId,
@@ -586,7 +590,7 @@ fun RoomScreen(
                     onChat = { u -> seatSheet = null; appActions.openChat(u) },
                     onFollowChanged = { },
                     onOpenFull = { seatSheet = null; appActions.openFullProfile(s.uid) },
-                    topAction = if (isOwner && s.uid != myUid) {
+                    topAction = if (canManage && s.uid != myUid) {
                         {
                             var menu by remember { mutableStateOf(false) }
                             Box {
