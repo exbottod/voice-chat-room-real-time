@@ -44,7 +44,7 @@ import kotlinx.coroutines.tasks.await
  * Saklar sementara: false = ikon roket dan animasi peluncuran di dalam room
  * tidak dipasang. Dipakai untuk menguji apakah keduanya penyebab room macet.
  */
-const val ROCKET_ROOM_UI = false
+const val ROCKET_ROOM_UI = true
 
 object RocketCfg {
     // Syarat energi tiap roket (energi yang harus diisi sebelum roket itu meluncur).
@@ -71,6 +71,9 @@ object RocketCfg {
 
     /** Keterangan hadiah peringkat. */
     var rankPrizeInfo by mutableStateOf<Map<String, String>>(emptyMap())
+
+    /** Saklar darurat dari panel: true = ikon dan animasi roket disembunyikan di room. */
+    var uiOff by mutableStateOf(false)
 
     var exp by mutableStateOf(defaultExp)
     var img by mutableStateOf(defaultImg)
@@ -101,6 +104,7 @@ object RocketCfg {
                 }
                 rewards = rw.toList()
                 s.child("flyUrl").getValue(String::class.java)?.takeIf { it.isNotBlank() }?.let { flyUrl = it }
+                uiOff = s.child("uiOff").getValue(Boolean::class.java) ?: false
                 // Animasi roket meluncur per level: rocketCfg/fly1..fly5.
                 flyUrls = (1..5).map { n ->
                     s.child("fly$n").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: flyUrl
@@ -437,7 +441,8 @@ private fun RocketAsset(value: String, size: androidx.compose.ui.unit.Dp, glow: 
  */
 @Composable
 fun RocketRail(roomId: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
-    RocketCfg.start()
+    if (RocketCfg.uiOff) return
+    LaunchedEffect(Unit) { RocketCfg.start() }
     LaunchedEffect(roomId) { RocketRepo.room(roomId) }
     val total = RocketRepo.exp
     val exp = RocketCfg.exp
@@ -488,7 +493,7 @@ fun RocketRail(roomId: String, onOpen: () -> Unit, modifier: Modifier = Modifier
  */
 @Composable
 fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
-    RocketCfg.start()
+    LaunchedEffect(Unit) { RocketCfg.start() }
     LaunchedEffect(roomId) { RocketRepo.room(roomId) }
     val total = RocketRepo.exp
     // Tombol back menutup panel roket saja, tidak keluar dari room.
@@ -837,61 +842,70 @@ fun RocketRankPrizeDialog(onClose: () -> Unit) {
 
 // ==================== Peluncuran roket (level 1..5) ====================
 
-private var rocketLastSeen = ""
-
 /** Satu kejadian peluncuran roket yang diterima dari room. */
 private data class LaunchEv(val id: String, val uid: String, val name: String, val lv: Int, val url: String)
 
+/** Kejadian peluncuran yang diterima dari room. */
+private data class LaunchEv(val id: String, val uid: String, val name: String, val lv: Int, val url: String)
+
 /**
- * Semua peluncuran roket di room, dimainkan berurutan: roket 1 meluncur dan
- * memutar animasinya, lalu dialog hadiah dengan tombol Okey. Setelah Okey
- * ditekan barulah roket berikutnya meluncur, begitu seterusnya.
+ * Peluncuran roket di room, satu per satu: animasi roket level yang penuh,
+ * lalu dialog hadiah dengan tombol Okey. Setelah Okey ditekan, roket
+ * berikutnya baru jalan.
  */
 @Composable
 fun RocketLaunchOverlay(roomId: String, myUid: String) {
-    if (roomId.isBlank()) return
-    RocketCfg.start()
-    var queue by remember(roomId) { mutableStateOf(listOf<LaunchEv>()) }
-    var current by remember(roomId) { mutableStateOf<LaunchEv?>(null) }
-    var showPrize by remember(roomId) { mutableStateOf(false) }
-    var showLucky by remember(roomId) { mutableStateOf(false) }
+    if (roomId.isBlank() || RocketCfg.uiOff) return
+    LaunchedEffect(Unit) { RocketCfg.start() }
+
+    val seen = remember(roomId) { mutableSetOf<String>() }
+    var pending by remember(roomId) { mutableStateOf(listOf<LaunchEv>()) }
+    var ev by remember(roomId) { mutableStateOf<LaunchEv?>(null) }
+    var step by remember(roomId) { mutableStateOf(0) }
+    var dialogMode by remember(ev?.id) { mutableStateOf("") }
 
     DisposableEffect(roomId) {
-        val reg = Rtdb.listen(Rtdb.ref("rocketFx/$roomId")) { s ->
-            val id = s.key ?: return@listen
-            val ts = s.child("ts").getValue(Long::class.java) ?: 0L
-            if (id == rocketLastSeen) return@listen
-            // Abaikan kejadian lama dari sebelum aplikasi dibuka.
-            if (ts <= 0L || ts < System.currentTimeMillis() - 20_000L) return@listen
-            rocketLastSeen = id
-            queue = queue + LaunchEv(
-                id = id,
-                uid = s.child("uid").getValue(String::class.java) ?: "",
-                name = s.child("name").getValue(String::class.java) ?: "",
-                lv = (s.child("lv").getValue(Int::class.java) ?: 5).coerceIn(1, 5),
-                url = s.child("url").getValue(String::class.java)
-                    ?.takeIf { it.isNotBlank() } ?: RocketCfg.flyFor(5),
-            )
+        val reg = Rtdb.listen(Rtdb.ref("rocketFx/$roomId").limitToLast(3)) { s ->
+            val tambah = mutableListOf<LaunchEv>()
+            for (c in s.children) {
+                val id = c.key ?: continue
+                if (seen.contains(id)) continue
+                seen.add(id)
+                val ts = c.child("ts").getValue(Long::class.java) ?: 0L
+                // Abaikan kejadian lama dari sebelum aplikasi dibuka.
+                if (ts <= 0L || ts < System.currentTimeMillis() - 25_000L) continue
+                tambah.add(
+                    LaunchEv(
+                        id = id,
+                        uid = c.child("uid").getValue(String::class.java) ?: "",
+                        name = c.child("name").getValue(String::class.java) ?: "",
+                        lv = (c.child("lv").getValue(Int::class.java) ?: 1).coerceIn(1, 5),
+                        url = c.child("url").getValue(String::class.java)?.takeIf { it.isNotBlank() }
+                            ?: RocketCfg.flyFor(1),
+                    ),
+                )
+            }
+            if (tambah.isNotEmpty()) pending = pending + tambah
         }
         onDispose { reg.remove() }
     }
 
-    // Ambil satu kejadian dari antrean hanya kalau tidak ada yang sedang jalan.
-    LaunchedEffect(queue, current, showPrize, showLucky) {
-        if (current == null && !showPrize && !showLucky && queue.isNotEmpty()) {
-            current = queue.first()
-            queue = queue.drop(1)
+    // Ambil satu kejadian kalau tidak ada yang sedang diputar.
+    LaunchedEffect(pending, ev) {
+        if (ev == null && pending.isNotEmpty()) {
+            ev = pending.first()
+            pending = pending.drop(1)
+            step = 0
         }
     }
 
-    val ev = current
-    if (ev != null && !showPrize && !showLucky) {
-        var ended by remember(ev.id) { mutableStateOf(false) }
+    val e = ev
+    if (e != null && step == 0) {
         Box(Modifier.fillMaxSize()) {
-            if (isVideoMedia(ev.url)) {
-                GiftVideo(ev.url, Modifier.fillMaxSize()) { ended = true }
+            if (isVideoMedia(e.url)) {
+                GiftVideo(e.url, Modifier.fillMaxSize()) { step = 1 }
             } else {
-                GiftSvga(ev.url, "\uD83D\uDE80", Modifier.fillMaxSize()) { ended = true }
+                GiftSvga(e.url, "\uD83D\uDE80", Modifier.fillMaxSize()) { step = 1 }
             }
             Box(
                 Modifier
@@ -902,57 +916,50 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Text(
-                    "\uD83D\uDE80 Roket Lv.${ev.lv} ${ev.name} meluncur!",
+                    "\uD83D\uDE80 Roket Lv.${e.lv} ${e.name} meluncur!",
                     color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.Bold,
                 )
             }
         }
-        // Animasi selesai (atau penjaga waktu kalau file gagal diputar).
-        LaunchedEffect(ev.id) {
-            delay(if (isVideoMedia(ev.url)) 8000 else 6000)
-            ended = true
-        }
-        LaunchedEffect(ended) {
-            if (!ended) return@LaunchedEffect
-            if (ev.uid == myUid) showPrize = true else showLucky = true
+        // Penjaga waktu kalau file animasi gagal diputar.
+        LaunchedEffect(e.id) {
+            delay(if (isVideoMedia(e.url)) 8000 else 6000)
+            step = 1
         }
     }
 
-    if (ev != null && showPrize) {
+    // Tentukan hadiah: pengirim dapat hadiah kontribusi, penonton sekali per peluncuran.
+    LaunchedEffect(e?.id, step) {
+        val cur = e ?: return@LaunchedEffect
+        if (step != 1 || dialogMode.isNotBlank()) return@LaunchedEffect
+        val mode = if (cur.uid == myUid) {
+            "launch"
+        } else if (RocketRepo.canLucky(myUid, cur.id)) {
+            "lucky"
+        } else {
+            ""
+        }
+        if (mode.isBlank()) {
+            ev = null
+            step = 0
+        } else {
+            dialogMode = mode
+        }
+    }
+
+    if (e != null && dialogMode.isNotBlank()) {
         RocketPrizeDialog(
             myUid = myUid,
-            mode = "launch",
+            mode = dialogMode,
             rank = 0,
-            launchId = ev.id,
-            lv = ev.lv,
+            launchId = e.id,
+            lv = e.lv,
             onClose = {
-                showPrize = false
-                current = null
+                dialogMode = ""
+                ev = null
+                step = 0
             },
         )
-    }
-    if (ev != null && showLucky) {
-        // Penonton: sekali per peluncuran, lalu lanjut roket berikutnya.
-        var can by remember(ev.id) { mutableStateOf<Boolean?>(null) }
-        LaunchedEffect(ev.id) { can = RocketRepo.canLucky(myUid, ev.id) }
-        when (can) {
-            null -> Unit
-            false -> LaunchedEffect(ev.id) {
-                showLucky = false
-                current = null
-            }
-            else -> RocketPrizeDialog(
-                myUid = myUid,
-                mode = "lucky",
-                rank = 0,
-                launchId = ev.id,
-                lv = ev.lv,
-                onClose = {
-                    showLucky = false
-                    current = null
-                },
-            )
-        }
     }
 }
 

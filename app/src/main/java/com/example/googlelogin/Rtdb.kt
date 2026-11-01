@@ -44,7 +44,12 @@ object Rtdb {
     fun listen(q: Query, onData: (DataSnapshot) -> Unit): Reg {
         val l = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                onData(snapshot)
+                // Satu data yang bentuknya aneh tidak boleh menjatuhkan aplikasi.
+                try {
+                    onData(snapshot)
+                } catch (t: Throwable) {
+                    android.util.Log.w("Rtdb", "gagal baca data: " + t.message)
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {}

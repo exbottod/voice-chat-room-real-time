@@ -235,6 +235,16 @@ label{font-size:12px;color:var(--mut)}
     <div id="rkRank"></div>
   </div>
   <div class="card">
+    <h2>Saklar roket di room</h2>
+    <p class="muted">Kalau ikon atau animasi roket membuat room macet, matikan di sini tanpa perlu
+      pasang aplikasi baru. Ikon dan animasi akan hilang, data roket tetap tersimpan.</p>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+      <button class="btn" id="rkUiOn">Roket aktif</button>
+      <button class="btn" id="rkUiOff" style="background:#7a1f1f;color:#fff">Matikan di room</button>
+      <span class="muted" id="rkUiNow"></span>
+    </div>
+  </div>
+  <div class="card">
     <h2>Syarat energi tiap roket</h2>
     <p class="muted">Berapa koin gift yang harus terkumpul sebelum roket itu meluncur. Isi 0 atau kosongkan
       untuk memakai angka bawaan. Roket 1 meluncur lebih dulu, lalu roket 2, dan seterusnya.</p>
@@ -974,6 +984,21 @@ function rkPrize(label, path, cur, key){
   };
   return d;
 }
+function rkUiRender(){
+  const el = $("rkUiNow"); if (!el) return;
+  el.textContent = rkCfg.uiOff ? "Sekarang: MATI" : "Sekarang: AKTIF";
+}
+async function rkSetUi(off){
+  try {
+    await rkSave("rocketCfg/uiOff", !!off);
+    rkCfg.uiOff = !!off;
+    rkUiRender();
+    rkMsg(off ? "Roket di room dimatikan ✅" : "Roket di room diaktifkan ✅");
+  } catch (e) { rkMsg("Gagal: " + e.message); }
+}
+if ($("rkUiOn")) $("rkUiOn").onclick = () => rkSetUi(false);
+if ($("rkUiOff")) $("rkUiOff").onclick = () => rkSetUi(true);
+
 function rkExpRender(){
   const box = $("rkExp"); if (!box) return;
   box.innerHTML = "";
@@ -992,6 +1017,7 @@ function rkExpRender(){
 function rkRender(){
   const lv = $("rkLv"); if (!lv) return;
   rkExpRender();
+  rkUiRender();
   lv.innerHTML = "";
   for (let n = 1; n <= 5; n++) {
     const b = document.createElement("button");
