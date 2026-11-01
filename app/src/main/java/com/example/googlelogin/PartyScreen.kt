@@ -258,6 +258,7 @@ private fun BannerPager() {
     // Banner dibaca SEKALI per buka tab (hemat kuota listener Firestore).
     androidx.compose.runtime.LaunchedEffect(Unit) {
         // Banner dikelola seperti frame/store: file di Cloudinary, data di vipCfg.
+        val disembunyikan = mutableSetOf<String>()
         val dariVip: List<AppBanner> = try {
             val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
                 com.google.firebase.database.FirebaseDatabase.getInstance().getReference("vipCfg").get().await()
@@ -265,6 +266,8 @@ private fun BannerPager() {
             snap?.children?.mapNotNull { c ->
                 val x = c.value as? Map<*, *> ?: return@mapNotNull null
                 if (x["banner"] != true) return@mapNotNull null
+                (x["hiddenFs"] as? String)?.let { disembunyikan.add(it) }
+                if (x["active"] == false) return@mapNotNull null
                 val url = x["imageUrl"] as? String ?: ""
                 val b64 = x["imageB64"] as? String
                 if (url.isBlank() && b64.isNullOrBlank()) return@mapNotNull null
@@ -287,12 +290,12 @@ private fun BannerPager() {
             emptyList()
         }
         // Banner lama di Firestore tetap ditampilkan kalau masih bisa dibaca.
-        val dariFs: List<AppBanner> = try {
+        val dariFsSemua: List<AppBanner> = try {
             val snap = kotlinx.coroutines.withTimeoutOrNull(5000L) {
                 com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("banners").get().await()
             }
             snap?.documents
-                ?.filter { it.getBoolean("active") != false && (!it.getString("imageB64").isNullOrBlank() || !it.getString("imageUrl").isNullOrBlank()) }
+                ?.filter { it.id !in disembunyikan && it.getBoolean("active") != false && (!it.getString("imageB64").isNullOrBlank() || !it.getString("imageUrl").isNullOrBlank()) }
                 ?.sortedBy { it.getLong("order") ?: 0L }
                 ?.map {
                     AppBanner(
@@ -306,6 +309,7 @@ private fun BannerPager() {
         } catch (e: Exception) {
             emptyList()
         }
+        val dariFs = dariFsSemua
         val semua = dariVip + dariFs.filter { f -> dariVip.none { v -> v.imageUrl.isNotBlank() && v.imageUrl == f.imageUrl } }
         if (semua.isNotEmpty()) remote = semua
     }

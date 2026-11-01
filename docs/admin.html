@@ -468,9 +468,43 @@ function banStart(){
   }).catch(() => { fsBanners = []; renderBanners(); });
 }
 
+function banPatch(b, patch){
+  if (b.src === "fs") return db.collection("banners").doc(b.id).update(patch);
+  return rtdb.ref("vipCfg/" + b.id).update(patch);
+}
+
+async function banDelete(b){
+  // Hapus banner dari mana pun asalnya, dengan jalur cadangan kalau Firestore
+  // tidak bisa (kuota habis / aturan).
+  if (b.src === "rt") {
+    await Promise.race([
+      rtdb.ref("vipCfg/" + b.id).remove(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Database tidak merespons 20 detik")), 20000))
+    ]);
+    toast("Banner dihapus ✅");
+    return;
+  }
+  try {
+    await db.collection("banners").doc(b.id).delete();
+    toast("Banner dihapus ✅");
+    return;
+  } catch (e1) {
+    // Firestore tidak bisa dihapus: tandai disembunyikan supaya hilang dari panel & aplikasi.
+    await rtdb.ref("vipCfg/hide_" + b.id).set({
+      banner: true, active: false, hiddenFs: b.id,
+      imageUrl: b.data.imageUrl || "", title: b.data.title || "", order: b.data.order || 0,
+      createdAt: Date.now()
+    });
+    toast("Banner disembunyikan (Firestore: " + (e1.message || e1) + ")");
+  }
+}
+
 function renderBanners(){
   const box = $("list"); box.textContent = "";
-  const all = fsBanners.concat(rtBanners.filter(r => !fsBanners.some(f => (f.data.imageUrl || "") === (r.data.imageUrl || "") && f.data.title === r.data.title)));
+  const hidden = new Set(rtBanners.filter(r => r.data.hiddenFs).map(r => r.data.hiddenFs));
+  const visFs = fsBanners.filter(f => !hidden.has(f.id));
+  const visRt = rtBanners.filter(r => !r.data.hiddenFs && r.data.active !== false);
+  const all = visRt.concat(visFs.filter(f => !visRt.some(r => (r.data.imageUrl || "") && r.data.imageUrl === (f.data.imageUrl || ""))));
   if (!all.length) { box.textContent = "Belum ada banner. Aplikasi memakai banner bawaan."; return; }
   all.sort((a, b) => (a.data.order || 0) - (b.data.order || 0));
   all.forEach(b0 => {
