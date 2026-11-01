@@ -296,8 +296,6 @@ async function giftCredit(targets: string[], each: number, itemId: string, roomI
   return ok;
 }
 
-async function sbRest(
-
 async function sbRest(path: string, init: RequestInit = {}): Promise<Response> {
   const sr = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   return await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/${path}`, {
