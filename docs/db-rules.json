@@ -63,6 +63,10 @@
       ".read": "auth != null",
       "$uid": {
         ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
+      },
+      "_rocketCfg": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
       }
     },
     "blacklist": {

@@ -254,33 +254,98 @@ async function waveSubmitFlow(req: Request): Promise<Response> {
  * tetap masuk walaupun SQL belum dijalankan.
  */
 /**
- * Hadiah roket. Undian dilakukan di server supaya hadiah tidak bisa dipilih
- * dari aplikasi:
- *   mode "launch" -> 10jt coin (50%), 5jt coin (40%), VIP9 30 hari (10%)
- *   mode "rank"   -> top1 VIP9 + 100jt, top2 VIP8 + 50jt, top3 VIP5 + 10jt,
- *                    peringkat lain 10jt coin.
+ * Hadiah roket diambil dari pengaturan panel admin (Realtime Database,
+ * salinan publik "pub/_rocketCfg"). Isi hadiah tiap kotak: gambar, VIP,
+ * coin, efek masuk, lencana. Server yang mengundi kotak mana yang dibayar,
+ * jadi hadiah tidak bisa dipilih dari aplikasi.
+ *   mode "launch" -> kotak acak dari roket level tertinggi yang terisi
+ *   mode "lucky"  -> kotak acak dari roket level rendah (penonton)
+ *   mode "rank"   -> kotak sesuai peringkat (Top 1..4)
  */
+const ROCKET_CFG_URL =
+  "https://arboreal-cat-511705-p6-default-rtdb.asia-southeast1.firebasedatabase.app/pub/_rocketCfg.json";
+
+let rkCache: { at: number; data: Record<string, unknown> } | null = null;
+
+async function rocketCfg(): Promise<Record<string, unknown>> {
+  const now = Date.now();
+  if (rkCache && now - rkCache.at < 60_000) return rkCache.data;
+  try {
+    const r = await fetch(ROCKET_CFG_URL);
+    if (!r.ok) throw new Error("cfg " + r.status);
+    const d = await r.json();
+    rkCache = { at: now, data: (d && typeof d === "object" ? d : {}) as Record<string, unknown> };
+    return rkCache.data;
+  } catch {
+    return rkCache?.data ?? {};
+  }
+}
+
+type Prize = { coins: number; vip: number; days: number; img?: string; eff?: string; badge?: string };
+
+function rkSlotToPrize(node: unknown, days: number): Prize | null {
+  if (!node || typeof node !== "object") return null;
+  const o = node as Record<string, unknown>;
+  const coins = Math.max(0, Math.floor(Number(o.coins ?? 0)));
+  const vip = Math.max(0, Math.min(9, Math.floor(Number(o.vip ?? 0))));
+  if (coins <= 0 && vip <= 0) return null;
+  return {
+    coins,
+    vip,
+    days: vip > 0 ? days : 0,
+    img: typeof o.img === "string" ? o.img : "",
+    eff: typeof o.eff === "string" ? o.eff : "",
+    badge: typeof o.badge === "string" ? o.badge : "",
+  };
+}
+
+/** Kotak acak dari satu level roket; null kalau level itu belum diisi. */
+function rkPickLevel(cfg: Record<string, unknown>, lv: number, days: number): Prize | null {
+  const node = cfg["lv" + lv];
+  if (!node || typeof node !== "object") return null;
+  const n = node as Record<string, unknown>;
+  const slots = ["r1", "r2", "r3", "r4", "r5", "r6"]
+    .map((k) => rkSlotToPrize(n[k] ?? n[k.replace("r", "p")], days))
+    .filter((x): x is Prize => !!x);
+  if (!slots.length) return null;
+  return slots[Math.floor(Math.random() * slots.length)];
+}
+
+function rkPickAny(cfg: Record<string, unknown>, levels: number[], days: number): Prize | null {
+  for (const lv of levels) {
+    const p = rkPickLevel(cfg, lv, days);
+    if (p) return p;
+  }
+  return null;
+}
+
 async function rocketClaim(uid: string, p: Record<string, unknown>): Promise<Response> {
   const mode = String(p.mode ?? "launch");
-  let coins = 0, vip = 0, days = 0;
+  const cfg = await rocketCfg();
+  let prize: Prize | null = null;
+
   if (mode === "rank") {
     const rank = Math.floor(Number(p.rank ?? 99));
-    if (rank === 1) { vip = 9; days = 30; coins = 100_000_000; }
-    else if (rank === 2) { vip = 8; days = 30; coins = 50_000_000; }
-    else if (rank === 3) { vip = 5; days = 30; coins = 10_000_000; }
-    else { coins = 10_000_000; }
+    const key = rank >= 1 && rank <= 4 ? "t" + rank : "t4";
+    const rankNode = (cfg.rank ?? {}) as Record<string, unknown>;
+    prize = rkSlotToPrize(rankNode[key], 30);
+    if (!prize) {
+      // Bawaan kalau panel belum diisi.
+      if (rank === 1) prize = { coins: 100_000_000, vip: 9, days: 30 };
+      else if (rank === 2) prize = { coins: 50_000_000, vip: 8, days: 30 };
+      else if (rank === 3) prize = { coins: 10_000_000, vip: 5, days: 30 };
+      else prize = { coins: 10_000_000, vip: 0, days: 0 };
+    }
   } else if (mode === "lucky") {
-    // Hadiah keberuntungan penonton: lebih kecil dari hadiah kontribusi.
-    const r = Math.random();
-    if (r < 0.02) { vip = 5; days = 7; }
-    else if (r < 0.40) { coins = 1_000_000; }
-    else { coins = 500_000; }
+    // Penonton: hadiah dari roket level bawah supaya tidak lebih besar dari pengirim.
+    prize = rkPickAny(cfg, [1, 2, 3], 7) ?? { coins: 500_000, vip: 0, days: 0 };
   } else {
-    const r = Math.random();
-    if (r < 0.10) { vip = 9; days = 30; }
-    else if (r < 0.50) { coins = 5_000_000; }
-    else { coins = 10_000_000; }
+    prize = rkPickAny(cfg, [5, 4, 3, 2, 1], 30) ?? { coins: 10_000_000, vip: 0, days: 0 };
   }
+
+  const coins = prize.coins;
+  const vip = prize.vip;
+  const days = prize.days;
   try {
     const r = await rpc("w_rocket_reward", { p_uid: uid, p_coins: coins, p_vip: vip, p_days: days });
     if (!r.ok) {
@@ -288,7 +353,10 @@ async function rocketClaim(uid: string, p: Record<string, unknown>): Promise<Res
       return json({ ok: 0, e: "Hadiah belum bisa diklaim, coba lagi", code: txt.slice(0, 120) }, 200);
     }
     const w = await r.json().catch(() => null);
-    return json({ ok: 1, coins, vip, days, w });
+    return json({
+      ok: 1, coins, vip, days, w,
+      img: prize.img ?? "", eff: prize.eff ?? "", badge: prize.badge ?? "",
+    });
   } catch {
     return json({ ok: 0, e: "Server sibuk, coba lagi" }, 200);
   }

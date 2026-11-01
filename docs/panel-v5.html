@@ -872,6 +872,16 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
 /* ---------- Roket: hadiah per level + hadiah peringkat ---------- */
 let rkSel = 1, rkCfg = {}, rkOff = null;
 function rkMsg(t){ const e = $("rkMsg"); if (e) e.textContent = t; toast(t); }
+// Salinan publik rocketCfg supaya server (wallet-api) bisa membaca hadiah tanpa login.
+function rkMirrorPath(path){ return String(path || "").replace(/^rocketCfg\//, "pub/_rocketCfg/"); }
+async function rkSave(path, obj){
+  await rtSet(path, obj);
+  try { await rtSet(rkMirrorPath(path), obj); } catch (e) {}
+}
+async function rkRemove(path){
+  await rtDel(path);
+  try { await rtDel(rkMirrorPath(path)); } catch (e) {}
+}
 function rocketStart(){
   // Store perlu dimuat lebih dulu supaya efek & lencana bisa dipilih dari store.
   if (typeof vipStart === "function") vipStart();
@@ -943,14 +953,14 @@ function rkPrize(label, path, cur, key){
         badge: badge,
         updatedAt: Date.now(),
       };
-      await rtSet(path, out);
+      await rkSave(path, out);
       rkMsg("Tersimpan ✅ " + label);
     } catch (e) { rkMsg("Gagal: " + e.message); }
     finally { btn.disabled = false; }
   };
   d.querySelector("#d_" + key).onclick = async () => {
     if (!confirm("Hapus " + label + "?")) return;
-    try { await rtDel(path); rkMsg("Dihapus ✅"); } catch (e) { rkMsg("Gagal: " + e.message); }
+    try { await rkRemove(path); rkMsg("Dihapus ✅"); } catch (e) { rkMsg("Gagal: " + e.message); }
   };
   return d;
 }
@@ -990,13 +1000,13 @@ function rkFlyCard(){
     const f = d.querySelector("#f_rk_fly").files[0];
     if (!f) return rkMsg("Pilih file dulu");
     const btn = d.querySelector("#s_rk_fly"); btn.disabled = true;
-    try { const u = await cldUpload(f, "rk_fly"); await rtSet("rocketCfg/flyUrl", u); rkMsg("Tersimpan ✅ animasi roket"); }
+    try { const u = await cldUpload(f, "rk_fly"); await rkSave("rocketCfg/flyUrl", u); rkMsg("Tersimpan ✅ animasi roket"); }
     catch (e) { rkMsg("Gagal: " + e.message); }
     finally { btn.disabled = false; }
   };
   d.querySelector("#d_rk_fly").onclick = async () => {
     if (!confirm("Hapus animasi roket?")) return;
-    try { await rtDel("rocketCfg/flyUrl"); rkMsg("Dihapus ✅"); } catch (e) { rkMsg("Gagal: " + e.message); }
+    try { await rkRemove("rocketCfg/flyUrl"); rkMsg("Dihapus ✅"); } catch (e) { rkMsg("Gagal: " + e.message); }
   };
   return d;
 }
