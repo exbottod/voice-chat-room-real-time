@@ -216,90 +216,381 @@ private fun BalanceCard(emoji: String, label: String, value: String, modifier: M
     }
 }
 
+// ---- Warna tema dompet (turquoise, kartu emas / ungu) ----
+private val WalTealTop = Color(0xFF6FEFE0)
+private val WalTealMid = Color(0xFFBFF6EE)
+private val WalNavy = Color(0xFF1B1049)
+private val WalGrey = Color(0xFF8A8FA0)
+private val WalRowBg = Color(0xFFF4F4F6)
+private val WalCoinOrange = Color(0xFFD98A00)
+
+/** Paket tukar berlian ke coin: (coin yang didapat, berlian yang dibayar). 1 coin = 2 berlian. */
+private val DIAMOND_PACKS = listOf(
+    162_000L to 324_000L,
+    1_004_400L to 2_008_800L,
+    2_126_250L to 4_252_500L,
+    10_368_000L to 20_736_000L,
+    21_937_500L to 43_875_000L,
+)
+
+/** Paket topup coin: jumlah coin dan label harga. */
+private val TOPUP_PACKS = listOf(
+    1_000_000L to "Rp 6.000",
+    3_000_000L to "Rp 18.000",
+    10_000_000L to "Rp 58.000",
+    30_000_000L to "Rp 170.000",
+)
+
+@Composable
+private fun CoinDot(size: Int = 28) {
+    Box(
+        Modifier.size(size.dp).clip(CircleShape)
+            .background(Brush.verticalGradient(listOf(Color(0xFFFFE27A), Color(0xFFF2A100))))
+            .border(1.5.dp, Color(0xFFFFF1B0), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("★", color = Color(0xFFFFF6D0), fontSize = (size * 0.5f).sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun GemDot(size: Int = 22) {
+    Text("💎", fontSize = size.sp)
+}
+
+@Composable
+private fun WalletBalanceCard(
+    gem: Boolean,
+    balance: Long,
+    action: String,
+    onAction: () -> Unit,
+) {
+    val shape = RoundedCornerShape(22.dp)
+    val bg = if (gem) {
+        Brush.linearGradient(listOf(Color(0xFF6A2BD0), Color(0xFFB98BF2), Color(0xFF7A3FDB)))
+    } else {
+        Brush.linearGradient(listOf(Color(0xFFF1A21A), Color(0xFFFFD84A), Color(0xFFEFA11B)))
+    }
+    Box(
+        Modifier.fillMaxWidth().height(150.dp).clip(shape)
+            .background(bg)
+            .border(2.dp, if (gem) Color(0xFFD7BFFF) else Color(0xFFFFE08A), shape)
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+    ) {
+        Column(Modifier.align(Alignment.CenterStart)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (gem) GemDot(24) else CoinDot(26)
+                Spacer(Modifier.width(8.dp))
+                Text(tr("Saldo") + ":", color = Color.White, fontSize = 17.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                balance.toString(),
+                color = Color.White,
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+        }
+        Box(
+            Modifier.align(Alignment.TopEnd).padding(top = 28.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Brush.verticalGradient(listOf(Color(0xFFFFE27A), Color(0xFFF0A800))))
+                .border(1.dp, Color(0xFFB57A00), RoundedCornerShape(50))
+                .clickable(onClick = onAction)
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+        ) {
+            Text(action, color = Color(0xFF4A2E00), fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun WalletTabs(tab: Int, onTab: (Int) -> Unit) {
+    val names = listOf(tr("Koin"), tr("Berlian"), "Cash")
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+        names.forEachIndexed { i, n ->
+            val on = tab == i
+            Column(
+                Modifier.clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                ) { onTab(i) }.padding(horizontal = 18.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    n,
+                    color = if (on) WalNavy else WalGrey,
+                    fontSize = 20.sp,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                )
+                Spacer(Modifier.height(5.dp))
+                Box(
+                    Modifier.width(34.dp).height(4.dp).clip(RoundedCornerShape(50))
+                        .background(if (on) WalNavy else Color.Transparent),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopupMethodRow(
+    title: String,
+    sub: String = "",
+    badge: String = "",
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit,
+) {
+    Box(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(WalRowBg)
+                .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            icon()
+            Spacer(Modifier.width(14.dp))
+            Text(title, color = WalNavy, fontSize = 17.sp, fontWeight = if (sub.isNotEmpty()) FontWeight.ExtraBold else FontWeight.Normal)
+            if (sub.isNotEmpty()) {
+                Spacer(Modifier.width(10.dp))
+                Text(sub, color = WalGrey, fontSize = 15.sp)
+            }
+        }
+        if (badge.isNotEmpty()) {
+            Text(
+                badge,
+                color = Color.White,
+                fontSize = 13.sp,
+                modifier = Modifier.align(Alignment.TopEnd)
+                    .clip(RoundedCornerShape(topEnd = 16.dp, bottomStart = 16.dp))
+                    .background(Color(0xFFFF6B7A))
+                    .padding(horizontal = 18.dp, vertical = 4.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RezoMark(size: Int = 52) {
+    Image(
+        painter = androidx.compose.ui.res.painterResource(R.drawable.ic_launcher_logo),
+        contentDescription = "REZO",
+        modifier = Modifier.size(size.dp).clip(RoundedCornerShape(14.dp)),
+        contentScale = ContentScale.Crop,
+    )
+}
+
+@Composable
+private fun PayDot(text: String, color: Color) {
+    Box(
+        Modifier.size(52.dp).clip(CircleShape).background(color),
+        contentAlignment = Alignment.Center,
+    ) { Text(text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+}
+
 @Composable
 fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var amount by remember { mutableStateOf("") }
+    var tab by remember { mutableStateOf(0) }
     var busy by remember { mutableStateOf(false) }
-    BackHandler(onBack = onBack)
+    var showPacks by remember { mutableStateOf(false) }
+    BackHandler(onBack = { if (showPacks) showPacks = false else onBack() })
     val toast = { m: String -> Toast.makeText(context, m, Toast.LENGTH_SHORT).show() }
 
-    OverlayBox {
-        Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
-            GoldTopBar(tr("Dompet"), onBack)
-            Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                BalanceCard("🪙", "Coin", fmtCompact(wallet.coins), Modifier.weight(1f))
-                BalanceCard("💎", "Diamond", fmtCompact(wallet.diamonds), Modifier.weight(1f))
-                }
-                Spacer(Modifier.height(20.dp))
-                Text(tr("Isi coin"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+    Box(
+        Modifier.fillMaxSize()
+            .background(Brush.verticalGradient(listOf(WalTealTop, WalTealMid, Color.White), endY = 900f)),
+    ) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            // ---- bar judul ----
+            Box(Modifier.fillMaxWidth().height(54.dp)) {
                 Text(
-                    if (TOPUP_TEST_MODE) {
-                        "Mode uji: coin ditambahkan gratis (pembayaran belum terhubung)."
-                    } else {
-                        "Pembayaran belum tersedia."
-                    },
-                    color = Color(0xFF9A9A9A),
-                    fontSize = 12.sp,
+                    "‹",
+                    color = WalNavy,
+                    fontSize = 40.sp,
+                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 14.dp)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() },
+                        ) { if (showPacks) showPacks = false else onBack() },
                 )
-                Spacer(Modifier.height(8.dp))
-                listOf(1_000L, 10_000L, 100_000L, 1_000_000L, 10_000_000L).forEach { c ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(CardBlack.copy(alpha = 0.9f))
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("🪙 ${fmtNum(c)} coin", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                        GoldButton(tr("Isi"), Modifier.width(80.dp), enabled = !busy) {
-                            if (!TOPUP_TEST_MODE) {
-                                toast("Pembayaran belum tersedia")
-                            } else {
-                                busy = true
-                                scope.launch {
-                                    val e = WalletRepo.topUp(uid, c)
-                                    busy = false
-                                    toast(e ?: "+${fmtNum(c)} coin")
+                Text(
+                    tr("Dompet"),
+                    color = WalNavy,
+                    fontSize = 21.sp,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
+            WalletTabs(tab) { tab = it; showPacks = false }
+            Spacer(Modifier.height(14.dp))
+
+            Column(
+                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            ) {
+                when (tab) {
+                    // ===================== KOIN =====================
+                    0 -> {
+                        WalletBalanceCard(gem = false, balance = wallet.coins, action = tr("Catatan topup")) {
+                            toast("Belum ada catatan topup")
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Box(
+                            Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFF3B2504), Color(0xFF8A5A0B), Color(0xFF3B2504)),
+                                    ),
+                                )
+                                .border(2.dp, Color(0xFFE2B33C), RoundedCornerShape(14.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                "Manfaat Top Up",
+                                color = Color(0xFFFFD45A),
+                                fontSize = 30.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            )
+                        }
+                        Spacer(Modifier.height(18.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                tr("Metode topup"),
+                                color = WalNavy,
+                                fontSize = 20.sp,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Row(
+                                Modifier.clip(RoundedCornerShape(50)).background(Color.White)
+                                    .border(1.dp, Color(0xFFD9D9E3), RoundedCornerShape(50))
+                                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("📍", fontSize = 16.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Text("🇮🇩", fontSize = 18.sp)
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+
+                        if (!showPacks) {
+                            TopupMethodRow(
+                                title = "REZO CHAT VOICE",
+                                sub = "Agen Resmi",
+                                badge = "Penawaran terbaik",
+                                icon = { RezoMark() },
+                            ) { showPacks = true }
+                            TopupMethodRow("Google Play", icon = { PayDot("GP", Color(0xFF34A853)) }) { showPacks = true }
+                            TopupMethodRow("DANA", icon = { PayDot("DANA", Color(0xFF118EEA)) }) { showPacks = true }
+                            TopupMethodRow("OVO", icon = { PayDot("OVO", Color(0xFF4C2A86)) }) { showPacks = true }
+                            TopupMethodRow("ShopeePay", icon = { PayDot("SPay", Color(0xFFEE4D2D)) }) { showPacks = true }
+                            TopupMethodRow("LINKAJA", icon = { PayDot("Link", Color(0xFFE82127)) }) { showPacks = true }
+                            TopupMethodRow("QRIS", icon = { PayDot("QRIS", Color(0xFF222222)) }) { showPacks = true }
+                        } else {
+                            Text(
+                                if (TOPUP_TEST_MODE) "Mode uji: coin ditambahkan gratis (pembayaran belum terhubung)."
+                                else "Pilih paket coin",
+                                color = WalGrey,
+                                fontSize = 12.sp,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            TOPUP_PACKS.forEach { (coins, price) ->
+                                Row(
+                                    Modifier.fillMaxWidth().padding(vertical = 5.dp)
+                                        .clip(RoundedCornerShape(16.dp)).background(WalRowBg)
+                                        .clickable(enabled = !busy) {
+                                            if (!TOPUP_TEST_MODE) {
+                                                toast("Pembayaran belum tersedia")
+                                            } else {
+                                                busy = true
+                                                scope.launch {
+                                                    val e = WalletRepo.topUp(uid, coins)
+                                                    busy = false
+                                                    toast(e ?: "+${fmtNum(coins)} coin")
+                                                }
+                                            }
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    CoinDot(30)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(
+                                        coins.toString(),
+                                        color = WalCoinOrange,
+                                        fontSize = 20.sp,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Text(
+                                        price,
+                                        color = Color(0xFF6B3A00),
+                                        fontSize = 15.sp,
+                                        modifier = Modifier.clip(RoundedCornerShape(50))
+                                            .background(Color(0xFFDADADF))
+                                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                                    )
                                 }
                             }
                         }
                     }
-                }
-                Spacer(Modifier.height(20.dp))
-                Text(tr("Tukar diamond ke coin"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("$DIAMOND_PER_COIN diamond = 1 coin", color = Color(0xFF9A9A9A), fontSize = 12.sp)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it.filter { c -> c.isDigit() }.take(12) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    placeholder = { Text(tr("Jumlah diamond")) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = goldFieldColors(),
-                )
-                val n = amount.toLongOrNull() ?: 0L
-                Text("Kamu dapat ${fmtNum(n / DIAMOND_PER_COIN)} coin", color = Color(0xFFBDBDBD), fontSize = 13.sp)
-                Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlineButton(tr("Tukar semua"), Modifier.weight(1f)) { amount = wallet.diamonds.toString() }
-                    GoldButton(tr("Tukar"), Modifier.weight(1f), enabled = !busy && n > 0) {
-                        busy = true
-                        scope.launch {
-                            val e = WalletRepo.exchange(uid, n)
-                            busy = false
-                            if (e == null) {
-                                toast("Berhasil menukar ${fmtNum(n)} diamond")
-                                amount = ""
-                            } else {
-                                toast(e)
+
+                    // ===================== BERLIAN =====================
+                    1 -> {
+                        WalletBalanceCard(gem = true, balance = wallet.diamonds, action = tr("Catatan Berlian")) {
+                            toast("Belum ada catatan berlian")
+                        }
+                        Spacer(Modifier.height(18.dp))
+                        DIAMOND_PACKS.forEach { (coins, gems) ->
+                            val enough = wallet.diamonds >= gems
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp)
+                                    .clickable(enabled = !busy) {
+                                        if (!enough) {
+                                            toast("Berlian tidak cukup")
+                                        } else {
+                                            busy = true
+                                            scope.launch {
+                                                val e = WalletRepo.exchange(uid, gems)
+                                                busy = false
+                                                toast(e ?: "Berhasil menukar ${fmtNum(gems)} berlian")
+                                            }
+                                        }
+                                    },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                CoinDot(34)
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    coins.toString(),
+                                    color = WalCoinOrange,
+                                    fontSize = 21.sp,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Row(
+                                    Modifier.clip(RoundedCornerShape(50))
+                                        .background(if (enough) Color(0xFFE3D6F7) else Color(0xFFDADADF))
+                                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    GemDot(20)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(gems.toString(), color = Color(0xFF6B3A00), fontSize = 16.sp)
+                                }
                             }
                         }
+                    }
+
+                    // ===================== CASH =====================
+                    else -> {
+                        Spacer(Modifier.height(80.dp))
+                        Text(
+                            "Fitur Cash belum tersedia",
+                            color = WalGrey,
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                 }
                 Spacer(Modifier.height(30.dp))
