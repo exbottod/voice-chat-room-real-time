@@ -841,8 +841,21 @@ Deno.serve(async (req) => {
 
   const action = body.a ?? "";
   if (action === "admin") return await handleAdmin(body);
+  // Aksi topup manual/gateway ditangani langsung di bawah, jadi tidak wajib
+  // punya padanan fungsi SQL di ACTIONS. Tanpa pengecualian ini, semua
+  // permintaan topup ditolak "Permintaan tidak valid" sebelum diproses.
+  const DIRECT = new Set([
+    "topup_create",
+    "pay_info",
+    "manual_create",
+    "manual_history",
+    "topup_status",
+    "topup_history",
+  ]);
   const fn = ACTIONS[action];
-  if (!fn || !body.t) return json({ ok: 0, e: "Permintaan tidak valid" }, 400);
+  if ((!fn && !DIRECT.has(action)) || !body.t) {
+    return json({ ok: 0, e: "Permintaan tidak valid" }, 400);
+  }
 
   let uid: string;
   try {
