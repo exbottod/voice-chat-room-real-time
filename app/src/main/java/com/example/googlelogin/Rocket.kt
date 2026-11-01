@@ -98,9 +98,60 @@ object RocketRepo {
     var exp by mutableStateOf(0L)
         private set
 
-    private var live = false
+    /** Peringkat roket room ini pada musim berjalan. */
+    var rankRows by mutableStateOf<List<RocketRankRow>>(emptyList())
+        private set
 
     fun uid(): String = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
+    /** Kunci musim: tahun + nomor pekan, supaya peringkat bisa direset mingguan. */
+    fun season(): String {
+        val c = java.util.Calendar.getInstance()
+        val wk = c.get(java.util.Calendar.WEEK_OF_YEAR)
+        return "${c.get(java.util.Calendar.YEAR)}-W" + (if (wk < 10) "0$wk" else "$wk")
+    }
+
+    /** Peringkat saya di room ini (1 = teratas). */
+    fun myRank(): Int {
+        val u = uid()
+        val i = rankRows.indexOfFirst { it.uid == u }
+        return if (i < 0) rankRows.size + 1 else i + 1
+    }
+
+    private var launching = false
+
+    /**
+     * Roket level 5 pecah lalu meluncur: tulis kejadian ke room supaya semua
+     * orang melihat animasi yang sama. Dibatasi sekali per 6 jam per room.
+     */
+    suspend fun maybeLaunch(roomId: String, name: String) {
+        val u = uid()
+        if (u.isBlank() || roomId.isBlank() || launching) return
+        launching = true
+        try {
+            val mark = try {
+                Rtdb.ref("rocketLaunchMark/$roomId/$u").get().await().getValue(Long::class.java) ?: 0L
+            } catch (e: Exception) {
+                0L
+            }
+            val now = System.currentTimeMillis()
+            if (now - mark < 6L * 3600_000L) return
+            Rtdb.ref("rocketFx/$roomId").push().setValue(
+                hashMapOf<String, Any?>(
+                    "uid" to u,
+                    "name" to name,
+                    "url" to RocketCfg.flyUrl,
+                    "ts" to now,
+                ),
+            ).await()
+            Rtdb.ref("rocketLaunchMark/$roomId/$u").setValue(now).await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        } finally {
+            launching = false
+        }
+    }
 
     /** Room yang sedang dihitung roketnya (EXP disimpan terpisah per room). */
     private var liveRoom = ""
