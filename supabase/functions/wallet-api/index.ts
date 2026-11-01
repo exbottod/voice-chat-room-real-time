@@ -340,7 +340,11 @@ async function rocketClaim(uid: string, p: Record<string, unknown>): Promise<Res
     // Penonton: hadiah dari roket level bawah supaya tidak lebih besar dari pengirim.
     prize = rkPickAny(cfg, [1, 2, 3], 7) ?? { coins: 500_000, vip: 0, days: 0 };
   } else {
-    prize = rkPickAny(cfg, [5, 4, 3, 2, 1], 30) ?? { coins: 10_000_000, vip: 0, days: 0 };
+    // Hadiah kontribusi diambil dari roket yang baru meluncur (Lv.1..Lv.5).
+    const lv = Math.max(1, Math.min(5, Math.floor(Number(p.lv ?? 5))));
+    prize = rkPickLevel(cfg, lv, 30)
+      ?? rkPickAny(cfg, [5, 4, 3, 2, 1], 30)
+      ?? { coins: 10_000_000, vip: 0, days: 0 };
   }
 
   const coins = prize.coins;

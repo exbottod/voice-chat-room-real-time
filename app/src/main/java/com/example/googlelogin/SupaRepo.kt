@@ -246,9 +246,10 @@ object SupaRepo {
      * mode "launch" = hadiah acak setelah roket meluncur,
      * mode "rank"   = hadiah peringkat roket (top1..top3, sisanya coin).
      */
-    suspend fun rocketClaimPrize(uid: String, mode: String, rank: Int, launch: String): RocketPrize {
+    suspend fun rocketClaimPrize(uid: String, mode: String, rank: Int, launch: String, lv: Int = 5): RocketPrize {
         val p = uidJson(uid).put("mode", mode)
         if (rank > 0) p.put("rank", rank)
+        p.put("lv", lv.coerceIn(1, 5))
         if (launch.isNotBlank()) p.put("launch", launch)
         val j = postRaw("rocket_claim", p)
             ?: return RocketPrize(0, 0, 0, "Server tidak merespons, coba lagi")

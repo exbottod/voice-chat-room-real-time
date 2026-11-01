@@ -832,37 +832,8 @@ fun RoomScreen(
         GiftBanner(r.id)
         if (fxEntryOn) VipEntryEffect(r.id)
         if (fxGiftOn) GiftFxOverlay(r.id)
-        var rocketLaunchPrize by remember { mutableStateOf("") }
-        var rocketLuckyPrize by remember { mutableStateOf("") }
-        RocketLaunchOverlay(
-            roomId = r.id,
-            myUid = myUid,
-            onPrize = { rocketLaunchPrize = it },
-            onLucky = { id ->
-                scope.launch {
-                    // Penonton hanya dapat hadiah keberuntungan sekali per peluncuran.
-                    if (RocketRepo.canLucky(myUid, id)) rocketLuckyPrize = id
-                }
-            },
-        )
-        if (rocketLaunchPrize.isNotBlank()) {
-            RocketPrizeDialog(
-                myUid = myUid,
-                mode = "launch",
-                rank = 0,
-                launchId = rocketLaunchPrize,
-                onClose = { rocketLaunchPrize = "" },
-            )
-        }
-        if (rocketLuckyPrize.isNotBlank()) {
-            RocketPrizeDialog(
-                myUid = myUid,
-                mode = "lucky",
-                rank = 0,
-                launchId = rocketLuckyPrize,
-                onClose = { rocketLuckyPrize = "" },
-            )
-        }
+        // Peluncuran roket 1..5 berurutan, dengan dialog hadiah bertombol Okey.
+        RocketLaunchOverlay(r.id, myUid)
 
         // Tombol power: keluar / minimalkan
         if (showRank) {
