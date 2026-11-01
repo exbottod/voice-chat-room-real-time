@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
@@ -180,6 +181,7 @@ object GiftFx {
                 "gift" to g.name,
                 "emoji" to g.emoji,
                 "mediaUrl" to g.mediaUrl,
+                "mediaType" to g.mediaType,
                 "count" to count * receivers.coerceAtLeast(1),
                 "jp" to (jpWin > 0),
                 "combo" to comboN,
@@ -202,6 +204,7 @@ object GiftFx {
                 "gift" to g.name,
                 "emoji" to g.emoji,
                 "mediaUrl" to g.mediaUrl,
+                "mediaType" to g.mediaType,
                 "count" to count * receivers.coerceAtLeast(1),
                 "jp" to (jpWin > 0),
                 "combo" to comboN,
@@ -340,6 +343,7 @@ private data class GlobalBannerData(
     val gift: String,
     val emoji: String,
     val mediaUrl: String,
+    val mediaType: String = "",
     val count: Long,
     val jp: Boolean,
     val combo: Int,
@@ -378,6 +382,7 @@ fun GiftFxOverlay(roomId: String) {
                     gift = c.child("gift").getValue(String::class.java) ?: "",
                     emoji = c.child("emoji").getValue(String::class.java) ?: "🎁",
                     mediaUrl = c.child("mediaUrl").getValue(String::class.java) ?: "",
+                    mediaType = c.child("mediaType").getValue(String::class.java) ?: "",
                     count = c.child("count").getValue(Long::class.java) ?: 1L,
                     jp = c.child("jp").getValue(Boolean::class.java) ?: false,
                     combo = (c.child("combo").getValue(Long::class.java) ?: 0L).toInt(),
@@ -399,13 +404,29 @@ fun GiftFxOverlay(roomId: String) {
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (d.mediaUrl.isNotBlank()) {
-            VipMedia(
-                VipAsset(n = 0, slot = "gift", kind = kindOf(d.mediaUrl), url = d.mediaUrl, hasData = false, updatedAt = d.ts),
-                Modifier.fillMaxSize(),
-                loop = false,
-                contentScale = ContentScale.Fit,
-                onEnd = { fx = null },
-            )
+            if (isVideoMedia(d.mediaUrl, d.mediaType)) {
+                // mp4: diputar otomatis. TextureView dipakai supaya tidak
+                // tertutup lapisan video Agora (SurfaceView) di room.
+                GiftVideo(d.mediaUrl, Modifier.fillMaxSize(), onEnd = { fx = null })
+            } else {
+                val kind = kindOf(d.mediaUrl, d.mediaType)
+                if (kind == "svga") {
+                    VipMedia(
+                        VipAsset(n = 0, slot = "gift", kind = "svga", url = d.mediaUrl, hasData = false, updatedAt = d.ts),
+                        Modifier.fillMaxSize(),
+                        loop = false,
+                        contentScale = ContentScale.Fit,
+                        onEnd = { fx = null },
+                    )
+                } else {
+                    AsyncImage(
+                        model = d.mediaUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                    )
+                }
+            }
         } else {
             Text(d.emoji, fontSize = if (big) 120.sp else 64.sp)
         }
@@ -428,12 +449,21 @@ fun GiftFxOverlay(roomId: String) {
     }
 }
 
-/** Jenis media dari ekstensi URL: mp4, svga, atau image (gif/webp/png). */
-private fun kindOf(url: String): String {
+/** True kalau media gift berupa video (mp4/mov/m4v), dilihat dari tipe simpanan
+ *  maupun dari URL Cloudinary (termasuk /video/upload/ yang tanpa ekstensi). */
+fun isVideoMedia(url: String, mediaType: String = ""): Boolean {
+    val t = mediaType.substringBefore('?').substringAfterLast('/').lowercase()
+    if (t.startsWith("mp4") || t.startsWith("video") || t == "mov" || t == "m4v") return true
+    val u = url.substringBefore('?').lowercase()
+    return u.endsWith(".mp4") || u.endsWith(".m4v") || u.endsWith(".mov") || u.contains("/video/upload/")
+}
+
+/** Jenis media: mp4, svga, atau image (gif/webp/png). */
+private fun kindOf(url: String, mediaType: String = ""): String {
+    if (isVideoMedia(url, mediaType)) return "mp4"
     val u = url.substringBefore('?').lowercase()
     return when {
-        u.endsWith(".mp4") -> "mp4"
-        u.endsWith(".svga") -> "svga"
+        u.endsWith(".svga") || mediaType.lowercase().startsWith("svga") -> "svga"
         else -> "image"
     }
 }
@@ -474,6 +504,7 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (RoomInfo) -> Unit) {
                 gift = snap.child("gift").getValue(String::class.java) ?: "",
                 emoji = snap.child("emoji").getValue(String::class.java) ?: "🎁",
                 mediaUrl = snap.child("mediaUrl").getValue(String::class.java) ?: "",
+                mediaType = snap.child("mediaType").getValue(String::class.java) ?: "",
                 count = snap.child("count").getValue(Long::class.java) ?: 1L,
                 jp = snap.child("jp").getValue(Boolean::class.java) ?: false,
                 combo = (snap.child("combo").getValue(Long::class.java) ?: 0L).toInt(),
@@ -519,7 +550,7 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (RoomInfo) -> Unit) {
                 .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (d.mediaUrl.isNotBlank()) {
+                if (d.mediaUrl.isNotBlank() && !isVideoMedia(d.mediaUrl, d.mediaType)) {
                     AsyncImage(
                         model = d.mediaUrl,
                         contentDescription = null,
@@ -773,4 +804,67 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
         }
         Spacer(Modifier.height(24.dp))
     }
+}
+
+/**
+ * Pemutar video gift (mp4). TextureView dipilih karena digambar di dalam
+ * hierarki tampilan, jadi efek gift tetap kelihatan walau di room ada
+ * permukaan video Agora. Otomatis mulai saat siap, tanpa suara, sekali putar.
+ */
+@Composable
+fun GiftVideo(
+    url: String,
+    modifier: Modifier = Modifier,
+    onEnd: () -> Unit = {},
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val endRef = rememberUpdatedState(onEnd)
+    AndroidView(
+        modifier = modifier,
+        factory = { c ->
+            android.view.TextureView(c).apply {
+                var player: android.media.MediaPlayer? = null
+                fun fitMatrix(vw: Int, vh: Int) {
+                    val w = width.toFloat()
+                    val h = height.toFloat()
+                    if (vw <= 0 || vh <= 0 || w <= 0f || h <= 0f) return
+                    val scale = minOf(w / vw, h / vh)
+                    val m = android.graphics.Matrix()
+                    m.setScale(vw * scale / w, vh * scale / h, w / 2f, h / 2f)
+                    setTransform(m)
+                }
+                surfaceTextureListener = object : android.view.TextureView.SurfaceTextureListener {
+                    override fun onSurfaceTextureAvailable(st: android.graphics.SurfaceTexture, w: Int, h: Int) {
+                        try {
+                            player = android.media.MediaPlayer().apply {
+                                setSurface(android.view.Surface(st))
+                                setDataSource(context, Uri.parse(url))
+                                isLooping = false
+                                setVolume(0f, 0f)
+                                setOnVideoSizeChangedListener { _, vw, vh -> fitMatrix(vw, vh) }
+                                setOnPreparedListener { mp -> fitMatrix(mp.videoWidth, mp.videoHeight); mp.start() }
+                                setOnCompletionListener { endRef.value() }
+                                setOnErrorListener { _, _, _ -> endRef.value(); true }
+                                prepareAsync()
+                            }
+                        } catch (e: Exception) {
+                            endRef.value()
+                        }
+                    }
+
+                    override fun onSurfaceTextureSizeChanged(st: android.graphics.SurfaceTexture, w: Int, h: Int) {
+                        player?.let { fitMatrix(it.videoWidth, it.videoHeight) }
+                    }
+
+                    override fun onSurfaceTextureDestroyed(st: android.graphics.SurfaceTexture): Boolean {
+                        try { player?.release() } catch (e: Exception) { }
+                        player = null
+                        return true
+                    }
+
+                    override fun onSurfaceTextureUpdated(st: android.graphics.SurfaceTexture) {}
+                }
+            }
+        },
+    )
 }
