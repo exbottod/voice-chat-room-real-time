@@ -291,9 +291,9 @@ fun RoomScreen(
             Box(Modifier.fillMaxSize().background(Color(0x88000000)))
         }
         val isOwner = r.ownerUid == myUid
-        // Admin aplikasi (developer) juga boleh mengelola semua room.
-        val isDevAdmin = FirebaseAuth.getInstance().currentUser?.email.equals("developerex100@gmail.com", ignoreCase = true)
-        val canManage = isOwner || isDevAdmin
+        // Hanya pemilik room yang boleh mengatur mic/kick, termasuk di room orang
+        // lain: akun developer pun tidak lagi punya hak khusus di room yang bukan miliknya.
+        val canManage = isOwner
         val roomIdNow = r.id
         val myUidNow = myUid
         val myNameNow = myName
