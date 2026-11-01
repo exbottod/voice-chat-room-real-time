@@ -122,7 +122,9 @@ object GiftCatalog {
  */
 private fun sniffExt(b: ByteArray): String {
     fun at(i: Int) = if (i < b.size) b[i].toInt() and 0xFF else -1
-    if (at(0) == 0x50 && at(1) == 0x4B) return "svga"          // PK.. = zip/svga
+    if (at(0) == 0x50 && at(1) == 0x4B) return "svga"          // PK.. = SVGA 1.x (zip)
+    // SVGA 2.x = protobuf yang dikompres zlib: header 78 01 / 78 5E / 78 9C / 78 DA.
+    if (at(0) == 0x78 && (at(1) == 0x01 || at(1) == 0x5E || at(1) == 0x9C || at(1) == 0xDA)) return "svga"
     if (at(0) == 0x89 && at(1) == 0x50) return "png"
     if (at(0) == 0x47 && at(1) == 0x49 && at(2) == 0x46) return "gif"
     if (at(0) == 0xFF && at(1) == 0xD8) return "jpg"
@@ -271,7 +273,14 @@ object GiftFx {
         // URI dari galeri sering tanpa ekstensi (mis. ".../images/100123"), jadi
         // tentukan format dari tipe MIME bila nama file tidak punya ekstensi.
         val allowed = listOf("png", "jpg", "jpeg", "gif", "webp", "mp4", "svga")
-        val fname = (uri.lastPathSegment ?: "asset").substringAfterLast('/')
+        // Nama file asli diambil dari penyedia file (galeri/Files/Vivo sering
+        // memberi URI angka tanpa ekstensi, jadi lastPathSegment tidak cukup).
+        val displayName = try {
+            context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cur ->
+                if (cur.moveToFirst()) cur.getString(0) else null
+            }
+        } catch (e: Exception) { null }
+        val fname = (displayName ?: uri.lastPathSegment ?: "asset").substringAfterLast('/')
         var ext = fname.substringAfterLast('.', "").lowercase()
         if (ext !in allowed) {
             val mime = (context.contentResolver.getType(uri) ?: "").lowercase()
@@ -289,7 +298,8 @@ object GiftFx {
             }
         }
         if (ext !in allowed) {
-            return null to "Format tidak didukung (png, jpg, gif, webp, mp4, svga)"
+            val head = bytes.take(4).joinToString(" ") { "%02X".format(it) }
+            return null to "Format tidak dikenali (nama: $fname, kepala: $head). Gunakan png, jpg, gif, webp, mp4, svga"
         }
         val uploadName = "gift." + (if (ext == "jpeg") "jpg" else ext)
         val boundary = "giftfx${System.currentTimeMillis()}"
