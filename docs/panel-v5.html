@@ -59,7 +59,7 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
   <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="rocket">🚀 Roket</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -216,6 +216,28 @@ label{font-size:12px;color:var(--mut)}
     <div id="siDays" style="margin-top:14px"></div>
     <button class="btn" id="siSave" style="margin-top:14px">Simpan pengaturan cek in</button>
     <div class="muted" id="siMsg" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="tab-rocket" class="hide">
+  <div class="card">
+    <h2>Hadiah roket</h2>
+    <p class="muted">Pilih roket Lv.1 sampai Lv.5. Tiap roket punya 6 kolom hadiah (gambar). Upload gambar ke Cloudinary,
+      datanya disimpan di Realtime Database (rocketCfg). Perubahan langsung tampil di aplikasi.</p>
+    <div id="rkLv" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"></div>
+    <div id="rkSlots"></div>
+  </div>
+  <div class="card">
+    <h2>Hadiah peringkat roket</h2>
+    <p class="muted">Gambar hadiah Top 1, Top 2, Top 3, dan Top 4 ke bawah. Tampil di tombol kado pada panel roket.
+      Isi hadiahnya (VIP + coin) sudah diatur dari server.</p>
+    <div id="rkRank"></div>
+  </div>
+  <div class="card">
+    <h2>Animasi roket meluncur</h2>
+    <p class="muted">File SVGA yang diputar saat roket level 5 pecah dan meluncur.</p>
+    <div id="rkFly"></div>
+    <div class="muted" id="rkMsg" style="margin-top:8px"></div>
   </div>
 </div>
 
@@ -836,14 +858,70 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "rocket"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
   if (t.dataset.t === "signin") signinStart();
   if (t.dataset.t === "bet") betStart();
+  if (t.dataset.t === "rocket") rocketStart();
   if (t.dataset.t === "topup") { payLoad(); manualLoad(false); }
 });
+
+/* ---------- Roket: hadiah per level + hadiah peringkat ---------- */
+let rkSel = 1, rkCfg = {}, rkOff = null;
+function rkMsg(t){ const e = $("rkMsg"); if (e) e.textContent = t; toast(t); }
+function rocketStart(){
+  if (rkOff) { rkRender(); return; }
+  const ref = rtdb.ref("rocketCfg");
+  const cb = ref.on("value", snap => { rkCfg = snap.val() || {}; rkRender(); });
+  rkOff = () => ref.off("value", cb);
+}
+function rkRender(){
+  const lv = $("rkLv"); if (!lv) return;
+  lv.innerHTML = "";
+  for (let n = 1; n <= 5; n++) {
+    const b = document.createElement("button");
+    b.className = "btn"; b.textContent = "Roket Lv." + n;
+    b.style.opacity = n === rkSel ? "1" : ".55";
+    b.onclick = () => { rkSel = n; rkRender(); };
+    lv.appendChild(b);
+  }
+  const box = $("rkSlots"); box.innerHTML = "";
+  for (let k = 1; k <= 6; k++) box.appendChild(rkSlot("Hadiah " + k, "rocketCfg/lv" + rkSel + "/p" + k, ((rkCfg["lv" + rkSel] || {})["p" + k]) || "", "rk_l" + rkSel + "_" + k));
+  const rk = $("rkRank"); rk.innerHTML = "";
+  [["Top 1", 1], ["Top 2", 2], ["Top 3", 3], ["Top 4 ke bawah", 4]].forEach(a =>
+    rk.appendChild(rkSlot(a[0], "rocketCfg/rank/t" + a[1], ((rkCfg.rank || {})["t" + a[1]]) || "", "rk_r" + a[1])));
+  const fl = $("rkFly"); fl.innerHTML = "";
+  fl.appendChild(rkSlot("Roket meluncur (SVGA)", "rocketCfg/flyUrl", rkCfg.flyUrl || "", "rk_fly", true));
+}
+function rkSlot(label, path, url, key, svga){
+  const d = document.createElement("div");
+  d.style.cssText = "border:1px solid #2a3f6b;border-radius:10px;padding:10px;margin:8px 0";
+  const prev = url && !svga && /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url)
+    ? '<img src="' + url + '" style="width:64px;height:64px;object-fit:contain;background:#0e2a63;border-radius:8px;display:block;margin:6px 0">'
+    : (url ? '<div class="muted" style="word-break:break-all;margin:6px 0">' + url + '</div>' : '<div class="muted" style="margin:6px 0">Belum ada gambar</div>');
+  d.innerHTML = '<b>' + label + '</b>' + prev +
+    '<input type="file" id="f_' + key + '" accept="' + (svga ? ".svga,.mp4" : "image/*,.svga") + '">' +
+    '<div style="margin-top:6px"><button class="btn" id="s_' + key + '">Upload & simpan</button> ' +
+    '<button class="btn" id="d_' + key + '" style="background:#7a1f1f;color:#fff">Hapus</button></div>';
+  d.querySelector("#s_" + key).onclick = async () => {
+    const f = $("f_" + key).files[0];
+    if (!f) return rkMsg("Pilih file dulu");
+    const btn = $("s_" + key); btn.disabled = true;
+    try {
+      const u = await cldUpload(f, key);
+      await rtSet(path, u);
+      rkMsg("Tersimpan ✅ " + label);
+    } catch (e) { rkMsg("Gagal: " + e.message); }
+    finally { btn.disabled = false; }
+  };
+  d.querySelector("#d_" + key).onclick = async () => {
+    if (!confirm("Hapus " + label + "?")) return;
+    try { await rtDel(path); rkMsg("Dihapus ✅"); } catch (e) { rkMsg("Gagal: " + e.message); }
+  };
+  return d;
+}
 
 async function lookup(raw){
   const id = String(raw || "").trim();

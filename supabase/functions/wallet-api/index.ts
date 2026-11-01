@@ -269,6 +269,12 @@ async function rocketClaim(uid: string, p: Record<string, unknown>): Promise<Res
     else if (rank === 2) { vip = 8; days = 30; coins = 50_000_000; }
     else if (rank === 3) { vip = 5; days = 30; coins = 10_000_000; }
     else { coins = 10_000_000; }
+  } else if (mode === "lucky") {
+    // Hadiah keberuntungan penonton: lebih kecil dari hadiah kontribusi.
+    const r = Math.random();
+    if (r < 0.02) { vip = 5; days = 7; }
+    else if (r < 0.40) { coins = 1_000_000; }
+    else { coins = 500_000; }
   } else {
     const r = Math.random();
     if (r < 0.10) { vip = 9; days = 30; }
