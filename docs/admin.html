@@ -79,6 +79,7 @@ label{font-size:12px;color:var(--mut)}
     <label>Urutan (angka kecil tampil lebih dulu)</label>
     <input type="number" id="order" value="1">
     <button class="btn" id="btnTes" style="margin-bottom:8px;background:#0d2a1a;color:#8ef0b0;border:1px solid #2e7d51">Tes: login, database, Cloudinary</button>
+    <button class="btn" id="btnSync" style="margin-bottom:8px;background:#12233a;color:#9ec9ff;border:1px solid #3a6ea5">Sinkronkan banner tersimpan ke APK lama</button>
     <button class="btn" id="btnMig" style="margin-bottom:8px;background:#2a2a2a;color:#f3d97a;border:1px solid #d4af37">Opsional sekali pakai: ambil banner lama dari Firestore</button>
     <div id="bstatus" style="color:#c8a15a;font-size:13px;margin:10px 0;line-height:1.4">Siap. Ketuk kotak gambar di atas untuk memilih foto banner.</div>
     <button class="btn" id="btnSave">Simpan banner</button>
@@ -363,6 +364,29 @@ $("btnTes").onclick = async () => {
   const el = $("bstatus"); if (el) el.style.whiteSpace = "pre-line";
 };
 
+$("btnSync").onclick = async () => {
+  $("btnSync").disabled = true;
+  const out = [];
+  try {
+    const all = rtBanners.filter(r => !r.data.hiddenFs);
+    for (const r of all) {
+      const d = r.data;
+      if (d.fsId) { out.push((d.title || "-") + ": sudah ada"); continue; }
+      try {
+        const ref = await db.collection("banners").add({
+          title: d.title || "", subtitle: d.subtitle || "", link: d.link || "",
+          imageUrl: d.imageUrl || "", order: d.order || 0, active: d.active !== false,
+          bid: d.bid || r.id, createdAt: d.createdAt || Date.now()
+        });
+        await rtdb.ref("vipCfg/" + r.id).update({ fsId: ref.id, bid: d.bid || r.id });
+        out.push((d.title || "-") + ": OK");
+      } catch (e) { out.push((d.title || "-") + ": GAGAL " + (e.message || e.code || e)); }
+    }
+    bstat(out.join("\n") || "Belum ada banner tersimpan.");
+    const el = $("bstatus"); if (el) el.style.whiteSpace = "pre-line";
+  } finally { $("btnSync").disabled = false; }
+};
+
 $("btnMig").onclick = async () => {
   $("btnMig").disabled = true;
   try {
@@ -472,14 +496,36 @@ $("btnSave").onclick = async () => {
     bstat("Gambar siap. Menyimpan data banner...");
     // Data banner disimpan di REALTIME DATABASE (Firestore kuota habis). Gambar di Cloudinary.
     // Sama seperti upload frame/store: file di Cloudinary, datanya di vipCfg.
-    const jalur = "vipCfg (Realtime Database)";
-    bstat("Menyimpan data banner ke database...");
+    // Simpan ke DUA tempat: Firestore (dibaca APK lama) dan vipCfg (dibaca APK baru).
     payload.banner = true;
-    await Promise.race([
-      rtdb.ref("vipCfg/ban_" + Date.now()).set(payload),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("Database tidak merespons 20 detik. Cek koneksi.")), 20000))
-    ]);
-    bstat("Tersimpan \u2705 (" + jalur + "). Gambar: " + url);
+    payload.bid = "b" + Date.now() + Math.floor(Math.random() * 1000);
+    bstat("Menyimpan data banner...");
+    const hasil = [];
+    try {
+      const ref = await Promise.race([
+        db.collection("banners").add({
+          title: payload.title, subtitle: payload.subtitle, link: payload.link,
+          imageUrl: payload.imageUrl, order: payload.order, active: true,
+          bid: payload.bid, createdAt: Date.now()
+        }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("Firestore tidak merespons 20 detik (kuota?)")), 20000))
+      ]);
+      payload.fsId = ref.id;
+      hasil.push("APK lama: OK");
+    } catch (eFs) {
+      hasil.push("APK lama: GAGAL (" + (eFs.message || eFs.code || eFs) + ")");
+    }
+    try {
+      await Promise.race([
+        rtdb.ref("vipCfg/ban_" + Date.now()).set(payload),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("Database tidak merespons 20 detik")), 20000))
+      ]);
+      hasil.push("APK baru: OK");
+    } catch (eRt) {
+      hasil.push("APK baru: GAGAL (" + (eRt.message || eRt.code || eRt) + ")");
+      throw new Error(hasil.join(" | "));
+    }
+    bstat("Tersimpan \u2705 " + hasil.join(" | ") + ". Gambar: " + url);
     toast("Banner tersimpan \u2705");
     imgFile = null; $("file").value = ""; $("title").value = ""; $("sub").value = ""; $("link").value = "";
     $("prev").textContent = "Ketuk untuk pilih gambar (rasio 3:1, otomatis dipotong)";
@@ -507,33 +553,31 @@ function banStart(){
 }
 
 function banPatch(b, patch){
+  const d = b.data || {};
+  if (d.fsId) {
+    const fsPatch = {};
+    if (patch.link !== undefined) fsPatch.link = patch.link;
+    if (patch.order !== undefined) fsPatch.order = patch.order;
+    if (patch.active !== undefined) fsPatch.active = patch.active;
+    if (Object.keys(fsPatch).length) db.collection("banners").doc(d.fsId).update(fsPatch).catch(() => {});
+  }
   return rtdb.ref("vipCfg/" + b.id).update(patch);
 }
 
 async function banDelete(b){
-  // Hapus banner dari mana pun asalnya, dengan jalur cadangan kalau Firestore
-  // tidak bisa (kuota habis / aturan).
-  if (b.src === "rt") {
-    await Promise.race([
-      rtdb.ref("vipCfg/" + b.id).remove(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("Database tidak merespons 20 detik")), 20000))
-    ]);
-    toast("Banner dihapus ✅");
-    return;
-  }
+  const d = b.data || {};
+  await Promise.race([
+    rtdb.ref("vipCfg/" + b.id).remove(),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Database tidak merespons 20 detik")), 20000))
+  ]);
   try {
-    await db.collection("banners").doc(b.id).delete();
-    toast("Banner dihapus ✅");
-    return;
-  } catch (e1) {
-    // Firestore tidak bisa dihapus: tandai disembunyikan supaya hilang dari panel & aplikasi.
-    await rtdb.ref("vipCfg/hide_" + b.id).set({
-      banner: true, active: false, hiddenFs: b.id,
-      imageUrl: b.data.imageUrl || "", title: b.data.title || "", order: b.data.order || 0,
-      createdAt: Date.now()
-    });
-    toast("Banner disembunyikan (Firestore: " + (e1.message || e1) + ")");
-  }
+    if (d.fsId) await db.collection("banners").doc(d.fsId).delete();
+    else if (d.bid) {
+      const q = await db.collection("banners").where("bid", "==", d.bid).get();
+      for (const doc of q.docs) await doc.ref.delete();
+    }
+  } catch (e) { toast("Terhapus di APK baru. APK lama: " + (e.message || e.code || e)); return; }
+  toast("Banner dihapus di APK lama & baru");
 }
 
 function renderBanners(){
