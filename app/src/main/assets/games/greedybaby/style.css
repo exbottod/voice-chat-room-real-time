@@ -78,3 +78,22 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .gg-rk-no{width:22px;text-align:center;font-weight:900;color:#fff3c4}
 .gg-dialog .gg-rk-av{width:26px;height:26px;border-width:1.5px;font-size:11px}
 .gg-top3 .gg-rk-av{margin-right:2px}
+
+/* ===== Cadangan untuk WebView lama (Android 7-9 / Chrome < 84) ===== */
+/* Flexbox di WebView lama belum mengenal gap, jadi jarak diberi lewat margin. */
+@supports not (gap: 1px) {
+  .gg-history > * + * { margin-left: 6px; }
+  .gg-chips > * + * { margin-left: 4px; }
+  .gg-result-fruit > * + * { margin-left: 8px; }
+  .gg-top3 > li + li { margin-top: 6px; }
+  .gg-top3 li > * + * { margin-left: 8px; }
+  .gg-rules-head > * + * { margin-left: 16px; }
+  .gg-rules ol > li + li { margin-top: 12px; }
+  .gg-top-left > * + * { margin-left: 6px; }
+  .gg-rank-list > li + li { margin-top: 8px; }
+  .gg-rank-list li > * + * { margin-left: 10px; }
+}
+/* aspect-ratio belum ada di Chrome < 88: chip bulat diberi tinggi tetap. */
+@supports not (aspect-ratio: 1) {
+  .gg-chip { height: 46px; }
+}
