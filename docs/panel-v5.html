@@ -308,6 +308,7 @@ label{font-size:12px;color:var(--mut)}
   </div>
 </div>
 
+<div id="tab-bet" class="hide">
   <div class="card">
     <h2>Nilai taruhan game</h2>
     <p class="muted">Atur nominal chip taruhan tiap game. Isi dengan angka dipisah koma, urut dari kecil ke besar,
@@ -1005,9 +1006,18 @@ function cbEv(){
   const tw = rows.reduce((s, r) => s + r.w, 0);
   if (!tw) { el.textContent = "Belum ada bobot di tingkat ini."; return; }
   const ev = rows.reduce((s, r) => s + r.v * r.w, 0) / tw;
-  el.textContent = "Rata-rata pengali x" + (Math.round(ev * 100) / 100) +
-    " = RTP " + Math.round(ev * 100) + "% dari nilai gift (target " +
-    ($("cbRtp") ? $("cbRtp").value : 75) + "%).";
+  const rtp = Math.round(ev * 100);
+  const target = Number($("cbRtp") ? $("cbRtp").value : 75) || 75;
+  let txt = "Rata-rata pengali x" + (Math.round(ev * 100) / 100) +
+    " artinya RTP " + rtp + "% dari nilai gift (target " + target + "%).";
+  if (rtp > target * 2) {
+    txt += " Terlalu besar: turunkan bobot pengali besar atau tambah bobot x0.";
+  } else if (rtp < target / 2) {
+    txt += " Terlalu kecil: naikkan bobot pengali besar.";
+  } else {
+    txt += " Sudah mendekati target.";
+  }
+  el.textContent = txt;
 }
 function cbAssets(){
   const box = $("cbAssetList");
