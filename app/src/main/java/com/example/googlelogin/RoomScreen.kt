@@ -580,7 +580,7 @@ fun RoomScreen(
             }
 
                 // Panel melayang sisi kanan: ikon roket + persen menuju level berikutnya.
-                RocketRail(
+                if (ROCKET_ROOM_UI) RocketRail(
                     roomId = r.id,
                     onOpen = { rocketOpen = true },
                     modifier = Modifier
@@ -833,7 +833,8 @@ fun RoomScreen(
         if (fxEntryOn) VipEntryEffect(r.id)
         if (fxGiftOn) GiftFxOverlay(r.id)
         // Peluncuran roket 1..5 berurutan, dengan dialog hadiah bertombol Okey.
-        RocketLaunchOverlay(r.id, myUid)
+        // Build uji: dimatikan sementara untuk mencari penyebab aplikasi macet di room.
+        if (ROCKET_ROOM_UI) RocketLaunchOverlay(r.id, myUid)
 
         // Tombol power: keluar / minimalkan
         if (showRank) {

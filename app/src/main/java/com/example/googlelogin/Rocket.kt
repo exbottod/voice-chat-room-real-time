@@ -40,6 +40,12 @@ import kotlinx.coroutines.tasks.await
  *
  * Progres pemain disimpan di rocket/{uid}/exp.
  */
+/**
+ * Saklar sementara: false = ikon roket dan animasi peluncuran di dalam room
+ * tidak dipasang. Dipakai untuk menguji apakah keduanya penyebab room macet.
+ */
+const val ROCKET_ROOM_UI = false
+
 object RocketCfg {
     // Syarat energi tiap roket (energi yang harus diisi sebelum roket itu meluncur).
     val defaultExp = listOf(250_000L, 20_200_000L, 100_000_000L, 500_000_000L, 1_000_000_000L)
