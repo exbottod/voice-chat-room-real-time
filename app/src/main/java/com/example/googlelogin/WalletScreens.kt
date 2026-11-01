@@ -71,6 +71,8 @@ data class Gift(
     val jpRate: Int = 0,
     val jpMult: Long = 0L,
     val cbRate: Int = 0,
+    /** Nilai dasar hitung cashback (kalau 0, pakai harga gift). */
+    val cbPrice: Long = 0L,
     /** Gift roket: efek terbang melintasi layar + suara, terlihat semua orang di room. */
     val rocket: Boolean = false,
 )

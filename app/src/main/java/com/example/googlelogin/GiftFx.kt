@@ -82,6 +82,7 @@ object GiftCatalog {
                     jpRate = (c.child("jpRate").getValue(Long::class.java) ?: 0L).toInt(),
                     jpMult = c.child("jpMult").getValue(Long::class.java) ?: 0L,
                     cbRate = (c.child("cbRate").getValue(Long::class.java) ?: 0L).toInt(),
+                    cbPrice = (c.child("cbPrice").getValue(Long::class.java) ?: 0L),
                     rocket = c.child("rocket").getValue(Boolean::class.java) ?: false,
                 )
             }
@@ -107,6 +108,7 @@ object GiftCatalog {
                             jpRate = (d.getLong("jpRate") ?: 0L).toInt(),
                             jpMult = d.getLong("jpMult") ?: 0L,
                             cbRate = (d.getLong("cbRate") ?: 0L).toInt(),
+                            cbPrice = (d.getLong("cbPrice") ?: 0L),
                             rocket = d.getBoolean("rocket") ?: false,
                         )
                     }
@@ -193,7 +195,8 @@ object GiftFx {
             // Cashback: server yang mengundi pecahan (RTP dan tabel diatur di panel).
             val cb = try {
                 kotlinx.coroutines.withTimeoutOrNull(9000L) {
-                    SupaRepo.giftCashback(uid, g.price, count, targetUid)
+                    // Harga cashback dari panel; kalau kosong pakai harga gift.
+                    SupaRepo.giftCashback(uid, if (g.cbPrice > 0L) g.cbPrice else g.price, count, targetUid)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
             if (cb != null && cb.error == null && cb.amount > 0) {

@@ -59,7 +59,7 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
   <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="rocket">🚀 Roket</div><div class="tab" data-t="cb">💵 Cashback</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="rocket">🚀 Roket</div><div class="tab" data-t="cb">💵 Gift CB</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -269,6 +269,24 @@ label{font-size:12px;color:var(--mut)}
 
 <div id="tab-cb" class="hide">
   <div class="card">
+    <h2>Gift cashback (upload + harga)</h2>
+    <p class="muted">Gift yang masuk daftar ini otomatis memicu cashback. Unggah animasinya (svga/mp4/gif/webp/png),
+      lalu isi harga gift dan harga cashback. Harga cashback = nilai dasar yang dikali pengali undian;
+      kalau dikosongkan, dipakai harga gift.</p>
+    <label>Nama gift</label><input type="text" id="cbgName" placeholder="Contoh: Mawar Cashback">
+    <label>Emoji (tampil kalau file tidak ada)</label><input type="text" id="cbgEmoji" placeholder="🌹">
+    <label>Harga gift (koin)</label><input type="number" id="cbgPrice" min="1" value="1000">
+    <label>Harga cashback (koin, opsional)</label><input type="number" id="cbgCbPrice" min="0" placeholder="kosong = sama dengan harga gift">
+    <label>Peluang cashback (%)</label><input type="number" id="cbgRate" min="0" max="100" value="100">
+    <div class="prev" id="cbgPrev">Ketuk untuk pilih file animasi</div>
+    <label>atau tempel URL (svga, mp4, gif, webp, png)</label><input type="text" id="cbgUrl" placeholder="https://...">
+    <label>atau pilih file dari HP (maks sekitar 10 MB)</label><input type="file" id="cbgFile" accept=".svga,.mp4,.gif,.webp,.png">
+    <button class="btn" id="cbgSave" style="margin-top:10px">Simpan gift cashback</button>
+    <div class="muted" id="cbgMsg" style="margin-top:8px"></div>
+  </div>
+  <div id="cbgList"></div>
+
+  <div class="card">
     <h2>Cashback gift</h2>
     <p class="muted">Saat gift dikirim, gift terbang ke avatar penerima lalu pecahan cashback muncul di titik itu.
       Server (wallet-api) yang mengundi pecahannya, jadi angka tidak bisa diatur dari aplikasi.
@@ -299,6 +317,7 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn" id="cbSaveRows" style="margin-top:10px">Simpan tabel</button>
     <div class="muted" id="cbRowsMsg" style="margin-top:8px"></div>
   </div>
+
 
   <div class="card">
     <h2>Aset pecahan</h2>
@@ -2298,5 +2317,138 @@ document.getElementById("manualReload").onclick = () => manualLoad(false);
 
 document.getElementById("manualAll").onclick = () => manualLoad(true);
 
+</script>
+<script>
+/* ---------- Gift cashback: upload animasi + harga ---------- */
+(function(){
+  const gEl = (id) => document.getElementById(id);
+  let gFile = null;
+
+  function gmsg(t) { const m = gEl("cbgMsg"); if (m) m.textContent = t; }
+
+  function readAsUrl(file) {
+    return new Promise((res) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result || ""));
+      r.readAsDataURL(file);
+    });
+  }
+
+  const FILE = () => gEl("cbgFile");
+  document.addEventListener("change", async (e) => {
+    if (e.target && e.target.id === "cbgFile") {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (f.size > 12 * 1024 * 1024) { gmsg("File terlalu besar (maks 12 MB)"); gFile = null; return; }
+      gFile = f;
+      const ext = (f.name.split(".").pop() || "").toLowerCase();
+      const prev = gEl("cbgPrev");
+      if (/^(png|webp|gif|jpg|jpeg)$/.test(ext)) {
+        prev.innerHTML = '<img src="' + await readAsUrl(f) + '" style="max-height:110px;border-radius:10px">';
+      } else {
+        prev.textContent = f.name + " (" + (f.size / 1048576).toFixed(1) + " MB)";
+      }
+      gmsg("File siap diunggah.");
+    }
+  });
+
+  function gidOf(name) {
+    return String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24)
+      || ("cbg" + Date.now());
+  }
+
+  const save = gEl("cbgSave");
+  if (save) save.onclick = async () => {
+    const name = gEl("cbgName").value.trim();
+    const price = parseInt(gEl("cbgPrice").value, 10) || 0;
+    if (!name) { gmsg("Nama gift wajib diisi"); return; }
+    if (price < 1) { gmsg("Harga gift wajib angka lebih dari 0"); return; }
+    const cbPrice = parseInt(gEl("cbgCbPrice").value, 10) || 0;
+    const rate = Math.max(0, Math.min(100, parseInt(gEl("cbgRate").value, 10) || 0));
+    save.disabled = true;
+    try {
+      let url = gEl("cbgUrl").value.trim();
+      if (gFile) {
+        gmsg("Mengunggah ke Cloudinary...");
+        url = await cldUpload(gFile, "gift");
+      }
+      if (!/^https?:\/\//i.test(url)) throw new Error("URL animasi belum ada");
+      const data = {
+        name: name,
+        emoji: (gEl("cbgEmoji").value.trim() || "🎁"),
+        price: price,
+        cbPrice: cbPrice,
+        cbRate: rate,
+        mediaUrl: url,
+        mediaType: (url.split("?")[0].split(".").pop() || "").toLowerCase(),
+        special: true,
+        cashback: true,
+        updatedAt: Date.now(),
+      };
+      gmsg("Menyimpan ke Realtime Database...");
+      await rtdb.ref("giftCfg/" + gidOf(name)).update(data);
+      // Server cashback membaca konfigurasi dari pub/_cashbackCfg; aktifkan cashback.
+      await rtdb.ref("pub/_cashbackCfg/on").set(true);
+      gmsg("Gift cashback tersimpan ✅");
+      gFile = null; FILE().value = "";
+      gEl("cbgPrev").textContent = "Ketuk untuk pilih file animasi";
+      gEl("cbgName").value = ""; gEl("cbgEmoji").value = ""; gEl("cbgUrl").value = "";
+      gEl("cbgCbPrice").value = "";
+      if (typeof toast === "function") toast("Gift cashback tersimpan");
+      list();
+    } catch (e) {
+      gmsg("Gagal: " + (e.message || e));
+    }
+    save.disabled = false;
+  };
+
+  async function list() {
+    const box = gEl("cbgList");
+    if (!box) return;
+    box.innerHTML = '<div class="card"><h2>Gift cashback aktif</h2><div class="muted">Memuat...</div></div>';
+    try {
+      const snap = await rtdb.ref("giftCfg").get();
+      const v = snap.val() || {};
+      const rows = Object.keys(v).filter(k => v[k] && v[k].cashback === true);
+      if (!rows.length) {
+        box.innerHTML = '<div class="card"><h2>Gift cashback aktif</h2><div class="muted">Belum ada. Unggah di atas.</div></div>';
+        return;
+      }
+      let html = '<div class="card"><h2>Gift cashback aktif</h2>';
+      rows.forEach(k => {
+        const g = v[k];
+        html += '<div class="row" style="align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">' +
+          '<div class="info" style="flex:1;min-width:140px"><div class="t">' + (g.emoji || "🎁") + " " + (g.name || k) + '</div>' +
+          '<div class="s">harga ' + (g.price || 0) + " · cashback " + (g.cbPrice || g.price || 0) +
+          " · CB " + (g.cbRate || 0) + '%</div></div>' +
+          '<button class="btn out" data-edit="' + k + '">Edit</button>' +
+          '<button class="btn out" data-hapus="' + k + '">Hapus</button></div>';
+      });
+      html += '</div>';
+      box.innerHTML = html;
+      box.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => {
+        const g = v[b.dataset.edit] || {};
+        gEl("cbgName").value = g.name || b.dataset.edit;
+        gEl("cbgEmoji").value = g.emoji || "";
+        gEl("cbgPrice").value = g.price || 0;
+        gEl("cbgCbPrice").value = g.cbPrice || "";
+        gEl("cbgRate").value = g.cbRate || 0;
+        gEl("cbgUrl").value = g.mediaUrl || "";
+        gEl("cbgPrev").textContent = "URL dimuat, ketuk simpan kalau sudah benar";
+        window.scrollTo({ top: document.getElementById("cbgName").getBoundingClientRect().top + window.scrollY - 90, behavior: "smooth" });
+      });
+      box.querySelectorAll("[data-hapus]").forEach(b => b.onclick = async () => {
+        if (!confirm("Hapus gift cashback ini?")) return;
+        await rtdb.ref("giftCfg/" + b.dataset.hapus).remove();
+        list();
+      });
+    } catch (e) {
+      box.innerHTML = '<div class="card"><h2>Gift cashback aktif</h2><div class="muted">Gagal memuat: ' + (e.message || e) + '</div></div>';
+    }
+  }
+
+  window.__cbgList = list;
+  setTimeout(list, 1200);
+})();
 </script>
 </body></html>
