@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +37,11 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import kotlinx.coroutines.launch
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 
 data class UserProfile(
     val name: String,
@@ -102,6 +108,7 @@ class MainActivity : ComponentActivity() {
                 MaterialTheme(colorScheme = darkColorScheme()) {
                     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
                         var crashText by remember { mutableStateOf(CrashGuard.take(this@MainActivity)) }
+                        PermissionWarmup()
                         AppRoot()
                         crashText?.let { CrashReportOverlay(it) { crashText = null } }
                     }
@@ -227,5 +234,42 @@ fun AppRoot() {
         )
     } else {
         MainScreen(user = current, onSignOutClick = ::signOut)
+    }
+}
+
+/**
+ * Minta izin penting sekali saat aplikasi dibuka: mikrofon, kamera, kontak,
+ * telepon, penyimpanan/gambar, dan notifikasi. Izin yang sudah diberikan
+ * tidak ditanyakan lagi.
+ */
+@Composable
+fun PermissionWarmup() {
+    val context = LocalContext.current
+    var asked by remember { mutableStateOf(false) }
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { }
+
+    LaunchedEffect(Unit) {
+        if (asked) return@LaunchedEffect
+        asked = true
+        val perlu = buildList {
+            add(Manifest.permission.RECORD_AUDIO)
+            add(Manifest.permission.CAMERA)
+            add(Manifest.permission.READ_CONTACTS)
+            add(Manifest.permission.READ_PHONE_STATE)
+            if (Build.VERSION.SDK_INT >= 33) {
+                add("android.permission.READ_MEDIA_IMAGES")
+                add("android.permission.READ_MEDIA_VIDEO")
+                add("android.permission.READ_MEDIA_AUDIO")
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                add(Manifest.permission.READ_EXTERNAL_STORAGE)
+                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }.filter {
+            ContextCompat.checkSelfPermission(context, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (perlu.isNotEmpty()) launcher.launch(perlu.toTypedArray())
     }
 }
