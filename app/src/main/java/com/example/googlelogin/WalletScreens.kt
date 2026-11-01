@@ -202,8 +202,15 @@ object WalletRepo {
     }
 
     /** Kirim gift: coin berkurang, diamond pengirim bertambah sebanyak harga gift. */
-    suspend fun sendGift(uid: String, price: Long, itemId: String? = null, roomId: String? = null): String? {
-        val r = SupaRepo.sendGift(uid, price, itemId, roomId)
+    suspend fun sendGift(
+        uid: String,
+        price: Long,
+        itemId: String? = null,
+        roomId: String? = null,
+        to: List<String> = emptyList(),
+        each: Long = 0L,
+    ): String? {
+        val r = SupaRepo.sendGift(uid, price, itemId, roomId, to, each)
         r.wallet?.let { emitBackup(uid, it) }
         return r.error
     }
