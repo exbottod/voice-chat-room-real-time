@@ -253,6 +253,41 @@ async function waveSubmitFlow(req: Request): Promise<Response> {
  * dipasang di database, dipakai cara cadangan (baca lalu tulis) supaya gift
  * tetap masuk walaupun SQL belum dijalankan.
  */
+/**
+ * Hadiah roket. Undian dilakukan di server supaya hadiah tidak bisa dipilih
+ * dari aplikasi:
+ *   mode "launch" -> 10jt coin (50%), 5jt coin (40%), VIP9 30 hari (10%)
+ *   mode "rank"   -> top1 VIP9 + 100jt, top2 VIP8 + 50jt, top3 VIP5 + 10jt,
+ *                    peringkat lain 10jt coin.
+ */
+async function rocketClaim(uid: string, p: Record<string, unknown>): Promise<Response> {
+  const mode = String(p.mode ?? "launch");
+  let coins = 0, vip = 0, days = 0;
+  if (mode === "rank") {
+    const rank = Math.floor(Number(p.rank ?? 99));
+    if (rank === 1) { vip = 9; days = 30; coins = 100_000_000; }
+    else if (rank === 2) { vip = 8; days = 30; coins = 50_000_000; }
+    else if (rank === 3) { vip = 5; days = 30; coins = 10_000_000; }
+    else { coins = 10_000_000; }
+  } else {
+    const r = Math.random();
+    if (r < 0.10) { vip = 9; days = 30; }
+    else if (r < 0.50) { coins = 5_000_000; }
+    else { coins = 10_000_000; }
+  }
+  try {
+    const r = await rpc("w_rocket_reward", { p_uid: uid, p_coins: coins, p_vip: vip, p_days: days });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => "");
+      return json({ ok: 0, e: "Hadiah belum bisa diklaim, coba lagi", code: txt.slice(0, 120) }, 200);
+    }
+    const w = await r.json().catch(() => null);
+    return json({ ok: 1, coins, vip, days, w });
+  } catch {
+    return json({ ok: 0, e: "Server sibuk, coba lagi" }, 200);
+  }
+}
+
 async function giftCredit(targets: string[], each: number, itemId: string, roomId: string): Promise<number> {
   let ok = 0;
   for (const t of targets) {
@@ -931,6 +966,7 @@ Deno.serve(async (req) => {
     "manual_history",
     "topup_status",
     "topup_history",
+    "rocket_claim",
   ]);
   const fn = ACTIONS[action];
   if ((!fn && !DIRECT.has(action)) || !body.t) {
@@ -957,6 +993,7 @@ Deno.serve(async (req) => {
   if (action === "manual_history") return await manualHistory(uid);
   if (action === "topup_status") return await topupStatus(uid, p);
   if (action === "topup_history") return await topupHistory(uid);
+  if (action === "rocket_claim") return await rocketClaim(uid, p);
   // Nama parameter HARUS persis dengan definisi fungsi SQL (p_*).
   let params: Record<string, unknown>;
   switch (action) {

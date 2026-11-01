@@ -199,7 +199,7 @@ object GiftFx {
             }
         }
         // EXP roket: bertambah dari koin yang dipakai mengirim gift.
-        RocketRepo.addExp(g.price * count)
+        RocketRepo.addExp(roomId, name, g.price * count)
         // Efek layar penuh untuk semua orang di room (mp4/gif/svga) atau emoji besar.
         Rtdb.ref("giftFx/$roomId").push().setValue(
             hashMapOf<String, Any?>(

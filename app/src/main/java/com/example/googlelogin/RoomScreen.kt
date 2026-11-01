@@ -830,6 +830,17 @@ fun RoomScreen(
         GiftBanner(r.id)
         if (fxEntryOn) VipEntryEffect(r.id)
         if (fxGiftOn) GiftFxOverlay(r.id)
+        var rocketLaunchPrize by remember { mutableStateOf("") }
+        RocketLaunchOverlay(r.id, myUid) { rocketLaunchPrize = it }
+        if (rocketLaunchPrize.isNotBlank()) {
+            RocketPrizeDialog(
+                myUid = myUid,
+                mode = "launch",
+                rank = 0,
+                launchId = rocketLaunchPrize,
+                onClose = { rocketLaunchPrize = "" },
+            )
+        }
 
         // Tombol power: keluar / minimalkan
         if (showRank) {

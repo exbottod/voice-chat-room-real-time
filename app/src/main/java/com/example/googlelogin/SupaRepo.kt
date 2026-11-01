@@ -239,6 +239,38 @@ object SupaRepo {
     }
 
     suspend fun exchange(uid: String, diamonds: Long) = call("exchange", uidJson(uid).put("diamonds", diamonds))
+    class RocketPrize(val coins: Long, val vip: Int, val days: Int, val error: String?)
+
+    /**
+     * Klaim hadiah roket. Server yang mengundi hadiahnya:
+     * mode "launch" = hadiah acak setelah roket meluncur,
+     * mode "rank"   = hadiah peringkat roket (top1..top3, sisanya coin).
+     */
+    suspend fun rocketClaimPrize(uid: String, mode: String, rank: Int, launch: String): RocketPrize {
+        val p = uidJson(uid).put("mode", mode)
+        if (rank > 0) p.put("rank", rank)
+        if (launch.isNotBlank()) p.put("launch", launch)
+        val j = postRaw("rocket_claim", p)
+            ?: return RocketPrize(0, 0, 0, "Server tidak merespons, coba lagi")
+        if (j.optInt("ok") != 1) {
+            return RocketPrize(0, 0, 0, j.optString("e").ifBlank { "Gagal klaim hadiah" })
+        }
+        return RocketPrize(j.optLong("coins"), j.optInt("vip"), j.optInt("days"), null)
+    }
+
+    suspend fun exchange(uid: String, diamonds: Long) = call("exchange", uidJson(uid).put("diamonds", diamonds))
+    /**
+     * Klaim hadiah roket. Server yang mengundi hadiahnya:
+     * mode "launch" = hadiah acak setelah roket meluncur,
+     * mode "rank"   = hadiah peringkat roket (top1..top3, sisanya coin).
+     */
+    suspend fun rocketClaim(uid: String, mode: String, rank: Int = 0, launch: String = ""): Res {
+        val p = uidJson(uid).put("mode", mode)
+        if (rank > 0) p.put("rank", rank)
+        if (launch.isNotBlank()) p.put("launch", launch)
+        return call("rocket_claim", p)
+    }
+
 
     // ---------------- Topup lewat payment gateway ----------------
 
