@@ -1,5 +1,6 @@
 package com.example.googlelogin
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -86,12 +87,34 @@ object RocketCfg {
 }
 
 object RocketRepo {
+    /** EXP roket pemain, disimpan di memori supaya panel langsung tampil benar. */
+    var exp by mutableStateOf(0L)
+        private set
+
+    private var live = false
+
     fun uid(): String = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
+    /** Dengarkan EXP sekali saja; panel yang dibuka belakangan langsung dapat nilai terakhir. */
+    fun start() {
+        if (live) return
+        val u = uid()
+        if (u.isBlank()) return
+        live = true
+        try {
+            Rtdb.listen(Rtdb.ref("rocket/$u/exp")) { s ->
+                exp = s.getValue(Long::class.java) ?: 0L
+            }
+        } catch (e: Exception) {
+            live = false
+        }
+    }
 
     /** Tambah EXP roket dari koin yang dipakai untuk gift. */
     suspend fun addExp(coins: Long) {
         val u = uid()
         if (u.isBlank() || coins <= 0L) return
+        exp += coins
         try {
             Rtdb.ref("rocket/$u/exp").setValue(ServerValue.increment(coins)).await()
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -147,15 +170,8 @@ private fun RocketAsset(value: String, size: androidx.compose.ui.unit.Dp, glow: 
 @Composable
 fun RocketRail(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     RocketCfg.start()
-    val uid = remember { RocketRepo.uid() }
-    var total by remember { mutableStateOf(0L) }
-    LaunchedEffect(uid) {
-        if (uid.isNotBlank()) {
-            Rtdb.listen(Rtdb.ref("rocket/$uid/exp")) { s ->
-                total = s.getValue(Long::class.java) ?: 0L
-            }
-        }
-    }
+    LaunchedEffect(Unit) { RocketRepo.start() }
+    val total = RocketRepo.exp
     val exp = RocketCfg.exp
     val lv = RocketCfg.levelOf(total)
     val cur = exp[(lv - 1).coerceIn(0, exp.size - 1)]
@@ -205,17 +221,10 @@ fun RocketRail(onOpen: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 fun RocketScreen(onDismiss: () -> Unit) {
     RocketCfg.start()
-    val myUid = remember { RocketRepo.uid() }
-    var total by remember { mutableStateOf(0L) }
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(myUid) {
-        if (myUid.isNotBlank()) {
-            Rtdb.listen(Rtdb.ref("rocket/$myUid/exp")) { s ->
-                total = s.getValue(Long::class.java) ?: 0L
-            }
-        }
-    }
+    LaunchedEffect(Unit) { RocketRepo.start() }
+    val total = RocketRepo.exp
+    // Tombol back menutup panel roket saja, tidak keluar dari room.
+    BackHandler { onDismiss() }
 
     val expList = RocketCfg.exp
     val lv = RocketCfg.levelOf(total)
