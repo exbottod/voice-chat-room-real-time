@@ -306,7 +306,7 @@ auth.onAuthStateChanged(u => {
   show("panel");
   startBan();
   bgStart();
-  startBanners();
+  unsub = db.collection("banners").orderBy("order").onSnapshot(renderList, e => { $("list").textContent = "Gagal memuat: " + e.message; });
 });
 
 $("prev").onclick = () => $("file").click();
@@ -367,17 +367,19 @@ $("btnSave").onclick = async () => {
     createdAt: Date.now()
   };
   try {
-    // FIX banner tidak bisa diupload: Realtime Database jadi jalur utama,
-    // jadi tidak lagi tergantung aturan Firestore. Firestore hanya cadangan.
-    let jalur = "RTDB";
+    // Simpan seperti biasa ke Firestore (tampilan & banner lama tidak berubah).
+    // Kalau Firestore menolak, dicoba ke Realtime Database supaya tidak hilang.
+    let jalur = "Firestore";
     try {
-      await rtdb.ref("banners").push(payload);
+      await db.collection("banners").add(payload);
     } catch (e1) {
-      jalur = "Firestore";
+      jalur = "RTDB";
       try {
-        await db.collection("banners").add(payload);
+        await rtdb.ref("banners").push(payload);
+        throw new Error("Firestore menolak (" + (e1.message || e1) + "), banner disimpan di Realtime Database. Cek aturan Firestore.");
       } catch (e2) {
-        throw new Error("RTDB: " + (e1.message || e1) + " | Firestore: " + (e2.message || e2));
+        if ((e2.message || "").indexOf("Firestore menolak") === 0) throw e2;
+        throw new Error("Firestore: " + (e1.message || e1) + " | RTDB: " + (e2.message || e2));
       }
     }
     toast("Banner terupload ✅ (" + jalur + ")");
@@ -386,46 +388,6 @@ $("btnSave").onclick = async () => {
     $("order").value = (parseInt($("order").value, 10) || 0) + 1;
   } catch(e){ toast("Gagal upload: " + e.message); $("btnSave").disabled = false; }
 };
-
-let banUnsub = null;
-function startBanners(){
-  if (banUnsub) { banUnsub(); banUnsub = null; }
-  if (unsub) { unsub(); unsub = null; }
-  // Realtime Database dulu.
-  const ref = rtdb.ref("banners");
-  const onVal = ref.on("value", snap => {
-    renderListRt(snap);
-  }, err => {
-    // Kalau RTDB ditolak, pakai Firestore.
-    ref.off("value", onVal);
-    unsub = db.collection("banners").orderBy("order").onSnapshot(renderList, e => { $("list").textContent = "Gagal memuat: " + e.message; });
-  });
-  banUnsub = () => ref.off("value", onVal);
-}
-
-function renderListRt(snap){
-  const box = $("list"); box.textContent = "";
-  const items = [];
-  snap.forEach(d => { items.push({ id: d.key, ref: rtdb.ref("banners/" + d.key), data: d.val() || {} }); });
-  if (!items.length) {
-    // Belum ada di RTDB: cek Firestore sekali.
-    unsub = db.collection("banners").orderBy("order").onSnapshot(renderList, e => { box.textContent = "Belum ada banner. Aplikasi memakai banner bawaan."; });
-    return;
-  }
-  items.sort((a, b) => (a.data.order || 0) - (b.data.order || 0));
-  items.forEach(it => {
-    const b = it.data, row = document.createElement("div"); row.className = "item";
-    const im = document.createElement("img"); im.src = "data:image/jpeg;base64," + (b.imageB64 || "");
-    const info = document.createElement("div"); info.className = "info";
-    const t = document.createElement("div"); t.className = "t"; t.textContent = b.title || "(tanpa judul)";
-    const sub = document.createElement("div"); sub.className = "s"; sub.textContent = (b.subtitle || "") + (b.active === false ? " · nonaktif" : "");
-    info.appendChild(t); info.appendChild(sub);
-    const del = document.createElement("button"); del.className = "del"; del.textContent = "🗑️";
-    del.onclick = () => { if (confirm("Hapus banner ini?")) it.ref.remove().then(() => toast("Banner dihapus")).catch(e => toast(e.message)); };
-    row.appendChild(im); row.appendChild(info); row.appendChild(del);
-    box.appendChild(row);
-  });
-}
 
 function renderList(snap){
   const box = $("list"); box.textContent = "";
