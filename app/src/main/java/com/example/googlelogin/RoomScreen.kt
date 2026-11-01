@@ -679,7 +679,18 @@ fun RoomScreen(
                         {
                             var menu by remember { mutableStateOf(false) }
                             Box {
-                                Text("⋮", color = GoldLight, fontSize = 26.sp, modifier = Modifier.padding(6.dp).clickable { menu = true })
+                                // Ikon pengaturan (gear) sebagai tombol menu aksi user:
+                                // turunkan dari mic, mute, kick dari room.
+                                Image(
+                                    painterResource(R.drawable.ic_settings),
+                                    contentDescription = "Aksi user",
+                                    modifier = Modifier
+                                        .size(26.dp)
+                                        .clip(CircleShape)
+                                        .clickable { menu = true }
+                                        .padding(2.dp),
+                                    contentScale = ContentScale.Fit,
+                                )
                                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Color(0xFF1E1A16)) {
                                     DropdownMenuItem(
                                         text = { Text(tr("Turunkan dari mic"), color = Color.White) },
