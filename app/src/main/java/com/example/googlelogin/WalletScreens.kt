@@ -1371,6 +1371,7 @@ fun GiftPanel(
                                         val (j, c) = GiftFx.sent(
                                             roomId, myUid, myName, g, count, receivers.size,
                                             firstSeat?.uid ?: "", firstSeat?.name ?: "", firstSeat?.index ?: -1,
+                                            receivers.map { Triple(it.uid, it.name, it.index) },
                                         )
                                         jp = j; cb = c
                                     } catch (e: Exception) { }

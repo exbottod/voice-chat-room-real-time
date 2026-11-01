@@ -497,7 +497,11 @@ fun RoomScreen(
                         for (col in 0 until cols) {
                             val i = row * cols + col
                             Box(
-                                Modifier.weight(1f).onGloballyPositioned { seatPoints[i] = it.positionInRoot() },
+                                Modifier.weight(1f).onGloballyPositioned {
+                                    // Titik tengah avatar kursi: tujuan gift terbang.
+                                    val p = it.positionInRoot()
+                                    seatPoints[i] = Offset(p.x + it.size.width / 2f, p.y + it.size.height / 2f)
+                                },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (i < r.micCount) {

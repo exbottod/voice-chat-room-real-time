@@ -173,6 +173,7 @@ object GiftFx {
         targetUid: String = "",
         targetName: String = "",
         targetSeat: Int = -1,
+        seats: List<Triple<String, String, Int>> = emptyList(),
     ): Pair<Long, Long> {
         var jpWin = 0L
         var cbWin = 0L
@@ -213,12 +214,16 @@ object GiftFx {
             }
         }
         // Gift terbang ke avatar penerima, lalu pecahan cashback muncul di titik itu.
+        // Dikirim satu per penerima supaya tiap kursi kebagian.
+        val flyTo = if (seats.isNotEmpty()) seats else listOf(Triple(targetUid, targetName, targetSeat))
+        flyTo.filter { it.third >= 0 || it.second.isNotBlank() }.forEach { t ->
         try {
             Rtdb.ref("giftFly/$roomId").push().setValue(
                 hashMapOf<String, Any?>(
                     "from" to name,
-                    "toName" to targetName,
-                    "seat" to targetSeat.toLong(),
+                    "toName" to t.second,
+                    "toUid" to t.first,
+                    "seat" to t.third.toLong(),
                     "gift" to g.name,
                     "emoji" to g.emoji,
                     "mediaUrl" to g.mediaUrl,
@@ -232,6 +237,7 @@ object GiftFx {
                 ),
             )
         } catch (e: Exception) { }
+        }
         // EXP roket: bertambah dari koin yang dipakai mengirim gift.
         RocketRepo.addExp(roomId, name, g.price * count)
         // Efek layar penuh untuk semua orang di room (mp4/gif/svga) atau emoji besar.

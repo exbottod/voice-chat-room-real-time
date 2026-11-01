@@ -29,6 +29,7 @@ import kotlin.math.sin
  */
 data class GiftFly(
     val from: String,
+    val toUid: String,
     val toName: String,
     val seat: Int,
     val emoji: String,
@@ -47,7 +48,7 @@ data class GiftFly(
  */
 @Composable
 fun GiftFlyOverlay(roomId: String, seatPoints: Map<Int, Offset>) {
-    var fly by remember { mutableStateOf<GiftFly?>(null) }
+    val flights = remember { mutableStateListOf<GiftFly>() }
     var lastKey by remember { mutableStateOf<String?>(null) }
     var origin by remember { mutableStateOf(Offset.Zero) }
     var box by remember { mutableStateOf(IntSize.Zero) }
@@ -66,8 +67,10 @@ fun GiftFlyOverlay(roomId: String, seatPoints: Map<Int, Offset>) {
             }
             if (c != null && key != null && key != lastKey) {
                 lastKey = key
-                fly = GiftFly(
+                flights.add(
+                    GiftFly(
                     from = c.child("from").getValue(String::class.java) ?: "",
+                    toUid = c.child("toUid").getValue(String::class.java) ?: "",
                     toName = c.child("toName").getValue(String::class.java) ?: "",
                     seat = (c.child("seat").getValue(Long::class.java) ?: -1L).toInt(),
                     emoji = c.child("emoji").getValue(String::class.java) ?: "🎁",
@@ -77,6 +80,7 @@ fun GiftFlyOverlay(roomId: String, seatPoints: Map<Int, Offset>) {
                     asset = c.child("asset").getValue(String::class.java) ?: "",
                     jp = c.child("jp").getValue(Boolean::class.java) ?: false,
                     ts = ts,
+                    ),
                 )
             }
         }
@@ -91,9 +95,12 @@ fun GiftFlyOverlay(roomId: String, seatPoints: Map<Int, Offset>) {
                 box = it.size
             },
     ) {
-        val f = fly
-        if (f != null && box.width > 0) {
-            GiftFlyOnce(f, seatPoints, origin, box) { fly = null }
+        if (box.width > 0) {
+            flights.toList().forEach { f ->
+                key(f.ts, f.seat, f.toUid) {
+                    GiftFlyOnce(f, seatPoints, origin, box) { flights.remove(f) }
+                }
+            }
         }
     }
 }
