@@ -3,6 +3,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Panel Developer - REZO CHAT VOICE</title>
 <style>
 :root{--bg:#0b0b0b;--card:#161616;--line:#2a2a2a;--gold:#d4af37;--gold2:#f3d97a;--txt:#eee;--mut:#9a9a9a;--bad:#e5484d}
@@ -59,7 +62,10 @@ label{font-size:12px;color:var(--mut)}
   <div id="tab-banner">
 
   <div class="card">
-    <h2>Tambah banner</h2>
+    <div id="loginWarn" class="hide" style="background:#2a1a1a;border:1px solid #7e1919;border-radius:10px;padding:10px;margin-bottom:12px;font-size:13px;color:#ffb3b3;line-height:1.4">
+      Login sekarang bukan lewat Google. Upload ke Cloudinary dan simpan ke Firestore hanya diizinkan untuk akun developerex100@gmail.com yang login dengan Google. Silakan keluar lalu masuk lagi pakai tombol Google.
+    </div>
+    <h2>Tambah banner <span style="font-size:11px;color:#9a9a9a;font-weight:400">v3 Cloudinary</span></h2>
     <div class="prev" id="prev">Ketuk untuk pilih gambar (rasio 3:1, otomatis dipotong)</div>
     <input type="file" id="file" accept="image/*" class="hide">
     <div style="height:10px"></div>
@@ -71,6 +77,7 @@ label{font-size:12px;color:var(--mut)}
     <input type="text" id="link" placeholder="https://...">
     <label>Urutan (angka kecil tampil lebih dulu)</label>
     <input type="number" id="order" value="1">
+    <button class="btn" id="btnMig" style="margin-bottom:8px;background:#2a2a2a;color:#f3d97a;border:1px solid #d4af37">Pindahkan banner lama ke Realtime Database</button>
     <div id="bstatus" style="color:#c8a15a;font-size:13px;margin:10px 0;line-height:1.4">Siap. Ketuk kotak gambar di atas untuk memilih foto banner.</div>
     <button class="btn" id="btnSave">Simpan banner</button>
   </div>
@@ -304,14 +311,39 @@ auth.onAuthStateChanged(u => {
   const ok = (u.email || "").toLowerCase() === ADMIN_EMAIL;
   if (!ok) { $("deniedTxt").textContent = (u.email || "Akun ini") + " bukan akun developer."; return show("denied"); }
   $("who").textContent = "Masuk sebagai " + u.email;
+  const prov = (u.providerData && u.providerData[0] ? u.providerData[0].providerId : "") || "";
+  const warn = $("loginWarn");
+  if (warn) warn.classList.toggle("hide", prov === "google.com");
   show("panel");
   startBan();
   bgStart();
-  unsub = db.collection("banners").orderBy("order").onSnapshot(renderList, e => { $("list").textContent = "Gagal memuat: " + e.message; });
+  banStart();
 });
 
 $("prev").onclick = () => $("file").click();
 let imgFile = null;
+$("btnMig").onclick = async () => {
+  $("btnMig").disabled = true;
+  try {
+    bstat("Membaca banner lama dari Firestore...");
+    const snap = await Promise.race([
+      db.collection("banners").get(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Firestore tidak merespons / kuota habis. Coba lagi setelah kuota reset (sekitar 14.00 WIB).")), 15000))
+    ]);
+    if (snap.empty) { bstat("Tidak ada banner lama di Firestore."); $("btnMig").disabled = false; return; }
+    let n = 0;
+    for (const d of snap.docs) {
+      const x = d.data() || {};
+      const exists = rtBanners.some(r => r.data.createdAt === x.createdAt && (r.data.title || "") === (x.title || ""));
+      if (exists) continue;
+      await rtdb.ref("banners").push(x);
+      n++;
+    }
+    bstat("Selesai \u2705 " + n + " banner dipindahkan ke Realtime Database.");
+    toast("Banner dipindahkan \u2705");
+  } catch (e) { bstat("Gagal memindahkan: " + (e.message || e)); }
+  $("btnMig").disabled = false;
+};
 function bstat(t){ const el = $("bstatus"); if (el) el.textContent = t; }
 $("prev").onclick = () => $("file").click();
 $("file").onchange = async e => {
@@ -325,6 +357,15 @@ $("file").onchange = async e => {
     bstat("Gambar siap (" + Math.round(imgFile.size / 1024) + " KB). Ketuk Simpan banner.");
   } catch (err) { imgFile = null; bstat("Gambar tidak bisa dibaca: " + (err.message || err)); }
 };
+
+function fileToB64(file){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1] || "");
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
 
 function bannerFile(file){
   return new Promise((res, rej) => {
@@ -376,21 +417,25 @@ $("btnSave").onclick = async () => {
   };
   try {
     // File diunggah ke CLOUDINARY (bukan Supabase), dokumen hanya menyimpan URL.
-    bstat("Mengunggah gambar ke Cloudinary...");
-    const url = await cldUpload(imgFile, "banner");
-    payload.imageUrl = url;
-    bstat("Gambar terunggah. Menyimpan data banner...");
-    let jalur = "Firestore";
+    let url = "";
     try {
-      await db.collection("banners").add(payload);
-    } catch (e1) {
-      jalur = "Realtime Database";
-      try {
-        await rtdb.ref("banners").push(payload);
-      } catch (e2) {
-        throw new Error("Firestore: " + (e1.message || e1) + " | RTDB: " + (e2.message || e2));
-      }
+      bstat("Mengunggah gambar ke Cloudinary...");
+      url = await cldUpload(imgFile, "banner");
+      payload.imageUrl = url;
+    } catch (eCld) {
+      // Cloudinary menolak (umumnya karena login bukan Google): gambar tetap disimpan
+      // sebagai data gambar di Realtime Database supaya banner tidak hilang.
+      bstat("Cloudinary: " + (eCld.message || eCld) + " \u2192 menyimpan gambar langsung ke Realtime Database...");
+      payload.imageB64 = await fileToB64(imgFile);
     }
+    bstat("Gambar siap. Menyimpan data banner...");
+    // Data banner disimpan di REALTIME DATABASE (Firestore kuota habis). Gambar di Cloudinary.
+    const jalur = "Realtime Database";
+    bstat("Menyimpan ke Realtime Database...");
+    await Promise.race([
+      rtdb.ref("banners").push(payload),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Realtime Database tidak merespons 20 detik. Cek koneksi/aturan database.")), 20000))
+    ]);
     bstat("Tersimpan \u2705 (" + jalur + "). Gambar: " + url);
     toast("Banner tersimpan \u2705");
     imgFile = null; $("file").value = ""; $("title").value = ""; $("sub").value = ""; $("link").value = "";
@@ -403,34 +448,61 @@ $("btnSave").onclick = async () => {
   $("btnSave").disabled = false;
 };
 
-function renderList(snap){
+let fsBanners = [], rtBanners = [];
+function banStart(){
+  unsub = db.collection("banners").orderBy("order").onSnapshot(snap => {
+    fsBanners = snap.docs.map(d => ({ src: "fs", id: d.id, data: d.data() || {} }));
+    renderBanners();
+  }, e => { fsBanners = []; renderBanners(); });
+  // Banner lama (Firestore) yang belum pindah: tombol pindahkan ke Realtime Database.
+  const onVal = rtdb.ref("banners").on("value", snap => {
+    rtBanners = [];
+    snap.forEach(d => rtBanners.push({ src: "rt", id: d.key, data: d.val() || {} }));
+    renderBanners();
+  }, () => { rtBanners = []; renderBanners(); });
+}
+
+function banPatch(b, patch){
+  if (b.src === "fs") return db.collection("banners").doc(b.id).update(patch);
+  return rtdb.ref("banners/" + b.id).update(patch);
+}
+function banDelete(b){
+  if (b.src === "fs") return db.collection("banners").doc(b.id).delete();
+  return rtdb.ref("banners/" + b.id).remove();
+}
+
+function renderBanners(){
   const box = $("list"); box.textContent = "";
-  if (snap.empty) { box.textContent = "Belum ada banner. Aplikasi memakai banner bawaan."; return; }
-  snap.forEach(d => {
-    const b = d.data(), row = document.createElement("div"); row.className = "item";
-    const im = document.createElement("img"); im.src = b.imageUrl ? b.imageUrl : ("data:image/jpeg;base64," + (b.imageB64 || ""));
+  const all = fsBanners.concat(rtBanners.filter(r => !fsBanners.some(f => (f.data.imageUrl || "") === (r.data.imageUrl || "") && f.data.title === r.data.title)));
+  if (!all.length) { box.textContent = "Belum ada banner. Aplikasi memakai banner bawaan."; return; }
+  all.sort((a, b) => (a.data.order || 0) - (b.data.order || 0));
+  all.forEach(b0 => {
+    const b = b0.data, row = document.createElement("div"); row.className = "item";
+    const im = document.createElement("img");
+    im.src = b.imageUrl ? b.imageUrl : (b.imageB64 ? ("data:image/jpeg;base64," + b.imageB64) : "");
     const info = document.createElement("div"); info.className = "info";
-    const t = document.createElement("b"); t.textContent = b.title || "(tanpa judul)";
-    const s = document.createElement("span"); s.className = "muted"; s.textContent = (b.subtitle || "") + (b.link ? "  🔗 " + b.link : "");
-    info.append(t, s);
-    const lk = document.createElement("button"); lk.className = "btn"; lk.textContent = "🔗"; lk.title = "Ubah link";
+    const t = document.createElement("b"); t.textContent = (b.title || "(tanpa judul)") + (b0.src === "rt" ? "  · RTDB" : "");
+    const sm = document.createElement("span"); sm.className = "muted"; sm.textContent = (b.subtitle || "") + (b.link ? "  \ud83d\udd17 " + b.link : "");
+    info.append(t, sm);
+    const lk = document.createElement("button"); lk.className = "btn"; lk.textContent = "\ud83d\udd17"; lk.title = "Ubah link";
     lk.onclick = () => {
       const v = prompt("Link tujuan banner (kosongkan untuk menghapus)", b.link || "");
       if (v === null) return;
       const t2 = v.trim();
       if (t2 && !/^https?:\/\//i.test(t2)) return toast("Link harus diawali http:// atau https://");
-      d.ref.update({ link: t2 }).then(() => toast("Link disimpan ✅")).catch(e => toast(e.message));
+      banPatch(b0, { link: t2 }).then(() => toast("Link disimpan \u2705")).catch(e => toast(e.message));
     };
     const ord = document.createElement("input"); ord.type = "number"; ord.value = b.order || 0;
-    ord.onchange = () => d.ref.update({ order: parseInt(ord.value, 10) || 0 }).catch(e => toast(e.message));
+    ord.onchange = () => banPatch(b0, { order: parseInt(ord.value, 10) || 0 }).catch(e => toast(e.message));
     const act = document.createElement("input"); act.type = "checkbox"; act.checked = b.active !== false; act.title = "Aktif";
-    act.onchange = () => d.ref.update({ active: act.checked }).catch(e => toast(e.message));
-    const del = document.createElement("button"); del.className = "btn bad"; del.textContent = "🗑";
-    del.onclick = () => { if (confirm("Hapus banner ini?")) d.ref.delete().catch(e => toast(e.message)); };
+    act.onchange = () => banPatch(b0, { active: act.checked }).catch(e => toast(e.message));
+    const del = document.createElement("button"); del.className = "btn bad"; del.textContent = "\ud83d\uddd1";
+    del.onclick = () => { if (confirm("Hapus banner ini?")) banDelete(b0).then(() => toast("Banner dihapus")).catch(e => toast(e.message)); };
     row.append(im, info, lk, ord, act, del);
     box.appendChild(row);
   });
 }
+
 
 
 /* ================= CEK IN HARIAN ================= */
