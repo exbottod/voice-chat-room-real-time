@@ -112,6 +112,9 @@ label{font-size:12px;color:var(--mut)}
         <label>Reset coin user ini menjadi 0</label>
         <button class="btn bad" id="coinReset">Reset coin user ini</button>
         <hr>
+        <label>Reset diamond user ini menjadi 0</label>
+        <button class="btn bad" id="gemReset">Reset diamond user ini</button>
+        <hr>
         <label>Jumlah exp level (minus untuk mengurangi)</label>
         <input type="number" id="expAmt" inputmode="numeric" placeholder="contoh: 5000000">
         <button class="btn" id="expSend">Kirim exp</button>
@@ -128,6 +131,12 @@ label{font-size:12px;color:var(--mut)}
       <p class="muted">Membuat saldo coin SEMUA user menjadi 0. Diamond dan exp tidak disentuh. Tidak bisa dibatalkan.</p>
       <div id="resetAllInfo" class="muted"></div>
       <button class="btn bad" id="coinResetAll">Reset coin SEMUA user</button>
+    </div>
+    <div class="card">
+      <h2>Reset diamond semua user</h2>
+      <p class="muted">Membuat saldo diamond SEMUA user menjadi 0. Coin dan exp tidak disentuh. Tidak bisa dibatalkan.</p>
+      <div id="gemResetAllInfo" class="muted"></div>
+      <button class="btn bad" id="gemResetAll">Reset diamond SEMUA user</button>
     </div>
   </div>
 </div>
@@ -749,6 +758,37 @@ $("coinResetAll").onclick = async () => {
     $("resetAllInfo").textContent = "Gagal: " + e.message;
   }
   $("coinResetAll").disabled = false;
+};
+
+$("gemReset").onclick = async () => {
+  if (!foundCoin) return;
+  if (!confirm("Reset diamond " + foundCoin.name + " (ID " + foundCoin.id + ") menjadi 0?")) return;
+  $("gemReset").disabled = true;
+  try {
+    await walletAdmin({ op: "reset_gem", uid: foundCoin.uid });
+    logAction({ type: "gemReset", targetId: foundCoin.id, uid: foundCoin.uid, from: "panel" });
+    toast("Berhasil ✅ diamond user ini direset ke 0");
+    await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("gemReset").disabled = false;
+};
+
+$("gemResetAll").onclick = async () => {
+  const kata = prompt("RESET SEMUA DIAMOND\nSaldo diamond SEMUA user menjadi 0.\nKetik RESET huruf kapital untuk konfirmasi:");
+  if (kata !== "RESET") return;
+  if (!confirm("Yakin reset diamond semua user menjadi 0? TIDAK BISA DIBATALKAN.")) return;
+  $("gemResetAll").disabled = true;
+  $("gemResetAllInfo").textContent = "Sedang memproses...";
+  try {
+    const r = await walletAdmin({ op: "reset_gem_all" });
+    logAction({ type: "gemResetAll", count: r.count || 0 });
+    toast("Selesai ✅ diamond " + (r.count || 0) + " wallet direset ke 0");
+    $("gemResetAllInfo").textContent = "Selesai: " + (r.count || 0) + " wallet direset.";
+  } catch (e) {
+    toast("Gagal: " + e.message);
+    $("gemResetAllInfo").textContent = "Gagal: " + e.message;
+  }
+  $("gemResetAll").disabled = false;
 };
 
 /* ---------- Kirim coin ---------- */

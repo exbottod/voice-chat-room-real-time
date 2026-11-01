@@ -279,7 +279,7 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
   const p = body.p ?? {};
   const op = String(p.op ?? "");
   const target = String(p.uid ?? "");
-  const tanpaUid = ["reset_all", "pay_get", "pay_set", "manual_pending", "manual_all", "manual_decide"];
+  const tanpaUid = ["reset_all", "reset_gem_all", "pay_get", "pay_set", "manual_pending", "manual_all", "manual_decide"];
   if (!tanpaUid.includes(op) && !target) return json({ ok: 0, e: "uid kosong" }, 400);
 
   const num = (v: unknown) => {
@@ -403,6 +403,37 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
     });
     if (!r.ok) return json({ ok: 0, e: "Gagal reset semua" }, 200);
     const rows = await r.json().catch(() => []);
+    return json({ ok: 1, count: Array.isArray(rows) ? rows.length : 0 });
+  }
+
+  // ---- reset diamond (panel developer) ----
+  if (op === "reset_gem") {
+    const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(target)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ diamonds: 0, updated_at: new Date().toISOString() }),
+    });
+    if (!r.ok) return json({ ok: 0, e: "Gagal reset diamond" }, 200);
+    return json({ ok: 1, w: (await adminWallet(target)) });
+  }
+
+  if (op === "reset_gem_all") {
+    const r = await sbRest("wallets?diamonds=neq.0", {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ diamonds: 0, updated_at: new Date().toISOString() }),
+    });
+    if (!r.ok) return json({ ok: 0, e: "Gagal reset semua diamond" }, 200);
+    const rows = await r.json().catch(() => []);
+    // audit trail: catat siapa yang mengosongkan diamond semua user
+    await sbRest("money_tx", {
+      method: "POST",
+      body: JSON.stringify({
+        uid: target || who.uid,
+        kind: "admin_gem_reset_all",
+        item_id: who.email,
+        amount: 0,
+      }),
+    });
     return json({ ok: 1, count: Array.isArray(rows) ? rows.length : 0 });
   }
 
