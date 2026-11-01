@@ -54,8 +54,14 @@ object RocketCfg {
     /** Hadiah 6 kolom untuk tiap roket (index 0..4 = Lv.1..Lv.5), diisi dari panel admin. */
     var lvRewards by mutableStateOf<List<List<String>>>(List(5) { emptyList() })
 
+    /** Keterangan tiap hadiah roket: "VIP9 · 10 jt" bila diisi admin. */
+    var lvRewardInfo by mutableStateOf<List<List<String>>>(List(5) { emptyList() })
+
     /** Gambar hadiah peringkat: kunci "1".."4" = Top1..Top3 dan Top4 ke bawah. */
     var rankPrize by mutableStateOf<Map<String, String>>(emptyMap())
+
+    /** Keterangan hadiah peringkat. */
+    var rankPrizeInfo by mutableStateOf<Map<String, String>>(emptyMap())
 
     var exp by mutableStateOf(defaultExp)
     var img by mutableStateOf(defaultImg)
@@ -85,16 +91,37 @@ object RocketCfg {
                 }
                 rewards = rw.toList()
                 s.child("flyUrl").getValue(String::class.java)?.takeIf { it.isNotBlank() }?.let { flyUrl = it }
-                // Hadiah per roket: rocketCfg/lv{N}/p{1..6}
+                // Hadiah per roket: rocketCfg/lv{N}/r{1..6} (gambar + VIP + coin).
+                // Data lama yang hanya berisi gambar di p{K} tetap dibaca.
+                fun prizeAt(node: com.google.firebase.database.DataSnapshot): Triple<String, String, String> {
+                    val img = node.child("img").getValue(String::class.java).orEmpty()
+                    val vip = node.child("vip").getValue(Int::class.java) ?: 0
+                    val coins = node.child("coins").getValue(Long::class.java) ?: 0L
+                    val label = buildList {
+                        if (vip > 0) add("VIP$vip")
+                        if (coins > 0L) add(ringkas(coins))
+                    }.joinToString(" · ")
+                    return Triple(img, label, node.child("eff").getValue(String::class.java).orEmpty())
+                }
                 lvRewards = (1..5).map { n ->
                     (1..6).map { k ->
-                        s.child("lv$n").child("p$k").getValue(String::class.java).orEmpty()
+                        val o = prizeAt(s.child("lv$n").child("r$k"))
+                        o.first.ifBlank {
+                            s.child("lv$n").child("p$k").getValue(String::class.java).orEmpty()
+                        }
                     }
+                }
+                lvRewardInfo = (1..5).map { n ->
+                    (1..6).map { k -> prizeAt(s.child("lv$n").child("r$k")).second }
                 }
                 // Hadiah peringkat: rocketCfg/rank/t{1..4}
                 rankPrize = (1..4).associate { k ->
-                    "$k" to s.child("rank").child("t$k").getValue(String::class.java).orEmpty()
+                    val o = prizeAt(s.child("rank").child("t$k"))
+                    "$k" to o.first.ifBlank { s.child("rank").child("t$k").getValue(String::class.java).orEmpty() }
                 }
+                rankPrizeInfo = (1..4).associate { k -> "$k" to prizeAt(s.child("rank").child("t$k")).second }
+                // Animasi roket meluncur boleh diisi lewat panel.
+                s.child("flyUrl").getValue(String::class.java)?.takeIf { it.isNotBlank() }?.let { flyUrl = it }
             }
         } catch (e: Exception) {
             // pakai nilai bawaan
@@ -553,7 +580,13 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
                                         .border(1.dp, Color(0x99E8C489), RoundedCornerShape(4.dp)),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    RocketAsset(v, 66.dp, false)
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        RocketAsset(v, 58.dp, false)
+                                        val info = RocketCfg.lvRewardInfo.getOrNull(shownLv - 1)?.getOrNull(idx).orEmpty()
+                                        if (info.isNotBlank()) {
+                                            Text(info, color = Color(0xFFFFE08A), fontSize = 9.sp, maxLines = 1)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -727,6 +760,8 @@ fun RocketRankPrizeDialog(onClose: () -> Unit) {
                 Column {
                     Text(t, color = Color(0xFFFFE08A), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     Text(d, color = Color.White, fontSize = 13.sp)
+                    val info = RocketCfg.rankPrizeInfo["${i + 1}"].orEmpty()
+                    if (info.isNotBlank()) Text(info, color = Color(0xFF7FD3FF), fontSize = 11.sp)
                 }
             }
         }

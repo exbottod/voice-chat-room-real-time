@@ -222,15 +222,16 @@ label{font-size:12px;color:var(--mut)}
 <div id="tab-rocket" class="hide">
   <div class="card">
     <h2>Hadiah roket</h2>
-    <p class="muted">Pilih roket Lv.1 sampai Lv.5. Tiap roket punya 6 kolom hadiah (gambar). Upload gambar ke Cloudinary,
-      datanya disimpan di Realtime Database (rocketCfg). Perubahan langsung tampil di aplikasi.</p>
+    <p class="muted">Pilih roket Lv.1 sampai Lv.5. Tiap roket punya 6 hadiah. Untuk setiap hadiah isi gambar,
+      VIP 1-9 (opsional), jumlah coin, efek masuk, dan lencana. Efek dan lencana bisa diambil dari item Store
+      atau diupload sendiri. File ke Cloudinary, datanya ke Realtime Database (rocketCfg).</p>
     <div id="rkLv" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"></div>
     <div id="rkSlots"></div>
   </div>
   <div class="card">
     <h2>Hadiah peringkat roket</h2>
-    <p class="muted">Gambar hadiah Top 1, Top 2, Top 3, dan Top 4 ke bawah. Tampil di tombol kado pada panel roket.
-      Isi hadiahnya (VIP + coin) sudah diatur dari server.</p>
+    <p class="muted">Hadiah untuk Top 1, Top 2, Top 3, dan Top 4 ke bawah: gambar, VIP, dan coin.
+      Tampil di tombol kado pada panel roket.</p>
     <div id="rkRank"></div>
   </div>
   <div class="card">
@@ -872,10 +873,86 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
 let rkSel = 1, rkCfg = {}, rkOff = null;
 function rkMsg(t){ const e = $("rkMsg"); if (e) e.textContent = t; toast(t); }
 function rocketStart(){
+  // Store perlu dimuat lebih dulu supaya efek & lencana bisa dipilih dari store.
+  if (typeof vipStart === "function") vipStart();
   if (rkOff) { rkRender(); return; }
   const ref = rtdb.ref("rocketCfg");
   const cb = ref.on("value", snap => { rkCfg = snap.val() || {}; rkRender(); });
   rkOff = () => ref.off("value", cb);
+}
+function rkStoreOptions(slots){
+  let out = "";
+  storeItems.filter(c => slots.indexOf(c.slot) >= 0).forEach(c => {
+    out += '<option value="' + (c.url || "") + '">' + (c.name || c.id || "item") + '</option>';
+  });
+  return out;
+}
+/**
+ * Satu kartu hadiah: gambar, VIP 1-9, jumlah coin, efek masuk, dan lencana.
+ * Efek dan lencana bisa diupload atau diambil dari item Store.
+ */
+function rkPrize(label, path, cur, key){
+  cur = cur || {};
+  if (typeof cur === "string") cur = { img: cur };
+  const d = document.createElement("div");
+  d.style.cssText = "border:1px solid #2a3f6b;border-radius:10px;padding:10px;margin:8px 0";
+  const img = cur.img || "";
+  const prev = img ? '<img src="' + img + '" style="width:64px;height:64px;object-fit:contain;background:#0e2a63;border-radius:8px;display:block;margin:6px 0">'
+                   : '<div class="muted" style="margin:6px 0">Belum ada gambar</div>';
+  d.innerHTML = '<b>' + label + '</b>' + prev +
+    '<label>Gambar hadiah (upload)</label><input type="file" id="f_' + key + '" accept="image/*,.svga">' +
+    '<label>VIP</label><select id="vip_' + key + '">' +
+      '<option value="0">Tanpa VIP</option>' +
+      (1 <= 9 ? [1,2,3,4,5,6,7,8,9].map(n => '<option value="' + n + '">VIP ' + n + '</option>').join("") : "") +
+    '</select>' +
+    '<label>Coin</label><input type="number" id="c_' + key + '" min="0" step="1000" placeholder="contoh 5000000">' +
+    '<div style="margin:4px 0 8px">' +
+      ['1000000','5000000','10000000','50000000','100000000'].map(v =>
+        '<button class="btn q_' + key + '" data-v="' + v + '" style="margin:2px 4px 0 0;padding:4px 8px;font-size:12px">' + (Number(v)/1000000) + ' jt</button>').join("") +
+    '</div>' +
+    '<label>Efek masuk</label><select id="es_' + key + '"><option value="">- tidak pakai -</option>' + rkStoreOptions(["entry"]) + '</select>' +
+    '<input type="file" id="ef_' + key + '" accept=".svga,.gif,.webp,.png,.mp4" style="margin-top:6px">' +
+    '<div class="muted" style="font-size:11px">Pilih dari store atau upload file baru.</div>' +
+    '<label style="margin-top:8px">Lencana</label><select id="bs_' + key + '"><option value="">- tidak pakai -</option>' + rkStoreOptions(["badge", "medal"]) + '</select>' +
+    '<input type="file" id="bf_' + key + '" accept=".svga,.gif,.webp,.png" style="margin-top:6px">' +
+    '<div class="muted" style="font-size:11px">Ambil dari store atau upload sendiri.</div>' +
+    '<div style="margin-top:10px"><button class="btn" id="s_' + key + '">Simpan hadiah</button> ' +
+    '<button class="btn" id="d_' + key + '" style="background:#7a1f1f;color:#fff">Hapus</button></div>';
+  if (d.querySelector("#vip_" + key)) d.querySelector("#vip_" + key).value = String(cur.vip || 0);
+  if (d.querySelector("#c_" + key)) d.querySelector("#c_" + key).value = cur.coins || "";
+  if (cur.eff) { const el = d.querySelector("#es_" + key); if (el) el.value = cur.eff; }
+  if (cur.badge) { const el = d.querySelector("#bs_" + key); if (el) el.value = cur.badge; }
+  d.querySelectorAll(".q_" + key).forEach(btn => btn.onclick = () => { d.querySelector("#c_" + key).value = btn.dataset.v; });
+  d.querySelector("#s_" + key).onclick = async () => {
+    const btn = d.querySelector("#s_" + key); btn.disabled = true;
+    try {
+      const fImg = d.querySelector("#f_" + key).files[0];
+      const fEff = d.querySelector("#ef_" + key).files[0];
+      const fBadge = d.querySelector("#bf_" + key).files[0];
+      let imgUrl = img;
+      if (fImg) imgUrl = await cldUpload(fImg, key);
+      let eff = d.querySelector("#es_" + key).value || "";
+      if (fEff) eff = await cldUpload(fEff, key + "_eff");
+      let badge = d.querySelector("#bs_" + key).value || "";
+      if (fBadge) badge = await cldUpload(fBadge, key + "_badge");
+      const out = {
+        img: imgUrl || "",
+        vip: Number(d.querySelector("#vip_" + key).value || 0),
+        coins: Number(d.querySelector("#c_" + key).value || 0),
+        eff: eff,
+        badge: badge,
+        updatedAt: Date.now(),
+      };
+      await rtSet(path, out);
+      rkMsg("Tersimpan ✅ " + label);
+    } catch (e) { rkMsg("Gagal: " + e.message); }
+    finally { btn.disabled = false; }
+  };
+  d.querySelector("#d_" + key).onclick = async () => {
+    if (!confirm("Hapus " + label + "?")) return;
+    try { await rtDel(path); rkMsg("Dihapus ✅"); } catch (e) { rkMsg("Gagal: " + e.message); }
+  };
+  return d;
 }
 function rkRender(){
   const lv = $("rkLv"); if (!lv) return;
@@ -887,38 +964,39 @@ function rkRender(){
     b.onclick = () => { rkSel = n; rkRender(); };
     lv.appendChild(b);
   }
+  const lvCfg = rkCfg["lv" + rkSel] || {};
   const box = $("rkSlots"); box.innerHTML = "";
-  for (let k = 1; k <= 6; k++) box.appendChild(rkSlot("Hadiah " + k, "rocketCfg/lv" + rkSel + "/p" + k, ((rkCfg["lv" + rkSel] || {})["p" + k]) || "", "rk_l" + rkSel + "_" + k));
+  for (let k = 1; k <= 6; k++) {
+    // Data baru: rocketCfg/lvN/rK. Data lama (gambar saja) masih dibaca dari pK.
+    const cur = lvCfg["r" + k] || lvCfg["p" + k] || null;
+    box.appendChild(rkPrize("Hadiah " + k, "rocketCfg/lv" + rkSel + "/r" + k, cur, "rk_l" + rkSel + "_" + k));
+  }
   const rk = $("rkRank"); rk.innerHTML = "";
-  [["Top 1", 1], ["Top 2", 2], ["Top 3", 3], ["Top 4 ke bawah", 4]].forEach(a =>
-    rk.appendChild(rkSlot(a[0], "rocketCfg/rank/t" + a[1], ((rkCfg.rank || {})["t" + a[1]]) || "", "rk_r" + a[1])));
+  [["🏆 Top 1", 1], ["🥈 Top 2", 2], ["🥉 Top 3", 3], ["🎖 Top 4 ke bawah", 4]].forEach(a =>
+    rk.appendChild(rkPrize(a[0], "rocketCfg/rank/t" + a[1], (rkCfg.rank || {})["t" + a[1]] || null, "rk_r" + a[1])));
   const fl = $("rkFly"); fl.innerHTML = "";
-  fl.appendChild(rkSlot("Roket meluncur (SVGA)", "rocketCfg/flyUrl", rkCfg.flyUrl || "", "rk_fly", true));
+  fl.appendChild(rkFlyCard());
 }
-function rkSlot(label, path, url, key, svga){
+function rkFlyCard(){
   const d = document.createElement("div");
   d.style.cssText = "border:1px solid #2a3f6b;border-radius:10px;padding:10px;margin:8px 0";
-  const prev = url && !svga && /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url)
-    ? '<img src="' + url + '" style="width:64px;height:64px;object-fit:contain;background:#0e2a63;border-radius:8px;display:block;margin:6px 0">'
-    : (url ? '<div class="muted" style="word-break:break-all;margin:6px 0">' + url + '</div>' : '<div class="muted" style="margin:6px 0">Belum ada gambar</div>');
-  d.innerHTML = '<b>' + label + '</b>' + prev +
-    '<input type="file" id="f_' + key + '" accept="' + (svga ? ".svga,.mp4" : "image/*,.svga") + '">' +
-    '<div style="margin-top:6px"><button class="btn" id="s_' + key + '">Upload & simpan</button> ' +
-    '<button class="btn" id="d_' + key + '" style="background:#7a1f1f;color:#fff">Hapus</button></div>';
-  d.querySelector("#s_" + key).onclick = async () => {
-    const f = $("f_" + key).files[0];
+  const url = rkCfg.flyUrl || "";
+  d.innerHTML = '<b>Animasi roket meluncur (SVGA)</b>' +
+    '<div class="muted" style="word-break:break-all;margin:6px 0">' + (url || "Belum ada file") + '</div>' +
+    '<input type="file" id="f_rk_fly" accept=".svga,.mp4">' +
+    '<div style="margin-top:6px"><button class="btn" id="s_rk_fly">Upload & simpan</button> ' +
+    '<button class="btn" id="d_rk_fly" style="background:#7a1f1f;color:#fff">Hapus</button></div>';
+  d.querySelector("#s_rk_fly").onclick = async () => {
+    const f = d.querySelector("#f_rk_fly").files[0];
     if (!f) return rkMsg("Pilih file dulu");
-    const btn = $("s_" + key); btn.disabled = true;
-    try {
-      const u = await cldUpload(f, key);
-      await rtSet(path, u);
-      rkMsg("Tersimpan ✅ " + label);
-    } catch (e) { rkMsg("Gagal: " + e.message); }
+    const btn = d.querySelector("#s_rk_fly"); btn.disabled = true;
+    try { const u = await cldUpload(f, "rk_fly"); await rtSet("rocketCfg/flyUrl", u); rkMsg("Tersimpan ✅ animasi roket"); }
+    catch (e) { rkMsg("Gagal: " + e.message); }
     finally { btn.disabled = false; }
   };
-  d.querySelector("#d_" + key).onclick = async () => {
-    if (!confirm("Hapus " + label + "?")) return;
-    try { await rtDel(path); rkMsg("Dihapus ✅"); } catch (e) { rkMsg("Gagal: " + e.message); }
+  d.querySelector("#d_rk_fly").onclick = async () => {
+    if (!confirm("Hapus animasi roket?")) return;
+    try { await rtDel("rocketCfg/flyUrl"); rkMsg("Dihapus ✅"); } catch (e) { rkMsg("Gagal: " + e.message); }
   };
   return d;
 }
