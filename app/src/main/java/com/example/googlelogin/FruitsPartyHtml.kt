@@ -78,6 +78,13 @@ fun FruitsPartyHtmlScreen(myUid: String, myName: String = "Player", onClose: () 
                         settings.loadWithOverviewMode = true
                         settings.useWideViewPort = true
                         settings.allowFileAccess = true
+                        // WebView lama (Android 8/9) butuh izin ini supaya berkas game
+                        // lokal bisa dibaca dari halaman file://
+                        settings.allowFileAccessFromFileURLs = true
+                        settings.allowUniversalAccessFromFileURLs = true
+                        settings.loadsImagesAutomatically = true
+                        settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                        android.webkit.WebView.setWebContentsDebuggingEnabled(true)
                         webViewClient = object : WebViewClient() {
                             override fun shouldInterceptRequest(
                                 view: WebView,
