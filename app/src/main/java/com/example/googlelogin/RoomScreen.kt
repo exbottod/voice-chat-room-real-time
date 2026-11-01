@@ -543,10 +543,10 @@ fun RoomScreen(
                 }
             }
 
+            Box(Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .pointerInput(onlyChat) {
                         var dx = 0f
                         detectHorizontalDragGestures(
@@ -576,6 +576,15 @@ fun RoomScreen(
                         RmMsgBox(m.text, if (m.text.startsWith("🎁")) Gold else Color.White)
                     }
                 }
+            }
+
+                // Panel melayang sisi kanan: ikon roket + persen menuju level berikutnya.
+                RocketRail(
+                    onOpen = { rocketOpen = true },
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 4.dp, bottom = 10.dp),
+                )
             }
 
             // Bar bawah
@@ -612,8 +621,6 @@ fun RoomScreen(
                     RmRoundBtn({ emoteOpen = !emoteOpen }) { Text("😊", fontSize = 20.sp) }
 
                     Spacer(Modifier.weight(1f))
-                    RmRoundBtn({ rocketOpen = true; emoteOpen = false }) { Text("🚀", fontSize = 20.sp) }
-                    Spacer(Modifier.width(10.dp))
                     RmRoundBtn({ giftTarget = null; giftOpen = true; emoteOpen = false }) {
                         Image(painterResource(R.drawable.ic_room_gift), null, Modifier.size(24.dp), contentScale = ContentScale.Fit)
                     }

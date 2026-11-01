@@ -141,6 +141,64 @@ private fun RocketAsset(value: String, size: androidx.compose.ui.unit.Dp, glow: 
 }
 
 /**
+ * Panel melayang di sisi kanan room: ikon roket yang bisa ditekan untuk membuka
+ * panel Rocket, dengan bar persen menuju level berikutnya di bawahnya.
+ */
+@Composable
+fun RocketRail(onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    RocketCfg.start()
+    val uid = remember { RocketRepo.uid() }
+    var total by remember { mutableStateOf(0L) }
+    LaunchedEffect(uid) {
+        if (uid.isNotBlank()) {
+            Rtdb.listen(Rtdb.ref("rocket/$uid/exp")) { s ->
+                total = s.getValue(Long::class.java) ?: 0L
+            }
+        }
+    }
+    val exp = RocketCfg.exp
+    val lv = RocketCfg.levelOf(total)
+    val cur = exp[(lv - 1).coerceIn(0, exp.size - 1)]
+    val next = exp.getOrNull(lv)
+    val frac = if (next == null) 1f else (((total - cur).toFloat() / (next - cur).coerceAtLeast(1L))).coerceIn(0f, 1f)
+    val pct = (frac * 100).toInt()
+
+    Column(
+        modifier = modifier.width(52.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(Color(0x99000000))
+                .border(1.5.dp, GoldLight.copy(alpha = 0.85f), CircleShape)
+                .clickable { onOpen() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier.size(34.dp).clip(CircleShape)
+                    .background(Brush.radialGradient(listOf(Color(0x664FC3F7), Color.Transparent))),
+            )
+            RocketAsset(RocketCfg.img.getOrElse(lv - 1) { "🚀" }, 28.dp, false)
+        }
+        Spacer(Modifier.height(4.dp))
+        Box(
+            Modifier.width(46.dp).height(6.dp).clip(RoundedCornerShape(50))
+                .background(Color(0x99000000))
+                .border(0.5.dp, GoldLight.copy(alpha = 0.6f), RoundedCornerShape(50)),
+        ) {
+            Box(
+                Modifier.fillMaxHeight().fillMaxWidth(frac.coerceAtLeast(0.04f))
+                    .clip(RoundedCornerShape(50))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFF4FC3F7), Color(0xFF00AAFF)))),
+            )
+        }
+        Text("$pct%", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+/**
  * Panel Rocket: judul, bar level, deretan 5 roket evolusi, dan grid hadiah 3x2.
  * Dibuka dari ikon roket di room.
  */
