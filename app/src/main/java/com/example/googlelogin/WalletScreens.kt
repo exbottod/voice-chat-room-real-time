@@ -32,7 +32,7 @@ import kotlinx.coroutines.tasks.await
 
 const val DIAMOND_PER_COIN = 2L // 2 diamond = 1 coin
 const val INVITE_REWARD_COINS = 10_000_000L
-const val TOPUP_TEST_MODE = true // true = isi coin gratis (mode uji, belum ada pembayaran)
+const val TOPUP_TEST_MODE = false // false = coin dibeli lewat payment gateway (Midtrans)
 
 data class Wallet(
     val coins: Long = 0L,
@@ -395,6 +395,8 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     var tab by remember { mutableStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var showPacks by remember { mutableStateOf(false) }
+    var payOrder by remember { mutableStateOf<String?>(null) }
+    var payUrl by remember { mutableStateOf<String?>(null) }
     BackHandler(onBack = { if (showPacks) showPacks = false else onBack() })
     val toast = { m: String -> Toast.makeText(context, m, Toast.LENGTH_SHORT).show() }
 
@@ -499,15 +501,35 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                                 Row(
                                     Modifier.fillMaxWidth().padding(vertical = 5.dp)
                                         .clip(RoundedCornerShape(16.dp)).background(WalRowBg)
-                                        .clickable(enabled = !busy) {
-                                            if (!TOPUP_TEST_MODE) {
-                                                toast("Pembayaran belum tersedia")
-                                            } else {
+                                        .clickable(enabled = !busy && payOrder == null) {
+                                            if (TOPUP_TEST_MODE) {
                                                 busy = true
                                                 scope.launch {
                                                     val e = WalletRepo.topUp(uid, coins)
                                                     busy = false
                                                     toast(e ?: "+${fmtNum(coins)} coin")
+                                                }
+                                            } else {
+                                                busy = true
+                                                scope.launch {
+                                                    val start = SupaRepo.topupCreate(coins)
+                                                    busy = false
+                                                    if (start.url == null) {
+                                                        toast(start.error ?: "Gagal memulai pembayaran")
+                                                    } else {
+                                                        payOrder = start.order
+                                                        payUrl = start.url
+                                                        try {
+                                                            context.startActivity(
+                                                                android.content.Intent(
+                                                                    android.content.Intent.ACTION_VIEW,
+                                                                    android.net.Uri.parse(start.url),
+                                                                ),
+                                                            )
+                                                        } catch (e: Exception) {
+                                                            toast("Tidak bisa membuka halaman pembayaran")
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -595,6 +617,66 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 }
                 Spacer(Modifier.height(30.dp))
             }
+        }
+
+        // ---- menunggu pembayaran ----
+        val order = payOrder
+        if (order != null) {
+            LaunchedEffect(order) {
+                var tries = 0
+                while (tries < 90) {
+                    kotlinx.coroutines.delay(4000)
+                    tries++
+                    val st = SupaRepo.topupStatus(order)
+                    if (st == "paid") {
+                        SupaRepo.get(uid).wallet?.let { WalletRepo.emitBackup(uid, it) }
+                        payOrder = null
+                        payUrl = null
+                        toast("Pembayaran diterima, coin sudah ditambahkan")
+                        return@LaunchedEffect
+                    }
+                    if (st == "expired" || st == "failed") {
+                        payOrder = null
+                        payUrl = null
+                        toast(if (st == "expired") "Waktu pembayaran habis" else "Pembayaran gagal")
+                        return@LaunchedEffect
+                    }
+                }
+                payOrder = null
+                payUrl = null
+                toast("Pembayaran belum terdeteksi")
+            }
+            AlertDialog(
+                onDismissRequest = { payOrder = null; payUrl = null },
+                title = { Text("Selesaikan pembayaran") },
+                text = {
+                    Column {
+                        Text("Halaman pembayaran sudah dibuka di browser. Bayar dengan DANA, OVO, ShopeePay, atau QRIS.")
+                        Spacer(Modifier.height(8.dp))
+                        Text("Coin masuk otomatis setelah pembayaran terkonfirmasi.", fontSize = 12.sp, color = WalGrey)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val u = payUrl
+                        if (u != null) {
+                            try {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(u),
+                                    ),
+                                )
+                            } catch (e: Exception) {
+                                toast("Tidak bisa membuka halaman pembayaran")
+                            }
+                        }
+                    }) { Text("Buka lagi") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { payOrder = null; payUrl = null }) { Text("Tutup") }
+                },
+            )
         }
     }
 }

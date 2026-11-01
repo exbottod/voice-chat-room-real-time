@@ -226,6 +226,57 @@ object SupaRepo {
 
     suspend fun exchange(uid: String, diamonds: Long) = call("exchange", uidJson(uid).put("diamonds", diamonds))
 
+    // ---------------- Topup lewat payment gateway ----------------
+
+    class TopupStart(val order: String?, val url: String?, val error: String?)
+
+    /** Panggil edge function dan kembalikan JSON mentah (untuk aksi non-dompet). */
+    private suspend fun postRaw(action: String, params: org.json.JSONObject): org.json.JSONObject? =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = com.google.firebase.auth.FirebaseAuth.getInstance()
+                    .currentUser?.getIdToken(true)?.await()?.token ?: return@withContext null
+                val body = org.json.JSONObject().put("a", action).put("t", token).put("p", params)
+                val conn = (URL(FN).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 8000
+                    readTimeout = 15000
+                    doOutput = true
+                    setRequestProperty("apikey", KEY)
+                    setRequestProperty("Content-Type", "application/json")
+                }
+                conn.outputStream.use { it.write(body.toString().toByteArray()) }
+                val code = conn.responseCode
+                val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (txt.isBlank()) null else org.json.JSONObject(txt)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+    /** Buat transaksi topup (Midtrans). Server yang menentukan harga paket. */
+    suspend fun topupCreate(coins: Long): TopupStart {
+        val name = com.google.firebase.auth.FirebaseAuth.getInstance()
+            .currentUser?.displayName?.take(40).orEmpty()
+        val o = postRaw("topup_create", org.json.JSONObject().put("coins", coins).put("name", name))
+            ?: return TopupStart(null, null, "Tidak bisa menghubungi server pembayaran")
+        if (o.optInt("ok") != 1) {
+            return TopupStart(null, null, o.optString("e").ifBlank { "Gagal memulai pembayaran" })
+        }
+        return TopupStart(o.optString("order"), o.optString("url"), null)
+    }
+
+    /** Cek status pesanan: "pending", "paid", "expired", "failed". */
+    suspend fun topupStatus(order: String): String? {
+        val o = postRaw("topup_status", org.json.JSONObject().put("order", order)) ?: return null
+        if (o.optInt("ok") != 1) return null
+        return o.optJSONObject("order")?.optString("status")
+    }
+
+
     suspend fun buyVip(uid: String, tier: Int) = call("buy_vip", uidJson(uid).put("tier", tier))
 
 
