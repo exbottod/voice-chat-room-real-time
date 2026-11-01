@@ -371,15 +371,28 @@ async function manualLoad(all) {
     const list = r.list || [];
     if (!list.length) { box.innerHTML = '<div class="muted">Tidak ada pengajuan.</div>'; return; }
     box.innerHTML = "";
+    const nameCache = {};
+    async function namaUser(uid) {
+      if (uid in nameCache) return nameCache[uid];
+      let n = "";
+      try {
+        const snap = await rtdb.ref("pub/" + uid).get();
+        const v = snap.val() || {};
+        n = String(v.name || v.nickname || "");
+      } catch (e) { /* tanpa nama */ }
+      nameCache[uid] = n;
+      return n;
+    }
     for (const m of list) {
       const row = document.createElement("div");
       row.className = "card";
       row.style.marginBottom = "8px";
       const when = new Date(Number(m.created_at)).toLocaleString("id-ID");
+      const nm = m.name || (await namaUser(m.uid)) || m.uid;
       row.innerHTML =
         '<div style="font-weight:700">' + Number(m.coins).toLocaleString("id-ID") + " coin · Rp " +
         Number(m.amount).toLocaleString("id-ID") + "</div>" +
-        '<div class="muted">Pengirim: ' + (m.payer || "-") + " · User: " + (m.name || m.uid) + "</div>" +
+        '<div class="muted">Pengirim: ' + (m.payer || "-") + " · User: " + nm + "</div>" +
         '<div class="muted">Status: ' + m.status + " · " + (m.method || "dana") + " · " + when + "</div>";
       if (m.status === "pending") {
         const okBtn = document.createElement("button");

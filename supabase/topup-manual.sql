@@ -83,14 +83,16 @@ $$;
 alter table public.topup_manual add column if not exists method text not null default 'dana';
 
 -- Daftar pengajuan untuk panel developer.
+-- Nama pemain tidak disimpan di Supabase (ada di Firebase), jadi panel
+-- mengambilnya sendiri dari Realtime Database.
+drop function if exists public.w_manual_list(text, int);
 create or replace function public.w_manual_list(p_status text default 'pending', p_limit int default 60)
 returns table (id text, uid text, coins bigint, amount bigint, payer text,
-               status text, created_at bigint, name text, method text)
+               status text, created_at bigint, method text)
 language sql security definer set search_path = public as $$
   select m.id, m.uid, m.coins, m.amount, m.payer, m.status, m.created_at,
-         coalesce(w.name, '') as name, coalesce(m.method, 'dana') as method
+         coalesce(m.method, 'dana') as method
     from public.topup_manual m
-    left join public.wallets w on w.uid = m.uid
    where (coalesce(p_status, 'pending') = 'all' or m.status = p_status)
    order by m.created_at asc
    limit greatest(1, least(coalesce(p_limit, 60), 200));
