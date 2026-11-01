@@ -243,10 +243,8 @@
     "rocket": {
       ".read": "auth != null",
       "$roomId": {
-        "$uid": {
-          ".read": "auth != null",
-          ".write": "auth != null && auth.uid === $uid"
-        }
+        ".read": "auth != null",
+        ".write": "auth != null"
       }
     },
     "rocketFx": {

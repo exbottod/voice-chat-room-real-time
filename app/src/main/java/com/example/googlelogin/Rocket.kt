@@ -135,7 +135,8 @@ object RocketRepo {
                 0L
             }
             val now = System.currentTimeMillis()
-            if (now - mark < 6L * 3600_000L) return
+            // Satu peluncuran per siklus room; penjaga ini hanya mencegah dobel.
+            if (now - mark < 30_000L) return
             Rtdb.ref("rocketFx/$roomId").push().setValue(
                 hashMapOf<String, Any?>(
                     "uid" to u,
@@ -173,19 +174,11 @@ object RocketRepo {
         regs.clear()
         val u = uid()
         if (u.isBlank()) return
+        // EXP roket milik ROOM, bukan per pemain: siapa pun yang mengirim gift
+        // di room ini menaikkan roket yang sama untuk semua orang di room.
         try {
-            regs += Rtdb.listen(Rtdb.ref("rocket/$roomId/$u")) { s ->
-                val v = s.child("exp").getValue(Long::class.java) ?: 0L
-                if (v > exp) exp = v
-            }
-        } catch (e: Exception) {
-        }
-        // Cadangan: kalau aturan database belum mengizinkan node "rocket",
-        // EXP room ini tetap tersimpan di node pub milik sendiri.
-        try {
-            regs += Rtdb.listen(Rtdb.ref("pub/$u/rocketExp/$roomId")) { s ->
-                val v = s.getValue(Long::class.java) ?: 0L
-                if (v > exp) exp = v
+            regs += Rtdb.listen(Rtdb.ref("rocket/$roomId/exp")) { s ->
+                exp = s.getValue(Long::class.java) ?: 0L
             }
         } catch (e: Exception) {
         }
@@ -204,30 +197,35 @@ object RocketRepo {
         }
     }
 
-    /** Tambah EXP roket dari koin yang dipakai untuk gift. */
+    /**
+     * Tambah EXP roket room dari gift yang baru dikirim. Nilainya publik:
+     * semua orang di room melihat angka dan level yang sama, dan begitu
+     * melewati level 5 roket pecah lalu meluncur untuk seluruh room.
+     */
     suspend fun addExp(roomId: String, name: String, coins: Long) {
         val u = uid()
         if (u.isBlank() || coins <= 0L || roomId.isBlank()) return
         if (roomId != liveRoom) room(roomId)
-        exp += coins
-        val total = exp
-        val saved = try {
-            Rtdb.ref("rocket/$roomId/$u/exp").setValue(total).await()
-            true
+        val maxExp = RocketCfg.exp.getOrNull(4) ?: Long.MAX_VALUE
+        var crossed = false
+        try {
+            Rtdb.tx(Rtdb.ref("rocket/$roomId")) { d ->
+                val cur = d.child("exp").getValue(Long::class.java) ?: 0L
+                var next = cur + coins
+                if (next >= maxExp) {
+                    crossed = true
+                    next -= maxExp
+                }
+                d.child("exp").value = next
+                d.child("lastBy").value = name
+                d.child("ts").value = System.currentTimeMillis()
+                null
+            }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            false
         }
-        if (!saved) {
-            try {
-                Rtdb.ref("pub/$u/rocketExp/$roomId").setValue(total).await()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-            }
-        }
-        // Peringkat musim ini: siapa paling banyak kirim gift.
+        // Peringkat: siapa paling banyak kirim gift di room ini pekan ini.
         try {
             Rtdb.ref("rocketRank/$roomId/${season()}/$u").setValue(
                 hashMapOf<String, Any?>(
@@ -239,8 +237,7 @@ object RocketRepo {
             throw e
         } catch (e: Exception) {
         }
-        // Sudah level 5 -> roket pecah dan meluncur.
-        if (RocketCfg.levelOf(total) >= 5) maybeLaunch(roomId, name)
+        if (crossed) maybeLaunch(roomId, name)
     }
 }
 
@@ -410,7 +407,7 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
                 Text("🪐", fontSize = 22.sp)
             }
             Text(
-                "Naikkan level roket dengan mengirim gift",
+                "Roket milik room ini. Setiap gift dari siapa pun menaikkannya.",
                 color = Color(0xFF9FB6D9),
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center,
