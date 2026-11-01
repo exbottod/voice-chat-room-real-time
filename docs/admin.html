@@ -256,203 +256,6 @@ label{font-size:12px;color:var(--mut)}
 <div id="msg" class="hide"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js">
-// ============ Topup manual DANA ============
-async function adminCall(p) {
-  try {
-    return await walletAdmin(p);
-  } catch (e) {
-    return { ok: 0, e: e.message || "gagal" };
-  }
-}
-
-async function payLoad() {
-  const msg = document.getElementById("payMsg");
-  try {
-    const r = await adminCall({ op: "pay_get" });
-    if (r.ok) {
-      document.getElementById("payDana").value = (r.pay && r.pay.dana) || "";
-      document.getElementById("payName").value = (r.pay && r.pay.name) || "";
-      document.getElementById("payGopay").value = (r.pay && r.pay.gopay) || "";
-      const q = document.getElementById("payQrisImg");
-      if (r.pay && r.pay.qris) { q.src = r.pay.qris; q.style.display = "block"; } else { q.style.display = "none"; }
-      msg.style.color = "#BDBDBD";
-      const bagian = [];
-      if (r.pay && r.pay.dana) bagian.push("DANA " + r.pay.dana);
-      if (r.pay && r.pay.gopay) bagian.push("GoPay " + r.pay.gopay);
-      if (r.pay && r.pay.qris) bagian.push("QRIS ada");
-      msg.textContent = bagian.length ? "Tersimpan: " + bagian.join(" · ") : "Belum diatur.";
-    } else {
-      paySay("Gagal memuat: " + (r.e || ""), false);
-    }
-  } catch (e) { msg.textContent = "Gagal memuat: " + e.message; }
-}
-
-document.getElementById("payTest").onclick = async () => {
-  paySay("Menguji server…", true);
-  try {
-    const r = await adminCall({ op: "pay_get" });
-    if (r.ok) paySay("Server siap. Pengaturan sekarang: " + JSON.stringify(r.pay || {}), true);
-    else paySay("Server menolak: " + (r.e || "tanpa pesan"), false);
-  } catch (e) {
-    paySay("Gagal menghubungi server: " + (e.message || e), false);
-  }
-};
-
-document.getElementById("payQrisUpload").onclick = async () => {
-  const f = document.getElementById("payQrisFile").files[0];
-  const msg = document.getElementById("payQrisMsg");
-  if (!f) { msg.textContent = "Pilih gambar QRIS dulu"; return; }
-  msg.textContent = "Mengunggah…";
-  try {
-    const url = await cldUpload(f, "qris_" + Date.now().toString(36));
-    const img = document.getElementById("payQrisImg");
-    img.src = url;
-    img.dataset.url = url;
-    img.style.display = "block";
-    msg.textContent = "Gambar terunggah. Tekan Simpan.";
-  } catch (e) {
-    msg.textContent = "Gagal unggah: " + (e.message || e);
-  }
-};
-
-const payMsgBox = document.getElementById("payMsg");
-const payTop = document.getElementById("payStatusTop");
-function paySay(text, ok) {
-  for (const box of [payMsgBox, payTop]) {
-    if (!box) continue;
-    box.textContent = text;
-    box.style.color = ok ? "#4ADE80" : "#FF8A8A";
-    box.style.fontWeight = "800";
-  }
-  payTop.style.display = "block";
-  payTop.style.background = ok ? "rgba(74,222,128,.12)" : "rgba(255,138,138,.12)";
-  payTop.style.border = "1px solid " + (ok ? "#4ADE80" : "#FF8A8A");
-  try { payTop.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
-  if (ok) toast("Tersimpan ✓");
-  else alert(text);
-}
-
-document.getElementById("paySave").onclick = async () => {
-  const btn = document.getElementById("paySave");
-  const dana = document.getElementById("payDana").value.trim();
-  const name = document.getElementById("payName").value.trim();
-  const gopay = document.getElementById("payGopay").value.trim();
-  let qris = document.getElementById("payQrisImg").dataset.url || "";
-  const f = document.getElementById("payQrisFile").files[0];
-
-  if (!dana && !gopay && !qris && !f) return paySay("Isi minimal satu metode pembayaran", false);
-  if (dana && dana.length < 8) return paySay("Nomor DANA terlalu pendek", false);
-  if (gopay && gopay.length < 8) return paySay("Nomor GoPay terlalu pendek", false);
-
-  btn.disabled = true;
-  const labelAsli = btn.textContent;
-  payMsgBox.style.color = "#BDBDBD";
-  payMsgBox.textContent = "Menyimpan…";
-  try {
-    // gambar QRIS dipilih tapi belum diunggah -> unggah sekarang
-    if (!qris && f) {
-      payMsgBox.textContent = "Mengunggah gambar QRIS…";
-      qris = await cldUpload(f, "qris_" + Date.now().toString(36));
-      const img = document.getElementById("payQrisImg");
-      img.src = qris; img.dataset.url = qris; img.style.display = "block";
-    }
-    const r = await adminCall({ op: "pay_set", dana: dana, name: name, gopay: gopay, qris: qris });
-    if (r.ok) {
-      paySay("✓ Tersimpan. Nomor ini langsung dipakai aplikasi.", true);
-      const lbl = btn.textContent;
-      btn.textContent = "✓ TERSIMPAN";
-      btn.style.background = "#4ADE80";
-      setTimeout(() => { btn.textContent = lbl; btn.style.background = ""; }, 2500);
-    } else {
-      const e = String(r.e || "");
-      if (e.includes("Could not find") || e.includes("Gagal menyimpan")) {
-        paySay("Gagal menyimpan. Jalankan supabase/topup-manual.sql di Supabase dulu, lalu coba lagi.", false);
-      } else {
-        paySay("Gagal: " + e, false);
-      }
-    }
-  } catch (e) {
-    paySay("Gagal: " + (e.message || e), false);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = labelAsli;
-  }
-};
-
-async function manualLoad(all) {
-  const box = document.getElementById("manualList");
-  const msg = document.getElementById("manualMsg");
-  box.innerHTML = "Memuat…";
-  try {
-    const r = await adminCall({ op: all ? "manual_all" : "manual_pending" });
-    if (!r.ok) {
-      const e = String(r.e || "");
-      box.textContent = (e.includes("Could not find") || e.includes("does not exist"))
-        ? "Tabel pengajuan belum ada. Jalankan supabase/topup-manual.sql di Supabase dulu."
-        : "Gagal: " + e;
-      return;
-    }
-    const list = r.list || [];
-    if (!list.length) { box.innerHTML = '<div class="muted">Tidak ada pengajuan.</div>'; return; }
-    box.innerHTML = "";
-    const nameCache = {};
-    async function namaUser(uid) {
-      if (uid in nameCache) return nameCache[uid];
-      let n = "";
-      try {
-        const snap = await rtdb.ref("pub/" + uid).get();
-        const v = snap.val() || {};
-        n = String(v.name || v.nickname || "");
-      } catch (e) { /* tanpa nama */ }
-      nameCache[uid] = n;
-      return n;
-    }
-    for (const m of list) {
-      const row = document.createElement("div");
-      row.className = "card";
-      row.style.marginBottom = "8px";
-      const when = new Date(Number(m.created_at)).toLocaleString("id-ID");
-      const nm = m.name || (await namaUser(m.uid)) || m.uid;
-      row.innerHTML =
-        '<div style="font-weight:700">' + Number(m.coins).toLocaleString("id-ID") + " coin · Rp " +
-        Number(m.amount).toLocaleString("id-ID") + "</div>" +
-        '<div class="muted">Pengirim: ' + (m.payer || "-") + " · User: " + nm + "</div>" +
-        '<div class="muted">Status: ' + m.status + " · " + (m.method || "dana") + " · " + when + "</div>";
-      if (m.status === "pending") {
-        const okBtn = document.createElement("button");
-        okBtn.className = "btn";
-        okBtn.style.marginTop = "8px";
-        okBtn.textContent = "Setujui";
-        okBtn.onclick = async () => {
-          okBtn.disabled = true;
-          msg.textContent = "Memproses…";
-          const rr = await adminCall({ op: "manual_decide", id: m.id, ok: true });
-          msg.textContent = rr.ok ? "Disetujui, coin sudah masuk." : "Gagal: " + (rr.e || "");
-          manualLoad(all);
-        };
-        const noBtn = document.createElement("button");
-        noBtn.className = "btn bad";
-        noBtn.style.marginLeft = "8px";
-        noBtn.style.marginTop = "8px";
-        noBtn.textContent = "Tolak";
-        noBtn.onclick = async () => {
-          noBtn.disabled = true;
-          const rr = await adminCall({ op: "manual_decide", id: m.id, ok: false });
-          msg.textContent = rr.ok ? "Ditolak." : "Gagal: " + (rr.e || "");
-          manualLoad(all);
-        };
-        row.appendChild(okBtn);
-        row.appendChild(noBtn);
-      }
-      box.appendChild(row);
-    }
-  } catch (e) { box.textContent = "Gagal: " + e.message; }
-}
-
-document.getElementById("manualReload").onclick = () => manualLoad(false);
-
-document.getElementById("manualAll").onclick = () => manualLoad(true);
-
 </script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -1613,4 +1416,203 @@ function bgStart(){
 }
 </script>
 <script src="rooms.js"></script>
+<script>
+// ============ Topup manual DANA ============
+async function adminCall(p) {
+  try {
+    return await walletAdmin(p);
+  } catch (e) {
+    return { ok: 0, e: e.message || "gagal" };
+  }
+}
+
+async function payLoad() {
+  const msg = document.getElementById("payMsg");
+  try {
+    const r = await adminCall({ op: "pay_get" });
+    if (r.ok) {
+      document.getElementById("payDana").value = (r.pay && r.pay.dana) || "";
+      document.getElementById("payName").value = (r.pay && r.pay.name) || "";
+      document.getElementById("payGopay").value = (r.pay && r.pay.gopay) || "";
+      const q = document.getElementById("payQrisImg");
+      if (r.pay && r.pay.qris) { q.src = r.pay.qris; q.style.display = "block"; } else { q.style.display = "none"; }
+      msg.style.color = "#BDBDBD";
+      const bagian = [];
+      if (r.pay && r.pay.dana) bagian.push("DANA " + r.pay.dana);
+      if (r.pay && r.pay.gopay) bagian.push("GoPay " + r.pay.gopay);
+      if (r.pay && r.pay.qris) bagian.push("QRIS ada");
+      msg.textContent = bagian.length ? "Tersimpan: " + bagian.join(" · ") : "Belum diatur.";
+    } else {
+      paySay("Gagal memuat: " + (r.e || ""), false);
+    }
+  } catch (e) { msg.textContent = "Gagal memuat: " + e.message; }
+}
+
+document.getElementById("payTest").onclick = async () => {
+  paySay("Menguji server…", true);
+  try {
+    const r = await adminCall({ op: "pay_get" });
+    if (r.ok) paySay("Server siap. Pengaturan sekarang: " + JSON.stringify(r.pay || {}), true);
+    else paySay("Server menolak: " + (r.e || "tanpa pesan"), false);
+  } catch (e) {
+    paySay("Gagal menghubungi server: " + (e.message || e), false);
+  }
+};
+
+document.getElementById("payQrisUpload").onclick = async () => {
+  const f = document.getElementById("payQrisFile").files[0];
+  const msg = document.getElementById("payQrisMsg");
+  if (!f) { msg.textContent = "Pilih gambar QRIS dulu"; return; }
+  msg.textContent = "Mengunggah…";
+  try {
+    const url = await cldUpload(f, "qris_" + Date.now().toString(36));
+    const img = document.getElementById("payQrisImg");
+    img.src = url;
+    img.dataset.url = url;
+    img.style.display = "block";
+    msg.textContent = "Gambar terunggah. Tekan Simpan.";
+  } catch (e) {
+    msg.textContent = "Gagal unggah: " + (e.message || e);
+  }
+};
+
+const payMsgBox = document.getElementById("payMsg");
+const payTop = document.getElementById("payStatusTop");
+function paySay(text, ok) {
+  for (const box of [payMsgBox, payTop]) {
+    if (!box) continue;
+    box.textContent = text;
+    box.style.color = ok ? "#4ADE80" : "#FF8A8A";
+    box.style.fontWeight = "800";
+  }
+  payTop.style.display = "block";
+  payTop.style.background = ok ? "rgba(74,222,128,.12)" : "rgba(255,138,138,.12)";
+  payTop.style.border = "1px solid " + (ok ? "#4ADE80" : "#FF8A8A");
+  try { payTop.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+  if (ok) toast("Tersimpan ✓");
+  else alert(text);
+}
+
+document.getElementById("paySave").onclick = async () => {
+  const btn = document.getElementById("paySave");
+  const dana = document.getElementById("payDana").value.trim();
+  const name = document.getElementById("payName").value.trim();
+  const gopay = document.getElementById("payGopay").value.trim();
+  let qris = document.getElementById("payQrisImg").dataset.url || "";
+  const f = document.getElementById("payQrisFile").files[0];
+
+  if (!dana && !gopay && !qris && !f) return paySay("Isi minimal satu metode pembayaran", false);
+  if (dana && dana.length < 8) return paySay("Nomor DANA terlalu pendek", false);
+  if (gopay && gopay.length < 8) return paySay("Nomor GoPay terlalu pendek", false);
+
+  btn.disabled = true;
+  const labelAsli = btn.textContent;
+  payMsgBox.style.color = "#BDBDBD";
+  payMsgBox.textContent = "Menyimpan…";
+  try {
+    // gambar QRIS dipilih tapi belum diunggah -> unggah sekarang
+    if (!qris && f) {
+      payMsgBox.textContent = "Mengunggah gambar QRIS…";
+      qris = await cldUpload(f, "qris_" + Date.now().toString(36));
+      const img = document.getElementById("payQrisImg");
+      img.src = qris; img.dataset.url = qris; img.style.display = "block";
+    }
+    const r = await adminCall({ op: "pay_set", dana: dana, name: name, gopay: gopay, qris: qris });
+    if (r.ok) {
+      paySay("✓ Tersimpan. Nomor ini langsung dipakai aplikasi.", true);
+      const lbl = btn.textContent;
+      btn.textContent = "✓ TERSIMPAN";
+      btn.style.background = "#4ADE80";
+      setTimeout(() => { btn.textContent = lbl; btn.style.background = ""; }, 2500);
+    } else {
+      const e = String(r.e || "");
+      if (e.includes("Could not find") || e.includes("Gagal menyimpan")) {
+        paySay("Gagal menyimpan. Jalankan supabase/topup-manual.sql di Supabase dulu, lalu coba lagi.", false);
+      } else {
+        paySay("Gagal: " + e, false);
+      }
+    }
+  } catch (e) {
+    paySay("Gagal: " + (e.message || e), false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = labelAsli;
+  }
+};
+
+async function manualLoad(all) {
+  const box = document.getElementById("manualList");
+  const msg = document.getElementById("manualMsg");
+  box.innerHTML = "Memuat…";
+  try {
+    const r = await adminCall({ op: all ? "manual_all" : "manual_pending" });
+    if (!r.ok) {
+      const e = String(r.e || "");
+      box.textContent = (e.includes("Could not find") || e.includes("does not exist"))
+        ? "Tabel pengajuan belum ada. Jalankan supabase/topup-manual.sql di Supabase dulu."
+        : "Gagal: " + e;
+      return;
+    }
+    const list = r.list || [];
+    if (!list.length) { box.innerHTML = '<div class="muted">Tidak ada pengajuan.</div>'; return; }
+    box.innerHTML = "";
+    const nameCache = {};
+    async function namaUser(uid) {
+      if (uid in nameCache) return nameCache[uid];
+      let n = "";
+      try {
+        const snap = await rtdb.ref("pub/" + uid).get();
+        const v = snap.val() || {};
+        n = String(v.name || v.nickname || "");
+      } catch (e) { /* tanpa nama */ }
+      nameCache[uid] = n;
+      return n;
+    }
+    for (const m of list) {
+      const row = document.createElement("div");
+      row.className = "card";
+      row.style.marginBottom = "8px";
+      const when = new Date(Number(m.created_at)).toLocaleString("id-ID");
+      const nm = m.name || (await namaUser(m.uid)) || m.uid;
+      row.innerHTML =
+        '<div style="font-weight:700">' + Number(m.coins).toLocaleString("id-ID") + " coin · Rp " +
+        Number(m.amount).toLocaleString("id-ID") + "</div>" +
+        '<div class="muted">Pengirim: ' + (m.payer || "-") + " · User: " + nm + "</div>" +
+        '<div class="muted">Status: ' + m.status + " · " + (m.method || "dana") + " · " + when + "</div>";
+      if (m.status === "pending") {
+        const okBtn = document.createElement("button");
+        okBtn.className = "btn";
+        okBtn.style.marginTop = "8px";
+        okBtn.textContent = "Setujui";
+        okBtn.onclick = async () => {
+          okBtn.disabled = true;
+          msg.textContent = "Memproses…";
+          const rr = await adminCall({ op: "manual_decide", id: m.id, ok: true });
+          msg.textContent = rr.ok ? "Disetujui, coin sudah masuk." : "Gagal: " + (rr.e || "");
+          manualLoad(all);
+        };
+        const noBtn = document.createElement("button");
+        noBtn.className = "btn bad";
+        noBtn.style.marginLeft = "8px";
+        noBtn.style.marginTop = "8px";
+        noBtn.textContent = "Tolak";
+        noBtn.onclick = async () => {
+          noBtn.disabled = true;
+          const rr = await adminCall({ op: "manual_decide", id: m.id, ok: false });
+          msg.textContent = rr.ok ? "Ditolak." : "Gagal: " + (rr.e || "");
+          manualLoad(all);
+        };
+        row.appendChild(okBtn);
+        row.appendChild(noBtn);
+      }
+      box.appendChild(row);
+    }
+  } catch (e) { box.textContent = "Gagal: " + e.message; }
+}
+
+document.getElementById("manualReload").onclick = () => manualLoad(false);
+
+document.getElementById("manualAll").onclick = () => manualLoad(true);
+
+</script>
 </body></html>
