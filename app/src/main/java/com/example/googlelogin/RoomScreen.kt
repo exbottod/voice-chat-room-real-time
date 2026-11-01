@@ -580,6 +580,7 @@ fun RoomScreen(
 
                 // Panel melayang sisi kanan: ikon roket + persen menuju level berikutnya.
                 RocketRail(
+                    roomId = r.id,
                     onOpen = { rocketOpen = true },
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
@@ -826,7 +827,7 @@ fun RoomScreen(
                 myAvatarB64 = myAvatarB64,
             )
         }
-        if (rocketOpen) RocketScreen { rocketOpen = false }
+        if (rocketOpen) RocketScreen(r.id) { rocketOpen = false }
         GiftBanner(r.id)
         if (fxEntryOn) VipEntryEffect(r.id)
         if (fxGiftOn) GiftFxOverlay(r.id)

@@ -102,53 +102,44 @@ object RocketRepo {
 
     fun uid(): String = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
-    /** Dengarkan EXP sekali saja; panel yang dibuka belakangan langsung dapat nilai terakhir. */
-    fun start() {
-        if (live) return
+    /** Room yang sedang dihitung roketnya (EXP disimpan terpisah per room). */
+    private var liveRoom = ""
+
+    private val regs = mutableListOf<Reg>()
+
+    /** Pindah konteks ke room lain: EXP dan peringkat dimuat ulang untuk room itu. */
+    fun room(roomId: String) {
+        if (roomId.isBlank() || roomId == liveRoom) return
+        liveRoom = roomId
+        exp = 0L
+        rankRows = emptyList()
+        for (r in regs) {
+            try {
+                r.remove()
+            } catch (e: Exception) {
+            }
+        }
+        regs.clear()
         val u = uid()
         if (u.isBlank()) return
-        live = true
         try {
-            Rtdb.listen(Rtdb.ref("rocket/$u")) { s ->
+            regs += Rtdb.listen(Rtdb.ref("rocket/$roomId/$u")) { s ->
                 val v = s.child("exp").getValue(Long::class.java) ?: 0L
                 if (v > exp) exp = v
             }
         } catch (e: Exception) {
-            live = false
         }
-        listenRank()
         // Cadangan: kalau aturan database belum mengizinkan node "rocket",
-        // EXP tetap tersimpan di node pub milik sendiri.
+        // EXP room ini tetap tersimpan di node pub milik sendiri.
         try {
-            Rtdb.listen(Rtdb.ref("pub/$u/rocketExp")) { s ->
+            regs += Rtdb.listen(Rtdb.ref("pub/$u/rocketExp/$roomId")) { s ->
                 val v = s.getValue(Long::class.java) ?: 0L
                 if (v > exp) exp = v
             }
         } catch (e: Exception) {
         }
-    }
-
-    /** Peringkat roket musim ini (dari koin gift yang dikirim). */
-    var rankRows by mutableStateOf<List<RocketRankRow>>(emptyList())
-        private set
-
-    /** Kunci musim: tahun + nomor pekan, supaya peringkat bisa direset mingguan. */
-    fun season(): String {
-        val c = java.util.Calendar.getInstance()
-        val wk = c.get(java.util.Calendar.WEEK_OF_YEAR)
-        return "${c.get(java.util.Calendar.YEAR)}-W" + (if (wk < 10) "0$wk" else "$wk")
-    }
-
-    /** Peringkat saya musim ini (1 = teratas). */
-    fun myRank(): Int {
-        val u = uid()
-        val i = rankRows.indexOfFirst { it.uid == u }
-        return if (i < 0) rankRows.size + 1 else i + 1
-    }
-
-    private fun listenRank() {
         try {
-            Rtdb.listen(Rtdb.ref("rocketRank/${season()}")) { s ->
+            regs += Rtdb.listen(Rtdb.ref("rocketRank/$roomId/${season()}")) { s ->
                 rankRows = s.children.mapNotNull { c ->
                     val id = c.key ?: return@mapNotNull null
                     RocketRankRow(
@@ -162,49 +153,15 @@ object RocketRepo {
         }
     }
 
-    private var launching = false
-
-    /**
-     * Roket level 5 pecah lalu meluncur: tulis kejadian ke room supaya semua
-     * orang melihat animasi yang sama. Dibatasi sekali per 6 jam.
-     */
-    suspend fun maybeLaunch(roomId: String, name: String) {
-        val u = uid()
-        if (u.isBlank() || roomId.isBlank() || launching) return
-        launching = true
-        try {
-            val mark = try {
-                Rtdb.ref("rocketLaunchMark/$u").get().await().getValue(Long::class.java) ?: 0L
-            } catch (e: Exception) {
-                0L
-            }
-            val now = System.currentTimeMillis()
-            if (now - mark < 6L * 3600_000L) return
-            Rtdb.ref("rocketFx/$roomId").push().setValue(
-                hashMapOf<String, Any?>(
-                    "uid" to u,
-                    "name" to name,
-                    "url" to RocketCfg.flyUrl,
-                    "ts" to now,
-                ),
-            ).await()
-            Rtdb.ref("rocketLaunchMark/$u").setValue(now).await()
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-        } finally {
-            launching = false
-        }
-    }
-
     /** Tambah EXP roket dari koin yang dipakai untuk gift. */
     suspend fun addExp(roomId: String, name: String, coins: Long) {
         val u = uid()
-        if (u.isBlank() || coins <= 0L) return
+        if (u.isBlank() || coins <= 0L || roomId.isBlank()) return
+        if (roomId != liveRoom) room(roomId)
         exp += coins
         val total = exp
         val saved = try {
-            Rtdb.ref("rocket/$u/exp").setValue(total).await()
+            Rtdb.ref("rocket/$roomId/$u/exp").setValue(total).await()
             true
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
@@ -213,7 +170,7 @@ object RocketRepo {
         }
         if (!saved) {
             try {
-                Rtdb.ref("pub/$u/rocketExp").setValue(total).await()
+                Rtdb.ref("pub/$u/rocketExp/$roomId").setValue(total).await()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -221,7 +178,7 @@ object RocketRepo {
         }
         // Peringkat musim ini: siapa paling banyak kirim gift.
         try {
-            Rtdb.ref("rocketRank/${season()}/$u").setValue(
+            Rtdb.ref("rocketRank/$roomId/${season()}/$u").setValue(
                 hashMapOf<String, Any?>(
                     "name" to name,
                     "coins" to ServerValue.increment(coins),
@@ -283,9 +240,9 @@ private fun RocketAsset(value: String, size: androidx.compose.ui.unit.Dp, glow: 
  * panel Rocket, dengan bar persen menuju level berikutnya di bawahnya.
  */
 @Composable
-fun RocketRail(onOpen: () -> Unit, modifier: Modifier = Modifier) {
+fun RocketRail(roomId: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
     RocketCfg.start()
-    LaunchedEffect(Unit) { RocketRepo.start() }
+    LaunchedEffect(roomId) { RocketRepo.room(roomId) }
     val total = RocketRepo.exp
     val exp = RocketCfg.exp
     val lv = RocketCfg.levelOf(total)
@@ -334,9 +291,9 @@ fun RocketRail(onOpen: () -> Unit, modifier: Modifier = Modifier) {
  * Dibuka dari ikon roket di room.
  */
 @Composable
-fun RocketScreen(onDismiss: () -> Unit) {
+fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
     RocketCfg.start()
-    LaunchedEffect(Unit) { RocketRepo.start() }
+    LaunchedEffect(roomId) { RocketRepo.room(roomId) }
     val total = RocketRepo.exp
     // Tombol back menutup panel roket saja, tidak keluar dari room.
     BackHandler { onDismiss() }
@@ -704,7 +661,6 @@ fun RocketPrizeDialog(
  */
 @Composable
 fun RocketRankCard(myUid: String, onClaim: (Int) -> Unit) {
-    LaunchedEffect(Unit) { RocketRepo.start() }
     val rows = RocketRepo.rankRows
     val myRank = RocketRepo.myRank()
     Column(

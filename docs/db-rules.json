@@ -242,9 +242,11 @@
     },
     "rocket": {
       ".read": "auth != null",
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+      "$roomId": {
+        "$uid": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid === $uid"
+        }
       }
     },
     "rocketFx": {
@@ -255,16 +257,20 @@
     },
     "rocketRank": {
       ".read": "auth != null",
-      "$season": {
-        "$uid": {
-          ".write": "auth != null && auth.uid === $uid"
+      "$roomId": {
+        "$season": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
         }
       }
     },
     "rocketLaunchMark": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+      "$roomId": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
+        }
       }
     }
   }
