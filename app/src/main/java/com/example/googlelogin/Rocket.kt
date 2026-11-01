@@ -435,7 +435,7 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight(0.72f)
+                .fillMaxHeight(0.80f)
                 .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
                 .background(Brush.verticalGradient(listOf(Color(0xFF0A2A66), Color(0xFF061B45), Color(0xFF04122E))))
                 .border(1.5.dp, gold.copy(alpha = 0.8f), RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
@@ -451,14 +451,14 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
         ) {
             Spacer(Modifier.height(10.dp))
 
-            // Baris atas: tanda tanya (aturan) di kiri, piala + kado di kanan.
+            // Baris atas: tanda tanya di kiri, piala + kado di kanan.
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 RocketRoundBtn("?") { showRules = true }
                 Spacer(Modifier.weight(1f))
                 Text(
                     "Rocket",
-                    color = Color(0xFFFFE08A),
-                    fontSize = 34.sp,
+                    color = Color(0xFFFFD86B),
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                 )
                 Spacer(Modifier.weight(1f))
@@ -467,101 +467,98 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
                 RocketRoundBtn("\uD83C\uDF81") { showPrizes = true }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // Deretan 5 roket evolusi dengan panah di antaranya.
+            // Deretan 5 roket evolusi, dipisah tanda ">".
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 for (i in 1..5) {
+                    if (i > 1) Text(">", color = Color(0xFFE8C489), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     val active = i == lv
                     val unlocked = i <= lv
                     Box(
-                        Modifier.clickable(
-                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                            indication = null,
-                        ) { viewLv = i },
+                        Modifier
+                            .weight(1f)
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null,
+                            ) { viewLv = i },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Box(Modifier.alpha(if (unlocked) 1f else 0.55f)) {
+                        Box(Modifier.alpha(if (unlocked) 1f else 0.6f)) {
                             RocketAsset(
                                 RocketCfg.img.getOrElse(i - 1) { "\uD83D\uDE80" },
-                                if (active) 58.dp else 44.dp,
+                                if (active) 54.dp else 42.dp,
                                 active,
                             )
                         }
                     }
-                    if (i < 5) Text("\u00BB", color = Color(0xFFFFD54F), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
-            // Bar energi: roket kecil di ujung kiri, Lv.sekarang kiri bawah, Lv.berikutnya kanan bawah.
-            Box(
-                Modifier.fillMaxWidth().height(16.dp).clip(RoundedCornerShape(50))
-                    .background(Color(0xFF0B1B3E))
-                    .border(1.5.dp, gold, RoundedCornerShape(50)),
-            ) {
+            // Garis kemajuan tipis dengan roket kecil di ujung kiri, lv. sekarang dan berikutnya di bawahnya.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("\uD83D\uDE80", fontSize = 16.sp)
+                Spacer(Modifier.width(4.dp))
                 Box(
-                    Modifier.fillMaxHeight().fillMaxWidth(frac.coerceAtLeast(0.03f))
-                        .clip(RoundedCornerShape(50))
-                        .background(Brush.horizontalGradient(listOf(Color(0xFFFF8A00), Color(0xFFFFD54F)))),
-                )
+                    Modifier.weight(1f).height(7.dp).clip(RoundedCornerShape(50))
+                        .background(Color(0xFF102A5E)),
+                ) {
+                    Box(
+                        Modifier.fillMaxHeight().fillMaxWidth(frac.coerceAtLeast(0.03f))
+                            .clip(RoundedCornerShape(50))
+                            .background(Brush.horizontalGradient(listOf(Color(0xFFFFC107), Color(0xFFFFE082)))),
+                    )
+                }
             }
-            Spacer(Modifier.height(2.dp))
-            Row(Modifier.fillMaxWidth()) {
+            Spacer(Modifier.height(3.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("lv.$lv", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 Text(
-                    if (nextExp == null) "MAX" else "${ringkas(total)} / ${ringkas(nextExp)}",
-                    color = Color(0xFF9FB6D9), fontSize = 11.sp,
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    if (nextExp == null) "lv.$lv" else "lv.${lv + 1}",
+                    if (nextExp == null) "MAX" else "lv.${lv + 1}",
                     color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold,
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // Kotak hadiah: 6 kolom (3 x 2) untuk roket yang dilihat.
-            Column(
+            // Kotak hadiah: 6 kotak persegi bergaris emas tipis.
+            Box(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF0A1F4D))
-                    .border(1.5.dp, gold.copy(alpha = 0.85f), RoundedCornerShape(10.dp))
-                    .padding(10.dp),
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(1.dp, Color(0xFFE8C489), RoundedCornerShape(6.dp))
+                    .padding(8.dp),
             ) {
-                Text(
-                    "Hadiah roket Lv.$shownLv",
-                    color = Color(0xFFFFE08A), fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(8.dp))
-                val list = RocketCfg.lvRewards.getOrNull(shownLv - 1).orEmpty()
-                for (r in 0 until 2) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        for (c in 0 until 3) {
-                            val idx = r * 3 + c
-                            val v = list.getOrNull(idx).orEmpty().ifBlank { RocketCfg.rewards.getOrElse(idx) { "\uD83C\uDF81" } }
-                            Box(
-                                Modifier
-                                    .weight(1f)
-                                    .height(86.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF0E2A63))
-                                    .border(1.dp, Color(0xFF3F67B5), RoundedCornerShape(8.dp)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                RocketAsset(v, 62.dp, false)
+                Column {
+                    val list = RocketCfg.lvRewards.getOrNull(shownLv - 1).orEmpty()
+                    for (r in 0 until 2) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            for (c in 0 until 3) {
+                                val idx = r * 3 + c
+                                val v = list.getOrNull(idx).orEmpty()
+                                    .ifBlank { RocketCfg.rewards.getOrElse(idx) { "\uD83C\uDF81" } }
+                                Box(
+                                    Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFF0A2455))
+                                        .border(1.dp, Color(0x99E8C489), RoundedCornerShape(4.dp)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    RocketAsset(v, 66.dp, false)
+                                }
                             }
                         }
+                        if (r == 0) Spacer(Modifier.height(8.dp))
                     }
-                    if (r == 0) Spacer(Modifier.height(8.dp))
                 }
             }
             Spacer(Modifier.height(20.dp))
