@@ -247,6 +247,57 @@ async function waveSubmitFlow(req: Request): Promise<Response> {
 
 
 // ---------- Aksi admin (hanya token milik developer) ----------
+/**
+ * Tambah diamond + EXP ke dompet penerima gift (bukan pengirim).
+ * Cara utama memakai fungsi SQL atomik w_gift_credit; kalau fungsi itu belum
+ * dipasang di database, dipakai cara cadangan (baca lalu tulis) supaya gift
+ * tetap masuk walaupun SQL belum dijalankan.
+ */
+async function giftCredit(targets: string[], each: number, itemId: string, roomId: string): Promise<number> {
+  let ok = 0;
+  for (const t of targets) {
+    const to = String(t || "").trim();
+    if (!to || each <= 0) continue;
+    let done = false;
+    try {
+      const r = await rpc("w_gift_credit", { p_to: to, p_amount: each });
+      if (r.ok) done = true;
+      else await r.text().catch(() => "");
+    } catch { /* pakai cara cadangan */ }
+    if (!done) {
+      try {
+        const cur = await sbRest(`wallets?uid=eq.${encodeURIComponent(to)}&select=diamonds,exp`);
+        const rows = cur.ok ? await cur.json().catch(() => null) : null;
+        if (Array.isArray(rows) && rows.length) {
+          const patch = await sbRest(`wallets?uid=eq.${encodeURIComponent(to)}`, {
+            method: "PATCH",
+            headers: { Prefer: "return=minimal" },
+            body: JSON.stringify({
+              diamonds: Number(rows[0].diamonds ?? 0) + each,
+              exp: Number(rows[0].exp ?? 0) + each,
+              updated_at: new Date().toISOString(),
+            }),
+          });
+          done = patch.ok;
+        }
+      } catch { /* abaikan, lanjut penerima berikutnya */ }
+    }
+    if (done) {
+      ok++;
+      try {
+        await sbRest("money_tx", {
+          method: "POST",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify([{ uid: to, kind: "gift_recv", item_id: itemId, amount: each, room_id: roomId }]),
+        });
+      } catch { /* catatan audit opsional */ }
+    }
+  }
+  return ok;
+}
+
+async function sbRest(
+
 async function sbRest(path: string, init: RequestInit = {}): Promise<Response> {
   const sr = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   return await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/${path}`, {
@@ -897,6 +948,9 @@ Deno.serve(async (req) => {
 
   const p = { ...(body.p ?? {}) };
   if ("uid" in p) delete p.uid; // uid selalu dari token, tidak bisa dipalsukan
+  // Daftar penerima gift + nilai per penerima (diamond yang harus masuk ke mereka).
+  const giftTo: string[] = Array.isArray(p.to) ? (p.to as unknown[]).map((x) => String(x)) : [];
+  const giftEach = Number(p.each ?? 0);
 
   // Topup lewat payment gateway (tidak memakai RPC SQL langsung).
   if (action === "topup_create") return await topupCreate(uid, p);
@@ -955,6 +1009,10 @@ Deno.serve(async (req) => {
       return json({ ok: 0, e: msg, code }, r.status === 400 ? 200 : r.status);
     }
     const data = text ? JSON.parse(text) : null;
+    if (action === "send_gift" && giftTo.length > 0 && giftEach > 0) {
+      const credited = await giftCredit(giftTo, giftEach, String(p.item_id ?? ""), String(p.room_id ?? ""));
+      return json({ ok: 1, w: data, credited });
+    }
     return json({ ok: 1, w: data });
   } catch {
     return json({ ok: 0, e: "Tidak bisa menghubungi database, coba lagi" }, 200);

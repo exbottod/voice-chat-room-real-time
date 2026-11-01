@@ -217,10 +217,24 @@ object SupaRepo {
 
     suspend fun topUp(uid: String, coins: Long) = call("topup", uidJson(uid).put("coins", coins))
 
-    suspend fun sendGift(uid: String, price: Long, itemId: String? = null, roomId: String? = null): Res {
+    suspend fun sendGift(
+        uid: String,
+        price: Long,
+        itemId: String? = null,
+        roomId: String? = null,
+        to: List<String> = emptyList(),
+        each: Long = 0L,
+    ): Res {
         val p = uidJson(uid).put("price", price)
         if (itemId != null) p.put("item_id", itemId)
         if (roomId != null) p.put("room_id", roomId)
+        // Penerima gift: server menambah diamond mereka sebesar nilai gift.
+        if (to.isNotEmpty()) {
+            val arr = org.json.JSONArray()
+            to.forEach { if (it.isNotBlank()) arr.put(it) }
+            p.put("to", arr)
+        }
+        if (each > 0) p.put("each", each)
         return call("send_gift", p)
     }
 

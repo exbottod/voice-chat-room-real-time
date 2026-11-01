@@ -1331,7 +1331,14 @@ fun GiftPanel(
                                 AppScope.scope.launch {
                                     var err: String? = null
                                     try {
-                                        err = WalletRepo.sendGift(myUid, total, g.id, roomId)
+                                        err = WalletRepo.sendGift(
+                                            myUid,
+                                            total,
+                                            g.id,
+                                            roomId,
+                                            receivers.map { it.uid },
+                                            perReceiver,
+                                        )
                                     } catch (e: kotlinx.coroutines.CancellationException) {
                                         throw e
                                     } catch (e: Exception) {
