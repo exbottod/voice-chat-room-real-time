@@ -505,9 +505,25 @@ object RoomRepo {
         }
     }
 
+    /**
+     * Kunci / buka kunci room.
+     *
+     * FIX "lock room tidak bisa": hash password dulu hanya ditulis ke Firestore,
+     * padahal app membaca data room dari Realtime Database (roomsPub). Jadi
+     * lockHash tidak pernah sampai dan room selalu dianggap publik.
+     * Sekarang ditulis ke RTDB lebih dulu, Firestore hanya cadangan.
+     */
     suspend fun setLock(roomId: String, password: String?): String? {
+        val h = if (password == null) "" else sha256(password)
         return try {
-            roomRef(roomId).update("lockHash", if (password == null) "" else sha256(password)).await()
+            Rtdb.ref("roomsPub/" + roomId + "/lockHash").setValue(h).await()
+            try {
+                roomRef(roomId).update("lockHash", h).await()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Firestore boleh gagal (aturan/kuota); kunci sudah tersimpan di RTDB.
+            }
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
