@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -159,6 +160,23 @@ fun RoomScreen(
     var seatInvite by remember { mutableStateOf<Int?>(null) }
     var blacklist by remember { mutableStateOf<Set<String>>(emptySet()) }
     var roomMuted by remember { mutableStateOf(false) }
+
+    // Saklar efek (Kotak 4): matikan efek masuk room dan efek gift kalau ramai.
+    // Disimpan per akun di Realtime Database supaya tetap sama saat buka room lain.
+    var fxEntryOn by remember { mutableStateOf(true) }
+    var fxGiftOn by remember { mutableStateOf(true) }
+    val fxUid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
+    DisposableEffect(fxUid) {
+        if (fxUid.isBlank()) {
+            onDispose { }
+        } else {
+            val reg = Rtdb.listen(Rtdb.ref("fxPrefs/$fxUid")) { snap ->
+                fxEntryOn = snap.child("entry").getValue(Boolean::class.java) ?: true
+                fxGiftOn = snap.child("gift").getValue(Boolean::class.java) ?: true
+            }
+            onDispose { reg.remove() }
+        }
+    }
     var typing by remember { mutableStateOf(false) }
     var emoteOpen by remember { mutableStateOf(false) }
     var giftOpen by remember { mutableStateOf(false) }
@@ -744,8 +762,8 @@ fun RoomScreen(
             )
         }
         GiftBanner(r.id)
-        VipEntryEffect(r.id)
-        GiftFxOverlay(r.id)
+        if (fxEntryOn) VipEntryEffect(r.id)
+        if (fxGiftOn) GiftFxOverlay(r.id)
 
         // Tombol power: keluar / minimalkan
         if (showRank) {
@@ -789,6 +807,29 @@ fun RoomScreen(
                             else Icon(Icons.Default.Lock, null, tint = GoldLight)
                         }
                     }
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(tr("Efek di layar"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    RmToolToggle(
+                        "Efek masuk",
+                        on = fxEntryOn,
+                        onClick = {
+                            fxEntryOn = !fxEntryOn
+                            if (fxUid.isNotBlank()) Rtdb.ref("fxPrefs/$fxUid/entry").setValue(fxEntryOn)
+                            toast(if (fxEntryOn) "Efek masuk room aktif" else "Efek masuk room dimatikan")
+                        },
+                    ) { Text("🎬", fontSize = 24.sp) }
+                    RmToolToggle(
+                        "Efek gift",
+                        on = fxGiftOn,
+                        onClick = {
+                            fxGiftOn = !fxGiftOn
+                            if (fxUid.isNotBlank()) Rtdb.ref("fxPrefs/$fxUid/gift").setValue(fxGiftOn)
+                            toast(if (fxGiftOn) "Efek gift aktif" else "Efek gift dimatikan")
+                        },
+                    ) { Text("🎁", fontSize = 24.sp) }
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1092,6 +1133,29 @@ private fun RmTool(label: String, onClick: () -> Unit, icon: @Composable () -> U
         Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFF1C1C1C)), contentAlignment = Alignment.Center) { icon() }
         Spacer(Modifier.height(6.dp))
         Text(label, color = Color(0xFFD0D0D0), fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 2)
+    }
+}
+
+/** Tombol saklar di Kotak 4: jelas menunjukkan ON atau OFF. */
+@Composable
+private fun RmToolToggle(label: String, on: Boolean, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    Column(Modifier.width(80.dp).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(58.dp).clip(CircleShape)
+                .background(if (on) Color(0xFF1C1C1C) else Color(0xFF241414))
+                .border(1.5.dp, if (on) Gold.copy(alpha = 0.8f) else Color(0xFF7A3A3A), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.alpha(if (on) 1f else 0.35f)) { icon() }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(label, color = if (on) Color(0xFFD0D0D0) else Color(0xFF8A8A8A), fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 2)
+        Text(
+            if (on) "ON" else "OFF",
+            color = if (on) Color(0xFF5BD27A) else Color(0xFFE06A6A),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
