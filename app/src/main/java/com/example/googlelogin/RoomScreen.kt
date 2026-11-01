@@ -181,6 +181,7 @@ fun RoomScreen(
     var typing by remember { mutableStateOf(false) }
     var emoteOpen by remember { mutableStateOf(false) }
     var giftOpen by remember { mutableStateOf(false) }
+    var rocketOpen by remember { mutableStateOf(false) }
     var giftTarget by remember { mutableStateOf<String?>(null) }
     var emotes by remember { mutableStateOf<Map<String, SeatEmote>>(emptyMap()) }
     var customEmotes by remember { mutableStateOf<List<RoomEmote>>(emptyList()) }
@@ -611,6 +612,8 @@ fun RoomScreen(
                     RmRoundBtn({ emoteOpen = !emoteOpen }) { Text("😊", fontSize = 20.sp) }
 
                     Spacer(Modifier.weight(1f))
+                    RmRoundBtn({ rocketOpen = true; emoteOpen = false }) { Text("🚀", fontSize = 20.sp) }
+                    Spacer(Modifier.width(10.dp))
                     RmRoundBtn({ giftTarget = null; giftOpen = true; emoteOpen = false }) {
                         Image(painterResource(R.drawable.ic_room_gift), null, Modifier.size(24.dp), contentScale = ContentScale.Fit)
                     }
@@ -816,6 +819,7 @@ fun RoomScreen(
                 myAvatarB64 = myAvatarB64,
             )
         }
+        if (rocketOpen) RocketScreen { rocketOpen = false }
         GiftBanner(r.id)
         if (fxEntryOn) VipEntryEffect(r.id)
         if (fxGiftOn) GiftFxOverlay(r.id)
