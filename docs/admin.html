@@ -417,17 +417,17 @@ $("btnSave").onclick = async () => {
   };
   try {
     // File diunggah ke CLOUDINARY (bukan Supabase), dokumen hanya menyimpan URL.
-    let url = "";
+    // Gambar WAJIB ke Cloudinary. Tidak ada lagi simpan gambar ke database.
+    bstat("Mengunggah gambar ke Cloudinary...");
+    let url;
     try {
-      bstat("Mengunggah gambar ke Cloudinary...");
       url = await cldUpload(imgFile, "banner");
-      payload.imageUrl = url;
     } catch (eCld) {
-      // Cloudinary menolak (umumnya karena login bukan Google): gambar tetap disimpan
-      // sebagai data gambar di Realtime Database supaya banner tidak hilang.
-      bstat("Cloudinary: " + (eCld.message || eCld) + " \u2192 menyimpan gambar langsung ke Realtime Database...");
-      payload.imageB64 = await fileToB64(imgFile);
+      const m = String(eCld.message || eCld);
+      throw new Error("Cloudinary menolak: " + m + (m.toLowerCase().indexOf("hanya admin") >= 0 ? " \u2192 keluar dulu, lalu masuk pakai tombol Google dengan akun developerex100@gmail.com" : ""));
     }
+    if (!url || !/^https?:\/\//i.test(url)) throw new Error("Cloudinary tidak mengembalikan link gambar");
+    payload.imageUrl = url;
     bstat("Gambar siap. Menyimpan data banner...");
     // Data banner disimpan di REALTIME DATABASE (Firestore kuota habis). Gambar di Cloudinary.
     const jalur = "Realtime Database";
