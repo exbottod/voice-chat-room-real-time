@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.*
 import com.google.firebase.auth.FirebaseAuth
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -109,6 +110,22 @@ object RoomExtras {
         e.message ?: "Gagal mengirim"
     }
 
+    /** Kirim pesan berisi gambar (URL hasil upload RoomImages). */
+    suspend fun sendImage(roomId: String, uid: String, name: String, url: String, text: String = ""): String? = try {
+        Rtdb.ref("messages/$roomId").push().setValue(
+            hashMapOf<String, Any?>(
+                "text" to text,
+                "img" to url,
+                "uid" to uid,
+                "name" to name,
+                "createdAt" to System.currentTimeMillis(),
+            ),
+        ).await()
+        null
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+        e.message ?: "Gagal mengirim gambar"
+    }
+
     suspend fun sendGiftMessage(roomId: String, name: String, g: Gift, count: Int, to: String = ""): String? =
         addMessage(roomId, "🎁 $name mengirim ${g.emoji} ${g.name} x$count" + (if (to.isNotBlank()) " ke $to" else ""))
 
@@ -152,7 +169,15 @@ object RoomExtras {
 }
 
 @Composable
-fun RoomTypingBar(text: String, myFam: String = "", onTextChange: (String) -> Unit, onSend: (String) -> Unit, onClose: () -> Unit) {
+fun RoomTypingBar(
+    text: String,
+    myFam: String = "",
+    onTextChange: (String) -> Unit,
+    onSend: (String) -> Unit,
+    onClose: () -> Unit,
+    onPickImage: () -> Unit = {},
+    imgBusy: Boolean = false,
+) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     fun submit() {
@@ -163,6 +188,27 @@ fun RoomTypingBar(text: String, myFam: String = "", onTextChange: (String) -> Un
     }
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (myFam.isNotBlank()) FamTag3D(myFam)
+        Spacer(Modifier.width(6.dp))
+        // Kirim gambar dari galeri, di sebelah kiri kolom ketik.
+        Box(
+            Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0x33FFFFFF))
+                .clickable(enabled = !imgBusy) { onPickImage() },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (imgBusy) {
+                CircularProgressIndicator(Modifier.size(18.dp), color = Gold, strokeWidth = 2.dp)
+            } else {
+                Image(
+                    painterResource(R.drawable.ic_chat_image),
+                    contentDescription = "Kirim gambar",
+                    modifier = Modifier.size(22.dp),
+                    contentScale = ContentScale.Fit,
+                )
+            }
+        }
         Spacer(Modifier.width(6.dp))
         OutlinedTextField(
             value = text,

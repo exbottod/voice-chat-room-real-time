@@ -40,6 +40,7 @@ data class RoomMsg(
     val vipUid: String = "",
     val entry: String = "",
     val banner: String = "",
+    val img: String = "",
 )
 
 fun sha256(s: String): String =
@@ -237,6 +238,7 @@ object RoomRepo {
                         c.child("vipUid").getValue(String::class.java) ?: "",
                         c.child("entry").getValue(String::class.java) ?: "",
                         c.child("banner").getValue(String::class.java) ?: "",
+                        c.child("img").getValue(String::class.java) ?: "",
                     )
                 },
             )

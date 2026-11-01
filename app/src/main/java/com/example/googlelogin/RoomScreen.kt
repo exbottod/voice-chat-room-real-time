@@ -172,6 +172,32 @@ fun RoomScreen(
     var sendTick by remember { mutableStateOf(0) }
     val toast = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
 
+    // ---- kirim gambar dari galeri ----
+    var imgBusy by remember { mutableStateOf(false) }
+    var lihatGambar by remember { mutableStateOf<String?>(null) }
+    val imgPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri == null || imgBusy) return@rememberLauncherForActivityResult
+        imgBusy = true
+        scope.launch {
+            val (url, err) = RoomImages.upload(context, uri)
+            imgBusy = false
+            if (url == null) {
+                toast(err ?: "Gagal mengunggah gambar")
+            } else {
+                val sisa = draft.trim()
+                val e = RoomExtras.sendImage(r.id, myUid, myName, url, sisa)
+                if (e == null) {
+                    draft = ""
+                    sendTick++
+                } else {
+                    toast(e)
+                }
+            }
+        }
+    }
+
     // Hapus semua draft/state sementara (ketikan chat, panel gift, emot, dll)
     fun resetDrafts() {
         draft = ""
@@ -464,7 +490,9 @@ fun RoomScreen(
                     item { RmMsgBox("Pengumuman kamar: ${r.announcement}", Gold) }
                 }
                 items(visible, key = { it.id }) { m ->
-                    if (m.uid.isNotEmpty()) {
+                    if (m.img.isNotBlank()) {
+                        RmPhotoRow(m, myUid, onProfile = { uid -> profileUid = uid }, onOpen = { lihatGambar = it })
+                    } else if (m.uid.isNotEmpty()) {
                         RmChatRow(m, myUid) { uid -> profileUid = uid }
                     } else {
                         RmMsgBox(m.text, if (m.text.startsWith("🎁")) Gold else Color.White)
@@ -493,6 +521,8 @@ fun RoomScreen(
                         scope.launch { RoomExtras.sendChat(r.id, myUid, myName, t)?.let { toast(it) } }
                     },
                     onClose = { typing = false },
+                    onPickImage = { if (!imgBusy) imgPicker.launch("image/*") },
+                    imgBusy = imgBusy,
                 )
             } else {
                 Row(
@@ -518,6 +548,23 @@ fun RoomScreen(
                         Spacer(Modifier.width(10.dp))
                     }
                     RmRoundBtn({ panel = P_TOOLS }) { GridIcon(Modifier.size(24.dp)) }
+                }
+            }
+        }
+
+        // Lihat gambar ukuran penuh
+        lihatGambar?.let { url ->
+            androidx.compose.ui.window.Dialog(onDismissRequest = { lihatGambar = null }) {
+                Box(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFF101010)).clickable { lihatGambar = null },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "Gambar",
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
+                        contentScale = ContentScale.Fit,
+                    )
                 }
             }
         }
@@ -1425,6 +1472,57 @@ private fun RmChatRow(m: RoomMsg, myUid: String, onProfile: (String) -> Unit) {
                     }
                 }
                 Text(m.text, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+            }
+        }
+    }
+}
+
+/** Pesan chat berisi gambar. Ketuk gambar untuk melihat ukuran penuh. */
+@Composable
+private fun RmPhotoRow(m: RoomMsg, myUid: String, onProfile: (String) -> Unit, onOpen: (String) -> Unit) {
+    var u by remember(m.uid) {
+        mutableStateOf(UserCache.peek(m.uid) ?: if (m.uid == myUid) UserCache.meLocal(m.uid) else null)
+    }
+    LaunchedEffect(m.uid) { if (u == null || u?.avatarB64 == null) u = UserCache.byUid(m.uid) ?: u }
+    val shownName = u?.name?.takeIf { it.isNotBlank() } ?: m.name
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        PublicAvatarFramed(u, 38.dp, fallback = shownName, modifier = Modifier.clickable { onProfile(m.uid) })
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f, fill = false)) {
+            Row(Modifier.clickable { onProfile(m.uid) }, verticalAlignment = Alignment.CenterVertically) {
+                VipNameText(
+                    shownName,
+                    u?.vip ?: 0,
+                    u?.vipUntil ?: 0L,
+                    color = GoldLight,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 160.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                LevelBadge(userLevel(u))
+            }
+            Spacer(Modifier.height(3.dp))
+            Box(
+                Modifier
+                    .widthIn(max = 220.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF1E1E1E))
+                    .border(1.dp, Gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                    .clickable { onOpen(m.img) },
+            ) {
+                AsyncImage(
+                    model = m.img,
+                    contentDescription = "Gambar dari $shownName",
+                    modifier = Modifier.widthIn(max = 220.dp).heightIn(max = 260.dp),
+                    contentScale = ContentScale.FillWidth,
+                )
+            }
+            if (m.text.isNotBlank()) {
+                Spacer(Modifier.height(3.dp))
+                Text(m.text, color = Color.White, fontSize = 13.sp)
             }
         }
     }
