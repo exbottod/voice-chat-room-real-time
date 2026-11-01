@@ -143,6 +143,41 @@ object RoomRepo {
         )
     }
 
+    /**
+     * Nama pemilik room HARUS mengikuti nama profil terbaru.
+     * Dulu nama disimpan sekali saat room dibuat, jadi kalau user ganti nama,
+     * tulisan di bawah nama room tetap nama lama. Fungsi ini memperbarui:
+     *  - roomsPub/{roomId}/ownerName (dibaca daftar room)
+     *  - kursi mic aktif milik user tersebut (seats/{roomId})
+     *  - salinan Firestore rooms (kalau kuota tersedia)
+     */
+    fun syncOwnerName(uid: String, name: String) {
+        val nm = name.trim()
+        if (uid.isBlank() || nm.isEmpty()) return
+        try {
+            Rtdb.ref("roomsPub").get().addOnSuccessListener { snap ->
+                snap.children.forEach { c ->
+                    if ((c.child("ownerUid").value as? String) == uid) {
+                        c.ref.child("ownerName").setValue(nm)
+                    }
+                }
+            }
+            Rtdb.ref("seats").get().addOnSuccessListener { snap ->
+                snap.children.forEach { room ->
+                    room.children.forEach { seat ->
+                        if ((seat.child("uid").value as? String) == uid) {
+                            seat.ref.child("name").setValue(nm)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) { }
+        try {
+            db().collection("rooms").whereEqualTo("ownerUid", uid).get()
+                .addOnSuccessListener { qs -> qs.documents.forEach { it.reference.update("ownerName", nm) } }
+        } catch (e: Exception) { }
+    }
+
     /** Daftar room: REALTIME DATABASE saja (roomsPub). Firestore tidak lagi dipakai
      *  di sini karena listener 100 dokumen terus-menerus menghabiskan kuota baca. */
     fun observeRoomsMerged(onChange: (List<RoomInfo>) -> Unit): Reg {

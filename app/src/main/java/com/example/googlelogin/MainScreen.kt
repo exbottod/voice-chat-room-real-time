@@ -243,7 +243,15 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 Toast.makeText(context, "Tersimpan di perangkat, gagal sinkron: ${it.message}", Toast.LENGTH_LONG).show()
             }
             UserDirectory.publish(context, user, new)
+            // Nama di bawah nama room ikut berganti saat profil disimpan.
+            RoomRepo.syncOwnerName(uid, new.nickname.ifBlank { user.name })
         }
+    }
+
+    // Setiap aplikasi dibuka, samakan nama room dengan nama profil terbaru
+    // (memperbaiki room yang namanya masih tersimpan dari versi lama).
+    androidx.compose.runtime.LaunchedEffect(uid, myName) {
+        if (myName.isNotBlank()) RoomRepo.syncOwnerName(uid, myName)
     }
 
     // Muat config background tab: cache lokal dulu (instan), lalu refresh RTDB.
