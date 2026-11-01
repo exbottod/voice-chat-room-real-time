@@ -273,9 +273,14 @@ async function payLoad() {
       document.getElementById("payGopay").value = (r.pay && r.pay.gopay) || "";
       const q = document.getElementById("payQrisImg");
       if (r.pay && r.pay.qris) { q.src = r.pay.qris; q.style.display = "block"; } else { q.style.display = "none"; }
-      msg.textContent = r.pay && (r.pay.dana || r.pay.gopay || r.pay.qris) ? "Tersimpan." : "Belum diatur.";
+      msg.style.color = "#BDBDBD";
+      const bagian = [];
+      if (r.pay && r.pay.dana) bagian.push("DANA " + r.pay.dana);
+      if (r.pay && r.pay.gopay) bagian.push("GoPay " + r.pay.gopay);
+      if (r.pay && r.pay.qris) bagian.push("QRIS ada");
+      msg.textContent = bagian.length ? "Tersimpan: " + bagian.join(" · ") : "Belum diatur.";
     } else {
-      msg.textContent = "Gagal memuat: " + (r.e || "");
+      paySay("Gagal memuat: " + (r.e || ""), false);
     }
   } catch (e) { msg.textContent = "Gagal memuat: " + e.message; }
 }
@@ -297,19 +302,57 @@ document.getElementById("payQrisUpload").onclick = async () => {
   }
 };
 
+const payMsgBox = document.getElementById("payMsg");
+function paySay(text, ok) {
+  payMsgBox.textContent = text;
+  payMsgBox.style.color = ok ? "#4ADE80" : "#FF8A8A";
+  payMsgBox.style.fontWeight = "700";
+  try { payMsgBox.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+  if (ok) toast("Tersimpan ✓");
+  else toast(text);
+}
+
 document.getElementById("paySave").onclick = async () => {
-  const msg = document.getElementById("payMsg");
+  const btn = document.getElementById("paySave");
   const dana = document.getElementById("payDana").value.trim();
   const name = document.getElementById("payName").value.trim();
   const gopay = document.getElementById("payGopay").value.trim();
-  const qris = document.getElementById("payQrisImg").dataset.url || "";
-  if (!dana && !gopay && !qris) { msg.textContent = "Isi minimal satu metode pembayaran"; return; }
-  if (dana && dana.length < 8) { msg.textContent = "Nomor DANA terlalu pendek"; return; }
-  if (gopay && gopay.length < 8) { msg.textContent = "Nomor GoPay terlalu pendek"; return; }
+  let qris = document.getElementById("payQrisImg").dataset.url || "";
+  const f = document.getElementById("payQrisFile").files[0];
+
+  if (!dana && !gopay && !qris && !f) return paySay("Isi minimal satu metode pembayaran", false);
+  if (dana && dana.length < 8) return paySay("Nomor DANA terlalu pendek", false);
+  if (gopay && gopay.length < 8) return paySay("Nomor GoPay terlalu pendek", false);
+
+  btn.disabled = true;
+  const labelAsli = btn.textContent;
+  payMsgBox.style.color = "#BDBDBD";
+  payMsgBox.textContent = "Menyimpan…";
   try {
+    // gambar QRIS dipilih tapi belum diunggah -> unggah sekarang
+    if (!qris && f) {
+      payMsgBox.textContent = "Mengunggah gambar QRIS…";
+      qris = await cldUpload(f, "qris_" + Date.now().toString(36));
+      const img = document.getElementById("payQrisImg");
+      img.src = qris; img.dataset.url = qris; img.style.display = "block";
+    }
     const r = await adminCall({ op: "pay_set", dana: dana, name: name, gopay: gopay, qris: qris });
-    msg.textContent = r.ok ? "Tersimpan. Nomor ini langsung dipakai aplikasi." : "Gagal: " + (r.e || "");
-  } catch (e) { msg.textContent = "Gagal: " + e.message; }
+    if (r.ok) {
+      paySay("✓ Tersimpan. Nomor ini langsung dipakai aplikasi.", true);
+    } else {
+      const e = String(r.e || "");
+      if (e.includes("Could not find") || e.includes("Gagal menyimpan")) {
+        paySay("Gagal menyimpan. Jalankan supabase/topup-manual.sql di Supabase dulu, lalu coba lagi.", false);
+      } else {
+        paySay("Gagal: " + e, false);
+      }
+    }
+  } catch (e) {
+    paySay("Gagal: " + (e.message || e), false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = labelAsli;
+  }
 };
 
 async function manualLoad(all) {
@@ -318,7 +361,13 @@ async function manualLoad(all) {
   box.innerHTML = "Memuat…";
   try {
     const r = await adminCall({ op: all ? "manual_all" : "manual_pending" });
-    if (!r.ok) { box.textContent = "Gagal: " + (r.e || ""); return; }
+    if (!r.ok) {
+      const e = String(r.e || "");
+      box.textContent = (e.includes("Could not find") || e.includes("does not exist"))
+        ? "Tabel pengajuan belum ada. Jalankan supabase/topup-manual.sql di Supabase dulu."
+        : "Gagal: " + e;
+      return;
+    }
     const list = r.list || [];
     if (!list.length) { box.innerHTML = '<div class="muted">Tidak ada pengajuan.</div>'; return; }
     box.innerHTML = "";
