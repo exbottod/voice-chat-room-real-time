@@ -784,8 +784,9 @@ fun RoomScreen(
                         RmTool("Pengaturan", onClick = { panel = P_SETTINGS }) {
                             Image(painterResource(R.drawable.ic_settings), null, Modifier.size(24.dp), contentScale = ContentScale.Fit)
                         }
-                        RmTool(if (r.locked) "Kamar terkunci" else "Kamar umum", onClick = { panel = P_LOCK }) {
-                            Icon(Icons.Default.Lock, null, tint = GoldLight)
+                        RmTool(if (r.locked) "Buka kunci room" else "Kunci room", onClick = { panel = P_LOCK }) {
+                            if (r.locked) Text("🔓", fontSize = 24.sp)
+                            else Icon(Icons.Default.Lock, null, tint = GoldLight)
                         }
                     }
                 }
@@ -1350,10 +1351,33 @@ private fun RmLock(r: RoomInfo, onClose: () -> Unit) {
     if (r.locked) {
         Text(tr("Pengguna lain harus memasukkan password untuk masuk."), color = Color(0xFF9A9A9A), fontSize = 13.sp)
         Spacer(Modifier.height(16.dp))
-        GoldButton(tr("Jadikan publik")) {
+        // Owner bisa membuka kunci room kapan saja dari dalam room.
+        GoldButton(tr("Buka kunci room")) {
             scope.launch {
                 val e = RoomRepo.setLock(r.id, null)
-                Toast.makeText(context, e ?: "Kamar sekarang publik", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, e ?: "Kunci room dibuka, room kembali publik", Toast.LENGTH_SHORT).show()
+                if (e == null) onClose()
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        Text(tr("Ganti password"), color = Color.White, fontSize = 15.sp)
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = pw,
+            onValueChange = { pw = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text(tr("Password baru (min. 4 karakter)")) },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            shape = RoundedCornerShape(12.dp),
+            colors = goldFieldColors(),
+        )
+        Spacer(Modifier.height(12.dp))
+        GoldButton(tr("Simpan password baru"), enabled = pw.length >= 4) {
+            scope.launch {
+                val e = RoomRepo.setLock(r.id, pw)
+                Toast.makeText(context, e ?: "Password room diperbarui", Toast.LENGTH_SHORT).show()
                 if (e == null) onClose()
             }
         }
