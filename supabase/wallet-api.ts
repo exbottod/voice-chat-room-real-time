@@ -461,10 +461,12 @@ async function topupCreate(uid: string, body: Record<string, unknown>): Promise<
   const coins = String(body.coins ?? "").replace(/[^0-9]/g, "");
   const amount = TOPUP_PACKS[coins];
   if (!amount) return json({ ok: 0, e: "Paket coin tidak dikenal" }, 200);
+  const name = String(body.name ?? "Player").slice(0, 40);
+  if (xenditKey()) return await xenditTopup(uid, coins, amount, name);
+
   const key = midtransKey();
   if (!key) return json({ ok: 0, e: "Pembayaran belum diaktifkan admin" }, 200);
 
-  const name = String(body.name ?? "Player").slice(0, 40);
   const orderId = "RZ" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
 
   const ins = await sbRest("topup_orders", {
@@ -543,6 +545,125 @@ async function creditOrder(order: Record<string, unknown>): Promise<boolean> {
   return true;
 }
 
+
+// ================= XENDIT (Invoice) =================
+// Dipakai kalau secret XENDIT_SERVER_KEY diisi. Pembeli bisa bayar dengan
+// DANA, OVO, ShopeePay, QRIS, VA bank, dan lainnya lewat halaman invoice.
+// Webhook: POST /wallet-api/xendit dengan header x-callback-token.
+
+function xenditKey(): string {
+  return Deno.env.get("XENDIT_SERVER_KEY") ?? Deno.env.get("XENDIT_SECRET_KEY") ?? "";
+}
+
+function xenditCallbackToken(): string {
+  return Deno.env.get("XENDIT_CALLBACK_TOKEN") ?? "";
+}
+
+async function xenditTopup(uid: string, coins: string, amount: number, name: string): Promise<Response> {
+  const key = xenditKey();
+  const orderId = "RZ" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+
+  const ins = await sbRest("topup_orders", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      id: orderId,
+      uid,
+      coins: Number(coins),
+      amount,
+      provider: "xendit",
+      status: "pending",
+      created_at: Date.now(),
+    }),
+  });
+  if (!ins.ok) return json({ ok: 0, e: "Gagal membuat pesanan" }, 200);
+
+  const site = "https://exbottod.github.io/voice-chat-room-real-time/";
+  const payload = {
+    external_id: orderId,
+    amount,
+    currency: "IDR",
+    description: `${coins} coin REZO CHAT VOICE`,
+    invoice_duration: 3600,
+    success_redirect_url: site,
+    failure_redirect_url: site,
+    customer: { given_names: name || "Player" },
+    customer_notification: { invoice_created: [] },
+  };
+
+  let inv: Record<string, unknown> = {};
+  try {
+    const r = await fetch("https://api.xendit.co/v2/invoices", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Basic " + btoa(key + ":"),
+      },
+      body: JSON.stringify(payload),
+    });
+    inv = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const msg = String(
+        (inv as { message?: string }).message ??
+          (Array.isArray(inv) ? "Gateway menolak transaksi" : "Gateway menolak transaksi"),
+      );
+      await sbRest(`topup_orders?id=eq.${encodeURIComponent(orderId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "failed" }),
+      });
+      return json({ ok: 0, e: msg }, 200);
+    }
+  } catch (e) {
+    return json({ ok: 0, e: "Tidak bisa menghubungi Xendit: " + (e instanceof Error ? e.message : "gagal") }, 200);
+  }
+
+  const url = String(inv.invoice_url ?? "");
+  if (!url) return json({ ok: 0, e: "Xendit tidak memberi alamat pembayaran" }, 200);
+  await sbRest(`topup_orders?id=eq.${encodeURIComponent(orderId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ token: String(inv.id ?? "") }),
+  });
+  return json({ ok: 1, order: orderId, url, coins: Number(coins), amount });
+}
+
+async function xenditNotify(req: Request): Promise<Response> {
+  const token = xenditCallbackToken();
+  if (!token) return json({ ok: 0, e: "Callback token belum diatur" }, 200);
+  const got = req.headers.get("x-callback-token") ?? "";
+  if (got !== token) return json({ ok: 0, e: "Token callback salah" }, 401);
+
+  let b: Record<string, unknown>;
+  try {
+    b = await req.json();
+  } catch {
+    return json({ ok: 0, e: "Body tidak valid" }, 200);
+  }
+  const orderId = String(b.external_id ?? "");
+  const status = String(b.status ?? "").toUpperCase();
+  const paidAmount = Number(b.paid_amount ?? b.amount ?? 0);
+  if (!orderId) return json({ ok: 0, e: "Data tidak lengkap" }, 200);
+
+  const r = await sbRest(`topup_orders?id=eq.${encodeURIComponent(orderId)}&select=*`);
+  const rows = r.ok ? await r.json().catch(() => null) : null;
+  const order = Array.isArray(rows) && rows.length ? rows[0] : null;
+  if (!order) return json({ ok: 0, e: "Pesanan tidak ada" }, 200);
+
+  if (status === "PAID" || status === "SETTLED") {
+    if (Math.round(Number(order.amount)) !== Math.round(paidAmount)) {
+      return json({ ok: 0, e: "Nominal tidak cocok" }, 200);
+    }
+    const okCredit = await creditOrder(order);
+    return json({ ok: okCredit ? 1 : 0 }, 200);
+  }
+  if (status === "EXPIRED" || status === "FAILED") {
+    await sbRest(`topup_orders?id=eq.${encodeURIComponent(orderId)}&status=eq.pending`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: status === "EXPIRED" ? "expired" : "failed" }),
+    });
+  }
+  return json({ ok: 1 }, 200);
+}
+
 async function midtransNotify(req: Request): Promise<Response> {
   const key = midtransKey();
   if (!key) return json({ ok: 0, e: "Gateway belum diaktifkan" }, 200);
@@ -607,6 +728,7 @@ Deno.serve(async (req) => {
   const wpath = new URL(req.url).pathname.replace(/\/+$/, "").toLowerCase();
   // Webhook pembayaran: tanpa token login, keaslian dicek lewat signature Midtrans.
   if (wpath.includes("midtrans")) return await midtransNotify(req);
+  if (wpath.includes("xendit")) return await xenditNotify(req);
   if (wpath.includes("userinfo")) return await waveUserInfo(req);
   if (wpath.includes("submitflow")) return await waveSubmitFlow(req);
   if (req.method !== "POST") return json({ ok: 0, e: "Method tidak didukung" }, 405);
