@@ -58,6 +58,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
+  <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
   <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div></div>
   <div id="tab-banner">
 
@@ -77,7 +78,8 @@ label{font-size:12px;color:var(--mut)}
     <input type="text" id="link" placeholder="https://...">
     <label>Urutan (angka kecil tampil lebih dulu)</label>
     <input type="number" id="order" value="1">
-    <button class="btn" id="btnMig" style="margin-bottom:8px;background:#2a2a2a;color:#f3d97a;border:1px solid #d4af37">Pindahkan banner lama ke Realtime Database</button>
+    <button class="btn" id="btnTes" style="margin-bottom:8px;background:#0d2a1a;color:#8ef0b0;border:1px solid #2e7d51">Tes: login, database, Cloudinary</button>
+    <button class="btn" id="btnMig" style="margin-bottom:8px;background:#2a2a2a;color:#f3d97a;border:1px solid #d4af37">Opsional sekali pakai: ambil banner lama dari Firestore</button>
     <div id="bstatus" style="color:#c8a15a;font-size:13px;margin:10px 0;line-height:1.4">Siap. Ketuk kotak gambar di atas untuk memilih foto banner.</div>
     <button class="btn" id="btnSave">Simpan banner</button>
   </div>
@@ -293,6 +295,18 @@ firebase.initializeApp(CFG);
 const auth = firebase.auth(), db = firebase.firestore(), rtdb = firebase.database();
 const $ = id => document.getElementById(id);
 let imgB64 = null, unsub = null;
+window.onerror = function(msg, src, line, col){
+  try {
+    const d = document.createElement("div");
+    d.style.cssText = "position:fixed;left:0;right:0;bottom:0;background:#7e1919;color:#fff;padding:8px 10px;font:12px monospace;z-index:9999;white-space:pre-wrap";
+    d.textContent = "Error panel: " + msg + " (baris " + line + ")";
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 15000);
+  } catch (e) {}
+};
+window.addEventListener("unhandledrejection", function(ev){
+  window.onerror("Promise: " + ((ev.reason && (ev.reason.message || ev.reason.code)) || ev.reason));
+});
 
 function toast(t){ const m=$("msg"); m.textContent=t; m.classList.remove("hide"); clearTimeout(toast.t); toast.t=setTimeout(()=>m.classList.add("hide"),3000); }
 function show(which){ ["login","denied","panel"].forEach(k=>$(k).classList.toggle("hide",k!==which)); }
@@ -322,6 +336,33 @@ auth.onAuthStateChanged(u => {
 
 $("prev").onclick = () => $("file").click();
 let imgFile = null;
+$("btnTes").onclick = async () => {
+  const lines = [];
+  const u = auth.currentUser;
+  const prov = (u && u.providerData && u.providerData[0] ? u.providerData[0].providerId : "-");
+  lines.push("1. Login: " + (u ? u.email : "belum login") + " (" + prov + ")");
+  // tes database
+  try {
+    await Promise.race([
+      rtdb.ref("vipCfg/selftest").set({ at: Date.now() }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("timeout 10s")), 10000))
+    ]);
+    await rtdb.ref("vipCfg/selftest").remove();
+    lines.push("2. Database (vipCfg): TULIS OK");
+  } catch (e) { lines.push("2. Database (vipCfg): GAGAL - " + (e.message || e.code || e)); }
+  // tes Cloudinary dengan gambar kecil
+  try {
+    const c = document.createElement("canvas"); c.width = 24; c.height = 8;
+    c.getContext("2d").fillRect(0, 0, 24, 8);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.8));
+    const f = new File([blob], "tes.jpg", { type: "image/jpeg" });
+    const url = await cldUpload(f, "tes");
+    lines.push("3. Cloudinary: OK - " + url);
+  } catch (e) { lines.push("3. Cloudinary: GAGAL - " + (e.message || e.code || e)); }
+  bstat(lines.join("\n"));
+  const el = $("bstatus"); if (el) el.style.whiteSpace = "pre-line";
+};
+
 $("btnMig").onclick = async () => {
   $("btnMig").disabled = true;
   try {
@@ -461,15 +502,11 @@ function banStart(){
     });
     renderBanners();
   }, e => { rtBanners = []; renderBanners(); toast("Gagal memuat banner: " + e.message); });
-  // Firestore dicoba sekali tanpa menahan tampilan (kuota sering habis).
-  db.collection("banners").orderBy("order").get().then(snap => {
-    fsBanners = snap.docs.map(d => ({ src: "fs", id: d.id, data: d.data() || {} }));
-    renderBanners();
-  }).catch(() => { fsBanners = []; renderBanners(); });
+  // Banner hanya dari Realtime Database (vipCfg). Firestore tidak dipakai lagi.
+  fsBanners = [];
 }
 
 function banPatch(b, patch){
-  if (b.src === "fs") return db.collection("banners").doc(b.id).update(patch);
   return rtdb.ref("vipCfg/" + b.id).update(patch);
 }
 
