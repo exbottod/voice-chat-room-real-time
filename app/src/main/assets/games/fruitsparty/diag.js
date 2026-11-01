@@ -36,13 +36,29 @@
   window.addEventListener("load", function () {
     setTimeout(function () {
       var r = document.getElementById("root");
-      var info = "WebView: " + (navigator.userAgent || "-");
-      if (!r) info += "\nROOT tidak ada";
-      else if (r.children.length === 0) info += "\nROOT kosong: script game tidak jalan";
-      else info += "\nROOT terisi (" + r.children.length + " bagian)";
-      if (window.innerHeight < 200) info += "\nTinggi layar aneh: " + window.innerHeight;
-      info += "\nLebar: " + window.innerWidth + "x" + window.innerHeight;
-      show(info);
-    }, 3500);
+      var ua = navigator.userAgent || "-";
+      var ver = (ua.match(/Chrome\/[\d.]+/) || ["-"])[0];
+      var out = [];
+      out.push("WebView: " + ver);
+      out.push("Layar: " + window.innerWidth + "x" + window.innerHeight + " dpr " + (window.devicePixelRatio || 1));
+      out.push("Stylesheet: " + document.styleSheets.length + " | bg body: " + getComputedStyle(document.body).backgroundColor);
+      if (!r) {
+        out.push("ROOT tidak ada");
+      } else {
+        out.push("ROOT anak: " + r.children.length + " isi " + r.innerHTML.length + " char");
+        var c = r.firstElementChild;
+        if (c) {
+          out.push("Anak1: " + (c.className || c.tagName).toString().slice(0, 48));
+          out.push("  tinggi " + c.offsetHeight + " lebar " + c.offsetWidth + " display " + getComputedStyle(c).display);
+          var g = c.firstElementChild;
+          if (g) out.push("  cucu: " + g.children.length + " bagian, tinggi " + g.offsetHeight);
+        }
+      }
+      var imgs = document.images, bad = 0, ok = 0;
+      for (var i = 0; i < imgs.length; i++) { if (imgs[i].complete && imgs[i].naturalWidth === 0) bad++; else ok++; }
+      out.push("Gambar: " + imgs.length + " (siap " + ok + ", gagal " + bad + ")");
+      out.push("AndroidGame: " + (window.AndroidGame ? "ada" : "TIDAK ADA"));
+      show(out.join("\n"));
+    }, 4000);
   });
 })();
