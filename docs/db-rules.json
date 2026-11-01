@@ -61,19 +61,21 @@
     },
     "pub": {
       ".read": "auth != null",
-      "$uid": {
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
+      "_cashbackCfg": {
+        ".read": true
       },
       "_rocketCfg": {
-        ".read": true,
-        ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
+        ".read": true
+      },
+      "$uid": {
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
       }
     },
     "blacklist": {
       "$roomId": {
         ".read": "auth != null",
         "$uid": {
-          ".write": "auth != null && (auth.uid === $uid || root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')"
+          ".write": "auth != null && (root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid || auth.token.email === 'developerex100@gmail.com')"
         }
       }
     },
@@ -90,6 +92,19 @@
         }
       }
     },
+  "giftFly": {
+   "$roomId": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "$flyId": {
+     ".validate": "!newData.exists() || newData.child('ts').isNumber()"
+    }
+   }
+  },
+  "cashbackCfg": {
+   ".read": "auth != null",
+   ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+  },
     "giftCombo": {
       "$roomId": {
         ".read": "auth != null",
@@ -242,61 +257,6 @@
             ".validate": "newData.hasChildren(['name','bet','win']) && newData.child('bet').isNumber() && newData.child('win').isNumber() && newData.child('name').isString() && newData.child('name').val().length < 40"
           }
         }
-      }
-    },
-    "rocket": {
-      ".read": "auth != null",
-      "$roomId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-    "rocketFx": {
-      ".read": "auth != null",
-      "$roomId": {
-        ".write": "auth != null"
-      }
-    },
-    "rocketRank": {
-      ".read": "auth != null",
-      "$roomId": {
-        "$season": {
-          "$uid": {
-            ".write": "auth != null && auth.uid === $uid"
-          }
-        }
-      }
-    },
-    "rocketLaunchMark": {
-      "$roomId": {
-        "$uid": {
-          ".read": "auth != null && auth.uid === $uid",
-          ".write": "auth != null && auth.uid === $uid"
-        }
-      }
-    },
-    "rocketLucky": {
-      "$launchId": {
-        "$uid": {
-          ".read": "auth != null && auth.uid === $uid",
-          ".write": "auth != null && auth.uid === $uid && !data.exists()"
-        }
-      }
-    },
-    "rocketCfg": {
-      ".read": "auth != null",
-      ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
-    },
-    "rocketNow": {
-      ".read": "auth != null",
-      "$room": {
-        ".write": "auth != null"
-      }
-    },
-    "signin": {
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
       }
     }
   }
