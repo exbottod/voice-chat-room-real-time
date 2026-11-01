@@ -279,12 +279,48 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
   const p = body.p ?? {};
   const op = String(p.op ?? "");
   const target = String(p.uid ?? "");
-  if (op !== "reset_all" && !target) return json({ ok: 0, e: "uid kosong" }, 400);
+  const tanpaUid = ["reset_all", "pay_get", "pay_set", "manual_pending", "manual_all", "manual_decide"];
+  if (!tanpaUid.includes(op) && !target) return json({ ok: 0, e: "uid kosong" }, 400);
 
   const num = (v: unknown) => {
     const n = Math.trunc(Number(v));
     return Number.isSafeInteger(n) ? n : NaN;
   };
+
+  // ---- topup manual DANA (panel developer) ----
+  if (op === "pay_get") {
+    const r = await rpc("w_pay_info", {});
+    const v = r.ok ? await r.json().catch(() => ({})) : {};
+    return json({ ok: 1, pay: v ?? {} });
+  }
+
+  if (op === "pay_set") {
+    const r = await rpc("w_pay_set", { p_dana: String(p.dana ?? ""), p_name: String(p.name ?? "") });
+    if (!r.ok) return json({ ok: 0, e: "Gagal menyimpan info pembayaran" }, 200);
+    return json({ ok: 1, pay: await r.json().catch(() => ({})) });
+  }
+
+  if (op === "manual_pending" || op === "manual_all") {
+    const r = await rpc("w_manual_list", {
+      p_status: op === "manual_all" ? "all" : "pending",
+      p_limit: p.limit ?? 60,
+    });
+    const rows = r.ok ? await r.json().catch(() => []) : [];
+    return json({ ok: 1, list: rows });
+  }
+
+  if (op === "manual_decide") {
+    const r = await rpc("w_manual_decide", { p_id: String(p.id ?? ""), p_ok: p.ok === true || p.ok === "true" });
+    if (!r.ok) {
+      let msg = "Gagal memproses pengajuan";
+      try {
+        const j = await r.json();
+        msg = String(j.message ?? msg).replace(/^.*?:\s*/, "");
+      } catch { /* biarkan */ }
+      return json({ ok: 0, e: msg }, 200);
+    }
+    return json({ ok: 1, r: await r.json().catch(() => ({})) });
+  }
 
   if (op === "get") {
     const w = await adminWallet(target);
@@ -706,6 +742,48 @@ async function midtransNotify(req: Request): Promise<Response> {
   return json({ ok: 1 }, 200);
 }
 
+
+// ================= TOPUP MANUAL DANA =================
+// Tanpa payment gateway: user transfer ke DANA admin, admin setujui di panel.
+// Coin hanya masuk saat admin menekan Setujui (w_manual_decide -> w_topup).
+
+async function payInfo(): Promise<Response> {
+  const r = await rpc("w_pay_info", {});
+  const v = r.ok ? await r.json().catch(() => ({})) : {};
+  return json({ ok: 1, pay: v ?? {} });
+}
+
+async function manualCreate(uid: string, body: Record<string, unknown>): Promise<Response> {
+  const coins = String(body.coins ?? "").replace(/[^0-9]/g, "");
+  const amount = TOPUP_PACKS[coins];
+  if (!amount) return json({ ok: 0, e: "Paket coin tidak dikenal" }, 200);
+  const payer = String(body.payer ?? "").trim();
+  if (payer.length < 3) return json({ ok: 0, e: "Isi nama pengirim DANA" }, 200);
+  const id = "MN" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+  const r = await rpc("w_manual_create", {
+    p_id: id,
+    p_uid: uid,
+    p_coins: Number(coins),
+    p_amount: amount,
+    p_payer: payer.slice(0, 40),
+  });
+  if (!r.ok) {
+    let msg = "Gagal mengajukan topup";
+    try {
+      const j = await r.json();
+      msg = String(j.message ?? msg).replace(/^.*?:\s*/, "");
+    } catch { /* biarkan default */ }
+    return json({ ok: 0, e: msg }, 200);
+  }
+  return json({ ok: 1, order: id, status: "pending" });
+}
+
+async function manualHistory(uid: string): Promise<Response> {
+  const r = await rpc("w_manual_history", { p_uid: uid, p_limit: 20 });
+  const rows = r.ok ? await r.json().catch(() => []) : [];
+  return json({ ok: 1, list: rows });
+}
+
 async function topupStatus(uid: string, body: Record<string, unknown>): Promise<Response> {
   const id = String(body.order ?? "");
   const r = await sbRest(
@@ -757,6 +835,9 @@ Deno.serve(async (req) => {
 
   // Topup lewat payment gateway (tidak memakai RPC SQL langsung).
   if (action === "topup_create") return await topupCreate(uid, p);
+  if (action === "pay_info") return await payInfo();
+  if (action === "manual_create") return await manualCreate(uid, p);
+  if (action === "manual_history") return await manualHistory(uid);
   if (action === "topup_status") return await topupStatus(uid, p);
   if (action === "topup_history") return await topupHistory(uid);
   // Nama parameter HARUS persis dengan definisi fungsi SQL (p_*).

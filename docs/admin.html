@@ -52,7 +52,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -207,6 +207,29 @@ label{font-size:12px;color:var(--mut)}
   </div>
 </div>
 
+<div id="tab-topup" class="hide">
+  <div class="card">
+    <h2>Nomor DANA untuk topup</h2>
+    <p class="muted">Nomor ini yang tampil di aplikasi saat user mau topup coin. Coin baru masuk setelah pengajuan disetujui di bawah.</p>
+    <div class="row" style="margin-top:10px">
+      <input id="payDana" placeholder="08xxxxxxxxxx" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
+      <input id="payName" placeholder="Nama pemilik DANA" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
+      <button class="btn" id="paySave">Simpan</button>
+    </div>
+    <div class="muted" id="payMsg" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>Pengajuan topup</h2>
+    <p class="muted">Cocokkan dengan riwayat masuk di DANA sebelum menekan Setujui. Menyetujui langsung menambah coin user.</p>
+    <div class="row" style="margin-top:8px">
+      <button class="btn out" id="manualReload">Muat ulang</button>
+      <button class="btn out" id="manualAll">Lihat semua</button>
+    </div>
+    <div id="manualList" style="margin-top:12px"></div>
+    <div class="muted" id="manualMsg" style="margin-top:8px"></div>
+  </div>
+</div>
+
 <div id="tab-user" class="hide">
     <div class="card">
       <h2>Daftar user terdaftar</h2>
@@ -219,7 +242,100 @@ label{font-size:12px;color:var(--mut)}
   </div>
 <div id="msg" class="hide"></div>
 
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js">
+// ============ Topup manual DANA ============
+async function adminCall(p) {
+  try {
+    return await walletAdmin(p);
+  } catch (e) {
+    return { ok: 0, e: e.message || "gagal" };
+  }
+}
+
+async function payLoad() {
+  const msg = document.getElementById("payMsg");
+  try {
+    const r = await adminCall({ op: "pay_get" });
+    if (r.ok) {
+      document.getElementById("payDana").value = (r.pay && r.pay.dana) || "";
+      document.getElementById("payName").value = (r.pay && r.pay.name) || "";
+      msg.textContent = r.pay && r.pay.dana ? "Tersimpan." : "Belum diatur.";
+    } else {
+      msg.textContent = "Gagal memuat: " + (r.e || "");
+    }
+  } catch (e) { msg.textContent = "Gagal memuat: " + e.message; }
+}
+
+document.getElementById("paySave").onclick = async () => {
+  const msg = document.getElementById("payMsg");
+  const dana = document.getElementById("payDana").value.trim();
+  const name = document.getElementById("payName").value.trim();
+  if (dana.length < 8) { msg.textContent = "Nomor DANA terlalu pendek"; return; }
+  try {
+    const r = await adminCall({ op: "pay_set", dana: dana, name: name });
+    msg.textContent = r.ok ? "Tersimpan. Nomor ini langsung dipakai aplikasi." : "Gagal: " + (r.e || "");
+  } catch (e) { msg.textContent = "Gagal: " + e.message; }
+};
+
+async function manualLoad(all) {
+  const box = document.getElementById("manualList");
+  const msg = document.getElementById("manualMsg");
+  box.innerHTML = "Memuat…";
+  try {
+    const r = await adminCall({ op: all ? "manual_all" : "manual_pending" });
+    if (!r.ok) { box.textContent = "Gagal: " + (r.e || ""); return; }
+    const list = r.list || [];
+    if (!list.length) { box.innerHTML = '<div class="muted">Tidak ada pengajuan.</div>'; return; }
+    box.innerHTML = "";
+    for (const m of list) {
+      const row = document.createElement("div");
+      row.className = "card";
+      row.style.marginBottom = "8px";
+      const when = new Date(Number(m.created_at)).toLocaleString("id-ID");
+      row.innerHTML =
+        '<div style="font-weight:700">' + Number(m.coins).toLocaleString("id-ID") + " coin · Rp " +
+        Number(m.amount).toLocaleString("id-ID") + "</div>" +
+        '<div class="muted">Pengirim: ' + (m.payer || "-") + " · User: " + (m.name || m.uid) + "</div>" +
+        '<div class="muted">Status: ' + m.status + " · " + when + "</div>";
+      if (m.status === "pending") {
+        const okBtn = document.createElement("button");
+        okBtn.className = "btn";
+        okBtn.style.marginTop = "8px";
+        okBtn.textContent = "Setujui";
+        okBtn.onclick = async () => {
+          okBtn.disabled = true;
+          msg.textContent = "Memproses…";
+          const rr = await adminCall({ op: "manual_decide", id: m.id, ok: true });
+          msg.textContent = rr.ok ? "Disetujui, coin sudah masuk." : "Gagal: " + (rr.e || "");
+          manualLoad(all);
+        };
+        const noBtn = document.createElement("button");
+        noBtn.className = "btn bad";
+        noBtn.style.marginLeft = "8px";
+        noBtn.style.marginTop = "8px";
+        noBtn.textContent = "Tolak";
+        noBtn.onclick = async () => {
+          noBtn.disabled = true;
+          const rr = await adminCall({ op: "manual_decide", id: m.id, ok: false });
+          msg.textContent = rr.ok ? "Ditolak." : "Gagal: " + (rr.e || "");
+          manualLoad(all);
+        };
+        row.appendChild(okBtn);
+        row.appendChild(noBtn);
+      }
+      box.appendChild(row);
+    }
+  } catch (e) { box.textContent = "Gagal: " + e.message; }
+}
+
+document.getElementById("manualReload").onclick = () => manualLoad(false);
+document.querySelector('.tab[data-t="topup"]').addEventListener("click", () => {
+  payLoad();
+  manualLoad(false);
+});
+document.getElementById("manualAll").onclick = () => manualLoad(true);
+
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>

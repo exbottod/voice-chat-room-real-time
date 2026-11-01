@@ -269,6 +269,25 @@ object SupaRepo {
         return TopupStart(o.optString("order"), o.optString("url"), null)
     }
 
+
+    // ---------------- Topup manual DANA ----------------
+
+    class PayInfo(val dana: String, val name: String)
+
+    suspend fun payInfo(): PayInfo? {
+        val o = postRaw("pay_info", org.json.JSONObject()) ?: return null
+        val pay = o.optJSONObject("pay") ?: return null
+        return PayInfo(pay.optString("dana"), pay.optString("name"))
+    }
+
+    /** Ajukan topup manual. null = berhasil, selain itu pesan kesalahan. */
+    suspend fun manualCreate(coins: Long, payer: String): String? {
+        val o = postRaw("manual_create", org.json.JSONObject().put("coins", coins).put("payer", payer))
+            ?: return "Tidak bisa menghubungi server"
+        if (o.optInt("ok") == 1) return null
+        return o.optString("e").ifBlank { "Gagal mengajukan topup" }
+    }
+
     /** Cek status pesanan: "pending", "paid", "expired", "failed". */
     suspend fun topupStatus(order: String): String? {
         val o = postRaw("topup_status", org.json.JSONObject().put("order", order)) ?: return null

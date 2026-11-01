@@ -396,6 +396,10 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var showPacks by remember { mutableStateOf(false) }
     var payOrder by remember { mutableStateOf<String?>(null) }
+    var manualCoins by remember { mutableStateOf<Long?>(null) }
+    var manualPayer by remember { mutableStateOf("") }
+    var payDana by remember { mutableStateOf("") }
+    var payName by remember { mutableStateOf("") }
     var payUrl by remember { mutableStateOf<String?>(null) }
     BackHandler(onBack = { if (showPacks) showPacks = false else onBack() })
     val toast = { m: String -> Toast.makeText(context, m, Toast.LENGTH_SHORT).show() }
@@ -512,6 +516,15 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                                             } else {
                                                 busy = true
                                                 scope.launch {
+                                                    val info = SupaRepo.payInfo()
+                                                    if (info != null && info.dana.isNotBlank()) {
+                                                        busy = false
+                                                        payDana = info.dana
+                                                        payName = info.name
+                                                        manualPayer = ""
+                                                        manualCoins = coins
+                                                        return@launch
+                                                    }
                                                     val start = SupaRepo.topupCreate(coins)
                                                     busy = false
                                                     if (start.url == null) {
@@ -617,6 +630,56 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 }
                 Spacer(Modifier.height(30.dp))
             }
+        }
+
+        // ---- topup manual (transfer DANA) ----
+        val mCoins = manualCoins
+        if (mCoins != null) {
+            val harga = TOPUP_PACKS.firstOrNull { it.first == mCoins }?.second ?: ""
+            AlertDialog(
+                onDismissRequest = { manualCoins = null },
+                title = { Text("Topup ${fmtNum(mCoins)} coin") },
+                text = {
+                    Column {
+                        Text("Transfer $harga ke DANA:")
+                        Spacer(Modifier.height(6.dp))
+                        Text(payDana, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF118EEA))
+                        if (payName.isNotBlank()) {
+                            Text("a.n $payName", fontSize = 14.sp, color = WalGrey)
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Text("Setelah transfer, isi nama pemilik DANA yang mengirim:", fontSize = 13.sp)
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = manualPayer,
+                            onValueChange = { manualPayer = it.take(40) },
+                            singleLine = true,
+                            placeholder = { Text("Nama pengirim") },
+                            colors = goldFieldColors(),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("Coin masuk setelah pembayaran dicek admin.", fontSize = 12.sp, color = WalGrey)
+                    }
+                },
+                confirmButton = {
+                    TextButton(enabled = manualPayer.trim().length >= 3 && !busy, onClick = {
+                        busy = true
+                        scope.launch {
+                            val e = SupaRepo.manualCreate(mCoins, manualPayer.trim())
+                            busy = false
+                            if (e == null) {
+                                manualCoins = null
+                                toast("Pengajuan dikirim, tunggu persetujuan admin")
+                            } else {
+                                toast(e)
+                            }
+                        }
+                    }) { Text("Saya sudah transfer") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { manualCoins = null }) { Text("Batal") }
+                },
+            )
         }
 
         // ---- menunggu pembayaran ----
