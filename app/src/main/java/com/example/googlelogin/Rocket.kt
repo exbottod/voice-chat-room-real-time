@@ -842,9 +842,6 @@ fun RocketRankPrizeDialog(onClose: () -> Unit) {
 
 // ==================== Peluncuran roket (level 1..5) ====================
 
-/** Satu kejadian peluncuran roket yang diterima dari room. */
-private data class LaunchEv(val id: String, val uid: String, val name: String, val lv: Int, val url: String)
-
 /** Kejadian peluncuran yang diterima dari room. */
 private data class LaunchEv(val id: String, val uid: String, val name: String, val lv: Int, val url: String)
 
