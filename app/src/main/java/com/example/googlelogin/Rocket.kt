@@ -41,8 +41,8 @@ import kotlinx.coroutines.tasks.await
  * Progres pemain disimpan di rocket/{uid}/exp.
  */
 object RocketCfg {
-    // Ambang EXP bawaan: Lv1 0, Lv2 250K, Lv3 20,2M, Lv4 100M, Lv5 500M.
-    val defaultExp = listOf(0L, 250_000L, 20_200_000L, 100_000_000L, 500_000_000L)
+    // Syarat energi tiap roket (energi yang harus diisi sebelum roket itu meluncur).
+    val defaultExp = listOf(250_000L, 20_200_000L, 100_000_000L, 500_000_000L, 1_000_000_000L)
     val defaultImg = listOf("\uD83D\uDE80", "\uD83D\uDE80", "\uD83D\uDE80", "\uD83D\uDE80", "\uD83D\uDE80")
     val defaultRewards = listOf("\uD83C\uDFC5", "\uD83D\uDC51", "\uD83D\uDCA5", "\uD83D\uDE97", "\uD83D\uDEF8", "\uD83C\uDFAB")
 
@@ -79,8 +79,9 @@ object RocketCfg {
             Rtdb.listen(Rtdb.ref("rocketCfg")) { s ->
                 val e = defaultExp.toMutableList()
                 for (i in 1..5) {
+                    // Nilai 0 dianggap belum diatur, jadi memakai angka bawaan.
                     val v = s.child("exp$i").getValue(Long::class.java)
-                    if (v != null && v >= 0L) e[i - 1] = v
+                    if (v != null && v > 0L) e[i - 1] = v
                 }
                 exp = e.toList()
                 val im = defaultImg.toMutableList()

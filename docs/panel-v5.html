@@ -235,6 +235,14 @@ label{font-size:12px;color:var(--mut)}
     <div id="rkRank"></div>
   </div>
   <div class="card">
+    <h2>Syarat energi tiap roket</h2>
+    <p class="muted">Berapa koin gift yang harus terkumpul sebelum roket itu meluncur. Isi 0 atau kosongkan
+      untuk memakai angka bawaan. Roket 1 meluncur lebih dulu, lalu roket 2, dan seterusnya.</p>
+    <div id="rkExp"></div>
+    <button class="btn" id="rkExpSave" style="margin-top:10px">Simpan syarat energi</button>
+    <div class="muted" id="rkExpMsg" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
     <h2>Animasi roket meluncur</h2>
     <p class="muted">Upload animasi meluncur untuk tiap roket Lv.1 sampai Lv.5, file SVGA atau MP4.
       Saat energi roket penuh, animasi roket level itu diputar untuk semua orang, lalu muncul dialog hadiah
@@ -966,8 +974,24 @@ function rkPrize(label, path, cur, key){
   };
   return d;
 }
+function rkExpRender(){
+  const box = $("rkExp"); if (!box) return;
+  box.innerHTML = "";
+  for (let n = 1; n <= 5; n++) {
+    const d = document.createElement("div");
+    d.style.cssText = "display:flex;align-items:center;gap:8px;margin:6px 0";
+    d.innerHTML = '<span style="width:70px">Roket ' + n + '</span>' +
+      '<input type="number" id="rexp_' + n + '" min="0" step="1000" placeholder="bawaan" style="flex:1">' +
+      '<span class="muted" style="width:60px;text-align:right" id="rexph_' + n + '"></span>';
+    box.appendChild(d);
+    const cur = rkCfg["exp" + n];
+    d.querySelector("#rexp_" + n).value = cur || "";
+    d.querySelector("#rexph_" + n).textContent = cur ? (cur / 1000000).toFixed(cur >= 1000000 ? 1 : 3) + " jt" : "";
+  }
+}
 function rkRender(){
   const lv = $("rkLv"); if (!lv) return;
+  rkExpRender();
   lv.innerHTML = "";
   for (let n = 1; n <= 5; n++) {
     const b = document.createElement("button");
@@ -1022,6 +1046,19 @@ function rkFlyCard(){
     rkCfg.flyUrl || "", "rk_fly", "Dipakai untuk roket yang animasinya belum diupload."));
   return wrap;
 }
+
+$("rkExpSave").onclick = async () => {
+  const btn = $("rkExpSave"); btn.disabled = true;
+  try {
+    for (let n = 1; n <= 5; n++) {
+      const v = Number($("rexp_" + n).value || 0);
+      if (v > 0) await rkSave("rocketCfg/exp" + n, v); else await rkRemove("rocketCfg/exp" + n);
+    }
+    $("rkExpMsg").textContent = "Tersimpan ✅";
+    toast("Syarat energi tersimpan ✅");
+  } catch (e) { $("rkExpMsg").textContent = "Gagal: " + e.message; }
+  finally { btn.disabled = false; }
+};
 
 async function lookup(raw){
   const id = String(raw || "").trim();
