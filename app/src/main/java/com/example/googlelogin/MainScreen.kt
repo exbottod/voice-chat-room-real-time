@@ -2,6 +2,10 @@ package com.example.googlelogin
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -361,6 +365,19 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     name = myName,
                     onBack = { overlay = OV_NONE },
                 )
+            }
+
+            // Banner roket: kelihatan di mana pun, bisa diketuk untuk masuk ke room
+            // yang sedang meluncurkan roket.
+            Box(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                RocketLiveBanner(currentRoomId = activeRoom?.id) { rid ->
+                    RoomDeepLink.pendingRoomId = rid
+                }
             }
 
             val room = activeRoom

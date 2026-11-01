@@ -17,6 +17,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,7 +50,17 @@ const val ROCKET_ROOM_UI = true
 
 object RocketCfg {
     // Syarat energi tiap roket (energi yang harus diisi sebelum roket itu meluncur).
-    val defaultExp = listOf(250_000L, 20_200_000L, 100_000_000L, 500_000_000L, 1_000_000_000L)
+    val defaultExp = listOf(
+        100_000_000L,   // roket 1
+        500_000_000L,   // roket 2
+        1_000_000_000L, // roket 3
+        1_500_000_000L, // roket 4
+        2_000_000_000L, // roket 5
+    )
+
+    /** Lama roket meluncur (ms). Semua orang memakai jam yang sama, jadi
+     *  yang masuk di tengah jalan tetap melihat roketnya masih meluncur. */
+    var flyDurMs by mutableStateOf(15_000L)
     val defaultImg = listOf("\uD83D\uDE80", "\uD83D\uDE80", "\uD83D\uDE80", "\uD83D\uDE80", "\uD83D\uDE80")
     val defaultRewards = listOf("\uD83C\uDFC5", "\uD83D\uDC51", "\uD83D\uDCA5", "\uD83D\uDE97", "\uD83D\uDEF8", "\uD83C\uDFAB")
 
@@ -105,6 +117,9 @@ object RocketCfg {
                 rewards = rw.toList()
                 s.child("flyUrl").getValue(String::class.java)?.takeIf { it.isNotBlank() }?.let { flyUrl = it }
                 uiOff = s.child("uiOff").getValue(Boolean::class.java) ?: false
+                s.child("flyDur").getValue(Long::class.java)?.let { v ->
+                    if (v in 5L..120L) flyDurMs = v * 1000L
+                }
                 // Animasi roket meluncur per level: rocketCfg/fly1..fly5.
                 flyUrls = (1..5).map { n ->
                     s.child("fly$n").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: flyUrl
@@ -376,14 +391,43 @@ object RocketRepo {
     private suspend fun publishLaunch(roomId: String, name: String, lv: Int) {
         val u = uid()
         if (u.isBlank()) return
+        val now = System.currentTimeMillis()
+        val dur = RocketCfg.flyDurMs
+        val url = RocketCfg.flyFor(lv)
+        var roomName = ""
         try {
-            Rtdb.ref("rocketFx/$roomId").push().setValue(
+            roomName = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                Rtdb.ref("roomsPub/$roomId/name").get().await().getValue(String::class.java)
+            } ?: ""
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
+        try {
+            val id = Rtdb.ref("rocketFx/$roomId").push().key ?: return
+            Rtdb.ref("rocketFx/$roomId/$id").setValue(
                 hashMapOf<String, Any?>(
                     "uid" to u,
                     "name" to name,
                     "lv" to lv,
-                    "url" to RocketCfg.flyFor(lv),
-                    "ts" to System.currentTimeMillis(),
+                    "url" to url,
+                    "ts" to now,
+                    "dur" to dur,
+                    "room" to roomId,
+                ),
+            ).await()
+            // Penanda untuk semua orang: banner "roket sedang meluncur" bisa diketuk
+            // dan langsung membuka room yang sedang meluncurkan roket.
+            Rtdb.ref("rocketNow/$roomId").setValue(
+                hashMapOf<String, Any?>(
+                    "id" to id,
+                    "room" to roomId,
+                    "roomName" to roomName,
+                    "name" to name,
+                    "lv" to lv,
+                    "url" to url,
+                    "ts" to now,
+                    "dur" to dur,
                 ),
             ).await()
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -843,12 +887,20 @@ fun RocketRankPrizeDialog(onClose: () -> Unit) {
 // ==================== Peluncuran roket (level 1..5) ====================
 
 /** Kejadian peluncuran yang diterima dari room. */
-private data class LaunchEv(val id: String, val uid: String, val name: String, val lv: Int, val url: String)
+private data class LaunchEv(
+    val id: String,
+    val uid: String,
+    val name: String,
+    val lv: Int,
+    val url: String,
+    val end: Long,
+)
 
 /**
- * Peluncuran roket di room, satu per satu: animasi roket level yang penuh,
- * lalu dialog hadiah dengan tombol Okey. Setelah Okey ditekan, roket
- * berikutnya baru jalan.
+ * Peluncuran roket di room. Roket naik tinggi sampai ujung layar, lalu setelah
+ * waktunya habis baru dialog hadiah muncul. Kalau ada orang lain yang masuk
+ * room di tengah peluncuran, dia tetap melihat roketnya meluncur karena
+ * waktunya mengikuti jam yang sama untuk semua orang.
  */
 @Composable
 fun RocketLaunchOverlay(roomId: String, myUid: String) {
@@ -860,17 +912,21 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
     var ev by remember(roomId) { mutableStateOf<LaunchEv?>(null) }
     var step by remember(roomId) { mutableStateOf(0) }
     var dialogMode by remember(ev?.id) { mutableStateOf("") }
+    var playCount by remember(ev?.id) { mutableStateOf(0) }
+    var rise by remember(ev?.id) { mutableStateOf(0f) }
 
     DisposableEffect(roomId) {
-        val reg = Rtdb.listen(Rtdb.ref("rocketFx/$roomId").limitToLast(3)) { s ->
+        val reg = Rtdb.listen(Rtdb.ref("rocketFx/$roomId").limitToLast(4)) { s ->
             val tambah = mutableListOf<LaunchEv>()
+            val now = System.currentTimeMillis()
             for (c in s.children) {
                 val id = c.key ?: continue
                 if (seen.contains(id)) continue
                 seen.add(id)
-                val ts = c.child("ts").getValue(Long::class.java) ?: 0L
-                // Abaikan kejadian lama dari sebelum aplikasi dibuka.
-                if (ts <= 0L || ts < System.currentTimeMillis() - 25_000L) continue
+                val ts = c.child("ts").getValue(Long::class.java) ?: continue
+                val dur = c.child("dur").getValue(Long::class.java) ?: RocketCfg.flyDurMs
+                // Kejadian yang sudah lewat tidak diputar lagi.
+                if (now > ts + dur) continue
                 tambah.add(
                     LaunchEv(
                         id = id,
@@ -879,6 +935,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                         lv = (c.child("lv").getValue(Int::class.java) ?: 1).coerceIn(1, 5),
                         url = c.child("url").getValue(String::class.java)?.takeIf { it.isNotBlank() }
                             ?: RocketCfg.flyFor(1),
+                        end = ts + dur,
                     ),
                 )
             }
@@ -887,7 +944,6 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
         onDispose { reg.remove() }
     }
 
-    // Ambil satu kejadian kalau tidak ada yang sedang diputar.
     LaunchedEffect(pending, ev) {
         if (ev == null && pending.isNotEmpty()) {
             ev = pending.first()
@@ -897,12 +953,26 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
     }
 
     val e = ev
+    val tinggiNaik = with(androidx.compose.ui.platform.LocalDensity.current) { 420.dp.toPx() }
     if (e != null && step == 0) {
         Box(Modifier.fillMaxSize()) {
-            if (isVideoMedia(e.url)) {
-                GiftVideo(e.url, Modifier.fillMaxSize()) { step = 1 }
-            } else {
-                GiftSvga(e.url, "\uD83D\uDE80", Modifier.fillMaxSize()) { step = 1 }
+            // Roketnya didorong naik tinggi ke atas layar selama meluncur.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { translationY = -rise },
+            ) {
+                key(playCount) {
+                    val selesai = {
+                        // Kalau waktu meluncur belum habis, ulangi animasinya.
+                        if (System.currentTimeMillis() < e.end - 1200L) playCount++ else step = 1
+                    }
+                    if (isVideoMedia(e.url)) {
+                        GiftVideo(e.url, Modifier.fillMaxSize()) { selesai() }
+                    } else {
+                        GiftSvga(e.url, "\uD83D\uDE80", Modifier.fillMaxSize()) { selesai() }
+                    }
+                }
             }
             Box(
                 Modifier
@@ -918,14 +988,24 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                 )
             }
         }
-        // Penjaga waktu kalau file animasi gagal diputar.
+        // Naik tinggi, sekali per putaran animasi.
+        LaunchedEffect(playCount) {
+            rise = 0f
+            val start = System.currentTimeMillis()
+            val lama = 2400L
+            while (System.currentTimeMillis() - start < lama) {
+                delay(16)
+                rise = tinggiNaik * ((System.currentTimeMillis() - start) / lama.toFloat()).coerceIn(0f, 1f)
+            }
+        }
+        // Dialog baru muncul setelah waktu meluncur benar-benar habis.
         LaunchedEffect(e.id) {
-            delay(if (isVideoMedia(e.url)) 8000 else 6000)
+            val sisa = e.end - System.currentTimeMillis()
+            if (sisa > 0L) delay(sisa)
             step = 1
         }
     }
 
-    // Tentukan hadiah: pengirim dapat hadiah kontribusi, penonton sekali per peluncuran.
     LaunchedEffect(e?.id, step) {
         val cur = e ?: return@LaunchedEffect
         if (step != 1 || dialogMode.isNotBlank()) return@LaunchedEffect
@@ -955,8 +1035,92 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                 dialogMode = ""
                 ev = null
                 step = 0
+                playCount = 0
             },
         )
+    }
+}
+
+/** Satu room yang sedang meluncurkan roket, untuk banner di luar room. */
+private data class LiveLaunch(
+    val room: String,
+    val roomName: String,
+    val by: String,
+    val lv: Int,
+    val end: Long,
+)
+
+/**
+ * Banner "roket sedang meluncur" yang tampil di mana pun, termasuk di luar room.
+ * Bisa diketuk untuk langsung masuk ke room yang sedang meluncurkan roket.
+ */
+@Composable
+fun RocketLiveBanner(currentRoomId: String?, onOpen: (String) -> Unit, modifier: Modifier = Modifier) {
+    if (RocketCfg.uiOff) return
+    LaunchedEffect(Unit) { RocketCfg.start() }
+    var list by remember { mutableStateOf(listOf<LiveLaunch>()) }
+    var tick by remember { mutableStateOf(0L) }
+
+    DisposableEffect(Unit) {
+        val reg = Rtdb.listen(Rtdb.ref("rocketNow")) { s ->
+            val now = System.currentTimeMillis()
+            list = s.children.mapNotNull { c ->
+                val room = c.child("room").getValue(String::class.java) ?: c.key ?: return@mapNotNull null
+                val ts = c.child("ts").getValue(Long::class.java) ?: return@mapNotNull null
+                val dur = c.child("dur").getValue(Long::class.java) ?: RocketCfg.flyDurMs
+                if (now > ts + dur) return@mapNotNull null
+                LiveLaunch(
+                    room = room,
+                    roomName = c.child("roomName").getValue(String::class.java) ?: "",
+                    by = c.child("name").getValue(String::class.java) ?: "",
+                    lv = (c.child("lv").getValue(Int::class.java) ?: 1).coerceIn(1, 5),
+                    end = ts + dur,
+                )
+            }
+        }
+        onDispose { reg.remove() }
+    }
+
+    // Jam kecil supaya banner hilang sendiri begitu roket selesai meluncur.
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            tick = System.currentTimeMillis()
+        }
+    }
+
+    val now = if (tick == 0L) System.currentTimeMillis() else tick
+    val live = list.filter { it.end > now && it.room != currentRoomId }.maxByOrNull { it.end } ?: return
+    val sisa = ((live.end - now) / 1000L).coerceAtLeast(0L)
+    val judul = if (live.roomName.isNotBlank()) live.roomName else "room lain"
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(50))
+            .background(Brush.horizontalGradient(listOf(Color(0xF01B1200), Color(0xF03A2A00))))
+            .border(1.5.dp, GoldLight, RoundedCornerShape(50))
+            .clickable { onOpen(live.room) }
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("\uD83D\uDE80", fontSize = 20.sp)
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                "Roket Lv.${live.lv} sedang meluncur",
+                color = GoldLight, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+            )
+            Text(
+                (if (live.by.isNotBlank()) "${live.by} · " else "") + judul + " · ${sisa}s",
+                color = Color(0xFFE8D9A8), fontSize = 11.sp,
+            )
+        }
+        Text("Masuk", color = Color(0xFF2A1B00), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(GoldLight)
+                .padding(horizontal = 12.dp, vertical = 6.dp))
     }
 }
 

@@ -286,6 +286,12 @@
     "rocketCfg": {
       ".read": "auth != null",
       ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
+    },
+    "rocketNow": {
+      ".read": "auth != null",
+      "$room": {
+        ".write": "auth != null"
+      }
     }
   }
 }
