@@ -257,23 +257,25 @@ private fun BannerPager() {
     }
     // Banner dibaca SEKALI per buka tab (hemat kuota listener Firestore).
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        // 1) Realtime Database (utama, kuota Firestore sering habis).
-        val dariRt: List<AppBanner> = try {
-            val rt = kotlinx.coroutines.withTimeoutOrNull(6000L) {
-                com.google.firebase.database.FirebaseDatabase.getInstance().getReference("banners").get().await()
+        // Banner dikelola seperti frame/store: file di Cloudinary, data di vipCfg.
+        val dariVip: List<AppBanner> = try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                com.google.firebase.database.FirebaseDatabase.getInstance().getReference("vipCfg").get().await()
             }
-            rt?.children?.mapNotNull { c ->
-                val url = c.child("imageUrl").value as? String ?: ""
-                val b64 = c.child("imageB64").value as? String
+            snap?.children?.mapNotNull { c ->
+                val x = c.value as? Map<*, *> ?: return@mapNotNull null
+                if (x["banner"] != true) return@mapNotNull null
+                val url = x["imageUrl"] as? String ?: ""
+                val b64 = x["imageB64"] as? String
                 if (url.isBlank() && b64.isNullOrBlank()) return@mapNotNull null
-                if ((c.child("active").value as? Boolean) == false) return@mapNotNull null
+                if (x["active"] == false) return@mapNotNull null
                 Pair(
-                    (c.child("order").value as? Number)?.toLong() ?: 0L,
+                    (x["order"] as? Number)?.toLong() ?: 0L,
                     AppBanner(
-                        c.child("title").value as? String ?: "",
-                        c.child("subtitle").value as? String ?: "",
+                        x["title"] as? String ?: "",
+                        x["subtitle"] as? String ?: "",
                         b64,
-                        c.child("link").value as? String ?: "",
+                        x["link"] as? String ?: "",
                         url,
                     ),
                 )
@@ -284,7 +286,7 @@ private fun BannerPager() {
             android.util.Log.w("Banner", e)
             emptyList()
         }
-        // 2) Banner lama di Firestore (tambahan; boleh gagal kalau kuota habis).
+        // Banner lama di Firestore tetap ditampilkan kalau masih bisa dibaca.
         val dariFs: List<AppBanner> = try {
             val snap = kotlinx.coroutines.withTimeoutOrNull(5000L) {
                 com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("banners").get().await()
@@ -304,7 +306,7 @@ private fun BannerPager() {
         } catch (e: Exception) {
             emptyList()
         }
-        val semua = dariFs + dariRt.filter { r -> dariFs.none { f -> f.imageUrl.isNotBlank() && f.imageUrl == r.imageUrl } }
+        val semua = dariVip + dariFs.filter { f -> dariVip.none { v -> v.imageUrl.isNotBlank() && v.imageUrl == f.imageUrl } }
         if (semua.isNotEmpty()) remote = semua
     }
     val count = if (remote.isNotEmpty()) remote.size else defaults.size

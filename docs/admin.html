@@ -336,7 +336,7 @@ $("btnMig").onclick = async () => {
       const x = d.data() || {};
       const exists = rtBanners.some(r => r.data.createdAt === x.createdAt && (r.data.title || "") === (x.title || ""));
       if (exists) continue;
-      await rtdb.ref("banners").push(x);
+      await rtdb.ref("vipCfg/ban_" + Date.now() + "_" + n).set(Object.assign({}, x, { banner: true }));
       n++;
     }
     bstat("Selesai \u2705 " + n + " banner dipindahkan ke Realtime Database.");
@@ -430,11 +430,13 @@ $("btnSave").onclick = async () => {
     payload.imageUrl = url;
     bstat("Gambar siap. Menyimpan data banner...");
     // Data banner disimpan di REALTIME DATABASE (Firestore kuota habis). Gambar di Cloudinary.
-    const jalur = "Realtime Database";
-    bstat("Menyimpan ke Realtime Database...");
+    // Sama seperti upload frame/store: file di Cloudinary, datanya di vipCfg.
+    const jalur = "vipCfg (Realtime Database)";
+    bstat("Menyimpan data banner ke database...");
+    payload.banner = true;
     await Promise.race([
-      rtdb.ref("banners").push(payload),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("Realtime Database tidak merespons 20 detik. Cek koneksi/aturan database.")), 20000))
+      rtdb.ref("vipCfg/ban_" + Date.now()).set(payload),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Database tidak merespons 20 detik. Cek koneksi.")), 20000))
     ]);
     bstat("Tersimpan \u2705 (" + jalur + "). Gambar: " + url);
     toast("Banner tersimpan \u2705");
@@ -450,25 +452,20 @@ $("btnSave").onclick = async () => {
 
 let fsBanners = [], rtBanners = [];
 function banStart(){
-  unsub = db.collection("banners").orderBy("order").onSnapshot(snap => {
+  if (unsub) { unsub(); unsub = null; }
+  const onVal = rtdb.ref("vipCfg").on("value", snap => {
+    rtBanners = [];
+    snap.forEach(d => {
+      const x = d.val() || {};
+      if (x.banner === true) rtBanners.push({ src: "rt", id: d.key, data: x });
+    });
+    renderBanners();
+  }, e => { rtBanners = []; renderBanners(); toast("Gagal memuat banner: " + e.message); });
+  // Firestore dicoba sekali tanpa menahan tampilan (kuota sering habis).
+  db.collection("banners").orderBy("order").get().then(snap => {
     fsBanners = snap.docs.map(d => ({ src: "fs", id: d.id, data: d.data() || {} }));
     renderBanners();
-  }, e => { fsBanners = []; renderBanners(); });
-  // Banner lama (Firestore) yang belum pindah: tombol pindahkan ke Realtime Database.
-  const onVal = rtdb.ref("banners").on("value", snap => {
-    rtBanners = [];
-    snap.forEach(d => rtBanners.push({ src: "rt", id: d.key, data: d.val() || {} }));
-    renderBanners();
-  }, () => { rtBanners = []; renderBanners(); });
-}
-
-function banPatch(b, patch){
-  if (b.src === "fs") return db.collection("banners").doc(b.id).update(patch);
-  return rtdb.ref("banners/" + b.id).update(patch);
-}
-function banDelete(b){
-  if (b.src === "fs") return db.collection("banners").doc(b.id).delete();
-  return rtdb.ref("banners/" + b.id).remove();
+  }).catch(() => { fsBanners = []; renderBanners(); });
 }
 
 function renderBanners(){
