@@ -238,7 +238,7 @@ object SupaRepo {
         return call("send_gift", p)
     }
 
-    suspend fun exchange(uid: String, diamonds: Long) = call("exchange", uidJson(uid).put("diamonds", diamonds))
+    /** Hadiah hasil klaim roket dari server. */
     class RocketPrize(val coins: Long, val vip: Int, val days: Int, val error: String?)
 
     /**
@@ -259,17 +259,6 @@ object SupaRepo {
     }
 
     suspend fun exchange(uid: String, diamonds: Long) = call("exchange", uidJson(uid).put("diamonds", diamonds))
-    /**
-     * Klaim hadiah roket. Server yang mengundi hadiahnya:
-     * mode "launch" = hadiah acak setelah roket meluncur,
-     * mode "rank"   = hadiah peringkat roket (top1..top3, sisanya coin).
-     */
-    suspend fun rocketClaim(uid: String, mode: String, rank: Int = 0, launch: String = ""): Res {
-        val p = uidJson(uid).put("mode", mode)
-        if (rank > 0) p.put("rank", rank)
-        if (launch.isNotBlank()) p.put("launch", launch)
-        return call("rocket_claim", p)
-    }
 
 
     // ---------------- Topup lewat payment gateway ----------------
