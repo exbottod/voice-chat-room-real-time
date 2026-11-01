@@ -258,14 +258,37 @@ private fun BannerPager() {
     // Banner dibaca SEKALI per buka tab (hemat kuota listener Firestore).
     androidx.compose.runtime.LaunchedEffect(Unit) {
         try {
-            val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
-                com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("banners").get().await()
+            // FIX banner tidak muncul: baca Realtime Database dulu (jalur panel
+            // developer sekarang), Firestore hanya cadangan.
+            val rt = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                com.google.firebase.database.FirebaseDatabase.getInstance().getReference("banners").get().await()
             }
-            if (snap != null) {
-                remote = snap.documents
-                    .filter { it.getBoolean("active") != false && !it.getString("imageB64").isNullOrBlank() }
-                    .sortedBy { it.getLong("order") ?: 0L }
-                    .map { AppBanner(it.getString("title") ?: "", it.getString("subtitle") ?: "", it.getString("imageB64"), it.getString("link") ?: "") }
+            val dariRt = rt?.children?.mapNotNull { c ->
+                val b64 = c.child("imageB64").value as? String
+                if (b64.isNullOrBlank()) return@mapNotNull null
+                if ((c.child("active").value as? Boolean) == false) return@mapNotNull null
+                Pair(
+                    (c.child("order").value as? Number)?.toLong() ?: 0L,
+                    AppBanner(
+                        c.child("title").value as? String ?: "",
+                        c.child("subtitle").value as? String ?: "",
+                        b64,
+                        c.child("link").value as? String ?: "",
+                    ),
+                )
+            }?.sortedBy { it.first }?.map { it.second }.orEmpty()
+            if (dariRt.isNotEmpty()) {
+                remote = dariRt
+            } else {
+                val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                    com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("banners").get().await()
+                }
+                if (snap != null) {
+                    remote = snap.documents
+                        .filter { it.getBoolean("active") != false && !it.getString("imageB64").isNullOrBlank() }
+                        .sortedBy { it.getLong("order") ?: 0L }
+                        .map { AppBanner(it.getString("title") ?: "", it.getString("subtitle") ?: "", it.getString("imageB64"), it.getString("link") ?: "") }
+                }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
         } catch (e: Exception) {

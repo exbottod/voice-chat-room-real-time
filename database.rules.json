@@ -185,6 +185,12 @@
         ".write": "auth != null"
       }
     },
+    "banners": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+      }
+    },
     "betCfg": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')",
