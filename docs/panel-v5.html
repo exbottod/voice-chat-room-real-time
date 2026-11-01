@@ -1,0 +1,1830 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Panel Developer - REZO CHAT VOICE</title>
+<style>
+:root{--bg:#0b0b0b;--card:#161616;--line:#2a2a2a;--gold:#d4af37;--gold2:#f3d97a;--txt:#eee;--mut:#9a9a9a;--bad:#e5484d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif;padding:16px;max-width:720px;margin-inline:auto}
+h1{color:var(--gold2);font-size:20px;margin:6px 0 14px}
+h2{color:var(--gold2);font-size:16px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.btn{background:var(--gold);color:#000;border:0;border-radius:10px;padding:11px 16px;font-weight:700;font-size:14px;cursor:pointer}
+.btn.out{background:transparent;color:var(--gold2);border:1px solid var(--gold)}
+.btn.bad{background:var(--bad);color:#fff}
+.btn:disabled{opacity:.5}
+input[type=text],input[type=number]{width:100%;background:#0f0f0f;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px;font-size:14px;margin:4px 0 10px}
+label{font-size:12px;color:var(--mut)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:8px 14px;border-radius:50px;border:1px solid var(--line);color:var(--mut);cursor:pointer;font-size:14px}
+.tab.on{border-color:var(--gold);color:var(--gold2)}
+#prev{aspect-ratio:3/1 !important}
+.prev{width:100%;aspect-ratio:5/2;border-radius:12px;border:1px dashed var(--gold);background:#0f0f0f;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:13px;overflow:hidden;cursor:pointer}
+.prev img{width:100%;height:100%;object-fit:cover}
+.item{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.item img{width:110px;aspect-ratio:5/2;object-fit:cover;border-radius:8px;flex:none}
+.item .info{flex:1;min-width:0;font-size:13px}
+.item .info .t{font-weight:600;color:#fff}
+.item .info .s{color:#9a9a9a;font-size:12px}
+.item .del{background:#2a2a2a;border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer}
+.item .info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item input[type=number]{width:64px;margin:0;padding:6px}
+.muted{color:var(--mut);font-size:13px}
+.hide{display:none!important}
+#msg{position:fixed;left:12px;right:12px;bottom:14px;background:#222;border:1px solid var(--gold);padding:10px 14px;border-radius:12px;text-align:center;font-size:14px}
+.u{display:flex;gap:10px;align-items:center;margin:10px 0}.u img,.u .ph{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#263238;flex:none;display:flex;align-items:center;justify-content:center;color:var(--gold2);font-weight:700}.u b{display:block}</style></head><body>
+<h1>⚙️ Panel Developer</h1>
+
+<div id="login" class="card hide">
+  <h2>Masuk</h2>
+  <p class="muted">Hanya akun Google developer yang bisa mengelola konten aplikasi.</p>
+  <button class="btn" id="btnLogin">Masuk dengan Google</button>
+</div>
+
+<div id="denied" class="card hide">
+  <h2>Akses ditolak</h2>
+  <p class="muted" id="deniedTxt"></p>
+  <button class="btn out" id="btnOut1">Keluar</button>
+</div>
+
+<div id="panel" class="hide">
+  <div class="card row">
+    <div class="muted" style="flex:1" id="who"></div>
+    <button class="btn out" id="btnOut2">Keluar</button>
+  </div>
+  <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div></div>
+  <div id="tab-banner">
+
+  <div class="card">
+    <div id="loginWarn" class="hide" style="background:#2a1a1a;border:1px solid #7e1919;border-radius:10px;padding:10px;margin-bottom:12px;font-size:13px;color:#ffb3b3;line-height:1.4">
+      Login sekarang bukan lewat Google. Upload ke Cloudinary dan simpan ke Firestore hanya diizinkan untuk akun developerex100@gmail.com yang login dengan Google. Silakan keluar lalu masuk lagi pakai tombol Google.
+    </div>
+    <h2>Tambah banner <span style="font-size:11px;color:#9a9a9a;font-weight:400">v3 Cloudinary</span></h2>
+    <div class="prev" id="prev">Ketuk untuk pilih gambar (rasio 3:1, otomatis dipotong)</div>
+    <input type="file" id="file" accept="image/*" class="hide">
+    <div style="height:10px"></div>
+    <label>Judul (opsional, tampil di bawah gambar)</label>
+    <input type="text" id="title" maxlength="60">
+    <label>Subjudul (opsional)</label>
+    <input type="text" id="sub" maxlength="100">
+    <label>Link tujuan saat banner diklik (opsional, https://...)</label>
+    <input type="text" id="link" placeholder="https://...">
+    <label>Urutan (angka kecil tampil lebih dulu)</label>
+    <input type="number" id="order" value="1">
+    <button class="btn" id="btnTes" style="margin-bottom:8px;background:#0d2a1a;color:#8ef0b0;border:1px solid #2e7d51">Tes: login, database, Cloudinary</button>
+    <button class="btn" id="btnMig" style="margin-bottom:8px;background:#2a2a2a;color:#f3d97a;border:1px solid #d4af37">Opsional sekali pakai: ambil banner lama dari Firestore</button>
+    <div id="bstatus" style="color:#c8a15a;font-size:13px;margin:10px 0;line-height:1.4">Siap. Ketuk kotak gambar di atas untuk memilih foto banner.</div>
+    <button class="btn" id="btnSave">Simpan banner</button>
+  </div>
+
+  <div class="card">
+    <h2>Banner aktif di aplikasi</h2>
+    <div id="list" class="muted">Memuat...</div>
+  </div>
+  </div>
+
+  <div id="tab-ban" class="hide">
+    <div class="card">
+      <h2>Banned user</h2>
+      <label>ID user (angka, mulai 100000)</label>
+      <input type="number" id="banId" inputmode="numeric">
+      <label>Alasan (opsional, tampil ke user)</label>
+      <input type="text" id="banReason" maxlength="100">
+      <button class="btn out" id="banFind">Cari user</button>
+      <div id="banUser"></div>
+      <div class="row" id="banActs" style="display:none">
+        <button class="btn bad" id="banDo">Banned user ini</button>
+        <button class="btn out" id="banUndo">Buka banned</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Daftar banned</h2>
+      <div id="banList" class="muted">Memuat...</div>
+    </div>
+  </div>
+
+  <div id="tab-coin" class="hide">
+    <div class="card">
+      <h2>Kirim coin ke user</h2>
+      <label>ID user (angka)</label>
+      <input type="number" id="coinId" inputmode="numeric">
+      <button class="btn out" id="coinFind">Cari user</button>
+      <div id="coinUser"></div>
+      <div id="coinForm" style="display:none">
+        <label>Jumlah coin (pakai minus untuk mengurangi)</label>
+        <input type="number" id="coinAmt" inputmode="numeric" placeholder="contoh: 500">
+        <button class="btn" id="coinSend">Kirim coin</button>
+        <hr>
+        <label>Reset coin user ini menjadi 0</label>
+        <button class="btn bad" id="coinReset">Reset coin user ini</button>
+        <hr>
+        <label>Reset diamond user ini menjadi 0</label>
+        <button class="btn bad" id="gemReset">Reset diamond user ini</button>
+        <hr>
+        <label>Jumlah exp level (minus untuk mengurangi)</label>
+        <input type="number" id="expAmt" inputmode="numeric" placeholder="contoh: 5000000">
+        <button class="btn" id="expSend">Kirim exp</button>
+        <hr>
+        <label>Set VIP (0 = cabut VIP, 1-9 = aktifkan)</label>
+        <input type="number" id="vipTier" inputmode="numeric" placeholder="0-9">
+        <label>Durasi VIP (hari)</label>
+        <input type="number" id="vipDays" inputmode="numeric" value="30">
+        <button class="btn" id="vipSet">Set VIP</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Reset coin semua user</h2>
+      <p class="muted">Membuat saldo coin SEMUA user menjadi 0. Diamond dan exp tidak disentuh. Tidak bisa dibatalkan.</p>
+      <div id="resetAllInfo" class="muted"></div>
+      <button class="btn bad" id="coinResetAll">Reset coin SEMUA user</button>
+    </div>
+    <div class="card">
+      <h2>Reset diamond semua user</h2>
+      <p class="muted">Membuat saldo diamond SEMUA user menjadi 0. Coin dan exp tidak disentuh. Tidak bisa dibatalkan.</p>
+      <div id="gemResetAllInfo" class="muted"></div>
+      <button class="btn bad" id="gemResetAll">Reset diamond SEMUA user</button>
+    </div>
+  </div>
+</div>
+<div id="tab-vip" class="hide">
+  <div class="card">
+    <h2>Pengaturan VIP 1-9</h2>
+    <label>Pilih tingkat VIP</label>
+    <div id="vipTabs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    <p class="muted" style="margin-top:10px">Isi URL (.svga .gif .webp .png; efek masuk .mp4/.gif) atau pilih file dari HP. File dari HP maksimal sekitar 5 MB (otomatis dipecah). Untuk file lebih besar, pakai URL.</p>
+  </div>
+  <div id="vipSlots"></div>
+</div>
+
+<div id="tab-store" class="hide">
+  <div class="card">
+    <h2>Tambah item Store</h2>
+    <label>Jenis item</label>
+    <select id="stSlot" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"><option value="frame">⭕ Bingkai avatar</option><option value="entry">✨ Efek masuk</option><option value="banner">🚩 Banner efek masuk</option><option value="badge">🎖️ Lencana</option><option value="medal">🏅 Medali (Lencana glory)</option></select>
+    <label>Nama item</label><input type="text" id="stName" placeholder="Contoh: Bingkai Vietnam">
+    <label>Harga (koin)</label><input type="number" id="stPrice" value="1000000" min="0">
+    <label>Durasi (hari)</label><input type="number" id="stDays" value="7" min="1">
+    <label>Urutan (angka kecil tampil lebih dulu)</label><input type="number" id="stOrder" value="0">
+    <div class="prev" id="stPrev">Pratinjau</div>
+    <label>URL (svga, gif, webp, png; efek masuk juga mp4; banner: png/webp/jpg/gif)</label><input type="text" id="stUrl" placeholder="https://...">
+    <label>atau pilih file dari HP (maks sekitar 5 MB)</label><input type="file" id="stFile" accept=".svga,.gif,.webp,.png,.mp4">
+    <button class="btn" id="stAdd">Tambah ke Store</button>
+  </div>
+  <div id="stList"></div>
+</div>
+
+<div id="tab-emote" class="hide">
+    <div class="card">
+      <h2>Tambah emote room</h2>
+      <p class="muted">Emote tampil di tab emot room, seukuran foto profil di mic dan di depan bingkai VIP.</p>
+      <label>Nama emote (opsional)</label><input type="text" id="emName" placeholder="Contoh: Tawa REZO">
+      <label>Urutan (angka kecil tampil lebih dulu)</label><input type="number" id="emOrder" value="0">
+      <div class="prev" id="emPrev">Pratinjau</div>
+      <label>URL (gif, png, jpg)</label><input type="text" id="emUrl" placeholder="https://...">
+      <label>atau pilih file dari HP (maks sekitar 5 MB)</label><input type="file" id="emFile" accept=".gif,.png,.jpg,.jpeg">
+      <button class="btn" id="emAdd">Tambah emote</button>
+    </div>
+    <div id="emList"></div>
+</div>
+
+<div id="tab-bg" class="hide">
+    <div class="card">
+      <h2>Background tab home</h2>
+      <p class="muted">Atur latar belakang tiap tab aplikasi: Default (kerajaan), Gambar (upload, full screen), atau Gradien (2 warna). Perubahan langsung tampil di semua user.</p>
+    </div>
+    <div id="bgList"></div>
+</div>
+
+
+<div id="tab-signin" class="hide">
+  <div class="card">
+    <h2>Cek in harian (sign-in)</h2>
+    <p class="muted">Atur hadiah cek in hari 1 sampai 7: jumlah coin, bingkai custom (upload gambar), dan VIP.
+      Bingkai yang diupload otomatis masuk katalog item lalu dipakai sebagai hadiah hari itu.</p>
+    <label class="muted">Aktifkan fitur cek in</label>
+    <input type="checkbox" id="siOn" checked style="width:auto;margin:6px 0 12px">
+    <label class="muted">Target hari untuk peti hadiah</label>
+    <input type="number" id="siTarget" value="18" min="1" max="999">
+    <div id="siDays" style="margin-top:14px"></div>
+    <button class="btn" id="siSave" style="margin-top:14px">Simpan pengaturan cek in</button>
+    <div class="muted" id="siMsg" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="tab-bet" class="hide">
+  <div class="card">
+    <h2>Nilai taruhan game</h2>
+    <p class="muted">Atur nominal chip taruhan tiap game. Isi dengan angka dipisah koma, urut dari kecil ke besar,
+      maksimal 6 chip. Contoh: 1000, 10000, 100000, 1000000. Perubahan langsung dipakai game saat dibuka berikutnya.</p>
+    <div id="betGames" style="margin-top:12px"></div>
+    <button class="btn" id="betSave" style="margin-top:14px">Simpan nilai taruhan</button>
+    <div class="muted" id="betMsg" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="tab-topup" class="hide">
+  <div class="card">
+    <h2>Nomor DANA untuk topup</h2>
+    <div id="payStatusTop" style="display:none;margin:8px 0;padding:10px;border-radius:10px;font-weight:800;font-size:15px"></div>
+    <p class="muted">Nomor ini yang tampil di aplikasi saat user mau topup coin. Coin baru masuk setelah pengajuan disetujui di bawah.</p>
+    <div class="row" style="margin-top:10px">
+      <input id="payDana" placeholder="08xxxxxxxxxx" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
+      <input id="payName" placeholder="Nama pemilik DANA/GoPay" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input id="payGopay" placeholder="Nomor GoPay (08xxxxxxxxxx)" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input type="file" id="payQrisFile" accept=".png,.jpg,.jpeg,.webp" style="flex:1;min-width:200px">
+      <button class="btn out" id="payQrisUpload">Unggah QRIS</button>
+    </div>
+    <div class="muted" id="payQrisMsg" style="margin-top:6px"></div>
+    <img id="payQrisImg" style="max-width:180px;border-radius:10px;margin-top:8px;display:none" alt="QRIS">
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="paySave">Simpan</button>
+      <button class="btn out" id="payTest">Tes koneksi</button>
+    </div>
+    <div class="muted" id="payMsg" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>Pengajuan topup</h2>
+    <p class="muted">Cocokkan dengan riwayat masuk di DANA sebelum menekan Setujui. Menyetujui langsung menambah coin user.</p>
+    <div class="row" style="margin-top:8px">
+      <button class="btn out" id="manualReload">Muat ulang</button>
+      <button class="btn out" id="manualAll">Lihat semua</button>
+    </div>
+    <div id="manualList" style="margin-top:12px"></div>
+    <div class="muted" id="manualMsg" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div id="tab-user" class="hide">
+    <div class="card">
+      <h2>Daftar user terdaftar</h2>
+      <p class="muted">Menampilkan ID yang benar-benar ada di database (maks. 200).</p>
+      <input type="text" id="userQ" placeholder="Cari nama atau ID (opsional)">
+      <button class="btn out" id="userLoad">Muat daftar user</button>
+      <div class="muted" id="userCount" style="margin-top:8px"></div>
+      <div id="userList"></div>
+    </div>
+  </div>
+<div id="msg" class="hide"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js">
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+const CFG = {
+  apiKey: "AIzaSyC-Fu_WeY93DxtwieQ_psU2DSSwzdZ899o",
+  authDomain: "arboreal-cat-511705-p6.firebaseapp.com",
+  projectId: "arboreal-cat-511705-p6",
+  messagingSenderId: "707122344337",
+  databaseURL: "https://arboreal-cat-511705-p6-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+const ADMIN_EMAIL = "developerex100@gmail.com";
+firebase.initializeApp(CFG);
+const auth = firebase.auth(), db = firebase.firestore(), rtdb = firebase.database();
+const $ = id => document.getElementById(id);
+let imgB64 = null, unsub = null;
+window.onerror = function(msg, src, line, col){
+  try {
+    const d = document.createElement("div");
+    d.style.cssText = "position:fixed;left:0;right:0;bottom:0;background:#7e1919;color:#fff;padding:8px 10px;font:12px monospace;z-index:9999;white-space:pre-wrap";
+    d.textContent = "Error panel: " + msg + " (baris " + line + ")";
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 15000);
+  } catch (e) {}
+};
+window.addEventListener("unhandledrejection", function(ev){
+  window.onerror("Promise: " + ((ev.reason && (ev.reason.message || ev.reason.code)) || ev.reason));
+});
+
+function toast(t){ const m=$("msg"); m.textContent=t; m.classList.remove("hide"); clearTimeout(toast.t); toast.t=setTimeout(()=>m.classList.add("hide"),3000); }
+function show(which){ ["login","denied","panel"].forEach(k=>$(k).classList.toggle("hide",k!==which)); }
+
+$("btnLogin").onclick = async () => {
+  try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch(e){ toast("Gagal masuk: " + (e.code || e.message)); }
+};
+const out = () => auth.signOut();
+$("btnOut1").onclick = out; $("btnOut2").onclick = out;
+
+auth.onAuthStateChanged(u => {
+  if (unsub) { unsub(); unsub = null; }
+  if (unsubBan) { unsubBan(); unsubBan = null; }
+  if (!u) return show("login");
+  const ok = (u.email || "").toLowerCase() === ADMIN_EMAIL;
+  if (!ok) { $("deniedTxt").textContent = (u.email || "Akun ini") + " bukan akun developer."; return show("denied"); }
+  $("who").textContent = "Masuk sebagai " + u.email;
+  const prov = (u.providerData && u.providerData[0] ? u.providerData[0].providerId : "") || "";
+  const warn = $("loginWarn");
+  if (warn) warn.classList.toggle("hide", prov === "google.com");
+  show("panel");
+  startBan();
+  bgStart();
+  banStart();
+});
+
+$("prev").onclick = () => $("file").click();
+let imgFile = null;
+$("btnTes").onclick = async () => {
+  const lines = [];
+  const u = auth.currentUser;
+  const prov = (u && u.providerData && u.providerData[0] ? u.providerData[0].providerId : "-");
+  lines.push("1. Login: " + (u ? u.email : "belum login") + " (" + prov + ")");
+  // tes database
+  try {
+    await Promise.race([
+      rtdb.ref("vipCfg/selftest").set({ at: Date.now() }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("timeout 10s")), 10000))
+    ]);
+    await rtdb.ref("vipCfg/selftest").remove();
+    lines.push("2. Database (vipCfg): TULIS OK");
+  } catch (e) { lines.push("2. Database (vipCfg): GAGAL - " + (e.message || e.code || e)); }
+  // tes Cloudinary dengan gambar kecil
+  try {
+    const c = document.createElement("canvas"); c.width = 24; c.height = 8;
+    c.getContext("2d").fillRect(0, 0, 24, 8);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.8));
+    const f = new File([blob], "tes.jpg", { type: "image/jpeg" });
+    const url = await cldUpload(f, "tes");
+    lines.push("3. Cloudinary: OK - " + url);
+  } catch (e) { lines.push("3. Cloudinary: GAGAL - " + (e.message || e.code || e)); }
+  bstat(lines.join("\n"));
+  const el = $("bstatus"); if (el) el.style.whiteSpace = "pre-line";
+};
+
+$("btnMig").onclick = async () => {
+  $("btnMig").disabled = true;
+  try {
+    bstat("Membaca banner lama dari Firestore...");
+    const snap = await Promise.race([
+      db.collection("banners").get(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Firestore tidak merespons / kuota habis. Coba lagi setelah kuota reset (sekitar 14.00 WIB).")), 15000))
+    ]);
+    if (snap.empty) { bstat("Tidak ada banner lama di Firestore."); $("btnMig").disabled = false; return; }
+    let n = 0;
+    for (const d of snap.docs) {
+      const x = d.data() || {};
+      const exists = rtBanners.some(r => r.data.createdAt === x.createdAt && (r.data.title || "") === (x.title || ""));
+      if (exists) continue;
+      await rtdb.ref("vipCfg/ban_" + Date.now() + "_" + n).set(Object.assign({}, x, { banner: true }));
+      n++;
+    }
+    bstat("Selesai \u2705 " + n + " banner dipindahkan ke Realtime Database.");
+    toast("Banner dipindahkan \u2705");
+  } catch (e) { bstat("Gagal memindahkan: " + (e.message || e)); }
+  $("btnMig").disabled = false;
+};
+function bstat(t){ const el = $("bstatus"); if (el) el.textContent = t; }
+$("prev").onclick = () => $("file").click();
+$("file").onchange = async e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) { bstat("Tidak ada file yang dipilih."); return; }
+  try {
+    bstat("Membaca gambar...");
+    imgFile = await bannerFile(f);
+    const im = document.createElement("img"); im.src = URL.createObjectURL(imgFile);
+    $("prev").textContent = ""; $("prev").appendChild(im);
+    bstat("Gambar siap (" + Math.round(imgFile.size / 1024) + " KB). Ketuk Simpan banner.");
+  } catch (err) { imgFile = null; bstat("Gambar tidak bisa dibaca: " + (err.message || err)); }
+};
+
+function fileToB64(file){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1] || "");
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function bannerFile(file){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        const W = 1200, H = 400, c = document.createElement("canvas");
+        c.width = W; c.height = H;
+        const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
+        c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+        c.toBlob(b => b ? res(new File([b], "banner.jpg", { type: "image/jpeg" })) : rej(new Error("Gagal memproses gambar")), "image/jpeg", 0.85);
+      } catch (e) { rej(e); } finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Format gambar tidak didukung")); };
+    img.src = url;
+  });
+}
+
+ async function badgeToPng(file){
+  // Paksa lencana ke rasio 192:32 (6:1). Disimpan 4x (768x128) supaya tajam.
+  const img = await new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => { URL.revokeObjectURL(i.src); res(i); };
+    i.onerror = rej;
+    i.src = URL.createObjectURL(file);
+  });
+  const W = 768, H = 128, c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const s = Math.min(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
+  g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+  const blob = await new Promise(r => c.toBlob(r, "image/png"));
+  return new File([blob], "badge_192x32.png", { type: "image/png" });
+} 
+
+$("btnSave").onclick = async () => {
+  const link = $("link").value.trim();
+  if (!imgFile) { bstat("Belum ada gambar. Ketuk kotak gambar di atas dulu."); toast("Pilih gambar banner dulu"); return; }
+  if (link && !/^https?:\/\//i.test(link)) { bstat("Link harus diawali http:// atau https://"); return; }
+  $("btnSave").disabled = true;
+  const payload = {
+    imageUrl: "",
+    title: $("title").value.trim(),
+    subtitle: $("sub").value.trim(),
+    link: link,
+    order: parseInt($("order").value, 10) || 0,
+    active: true,
+    createdAt: Date.now()
+  };
+  try {
+    // File diunggah ke CLOUDINARY (bukan Supabase), dokumen hanya menyimpan URL.
+    // Gambar WAJIB ke Cloudinary. Tidak ada lagi simpan gambar ke database.
+    bstat("Mengunggah gambar ke Cloudinary...");
+    let url;
+    try {
+      url = await cldUpload(imgFile, "banner");
+    } catch (eCld) {
+      const m = String(eCld.message || eCld);
+      throw new Error("Cloudinary menolak: " + m + (m.toLowerCase().indexOf("hanya admin") >= 0 ? " \u2192 keluar dulu, lalu masuk pakai tombol Google dengan akun developerex100@gmail.com" : ""));
+    }
+    if (!url || !/^https?:\/\//i.test(url)) throw new Error("Cloudinary tidak mengembalikan link gambar");
+    payload.imageUrl = url;
+    bstat("Gambar siap. Menyimpan data banner...");
+    // Data banner disimpan di REALTIME DATABASE (Firestore kuota habis). Gambar di Cloudinary.
+    // Sama seperti upload frame/store: file di Cloudinary, datanya di vipCfg.
+    const jalur = "vipCfg (Realtime Database)";
+    bstat("Menyimpan data banner ke database...");
+    payload.banner = true;
+    await Promise.race([
+      rtdb.ref("vipCfg/ban_" + Date.now()).set(payload),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Database tidak merespons 20 detik. Cek koneksi.")), 20000))
+    ]);
+    bstat("Tersimpan \u2705 (" + jalur + "). Gambar: " + url);
+    toast("Banner tersimpan \u2705");
+    imgFile = null; $("file").value = ""; $("title").value = ""; $("sub").value = ""; $("link").value = "";
+    $("prev").textContent = "Ketuk untuk pilih gambar (rasio 3:1, otomatis dipotong)";
+    $("order").value = (parseInt($("order").value, 10) || 0) + 1;
+  } catch (e) {
+    bstat("Gagal: " + (e.message || e));
+    toast("Gagal: " + (e.message || e));
+  }
+  $("btnSave").disabled = false;
+};
+
+let fsBanners = [], rtBanners = [];
+function banStart(){
+  if (unsub) { unsub(); unsub = null; }
+  const onVal = rtdb.ref("vipCfg").on("value", snap => {
+    rtBanners = [];
+    snap.forEach(d => {
+      const x = d.val() || {};
+      if (x.banner === true) rtBanners.push({ src: "rt", id: d.key, data: x });
+    });
+    renderBanners();
+  }, e => { rtBanners = []; renderBanners(); toast("Gagal memuat banner: " + e.message); });
+  // Banner hanya dari Realtime Database (vipCfg). Firestore tidak dipakai lagi.
+  fsBanners = [];
+}
+
+function banPatch(b, patch){
+  return rtdb.ref("vipCfg/" + b.id).update(patch);
+}
+
+async function banDelete(b){
+  // Hapus banner dari mana pun asalnya, dengan jalur cadangan kalau Firestore
+  // tidak bisa (kuota habis / aturan).
+  if (b.src === "rt") {
+    await Promise.race([
+      rtdb.ref("vipCfg/" + b.id).remove(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Database tidak merespons 20 detik")), 20000))
+    ]);
+    toast("Banner dihapus ✅");
+    return;
+  }
+  try {
+    await db.collection("banners").doc(b.id).delete();
+    toast("Banner dihapus ✅");
+    return;
+  } catch (e1) {
+    // Firestore tidak bisa dihapus: tandai disembunyikan supaya hilang dari panel & aplikasi.
+    await rtdb.ref("vipCfg/hide_" + b.id).set({
+      banner: true, active: false, hiddenFs: b.id,
+      imageUrl: b.data.imageUrl || "", title: b.data.title || "", order: b.data.order || 0,
+      createdAt: Date.now()
+    });
+    toast("Banner disembunyikan (Firestore: " + (e1.message || e1) + ")");
+  }
+}
+
+function renderBanners(){
+  const box = $("list"); box.textContent = "";
+  const hidden = new Set(rtBanners.filter(r => r.data.hiddenFs).map(r => r.data.hiddenFs));
+  const visFs = fsBanners.filter(f => !hidden.has(f.id));
+  const visRt = rtBanners.filter(r => !r.data.hiddenFs && r.data.active !== false);
+  const all = visRt.concat(visFs.filter(f => !visRt.some(r => (r.data.imageUrl || "") && r.data.imageUrl === (f.data.imageUrl || ""))));
+  if (!all.length) { box.textContent = "Belum ada banner. Aplikasi memakai banner bawaan."; return; }
+  all.sort((a, b) => (a.data.order || 0) - (b.data.order || 0));
+  all.forEach(b0 => {
+    const b = b0.data, row = document.createElement("div"); row.className = "item";
+    const im = document.createElement("img");
+    im.src = b.imageUrl ? b.imageUrl : (b.imageB64 ? ("data:image/jpeg;base64," + b.imageB64) : "");
+    const info = document.createElement("div"); info.className = "info";
+    const t = document.createElement("b"); t.textContent = (b.title || "(tanpa judul)") + (b0.src === "rt" ? "  · RTDB" : "");
+    const sm = document.createElement("span"); sm.className = "muted"; sm.textContent = (b.subtitle || "") + (b.link ? "  \ud83d\udd17 " + b.link : "");
+    info.append(t, sm);
+    const lk = document.createElement("button"); lk.className = "btn"; lk.textContent = "\ud83d\udd17"; lk.title = "Ubah link";
+    lk.onclick = () => {
+      const v = prompt("Link tujuan banner (kosongkan untuk menghapus)", b.link || "");
+      if (v === null) return;
+      const t2 = v.trim();
+      if (t2 && !/^https?:\/\//i.test(t2)) return toast("Link harus diawali http:// atau https://");
+      banPatch(b0, { link: t2 }).then(() => toast("Link disimpan \u2705")).catch(e => toast(e.message));
+    };
+    const ord = document.createElement("input"); ord.type = "number"; ord.value = b.order || 0;
+    ord.onchange = () => banPatch(b0, { order: parseInt(ord.value, 10) || 0 }).catch(e => toast(e.message));
+    const act = document.createElement("input"); act.type = "checkbox"; act.checked = b.active !== false; act.title = "Aktif";
+    act.onchange = () => banPatch(b0, { active: act.checked }).catch(e => toast(e.message));
+    const del = document.createElement("button"); del.className = "btn bad"; del.textContent = "\ud83d\uddd1";
+    del.onclick = () => { if (confirm("Hapus banner ini?")) banDelete(b0).then(() => toast("Banner dihapus")).catch(e => toast(e.message)); };
+    row.append(im, info, lk, ord, act, del);
+    box.appendChild(row);
+  });
+}
+
+
+
+/* ================= CEK IN HARIAN ================= */
+const SI_DEFAULT = [
+  { coins: 30000,  item: "",       itemDays: 0, vip: 0 },
+  { coins: 45000,  item: "",       itemDays: 0, vip: 0 },
+  { coins: 60000,  item: "vipt_1", itemDays: 3, vip: 0 },
+  { coins: 67200,  item: "vipf_1", itemDays: 3, vip: 0 },
+  { coins: 70200,  item: "vipe_1", itemDays: 1, vip: 0 },
+  { coins: 81000,  item: "vipf_2", itemDays: 3, vip: 0 },
+  { coins: 120000, item: "vipf_3", itemDays: 3, vip: 1 }
+];
+
+function siRender(days) {
+  const box = document.getElementById("siDays");
+  box.innerHTML = "";
+  const storeItems = (window.__siStore || []);
+  const opts = storeItems.map(c => '<option value="sx_' + c.id + '">' + (c.name || c.id) + ' (' + c.slot + ')</option>').join("");
+  for (let i = 1; i <= 7; i++) {
+    const d = days[i - 1] || SI_DEFAULT[i - 1];
+    const div = document.createElement("div");
+    div.style.cssText = "border:1px solid #3a2f1a;border-radius:12px;padding:10px;margin-bottom:8px";
+    div.innerHTML =
+      '<div style="font-weight:700;color:#D4AF37;margin-bottom:6px">Hari ' + i + (i === 7 ? " (Reward Besar)" : "") + '</div>' +
+      '<label class="muted">Coin</label>' +
+      '<input type="number" id="si-c-' + i + '" value="' + (d.coins || 0) + '" min="0">' +
+      '<label class="muted">Bingkai / item hadiah</label>' +
+      '<input type="text" id="si-i-' + i + '" value="' + (d.item || "") + '" placeholder="sx_xxx (kosong = tanpa item)">' +
+      (opts ? '<select id="si-s-' + i + '" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;margin:4px 0 8px"><option value="">— pilih item store —</option>' + opts + '</select>' : '') +
+      '<label class="muted">Upload gambar bingkai untuk hari ini</label>' +
+      '<input type="file" id="si-f-' + i + '" accept=".png,.webp,.gif,.svga,.jpg,.jpeg">' +
+      '<label class="muted">Masa aktif item (hari)</label>' +
+      '<input type="number" id="si-d-' + i + '" value="' + (d.itemDays || 3) + '" min="0">' +
+      '<label class="muted">VIP tier (0 = tanpa VIP, 1-9)</label>' +
+      '<input type="number" id="si-v-' + i + '" value="' + (d.vip || 0) + '" min="0" max="9">' +
+      '<div class="muted" id="si-n-' + i + '" style="margin-top:4px"></div>';
+    box.appendChild(div);
+    const sel = div.querySelector("#si-s-" + i);
+    if (sel) sel.onchange = () => { if (sel.value) div.querySelector("#si-i-" + i).value = sel.value; };
+  }
+}
+
+/** Upload bingkai hadiah hari ke-N lalu isi otomatis id itemnya. */
+async function siUpload(day) {
+  const f = document.getElementById("si-f-" + day).files[0];
+  const msg = document.getElementById("siMsg");
+  if (!f) return;
+  const name = (document.getElementById("si-nm-" + day) && document.getElementById("si-nm-" + day).value) || ("Bingkai Cekin Hari " + day);
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try {
+    msg.textContent = "Mengunggah gambar hari " + day + "…";
+    const url = await cldUpload(f, "signin_" + id);
+    if (!/^https?:\/\//i.test(url)) throw new Error("URL upload tidak valid");
+    await rtSet("vipCfg/store_" + id, {
+      store: true, meta: false, id: id, slot: "frame", name: name,
+      price: 0, days: Number(document.getElementById("si-d-" + day).value || 3), order: 0,
+      kind: vipKind(url), url: url, hasData: false, chunks: 0, updatedAt: Date.now()
+    });
+    document.getElementById("si-i-" + day).value = "sx_" + id;
+    document.getElementById("si-n-" + day).textContent = "Bingkai tersimpan: " + name;
+    msg.textContent = "Gambar hari " + day + " diupload. Tekan Simpan untuk memakai hadiah ini.";
+  } catch (e) {
+    msg.textContent = "Gagal upload: " + (e.message || e);
+  }
+}
+
+async function signinStart() {
+  try {
+    const st = await rtdb.ref("vipCfg").get();
+    const v = st.val() || {};
+    window.__siStore = Object.keys(v)
+      .filter(k => k.startsWith("store_") && v[k] && v[k].id)
+      .map(k => ({ id: v[k].id, name: v[k].name || v[k].id, slot: v[k].slot || "" }));
+  } catch (e) { window.__siStore = []; }
+  const snap = await rtdb.ref("signinCfg").get();
+  const v = snap.val() || {};
+  document.getElementById("siOn").checked = v.enabled !== false;
+  document.getElementById("siTarget").value = v.target || 18;
+  const days = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = (v.days && v.days[i]) || SI_DEFAULT[i - 1];
+    days.push({ coins: d.coins || 0, item: d.item || "", itemDays: d.itemDays || 0, vip: d.vip || 0 });
+  }
+  siRender(days);
+  for (let i = 1; i <= 7; i++) {
+    const fi = document.getElementById("si-f-" + i);
+    if (fi) fi.onchange = () => siUpload(i);
+  }
+  document.getElementById("siMsg").textContent = "";
+}
+
+document.getElementById("siSave").onclick = async () => {
+  try {
+    const days = {};
+    for (let i = 1; i <= 7; i++) {
+      days[i] = {
+        coins: Number(document.getElementById("si-c-" + i).value || 0),
+        item: document.getElementById("si-i-" + i).value.trim(),
+        itemDays: Number(document.getElementById("si-d-" + i).value || 0),
+        vip: Number(document.getElementById("si-v-" + i).value || 0)
+      };
+    }
+    await rtdb.ref("signinCfg").set({
+      enabled: document.getElementById("siOn").checked,
+      target: Number(document.getElementById("siTarget").value || 18),
+      days: days,
+      updatedAt: Date.now()
+    });
+    document.getElementById("siMsg").textContent = "Tersimpan. Aplikasi memakai hadiah ini pada cek in berikutnya.";
+  } catch (e) {
+    document.getElementById("siMsg").textContent = "Gagal menyimpan: " + (e.message || e);
+  }
+};
+
+/* ---------- Bet game ---------- */
+const BET_GAMES = [
+  { k: "fruitsparty", n: "Fruits Party", d: [50000, 500000, 1000000, 5000000] },
+  { k: "greedybaby", n: "Greedy Baby", d: [100, 1000, 10000, 100000, 1000000] },
+  { k: "slot777", n: "Slot 777", d: [1000, 10000, 100000, 1000000] },
+  { k: "lucky77", n: "Lucky 77", d: [1000, 10000, 100000] },
+  { k: "dvt", n: "Dragon Tiger", d: [1000, 10000, 100000] },
+  { k: "teenpatti", n: "Teen Patti", d: [1000, 10000, 100000] },
+  { k: "poker", n: "3 Card Poker", d: [1000, 10000, 100000] },
+  { k: "greedy", n: "Greedy Cat", d: [100, 1000, 10000, 100000, 1000000] }
+];
+
+function betRender(cfg) {
+  const box = document.getElementById("betGames");
+  box.innerHTML = "";
+  BET_GAMES.forEach(g => {
+    const cur = (cfg && cfg[g.k] && cfg[g.k].chips && cfg[g.k].chips.length) ? cfg[g.k].chips : g.d;
+    const div = document.createElement("div");
+    div.style.marginBottom = "12px";
+    div.innerHTML = '<label class="muted">' + g.n + '</label>' +
+      '<input type="text" id="bet-' + g.k + '" value="' + cur.join(", ") + '" placeholder="angka dipisah koma">' +
+      '<div class="muted" id="betp-' + g.k + '" style="margin-top:4px;font-size:12px"></div>';
+    box.appendChild(div);
+    const inp = document.getElementById("bet-" + g.k);
+    const prev = () => {
+      const vs = betParse(inp.value);
+      document.getElementById("betp-" + g.k).textContent = vs.length
+        ? "Chip: " + vs.map(betShort).join(" · ")
+        : "Isi minimal satu angka";
+    };
+    inp.oninput = prev;
+    prev();
+  });
+}
+
+function betParse(txt) {
+  return String(txt || "")
+    .split(/[,;\s]+/)
+    .map(x => Number(String(x).replace(/[^0-9]/g, "")))
+    .filter(v => v > 0)
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => a - b)
+    .slice(0, 6);
+}
+
+function betShort(v) {
+  if (v >= 1000000) return (v / 1000000).toString().replace(/\.0$/, "") + "M";
+  if (v >= 1000) return (v / 1000).toString().replace(/\.0$/, "") + "K";
+  return String(v);
+}
+
+// Lokasi pengaturan taruhan. "betCfg" lokasi utama;
+// "pub/_betCfg" dipakai kalau aturan database belum mengizinkan betCfg.
+const BET_PATHS = ["betCfg", "pub/_betCfg"];
+
+async function betReadCfg() {
+  for (const path of BET_PATHS) {
+    try {
+      const snap = await rtdb.ref(path).get();
+      const v = snap.val();
+      if (v && typeof v === "object") return { cfg: v, path: path };
+    } catch (e) { /* coba lokasi berikutnya */ }
+  }
+  return { cfg: null, path: BET_PATHS[0] };
+}
+
+async function betStart() {
+  const msg = document.getElementById("betMsg");
+  msg.textContent = "Memuat pengaturan…";
+  const res = await betReadCfg();
+  betRender(res.cfg);
+  msg.textContent = res.cfg
+    ? "Pengaturan dimuat dari " + res.path + "."
+    : "Belum ada pengaturan, memakai nilai bawaan.";
+}
+
+document.getElementById("betSave").onclick = async () => {
+  const msg = document.getElementById("betMsg");
+  try {
+    const out = { updatedAt: Date.now() };
+    for (const g of BET_GAMES) {
+      const vs = betParse(document.getElementById("bet-" + g.k).value);
+      if (!vs.length) throw new Error("Nilai taruhan " + g.n + " masih kosong");
+      out[g.k] = { chips: vs, updatedAt: Date.now() };
+    }
+    let saved = "";
+    let lastErr = null;
+    for (const path of BET_PATHS) {
+      try {
+        await rtdb.ref(path).set(out);
+        saved = path;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!saved) throw lastErr || new Error("Semua lokasi penyimpanan ditolak");
+    msg.textContent = "Tersimpan di " + saved + ". Game memakai nilai taruhan ini saat dibuka berikutnya.";
+  } catch (e) {
+    msg.textContent = "Gagal menyimpan: " + (e.message || e);
+  }
+};
+
+let unsubBan = null, foundBan = null, foundCoin = null;
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
+  if (t.dataset.t === "vip") vipStart();
+  if (t.dataset.t === "store") storeStart();
+  if (t.dataset.t === "emote") emoteStart();
+  if (t.dataset.t === "signin") signinStart();
+  if (t.dataset.t === "bet") betStart();
+  if (t.dataset.t === "topup") { payLoad(); manualLoad(false); }
+});
+
+async function lookup(raw){
+  const id = String(raw || "").trim();
+  if (!/^\d+$/.test(id)) throw new Error("ID harus berupa angka");
+  let x = null;
+  try {
+    const snap = await rtdb.ref("ids/i/" + id).get();
+    if (snap.exists()) x = snap.val();
+  } catch (e) {
+    throw new Error(/permission/i.test(e.message || "") ? "Ditolak rules Realtime Database (ids). Publish database.rules.json." : e.message);
+  }
+  // Cadangan: cari di profil publik (pub) yang belum punya catatan ids/i.
+  if (!x) {
+    try {
+      const pub = await rtdb.ref("pub").get();
+      if (pub.exists()) {
+        let hit = null;
+        pub.forEach(c => {
+          const v = c.val() || {};
+          if (String(v.id || "") === id) hit = Object.assign({ uid: c.key }, v);
+        });
+        if (hit) x = hit;
+      }
+    } catch (e) { /* lanjut */ }
+  }
+  // Cadangan: data lama yang masih di Firestore.
+  if (!x) {
+    try {
+      const d = await db.collection("userIds").doc(id).get();
+      if (d.exists) x = d.data();
+    } catch (e) { /* abaikan, Firestore sudah tidak dipakai */ }
+  }
+  if (!x) throw new Error("ID " + id + " tidak ditemukan");
+  if (!x.uid) throw new Error("Data user tidak lengkap");
+  return { id, uid: x.uid, name: x.name || ("Pengguna " + id), avatarB64: x.avatarB64 || null };
+}
+
+function userCard(el, u, line2){
+  el.textContent = "";
+  const row = document.createElement("div"); row.className = "u";
+  let av;
+  if (u.avatarB64) { av = document.createElement("img"); av.src = "data:image/jpeg;base64," + u.avatarB64; }
+  else { av = document.createElement("div"); av.className = "ph"; av.textContent = (u.name || "?").slice(0, 1).toUpperCase(); }
+  const box = document.createElement("div");
+  const n = document.createElement("b"); n.textContent = u.name;
+  const i = document.createElement("span"); i.className = "muted"; i.textContent = "ID " + u.id;
+  box.append(n, i);
+  if (line2) { const l = document.createElement("div"); l.className = "muted"; l.textContent = line2; box.appendChild(l); }
+  row.append(av, box); el.appendChild(row);
+}
+
+function logAction(obj){
+  return db.collection("adminLogs").add(Object.assign({ by: auth.currentUser.email, at: Date.now() }, obj)).catch(() => {});
+}
+
+/* ---------- Banned ---------- */
+$("banFind").onclick = async () => {
+  foundBan = null; $("banActs").style.display = "none"; $("banUser").textContent = "";
+  try {
+    const u = await lookup($("banId").value);
+    const b = await db.collection("banned").doc(u.uid).get();
+    userCard($("banUser"), u, b.exists ? "Status: BANNED" + (b.data().reason ? " (" + b.data().reason + ")" : "") : "Status: aktif");
+    foundBan = u; $("banActs").style.display = "flex";
+  } catch (e) { toast(e.message); }
+};
+$("banDo").onclick = async () => {
+  if (!foundBan) return;
+  if (foundBan.uid === auth.currentUser.uid) return toast("Tidak bisa banned akun sendiri");
+  if (!confirm("Banned " + foundBan.name + " (ID " + foundBan.id + ")?")) return;
+  try {
+    await db.collection("banned").doc(foundBan.uid).set({ userId: foundBan.id, name: foundBan.name, reason: $("banReason").value.trim(), at: Date.now(), by: auth.currentUser.email });
+    logAction({ type: "ban", targetId: foundBan.id, uid: foundBan.uid });
+    toast("User dibanned ✅"); $("banFind").click();
+  } catch (e) { toast("Gagal: " + e.message); }
+};
+$("banUndo").onclick = async () => {
+  if (!foundBan) return;
+  try {
+    await db.collection("banned").doc(foundBan.uid).delete();
+    logAction({ type: "unban", targetId: foundBan.id, uid: foundBan.uid });
+    toast("Banned dibuka ✅"); $("banFind").click();
+  } catch (e) { toast("Gagal: " + e.message); }
+};
+function startBan(){
+  unsubBan = db.collection("banned").orderBy("at", "desc").onSnapshot(snap => {
+    const box = $("banList"); box.textContent = "";
+    if (snap.empty) { box.textContent = "Belum ada user yang dibanned."; return; }
+    snap.forEach(d => {
+      const b = d.data(), row = document.createElement("div"); row.className = "item";
+      const info = document.createElement("div"); info.className = "info";
+      const t = document.createElement("b"); t.textContent = (b.name || "?") + " (ID " + (b.userId || "?") + ")";
+      const s = document.createElement("span"); s.className = "muted"; s.textContent = b.reason || "tanpa alasan";
+      info.append(t, s);
+      const un = document.createElement("button"); un.className = "btn out"; un.textContent = "Buka";
+      un.onclick = () => { if (confirm("Buka banned user ini?")) d.ref.delete().then(() => logAction({ type: "unban", targetId: b.userId, uid: d.id })).catch(e => toast(e.message)); };
+      row.append(info, un); box.appendChild(row);
+    });
+  }, e => { $("banList").textContent = e.code === "permission-denied" ? "Ditolak rules Firestore. Pastikan rules sudah di-Publish dan isAdmin() memakai email Anda." : "Gagal memuat: " + e.message; });
+}
+
+/* ---------- Reset coin ---------- */
+$("coinReset").onclick = async () => {
+  if (!foundCoin) return;
+  if (!confirm("Reset coin " + foundCoin.name + " (ID " + foundCoin.id + ") menjadi 0?")) return;
+  $("coinReset").disabled = true;
+  try {
+    await walletAdmin({ op: "reset", uid: foundCoin.uid });
+    logAction({ type: "coinReset", targetId: foundCoin.id, uid: foundCoin.uid, from: "panel" });
+    toast("Berhasil ✅ coin user ini direset ke 0");
+    await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("coinReset").disabled = false;
+};
+
+$("coinResetAll").onclick = async () => {
+  const kata = prompt("RESET SEMUA COIN\nSaldo coin SEMUA user menjadi 0.\nKetik RESET huruf kapital untuk konfirmasi:");
+  if (kata !== "RESET") return;
+  if (!confirm("Yakin reset coin semua user menjadi 0? TIDAK BISA DIBATALKAN.")) return;
+  $("coinResetAll").disabled = true;
+  $("resetAllInfo").textContent = "Sedang memproses...";
+  try {
+    const r = await walletAdmin({ op: "reset_all" });
+    logAction({ type: "coinResetAll", count: r.count || 0 });
+    toast("Selesai ✅ coin " + (r.count || 0) + " wallet direset ke 0");
+    $("resetAllInfo").textContent = "Selesai: " + (r.count || 0) + " wallet direset.";
+  } catch (e) {
+    toast("Gagal: " + e.message);
+    $("resetAllInfo").textContent = "Gagal: " + e.message;
+  }
+  $("coinResetAll").disabled = false;
+};
+
+$("gemReset").onclick = async () => {
+  if (!foundCoin) return;
+  if (!confirm("Reset diamond " + foundCoin.name + " (ID " + foundCoin.id + ") menjadi 0?")) return;
+  $("gemReset").disabled = true;
+  try {
+    await walletAdmin({ op: "reset_gem", uid: foundCoin.uid });
+    logAction({ type: "gemReset", targetId: foundCoin.id, uid: foundCoin.uid, from: "panel" });
+    toast("Berhasil ✅ diamond user ini direset ke 0");
+    await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("gemReset").disabled = false;
+};
+
+$("gemResetAll").onclick = async () => {
+  const kata = prompt("RESET SEMUA DIAMOND\nSaldo diamond SEMUA user menjadi 0.\nKetik RESET huruf kapital untuk konfirmasi:");
+  if (kata !== "RESET") return;
+  if (!confirm("Yakin reset diamond semua user menjadi 0? TIDAK BISA DIBATALKAN.")) return;
+  $("gemResetAll").disabled = true;
+  $("gemResetAllInfo").textContent = "Sedang memproses...";
+  try {
+    const r = await walletAdmin({ op: "reset_gem_all" });
+    logAction({ type: "gemResetAll", count: r.count || 0 });
+    toast("Selesai ✅ diamond " + (r.count || 0) + " wallet direset ke 0");
+    $("gemResetAllInfo").textContent = "Selesai: " + (r.count || 0) + " wallet direset.";
+  } catch (e) {
+    toast("Gagal: " + e.message);
+    $("gemResetAllInfo").textContent = "Gagal: " + e.message;
+  }
+  $("gemResetAll").disabled = false;
+};
+
+/* ---------- Kirim coin ---------- */
+async function showCoinUser(){
+  const r = await walletAdmin({ op: "get", uid: foundCoin.uid });
+  const w = r.w || {};
+  const c = w.coins || 0, dm = w.diamonds || 0, ex = w.exp || 0, vp = w.vip || 0, vu = w.vip_until || 0;
+  const vipTxt = (vp > 0 && vu > Date.now()) ? ("VIP" + vp + " s/d " + new Date(vu).toLocaleString()) : "tanpa VIP";
+  userCard($("coinUser"), foundCoin, "Saldo: " + c + " coin, " + dm + " diamond, exp " + ex + ", " + vipTxt);
+}
+$("coinFind").onclick = async () => {
+  foundCoin = null; $("coinForm").style.display = "none"; $("coinUser").textContent = "";
+  try {
+    foundCoin = await lookup($("coinId").value);
+    await showCoinUser();
+    $("coinForm").style.display = "block";
+  } catch (e) { toast(e.message); }
+};
+$("coinSend").onclick = async () => {
+  if (!foundCoin) return;
+  const n = parseInt($("coinAmt").value, 10);
+  if (!n || !isFinite(n)) return toast("Isi jumlah coin (bukan 0)");
+  if (!Number.isSafeInteger(n) || Math.abs(n) > 1000000000000) return toast("Jumlah terlalu besar (maks 1 triliun)");
+  if (!confirm((n > 0 ? "Kirim " : "Kurangi ") + Math.abs(n) + " coin " + (n > 0 ? "ke " : "dari ") + foundCoin.name + " (ID " + foundCoin.id + ")?")) return;
+  $("coinSend").disabled = true;
+  try {
+    await walletAdmin({ op: "add", uid: foundCoin.uid, coins: n });
+    logAction({ type: "coin", targetId: foundCoin.id, uid: foundCoin.uid, amount: n });
+    toast("Berhasil ✅ " + (n > 0 ? "+" : "") + n + " coin");
+    $("coinAmt").value = ""; await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("coinSend").disabled = false;
+};
+
+$("expSend").onclick = async () => {
+  if (!foundCoin) return;
+  const n = Number($("expAmt").value);
+  if (!n || !Number.isSafeInteger(n)) return toast("Isi jumlah exp (bukan 0)");
+  if (!confirm((n > 0 ? "Tambah " : "Kurangi ") + Math.abs(n) + " exp untuk " + foundCoin.name + " (ID " + foundCoin.id + ")?")) return;
+  $("expSend").disabled = true;
+  try {
+    await walletAdmin({ op: "add", uid: foundCoin.uid, exp: n });
+    logAction({ type: "exp", targetId: foundCoin.id, uid: foundCoin.uid, amount: n });
+    toast("Berhasil ✅ " + (n > 0 ? "+" : "") + n + " exp");
+    $("expAmt").value = ""; await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("expSend").disabled = false;
+};
+$("vipSet").onclick = async () => {
+  if (!foundCoin) return;
+  const t = parseInt($("vipTier").value, 10), d = parseInt($("vipDays").value, 10) || 30;
+  if (!(t >= 0 && t <= 9)) return toast("VIP harus 0 sampai 9");
+  if (!confirm((t === 0 ? "Cabut VIP dari " : "Set VIP" + t + " (" + d + " hari) untuk ") + foundCoin.name + " (ID " + foundCoin.id + ")?")) return;
+  const until = t === 0 ? 0 : Date.now() + d * 86400000;
+  $("vipSet").disabled = true;
+  try {
+    await walletAdmin({ op: "vip", uid: foundCoin.uid, tier: t, until });
+    logAction({ type: "vip", targetId: foundCoin.id, uid: foundCoin.uid, vip: t, days: d });
+    toast("Berhasil ✅ " + (t === 0 ? "VIP dicabut" : "VIP" + t + " aktif " + d + " hari"));
+    await showCoinUser();
+  } catch (e) { toast("Gagal: " + e.message); }
+  $("vipSet").disabled = false;
+};
+
+const VIP_SLOTS = [
+  { k: "medal", name: "🥇 Medal VIP (kotak 1:1, tampil di VIP Center)", accept: ".png,.webp,.gif,.svga", hint: "svga, gif, webp, png" },
+  { k: "title", name: "🏅 Gelar VIP", accept: ".png,.webp,.gif,.svga", hint: "svga, gif, webp, png" },
+  { k: "frame", name: "⭕ Bingkai eksklusif", accept: ".svga,.gif,.webp,.png", hint: "svga, gif, webp, png" },
+  { k: "bubble", name: "💬 Gelembung obrolan (chat bubble)", accept: ".svga,.gif,.webp,.png", hint: "svga, gif, webp, png" },
+  { k: "entry", name: "✨ Efek masuk VIP", accept: ".mp4,.gif,.svga,.webp", hint: "mp4, gif, svga, webp" },
+];
+let vipSel = 1, vipCfg = {}, vipUnsub = null;
+function vipExt(name){ const p = (name || "").split("?")[0].split("#")[0]; return p.indexOf(".") < 0 ? "" : p.split(".").pop().toLowerCase(); }
+function vipKind(name){ const e = vipExt(name); return e === "svga" ? "svga" : e === "mp4" ? "mp4" : "image"; }
+function vipExtOk(slot, name){ const e = vipExt(name); return e === "" || slot.accept.split(",").includes("." + e); }
+function readAsDataURL(f){ return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
+
+/* ---------- Upload media ke Cloudinary lewat backend (Cloudflare Worker) ---------- */
+const UPLOAD_URL = "https://rezo-agora-token.bangexx01.workers.dev/upload";
+/* Server database cadangan (KV) saat kuota Firestore habis. */
+const BACKUP_URL = "https://rezo-agora-token.bangexx01.workers.dev";
+const WALLET_API = "https://poeqhncfrxssilhjvibf.supabase.co/functions/v1/wallet-api";
+const WALLET_KEY = "sb_publishable_l6orVwlNXTICFL4Cc1QMOw_vobFaSfL";
+async function walletAdmin(p){
+  const u = auth.currentUser;
+  if (!u) throw new Error("Belum login");
+  const idToken = await u.getIdToken(true);
+  const res = await fetch(WALLET_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: WALLET_KEY },
+    body: JSON.stringify({ a: "admin", t: idToken, p })
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!out.ok) throw new Error(out.e || ("HTTP " + res.status));
+  return out;
+}
+async function cldUpload(file, name){
+  const u = auth.currentUser;
+  if (!u) throw new Error("Belum login");
+  const idToken = await u.getIdToken();
+  const fd = new FormData();
+  fd.append("file", file, file.name);
+  fd.append("name", name);
+  toast("Mengunggah " + file.name + " (" + Math.round(file.size / 1024) + " KB)...");
+  let res;
+  try { res = await fetch(UPLOAD_URL, { method: "POST", headers: { Authorization: "Bearer " + idToken }, body: fd }); }
+  catch (e) { throw new Error("Tidak bisa menghubungi server upload"); }
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok || !out.url) throw new Error(out.error || ("Upload gagal (" + res.status + ")"));
+  return out.url;
+  }
+async function rtSet(path, obj){
+  toast("Menyimpan ke Realtime Database...");
+  return Promise.race([
+    rtdb.ref(path).set(obj),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Realtime Database tidak merespons dalam 20 detik. Cek koneksi.")), 20000))
+  ]);
+}
+async function rtDel(path){
+  return Promise.race([
+    rtdb.ref(path).remove(),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Realtime Database tidak merespons dalam 20 detik. Cek koneksi.")), 20000))
+  ]);
+}
+function fsCommit(b){
+  toast("Menyimpan ke database...");
+  return Promise.race([
+    b.commit(),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("Firestore tidak merespons dalam 20 detik (kuota harian habis atau koneksi bermasalah). File sudah ada di Cloudinary. Coba lagi nanti.")), 20000))
+  ]);
+  }
+  
+function vipStart(){
+  if (vipUnsub) return;
+  vipUnsub = rtdb.ref("vipCfg").on("value", s => {
+    vipCfg = {}; storeItems = []; emoteItems = [];
+    s.forEach(d => {
+      const x = d.val() || {};
+      if (x.meta && x.n >= 1 && x.n <= 9 && x.slot) vipCfg[x.n + "_" + x.slot] = x;
+      else if (x.store && x.id) storeItems.push(x);
+      else if (x.slot === "emote") emoteItems.push(Object.assign({ _did: d.key }, x));
+    });
+    storeItems.sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name)));
+    renderVip();
+    try { if (document.querySelector('.tab[data-t="store"]').classList.contains("on")) renderStore(); } catch (e) {}
+    try { if (document.querySelector('.tab[data-t="emote"]').classList.contains("on")) renderEmotes(); } catch (e) {}
+  }, e => toast("Gagal memuat VIP: " + e.message));
+}
+/* ---------- Pratinjau aset VIP (gambar, gif, webp, mp4, SVGA) ---------- */
+let vipPlayers = [], svgaLibP = null;
+function loadSvgaLib(){
+  if (window.SVGA) return Promise.resolve(true);
+  if (svgaLibP) return svgaLibP;
+  const urls = ["https://cdn.jsdelivr.net/npm/svgaplayerweb@2.3.1/build/svga.min.js", "https://unpkg.com/svgaplayerweb@2.3.1/build/svga.min.js"];
+  svgaLibP = (async () => {
+    for (const u of urls) {
+      const ok = await new Promise(res => { const t = document.createElement("script"); t.src = u; t.onload = () => res(true); t.onerror = () => res(false); document.head.appendChild(t); });
+      if (ok && window.SVGA) return true;
+    }
+    svgaLibP = null;
+    return false;
+  })();
+  return svgaLibP;
+}
+function stopPrev(box){
+  if (box._p) { try { box._p.stopAnimation(); box._p.clear(); } catch (e) {} box._p = null; }
+  box.style.aspectRatio = ""; box.style.height = "";
+}
+function dataUrlToBlobUrl(d){
+  const p = d.indexOf(","), head = d.slice(0, p), bin = atob(d.slice(p + 1));
+  const mime = (head.match(/:(.*?);/) || [])[1] || "application/octet-stream";
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([arr], { type: mime }));
+}
+async function fetchPreviewBlob(src){
+  if (src.indexOf("blob:") === 0 || src.indexOf("data:") === 0) return src;
+  const tries = [
+    src,
+    "https://corsproxy.io/?url=" + encodeURIComponent(src),
+    "https://api.allorigins.win/raw?url=" + encodeURIComponent(src),
+  ];
+  for (const u of tries) {
+    try {
+      const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 15000);
+      const r = await fetch(u, { signal: ctrl.signal });
+      clearTimeout(t);
+      if (!r.ok) continue;
+      const bl = await r.blob();
+      if (bl.size > 0) return URL.createObjectURL(bl);
+    } catch (e) {}
+  }
+  return null;
+}
+async function playSvga(box, src){
+  box.textContent = "Memuat SVGA...";
+  if (!(await loadSvgaLib())) { box.textContent = "Library pratinjau SVGA gagal dimuat (cek internet)"; return; }
+  const local = await fetchPreviewBlob(src);
+  if (!local) {
+    box.style.aspectRatio = "auto"; box.style.height = "auto";
+    box.textContent = "Pratinjau tidak bisa ditampilkan di browser (server file tidak mengizinkan CORS). Link tetap bisa disimpan dan akan tampil di aplikasi.";
+    return;
+  }
+  box.textContent = "";
+  box.style.aspectRatio = "auto"; box.style.height = "220px";
+  const holder = document.createElement("div");
+  holder.style.cssText = "width:100%;height:100%";
+  box.appendChild(holder);
+  try {
+    const player = new SVGA.Player(holder);
+    const parser = new SVGA.Parser();
+    player.setContentMode("AspectFit");
+    parser.load(local, v => { player.setVideoItem(v); player.startAnimation(); },
+      () => { box.style.height = "auto"; box.textContent = "File tidak bisa dibaca sebagai SVGA (cek apakah link-nya benar-benar file .svga)"; });
+    box._p = player; vipPlayers.push(player);
+  } catch (e) { box.textContent = "Gagal memutar SVGA: " + e.message; }
+}
+function showPrevSrc(box, kind, src){
+  if (kind === "svga") { playSvga(box, src); return; }
+  const el = document.createElement(kind === "mp4" ? "video" : "img");
+  el.src = src; el.style.maxWidth = "100%"; el.style.maxHeight = "150px";
+  if (kind === "mp4") { el.muted = true; el.autoplay = true; el.loop = true; el.playsInline = true; }
+  box.appendChild(el);
+}
+async function vipPreview(box, c){
+  stopPrev(box);
+  box.textContent = "";
+  if (!c) { box.textContent = "Belum diatur"; return; }
+  let src = c.url;
+  if (c.hasData) {
+    try { const d = await db.collection("vipConfig").doc("data_vip" + c.n + "_" + c.slot).get(); src = d.exists ? d.data().data : ""; }
+    catch (e) { box.textContent = "Gagal memuat pratinjau"; return; }
+    if (src && src.indexOf("data:") === 0) src = dataUrlToBlobUrl(src);
+  }
+  if (!src) { box.textContent = "Belum diatur"; return; }
+  showPrevSrc(box, c.kind, src);
+}
+function vipPreviewFile(box, f){
+  stopPrev(box);
+  box.textContent = "";
+  showPrevSrc(box, vipKind(f.name), URL.createObjectURL(f));
+}
+function renderVip(){
+  vipPlayers.forEach(p => { try { p.stopAnimation(); p.clear(); } catch (e) {} }); vipPlayers = [];
+  const tabs = $("vipTabs"); tabs.innerHTML = "";
+  for (let n = 1; n <= 9; n++) {
+    const b = document.createElement("div");
+    b.textContent = "VIP" + n;
+    b.style.cssText = "padding:8px 14px;border-radius:50px;border:1px solid " + (n === vipSel ? "var(--gold)" : "var(--line)") + ";color:" + (n === vipSel ? "var(--gold2)" : "var(--mut)") + ";cursor:pointer;font-size:14px";
+    b.onclick = () => { vipSel = n; renderVip(); };
+    tabs.appendChild(b);
+  }
+  const box = $("vipSlots"); box.innerHTML = "";
+  VIP_SLOTS.forEach(slot => {
+    const c = vipCfg[vipSel + "_" + slot.k];
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = '<h2>' + slot.name + ' - VIP' + vipSel + '</h2>' +
+      '<div class="prev" id="vprev_' + slot.k + '"></div>' +
+      '<label>URL (' + slot.hint + ')</label>' +
+      '<input type="text" id="vurl_' + slot.k + '" placeholder="https://...">' +
+      '<label>atau pilih file dari HP (' + slot.hint + ')</label>' +
+      '<input type="file" id="vfile_' + slot.k + '" accept="' + slot.accept + '">' +
+      '<button class="btn" id="vsave_' + slot.k + '">Simpan</button> ' +
+      '<button class="btn" id="vdel_' + slot.k + '" style="background:#7a1f1f;color:#fff">Hapus</button>';
+    box.appendChild(card);
+    if (c && !c.hasData) $("vurl_" + slot.k).value = c.url || "";
+    vipPreview($("vprev_" + slot.k), c);
+    $("vsave_" + slot.k).onclick = () => vipSave(slot);
+    $("vfile_" + slot.k).onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile($("vprev_" + slot.k), f); };
+    $("vdel_" + slot.k).onclick = () => vipDelete(slot);
+  });
+}
+async function vipSave(slot){
+  const n = vipSel, url = $("vurl_" + slot.k).value.trim(), f = $("vfile_" + slot.k).files[0];
+  if (!url && !f) return toast("Isi URL atau pilih file");
+  const col = db.collection("vipConfig"), id = "vip" + n + "_" + slot.k, did = "data_" + id;
+  $("vsave_" + slot.k).disabled = true;
+  try {
+    const b = db.batch();
+    let finalUrl = url;
+    if (f) {
+      if (!vipExtOk(slot, f.name)) { toast("Format file harus " + slot.hint); return; }
+      finalUrl = await cldUpload(f, "vip" + n + "_" + slot.k);
+    }
+    {
+      if (!/^https?:\/\//i.test(finalUrl)) { toast("URL harus diawali http:// atau https://"); return; }
+      if (!vipExtOk(slot, finalUrl)) { toast("Format URL harus " + slot.hint); return; }
+      // ASET TERSIMPAN DI REALTIME DATABASE (kuota terpisah); file di Cloudinary.
+      await rtSet("vipCfg/" + id, { meta: true, n: n, slot: slot.k, kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() });
+    }
+    logAction({ type: "vipAsset", vip: n, slot: slot.k });
+    toast("Tersimpan ✅ (file di Cloudinary, data di Realtime Database)");
+    $("vfile_" + slot.k).value = "";
+  } catch (e) { const u = auth.currentUser || {}; toast("Gagal: " + e.message + " | " + u.email + " | verified=" + u.emailVerified); }
+  finally { const s = $("vsave_" + slot.k); if (s) s.disabled = false; }
+}
+async function vipDelete(slot){
+  if (!confirm("Hapus " + slot.name + " VIP" + vipSel + "?")) return;
+  const col = db.collection("vipConfig"), id = "vip" + vipSel + "_" + slot.k;
+  try {
+    await rtDel("vipCfg/" + id);
+    $("vurl_" + slot.k).value = "";
+    toast("Dihapus ✅");
+  } catch (e) { toast("Gagal: " + e.message); }
+}
+
+/* ---------- Store: bingkai, efek masuk, lencana ---------- */
+const STORE_SLOTS = {
+  frame: { name: "⭕ Bingkai avatar", accept: [".svga", ".gif", ".webp", ".png"] },
+  entry: { name: "✨ Efek masuk", accept: [".svga", ".gif", ".webp", ".png", ".mp4"] },
+  banner: { name: "🚩 Banner efek masuk", accept: [".png", ".webp", ".jpg", ".jpeg", ".gif"] },
+  badge: { name: "🎖️ Lencana", accept: [".svga", ".gif", ".webp", ".png"] },
+  medal: { name: "🏅 Medali", accept: [".svga", ".gif", ".webp", ".png"] },
+};
+let storeItems = [], storeUnsub = null;
+let pendingFiles = {}; // file yang dipilih tidak hilang saat kartu di-render ulang
+function storeStart(){ vipStart(); renderStore(); }
+async function storePreview(box, c){
+  stopPrev(box); box.textContent = "";
+  let src = c.url || "";
+  if (c.hasData) {
+    try {
+      let s = "";
+      for (let i = 0; i < (c.chunks || 0); i++) {
+        const d = await db.collection("vipConfig").doc("data_store_" + c.id + "_" + i).get();
+        s += (d.data() || {}).data || "";
+      }
+      src = s ? dataUrlToBlobUrl(s) : "";
+    } catch (e) { box.textContent = "Gagal memuat pratinjau"; return; }
+  }
+  if (!src) { box.textContent = "Belum ada media"; return; }
+  showPrevSrc(box, c.kind, src);
+}
+function renderStore(){
+  vipPlayers.forEach(p => { try { p.stopAnimation(); p.clear(); } catch (e) {} }); vipPlayers = [];
+  const box = $("stList"); box.innerHTML = "";
+  if (!storeItems.length) { box.innerHTML = '<div class="card muted">Belum ada item Store.</div>'; return; }
+  storeItems.forEach(c => {
+    const sl = STORE_SLOTS[c.slot] || STORE_SLOTS.frame;
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = '<h2></h2><div class="prev"></div>' +
+      '<label>Nama</label><input type="text" class="f-name">' +
+      '<label>Harga (koin)</label><input type="number" class="f-price" min="0">' +
+      '<label>Durasi (hari)</label><input type="number" class="f-days" min="1">' +
+      '<label>Urutan</label><input type="number" class="f-order">' +
+      '<label>Ganti media: URL (kosongkan kalau tidak diganti)</label><input type="text" class="f-url" placeholder="https://...">' +
+      '<label>atau pilih file baru</label><input type="file" class="f-file" accept="' + sl.accept.join(",") + '">' +
+      '<button class="btn f-save">Simpan perubahan</button> <button class="btn f-del" style="background:#7a1f1f;color:#fff">Hapus</button>';
+    card.querySelector("h2").textContent = sl.name + " — " + (c.name || "");
+    card.querySelector(".f-name").value = c.name || "";
+    card.querySelector(".f-price").value = c.price || 0;
+    card.querySelector(".f-days").value = c.days || 7;
+    card.querySelector(".f-order").value = c.order || 0;
+    const prev = card.querySelector(".prev");
+    storePreview(prev, c);
+    const el = { name: card.querySelector(".f-name"), price: card.querySelector(".f-price"), days: card.querySelector(".f-days"),
+      order: card.querySelector(".f-order"), url: card.querySelector(".f-url"), file: card.querySelector(".f-file") };
+    el.file.onchange = ev => { const f = ev.target.files[0]; if (f) { pendingFiles[c.id] = f; vipPreviewFile(prev, f); } };
+    const saveBtn = card.querySelector(".f-save");
+    saveBtn.onclick = () => storeSave(c, el, saveBtn);
+    card.querySelector(".f-del").onclick = () => storeDelete(c);
+    box.appendChild(card);
+  });
+}
+async function storeSave(c, el, btn){
+  const name = el.name.value.trim(), price = parseInt(el.price.value, 10), days = parseInt(el.days.value, 10), order = parseInt(el.order.value, 10) || 0;
+  if (!name) return toast("Isi nama item");
+  if (!(price >= 0)) return toast("Harga tidak valid");
+  if (!(days >= 1)) return toast("Durasi minimal 1 hari");
+  const slot = c ? c.slot : el.slot.value, sl = STORE_SLOTS[slot];
+  const url = el.url.value.trim(), f = (c ? pendingFiles[c.id] : null) || el.file.files[0];
+  if (!c && !url && !f) return toast("Isi URL atau pilih file");
+  const id = c ? c.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const col = db.collection("vipConfig"), docId = "store_" + id, did = "data_store_" + id;
+  const base = { store: true, meta: false, id: id, slot: slot, name: name, price: price, days: days, order: order };
+  if (btn) btn.disabled = true;
+  try {
+    const b = db.batch();
+    let finalUrl = url;
+    if (f) {
+      const e = vipExt(f.name);
+      if (e && !sl.accept.includes("." + e)) { toast("Format file harus " + sl.accept.join(" ")); return; }
+      let f2 = f;
+      if (slot === "badge" && !/\.(gif|svga)$/i.test(f.name)) {
+        try { f2 = await badgeToPng(f); } catch (e) { return toast("Gambar lencana tidak bisa dibaca"); }
+      }
+      finalUrl = await cldUpload(f2, "store_" + id);
+    }
+    if (finalUrl) {
+      if (!/^https?:\/\//i.test(finalUrl)) { toast("URL harus diawali http:// atau https://"); return; }
+      const e = vipExt(finalUrl);
+      if (e && !sl.accept.includes("." + e)) { toast("Format URL harus " + sl.accept.join(" ")); return; }
+      // Realtime Database: kuota terpisah, tidak lagi tergantung Firestore.
+      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() }));
+    } else {
+      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: c.kind, url: c.url || "", hasData: !!c.hasData, chunks: c.chunks || 0, updatedAt: c.updatedAt || Date.now() }));
+    }
+    logAction({ type: "storeItem", id: id, slot: slot });
+    if (c) delete pendingFiles[c.id];
+    toast("Tersimpan ✅");
+    if (!c) {
+      el.name.value = ""; el.url.value = ""; el.file.value = "";
+      const p = $("stPrev"); stopPrev(p); p.textContent = "Pratinjau";
+    }
+  } catch (e) { toast("Gagal: " + e.message); }
+  finally { if (btn) btn.disabled = false; }
+}
+async function storeDelete(c){
+  if (!confirm("Hapus item \"" + (c.name || "") + "\" dari Store?")) return;
+  const col = db.collection("vipConfig");
+  try {
+    await rtDel("vipCfg/store_" + c.id);
+    toast("Dihapus ✅");
+  } catch (e) { toast("Gagal: " + e.message); }
+}
+$("stAdd").onclick = () => storeSave(null, { slot: $("stSlot"), name: $("stName"), price: $("stPrice"), days: $("stDays"), order: $("stOrder"), url: $("stUrl"), file: $("stFile") }, $("stAdd"));
+$("stFile").onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile($("stPrev"), f); };
+
+// ===== Emote room (gif/png/jpg) =====
+let emoteItems = [], emoteUnsub = null;
+const EMOTE_ACCEPT = [".gif", ".png", ".jpg", ".jpeg"];
+function emoteStart(){ vipStart(); renderEmotes(); }
+function renderEmotes(){
+  const box = $("emList"); box.textContent = "";
+  const items = emoteItems.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+  if (!items.length) { box.textContent = "Belum ada emote kustom."; return; }
+  items.forEach(c => {
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = '<h2></h2><div class="prev"></div>' +
+      '<label>Nama</label><input type="text" class="e-name">' +
+      '<label>Urutan</label><input type="number" class="e-order">' +
+      '<button class="btn e-save">Simpan perubahan</button> <button class="btn e-del" style="background:#7a1f1f;color:#fff">Hapus</button>';
+    card.querySelector("h2").textContent = "Emote \u2014 " + (c.name || c.id);
+    card.querySelector(".e-name").value = c.name || "";
+    card.querySelector(".e-order").value = c.order || 0;
+    const prev = card.querySelector(".prev");
+    if ((c.url || "").match(/\.(gif|jpe?g|png)$/i) || c.kind === "image") prev.innerHTML = '<img src="' + c.url + '" style="max-width:120px;max-height:120px;border-radius:10px">';
+    else prev.textContent = c.url || "";
+    card.querySelector(".e-save").onclick = async ev => {
+      const name = card.querySelector(".e-name").value.trim();
+      const order = parseInt(card.querySelector(".e-order").value, 10) || 0;
+      ev.target.disabled = true;
+      try {
+        const path = String(c._did || "").startsWith("emote_") ? "vipCfg/" + c._did : "vipCfg/emote_" + c.id;
+        await rtdb.ref(path).update({ name: name, order: order, updatedAt: Date.now() });
+        toast("Tersimpan \u2705");
+      } catch (e) { toast("Gagal: " + e.message); }
+      ev.target.disabled = false;
+    };
+    card.querySelector(".e-del").onclick = async () => {
+      if (!confirm("Hapus emote ini?")) return;
+      try {
+        const path = String(c._did || "").startsWith("emote_") ? "vipCfg/" + c._did : "vipCfg/emote_" + c.id;
+        await rtDel(path); toast("Dihapus \u2705"); }
+      catch (e) { toast("Gagal: " + e.message); }
+    };
+    box.appendChild(card);
+  });
+}
+$("emFile").onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile($("emPrev"), f); };
+$("emAdd").onclick = async () => {
+  const name = $("emName").value.trim();
+  const order = parseInt($("emOrder").value, 10) || 0;
+  const url = $("emUrl").value.trim();
+  const f = $("emFile").files[0];
+  if (!url && !f) return toast("Isi URL atau pilih file");
+  try {
+    let finalUrl = url;
+    if (f) {
+      const e = vipExt(f.name);
+      if (e && !EMOTE_ACCEPT.includes("." + e)) return toast("Format file harus gif, png, atau jpg");
+      finalUrl = await cldUpload(f, "emote_" + Date.now().toString(36));
+    }
+    if (!/^https?:\/\//i.test(finalUrl)) return toast("URL harus diawali http:// atau https://");
+    const e2 = vipExt(finalUrl);
+    if (e2 && !EMOTE_ACCEPT.includes("." + e2)) return toast("Format URL harus gif, png, atau jpg");
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    await rtSet("vipCfg/emote_" + id, {
+      slot: "emote", meta: false, store: false, id: id, name: name,
+      kind: "image", url: finalUrl, order: order, hasData: false, chunks: 0, updatedAt: Date.now(),
+    });
+    $("emName").value = ""; $("emUrl").value = ""; $("emFile").value = ""; $("emPrev").textContent = "Pratinjau";
+    toast("Emote ditambahkan \u2705");
+  } catch (e) { toast("Gagal: " + e.message); }
+};
+
+function goFind(tab, inputId, btnId, id){
+  document.querySelector('.tab[data-t="' + tab + '"]').click();
+  $(inputId).value = id; $(btnId).click();
+}
+/** Beri ID baru di Realtime Database untuk akun yang belum punya. */
+async function allocId(uid, name, avatarB64){
+  const FIRST = 100001;
+  const nextSnap = await rtdb.ref("ids/next").get();
+  let n = Number(nextSnap.val() || FIRST);
+  let id = "";
+  for (let i = 0; i < 20; i++) {
+    const cand = String(n);
+    const taken = await rtdb.ref("ids/i/" + cand + "/uid").get();
+    if (!taken.exists()) { id = cand; break; }
+    n++;
+  }
+  if (!id) throw new Error("Tidak dapat nomor ID");
+  await rtdb.ref("ids/i/" + id).update({ uid: uid, name: name || ("Pengguna " + id), avatarB64: avatarB64 || null });
+  await rtdb.ref("pub/" + uid + "/id").set(id);
+  await rtdb.ref("ids/next").set(Number(id) + 1);
+  logAction({ type: "allocId", targetId: id, uid: uid });
+  return id;
+}
+
+$("userLoad").onclick = async () => {
+  const box = $("userList"); box.textContent = "Memuat...";
+  try {
+    const byUid = {}, byId = {};
+    const pub = await rtdb.ref("pub").get();
+    if (pub.exists()) pub.forEach(c => { byUid[c.key] = c.val() || {}; });
+    const ids = await rtdb.ref("ids/i").get();
+    if (ids.exists()) ids.forEach(c => { byId[c.key] = c.val() || {}; });
+    // Akun yang hanya punya peta uid -> id (profil pub belum terbentuk).
+    const rev = await rtdb.ref("ids/u").get();
+    if (rev.exists()) rev.forEach(c => {
+      const idU = String(c.val() || "");
+      if (!byUid[c.key] && idU) byUid[c.key] = { id: idU, name: ((byId[idU] || {}).name) || ("Pengguna " + idU) };
+    });
+
+    const list = [];
+    Object.keys(byUid).forEach(uid => {
+      const p = byUid[uid];
+      const id = String(p.id || (String((byId[String(p.id)] || {}).uid || "") === uid ? p.id : ""));
+      list.push({ uid, id: id, name: p.name || "(belum ada nama)", avatarB64: p.av || p.avatarB64 || null });
+    });
+    // Akun yang punya ID tapi profil pub-nya tidak ada.
+    Object.keys(byId).forEach(id => {
+      const v = byId[id] || {};
+      if (v.uid && !byUid[v.uid]) list.push({ uid: v.uid, id: id, name: v.name || ("Pengguna " + id), avatarB64: v.avatarB64 || null });
+    });
+
+    box.textContent = "";
+    const q = $("userQ").value.trim().toLowerCase();
+    list.sort((a, b) => (Number(a.id || 999999999)) - (Number(b.id || 999999999)));
+    let shown = 0;
+    list.forEach(d => {
+      const name = d.name, idTxt = d.id || "-";
+      if (q && !(idTxt.includes(q) || name.toLowerCase().includes(q))) return;
+      shown++;
+      const row = document.createElement("div"); row.className = "item";
+      let av;
+      if (d.avatarB64) { av = document.createElement("img"); av.src = "data:image/jpeg;base64," + d.avatarB64; av.style.cssText = "width:40px;height:40px;border-radius:50%;aspect-ratio:1"; }
+      else { av = document.createElement("div"); av.className = "ph"; av.style.cssText = "width:40px;height:40px;border-radius:50%;background:#263238;display:flex;align-items:center;justify-content:center;flex:none"; av.textContent = name.slice(0, 1).toUpperCase(); }
+      const info = document.createElement("div"); info.className = "info";
+      const t = document.createElement("b"); t.textContent = name;
+      const s = document.createElement("span"); s.className = "muted"; s.textContent = d.id ? ("ID " + d.id) : "belum punya ID";
+      info.append(t, s);
+      const b1 = document.createElement("button"); b1.className = "btn bad"; b1.textContent = "Ban";
+      b1.onclick = () => { if (!d.id) return toast("Akun ini belum punya ID"); goFind("ban", "banId", "banFind", d.id); };
+      const b2 = document.createElement("button"); b2.className = "btn"; b2.textContent = "Coin";
+      b2.onclick = () => { if (!d.id) return toast("Akun ini belum punya ID"); goFind("coin", "coinId", "coinFind", d.id); };
+      row.append(av, info, b1, b2);
+      if (!d.id) {
+        const b3 = document.createElement("button"); b3.className = "btn"; b3.textContent = "Buat ID";
+        b3.onclick = async () => {
+          if (!confirm("Buat ID untuk " + name + "?")) return;
+          b3.disabled = true;
+          try {
+            const baru = await allocId(d.uid, name, d.avatarB64);
+            toast("Berhasil ✅ ID " + baru + " untuk " + name);
+            $("userLoad").click();
+          } catch (e) { toast("Gagal: " + e.message); b3.disabled = false; }
+        };
+        row.append(b3);
+      }
+      box.appendChild(row);
+    });
+    const tanpa = list.filter(x => !x.id).length;
+    $("userCount").textContent = shown + " dari " + list.length + " akun (" + tanpa + " tanpa ID)";
+    if (tanpa > 0) {
+      const bulk = document.createElement("button");
+      bulk.className = "btn";
+      bulk.textContent = "Buat ID untuk " + tanpa + " akun";
+      bulk.style.marginTop = "10px";
+      bulk.onclick = async () => {
+        if (!confirm("Buat ID untuk " + tanpa + " akun yang belum punya ID?")) return;
+        bulk.disabled = true;
+        let ok = 0, gagal = 0;
+        for (const u of list.filter(x => !x.id)) {
+          try { await allocId(u.uid, u.name, u.avatarB64); ok++; } catch (e) { gagal++; }
+          bulk.textContent = "Memproses " + (ok + gagal) + "/" + tanpa + " (gagal " + gagal + ")";
+        }
+        toast("Selesai ✅ " + ok + " akun dapat ID, gagal " + gagal);
+        $("userLoad").click();
+      };
+      box.appendChild(bulk);
+    }
+  } catch (e) {
+    box.textContent = e.code === "permission-denied" ? "Ditolak rules Firestore. Pastikan rules sudah di-Publish dan isAdmin() memakai email Anda." : "Gagal: " + e.message;
+  }
+};
+</script>
+<script>
+
+// ===== Background tab =====
+const BG_TABS = [["party","Tab Party"],["moment","Tab Moment"],["family","Tab Family"],["pesan","Tab Pesan"],["saya","Tab Saya"]];
+let bgState = {};
+function bgHex(v, def){ return /^#[0-9a-fA-F]{6}$/.test(v||"") ? v : def; }
+function bgRender(){
+  const host = $("bgList"); if (!host) return;
+  host.innerHTML = "";
+  BG_TABS.forEach(([k, title]) => {
+    const c = bgState[k] || { mode: "default", url: "", c1: "#1A0B2E", c2: "#0B0B0B" };
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = "<h2>" + title + "</h2>" +
+      "<label>Mode</label><select id='bgMode_" + k + "'>" +
+      "<option value='default'>Default (kerajaan)</option>" +
+      "<option value='image'>Gambar upload</option>" +
+      "<option value='gradient'>Gradien 2 warna</option></select>" +
+      "<div id='bgImg_" + k + "'><label>URL gambar (png/jpg/webp/gif)</label>" +
+      "<input type='text' id='bgUrl_" + k + "' placeholder='https://...'>" +
+      "<label>atau upload file dari HP</label><input type='file' id='bgFile_" + k + "' accept='image/*'>" +
+      "<img id='bgPrev_" + k + "' style='max-width:100%;max-height:140px;border-radius:10px;margin-top:8px;display:none'></div>" +
+      "<div id='bgGrad_" + k + "'><label>Warna atas</label><input type='color' id='bgC1_" + k + "'>" +
+      "<label>Warna bawah</label><input type='color' id='bgC2_" + k + "'></div>" +
+      "<div style='height:10px'></div><button class='btn' id='bgSave_" + k + "'>Simpan " + title + "</button>";
+    host.appendChild(card);
+    const modeSel = $("bgMode_" + k), urlIn = $("bgUrl_" + k), prev = $("bgPrev_" + k);
+    modeSel.value = c.mode || "default";
+    urlIn.value = c.url || "";
+    $("bgC1_" + k).value = bgHex(c.c1, "#1a0b2e");
+    $("bgC2_" + k).value = bgHex(c.c2, "#0b0b0b");
+    if (urlIn.value) { prev.src = urlIn.value; prev.style.display = "block"; }
+    const upd = () => {
+      const m = modeSel.value;
+      $("bgImg_" + k).style.display = m === "image" ? "" : "none";
+      $("bgGrad_" + k).style.display = m === "gradient" ? "" : "none";
+    };
+    modeSel.onchange = upd; upd();
+    $("bgFile_" + k).onchange = async e => {
+      const f = e.target.files[0]; if (!f) return;
+      try {
+        const u = await cldUpload(f, "tabbg_" + k);
+        urlIn.value = u; prev.src = u; prev.style.display = "block";
+        toast("Gambar terupload. Tekan Simpan.");
+      } catch (err) { toast(err.message); }
+    };
+    $("bgSave_" + k).onclick = async () => {
+      const btn = $("bgSave_" + k); btn.disabled = true;
+      try {
+        await db.collection("vipConfig").doc("tabbg").set(
+          { [k]: { mode: modeSel.value, url: urlIn.value.trim(), c1: $("bgC1_" + k).value, c2: $("bgC2_" + k).value, ts: Date.now() } },
+          { merge: true }
+        );
+        toast(title + " tersimpan ✅");
+      } catch (err) { toast("Gagal: " + err.message); }
+      btn.disabled = false;
+    };
+  });
+}
+function bgStart(){
+  if (bgStart.on) return; bgStart.on = true;
+  db.collection("vipConfig").doc("tabbg").onSnapshot(d => {
+    const o = d.data() || {};
+    BG_TABS.forEach(([k]) => { if (o[k]) bgState[k] = o[k]; });
+    bgRender();
+  }, e => { $("bgList").textContent = "Gagal memuat: " + e.message; });
+}
+</script>
+<script src="rooms.js"></script>
+<script>
+// ============ Topup manual DANA ============
+async function adminCall(p) {
+  try {
+    return await walletAdmin(p);
+  } catch (e) {
+    return { ok: 0, e: e.message || "gagal" };
+  }
+}
+
+async function payLoad() {
+  const msg = document.getElementById("payMsg");
+  try {
+    const r = await adminCall({ op: "pay_get" });
+    if (r.ok) {
+      document.getElementById("payDana").value = (r.pay && r.pay.dana) || "";
+      document.getElementById("payName").value = (r.pay && r.pay.name) || "";
+      document.getElementById("payGopay").value = (r.pay && r.pay.gopay) || "";
+      const q = document.getElementById("payQrisImg");
+      if (r.pay && r.pay.qris) { q.src = r.pay.qris; q.style.display = "block"; } else { q.style.display = "none"; }
+      msg.style.color = "#BDBDBD";
+      const bagian = [];
+      if (r.pay && r.pay.dana) bagian.push("DANA " + r.pay.dana);
+      if (r.pay && r.pay.gopay) bagian.push("GoPay " + r.pay.gopay);
+      if (r.pay && r.pay.qris) bagian.push("QRIS ada");
+      msg.textContent = bagian.length ? "Tersimpan: " + bagian.join(" · ") : "Belum diatur.";
+    } else {
+      paySay("Gagal memuat: " + (r.e || ""), false);
+    }
+  } catch (e) { msg.textContent = "Gagal memuat: " + e.message; }
+}
+
+document.getElementById("payTest").onclick = async () => {
+  paySay("Menguji server…", true);
+  try {
+    const r = await adminCall({ op: "pay_get" });
+    if (r.ok) paySay("Server siap. Pengaturan sekarang: " + JSON.stringify(r.pay || {}), true);
+    else paySay("Server menolak: " + (r.e || "tanpa pesan"), false);
+  } catch (e) {
+    paySay("Gagal menghubungi server: " + (e.message || e), false);
+  }
+};
+
+document.getElementById("payQrisUpload").onclick = async () => {
+  const f = document.getElementById("payQrisFile").files[0];
+  const msg = document.getElementById("payQrisMsg");
+  if (!f) { msg.textContent = "Pilih gambar QRIS dulu"; return; }
+  msg.textContent = "Mengunggah…";
+  try {
+    const url = await cldUpload(f, "qris_" + Date.now().toString(36));
+    const img = document.getElementById("payQrisImg");
+    img.src = url;
+    img.dataset.url = url;
+    img.style.display = "block";
+    msg.textContent = "Gambar terunggah. Tekan Simpan.";
+  } catch (e) {
+    msg.textContent = "Gagal unggah: " + (e.message || e);
+  }
+};
+
+const payMsgBox = document.getElementById("payMsg");
+const payTop = document.getElementById("payStatusTop");
+function paySay(text, ok) {
+  for (const box of [payMsgBox, payTop]) {
+    if (!box) continue;
+    box.textContent = text;
+    box.style.color = ok ? "#4ADE80" : "#FF8A8A";
+    box.style.fontWeight = "800";
+  }
+  payTop.style.display = "block";
+  payTop.style.background = ok ? "rgba(74,222,128,.12)" : "rgba(255,138,138,.12)";
+  payTop.style.border = "1px solid " + (ok ? "#4ADE80" : "#FF8A8A");
+  try { payTop.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+  if (ok) toast("Tersimpan ✓");
+  else alert(text);
+}
+
+document.getElementById("paySave").onclick = async () => {
+  const btn = document.getElementById("paySave");
+  const dana = document.getElementById("payDana").value.trim();
+  const name = document.getElementById("payName").value.trim();
+  const gopay = document.getElementById("payGopay").value.trim();
+  let qris = document.getElementById("payQrisImg").dataset.url || "";
+  const f = document.getElementById("payQrisFile").files[0];
+
+  if (!dana && !gopay && !qris && !f) return paySay("Isi minimal satu metode pembayaran", false);
+  if (dana && dana.length < 8) return paySay("Nomor DANA terlalu pendek", false);
+  if (gopay && gopay.length < 8) return paySay("Nomor GoPay terlalu pendek", false);
+
+  btn.disabled = true;
+  const labelAsli = btn.textContent;
+  payMsgBox.style.color = "#BDBDBD";
+  payMsgBox.textContent = "Menyimpan…";
+  try {
+    // gambar QRIS dipilih tapi belum diunggah -> unggah sekarang
+    if (!qris && f) {
+      payMsgBox.textContent = "Mengunggah gambar QRIS…";
+      qris = await cldUpload(f, "qris_" + Date.now().toString(36));
+      const img = document.getElementById("payQrisImg");
+      img.src = qris; img.dataset.url = qris; img.style.display = "block";
+    }
+    const r = await adminCall({ op: "pay_set", dana: dana, name: name, gopay: gopay, qris: qris });
+    if (r.ok) {
+      paySay("✓ Tersimpan. Nomor ini langsung dipakai aplikasi.", true);
+      const lbl = btn.textContent;
+      btn.textContent = "✓ TERSIMPAN";
+      btn.style.background = "#4ADE80";
+      setTimeout(() => { btn.textContent = lbl; btn.style.background = ""; }, 2500);
+    } else {
+      const e = String(r.e || "");
+      if (e.includes("Could not find") || e.includes("Gagal menyimpan")) {
+        paySay("Gagal menyimpan. Jalankan supabase/topup-manual.sql di Supabase dulu, lalu coba lagi.", false);
+      } else {
+        paySay("Gagal: " + e, false);
+      }
+    }
+  } catch (e) {
+    paySay("Gagal: " + (e.message || e), false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = labelAsli;
+  }
+};
+
+async function manualLoad(all) {
+  const box = document.getElementById("manualList");
+  const msg = document.getElementById("manualMsg");
+  box.innerHTML = "Memuat…";
+  try {
+    const r = await adminCall({ op: all ? "manual_all" : "manual_pending" });
+    if (!r.ok) {
+      const e = String(r.e || "");
+      box.textContent = (e.includes("Could not find") || e.includes("does not exist"))
+        ? "Tabel pengajuan belum ada. Jalankan supabase/topup-manual.sql di Supabase dulu."
+        : "Gagal: " + e;
+      return;
+    }
+    const list = r.list || [];
+    if (!list.length) { box.innerHTML = '<div class="muted">Tidak ada pengajuan.</div>'; return; }
+    box.innerHTML = "";
+    const nameCache = {};
+    async function namaUser(uid) {
+      if (uid in nameCache) return nameCache[uid];
+      let n = "";
+      try {
+        const snap = await rtdb.ref("pub/" + uid).get();
+        const v = snap.val() || {};
+        n = String(v.name || v.nickname || "");
+      } catch (e) { /* tanpa nama */ }
+      nameCache[uid] = n;
+      return n;
+    }
+    for (const m of list) {
+      const row = document.createElement("div");
+      row.className = "card";
+      row.style.marginBottom = "8px";
+      const when = new Date(Number(m.created_at)).toLocaleString("id-ID");
+      const nm = m.name || (await namaUser(m.uid)) || m.uid;
+      row.innerHTML =
+        '<div style="font-weight:700">' + Number(m.coins).toLocaleString("id-ID") + " coin · Rp " +
+        Number(m.amount).toLocaleString("id-ID") + "</div>" +
+        '<div class="muted">Pengirim: ' + (m.payer || "-") + " · User: " + nm + "</div>" +
+        '<div class="muted">Status: ' + m.status + " · " + (m.method || "dana") + " · " + when + "</div>";
+      if (m.status === "pending") {
+        const okBtn = document.createElement("button");
+        okBtn.className = "btn";
+        okBtn.style.marginTop = "8px";
+        okBtn.textContent = "Setujui";
+        okBtn.onclick = async () => {
+          okBtn.disabled = true;
+          msg.textContent = "Memproses…";
+          const rr = await adminCall({ op: "manual_decide", id: m.id, ok: true });
+          msg.textContent = rr.ok ? "Disetujui, coin sudah masuk." : "Gagal: " + (rr.e || "");
+          manualLoad(all);
+        };
+        const noBtn = document.createElement("button");
+        noBtn.className = "btn bad";
+        noBtn.style.marginLeft = "8px";
+        noBtn.style.marginTop = "8px";
+        noBtn.textContent = "Tolak";
+        noBtn.onclick = async () => {
+          noBtn.disabled = true;
+          const rr = await adminCall({ op: "manual_decide", id: m.id, ok: false });
+          msg.textContent = rr.ok ? "Ditolak." : "Gagal: " + (rr.e || "");
+          manualLoad(all);
+        };
+        row.appendChild(okBtn);
+        row.appendChild(noBtn);
+      }
+      box.appendChild(row);
+    }
+  } catch (e) { box.textContent = "Gagal: " + e.message; }
+}
+
+document.getElementById("manualReload").onclick = () => manualLoad(false);
+
+document.getElementById("manualAll").onclick = () => manualLoad(true);
+
+</script>
+</body></html>
