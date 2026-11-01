@@ -3,6 +3,9 @@ package com.example.googlelogin
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -78,6 +82,7 @@ object GiftCatalog {
                     jpRate = (c.child("jpRate").getValue(Long::class.java) ?: 0L).toInt(),
                     jpMult = c.child("jpMult").getValue(Long::class.java) ?: 0L,
                     cbRate = (c.child("cbRate").getValue(Long::class.java) ?: 0L).toInt(),
+                    rocket = c.child("rocket").getValue(Boolean::class.java) ?: false,
                 )
             }
             apply()
@@ -102,6 +107,7 @@ object GiftCatalog {
                             jpRate = (d.getLong("jpRate") ?: 0L).toInt(),
                             jpMult = d.getLong("jpMult") ?: 0L,
                             cbRate = (d.getLong("cbRate") ?: 0L).toInt(),
+                            rocket = d.getBoolean("rocket") ?: false,
                         )
                     }
                     apply()
@@ -200,6 +206,7 @@ object GiftFx {
                 "emoji" to g.emoji,
                 "mediaUrl" to g.mediaUrl,
                 "mediaType" to g.mediaType,
+                "rocket" to g.rocket,
                 "count" to count * receivers.coerceAtLeast(1),
                 "jp" to (jpWin > 0),
                 "combo" to comboN,
@@ -375,6 +382,7 @@ private data class GlobalBannerData(
     val emoji: String,
     val mediaUrl: String,
     val mediaType: String = "",
+    val rocket: Boolean = false,
     val count: Long,
     val jp: Boolean,
     val combo: Int,
@@ -414,6 +422,7 @@ fun GiftFxOverlay(roomId: String) {
                     emoji = c.child("emoji").getValue(String::class.java) ?: "🎁",
                     mediaUrl = c.child("mediaUrl").getValue(String::class.java) ?: "",
                     mediaType = c.child("mediaType").getValue(String::class.java) ?: "",
+                    rocket = c.child("rocket").getValue(Boolean::class.java) ?: false,
                     count = c.child("count").getValue(Long::class.java) ?: 1L,
                     jp = c.child("jp").getValue(Boolean::class.java) ?: false,
                     combo = (c.child("combo").getValue(Long::class.java) ?: 0L).toInt(),
@@ -431,6 +440,7 @@ fun GiftFxOverlay(roomId: String) {
     LaunchedEffect(d.ts) {
         // SVGA butuh waktu unduh + urai, jadi diberi waktu lebih panjang.
         val ms = when {
+            d.rocket && d.mediaUrl.isNotBlank() -> 20000L
             d.mediaUrl.isNotBlank() && kindOf(d.mediaUrl, d.mediaType) == "svga" -> 15000L
             big -> 8000L
             else -> 3000L
@@ -444,7 +454,7 @@ fun GiftFxOverlay(roomId: String) {
             if (isVideoMedia(d.mediaUrl, d.mediaType)) {
                 // mp4: diputar otomatis. TextureView dipakai supaya tidak
                 // tertutup lapisan video Agora (SurfaceView) di room.
-                GiftVideo(d.mediaUrl, Modifier.fillMaxSize(), onEnd = { fx = null })
+                GiftVideo(d.mediaUrl, Modifier.fillMaxSize(), sound = d.rocket, onEnd = { fx = null })
             } else {
                 val kind = kindOf(d.mediaUrl, d.mediaType)
                 if (kind == "svga") {
@@ -461,6 +471,7 @@ fun GiftFxOverlay(roomId: String) {
         } else {
             Text(d.emoji, fontSize = if (big) 120.sp else 64.sp)
         }
+        if (d.rocket) RocketFly(d.from)
         Column(
             Modifier
                 .align(Alignment.BottomCenter)
@@ -477,6 +488,37 @@ fun GiftFxOverlay(roomId: String) {
             }
             Text(text, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
+    }
+}
+
+/**
+ * Roket terbang melintasi layar room: dari kiri bawah ke kanan atas, dengan
+ * ekor api dan tulisan pengirim. Dipakai gift bertanda "roket".
+ */
+@Composable
+private fun RocketFly(from: String) {
+    val p = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        p.animateTo(1f, animationSpec = tween(durationMillis = 2400, easing = LinearEasing))
+    }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val startX = (-90).dp
+        val endX = maxWidth + 90.dp
+        val startY = maxHeight * 0.82f
+        val endY = maxHeight * 0.10f
+        val x = startX + (endX - startX) * p.value
+        val y = startY + (endY - startY) * p.value
+        // ekor api
+        Text("🔥", fontSize = 38.sp, modifier = Modifier.offset(x = x - 26.dp, y = y + 16.dp).alpha(0.9f))
+        Text("💨", fontSize = 30.sp, modifier = Modifier.offset(x = x - 62.dp, y = y + 24.dp).alpha(0.5f))
+        Text("🚀", fontSize = 60.sp, modifier = Modifier.offset(x = x, y = y))
+        Text(
+            "$from meluncurkan roket",
+            color = GoldLight,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            modifier = Modifier.offset(x = x, y = y + 62.dp).alpha(if (p.value > 0.9f) 0f else 1f),
+        )
     }
 }
 
@@ -633,6 +675,7 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
     var price by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var special by remember { mutableStateOf(false) }
+    var rocket by remember { mutableStateOf(false) }
     var jpRate by remember { mutableStateOf("") }
     var jpMult by remember { mutableStateOf("") }
     var cbRate by remember { mutableStateOf("") }
@@ -705,6 +748,10 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
             Checkbox(special, { special = it })
             Text("Gift khas (kombo + JP)", color = Color.White, fontSize = 13.sp)
         }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(rocket, { rocket = it })
+            Text("Gift roket 🚀 (efek terbang + suara)", color = Color.White, fontSize = 13.sp)
+        }
         if (special) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -757,6 +804,7 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                         "jpRate" to (jpRate.toIntOrNull() ?: 0).coerceIn(0, 100),
                         "jpMult" to (jpMult.toLongOrNull() ?: 0L),
                         "cbRate" to (cbRate.toIntOrNull() ?: 0).coerceIn(0, 100),
+                        "rocket" to rocket,
                     )
                     // UTAMA: Realtime Database giftCfg/{id} (tidak kena kuota Firestore).
                     Rtdb.ref("giftCfg/$id").updateChildren(data).await()
@@ -772,6 +820,7 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                     price = ""
                     url = ""
                     special = false
+                    rocket = false
                     jpRate = ""
                     jpMult = ""
                     cbRate = ""
@@ -853,6 +902,7 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
 fun GiftVideo(
     url: String,
     modifier: Modifier = Modifier,
+    sound: Boolean = false,
     onEnd: () -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -878,7 +928,7 @@ fun GiftVideo(
                                 setSurface(android.view.Surface(st))
                                 setDataSource(context, Uri.parse(url))
                                 isLooping = false
-                                setVolume(0f, 0f)
+                                setVolume(if (sound) 1f else 0f, if (sound) 1f else 0f)
                                 setOnVideoSizeChangedListener { _, vw, vh -> fitMatrix(vw, vh) }
                                 setOnPreparedListener { mp -> fitMatrix(mp.videoWidth, mp.videoHeight); mp.start() }
                                 setOnCompletionListener { endRef.value() }
