@@ -364,10 +364,7 @@ async function manualLoad(all) {
 }
 
 document.getElementById("manualReload").onclick = () => manualLoad(false);
-document.querySelector('.tab[data-t="topup"]').addEventListener("click", () => {
-  payLoad();
-  manualLoad(false);
-});
+
 document.getElementById("manualAll").onclick = () => manualLoad(true);
 
 </script>
@@ -725,12 +722,13 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet"].forEach(k => $("tab-" + k).classList.toggle("hide", k !== t.dataset.t));
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
   if (t.dataset.t === "signin") signinStart();
   if (t.dataset.t === "bet") betStart();
+  if (t.dataset.t === "topup") { payLoad(); manualLoad(false); }
 });
 
 async function lookup(raw){
