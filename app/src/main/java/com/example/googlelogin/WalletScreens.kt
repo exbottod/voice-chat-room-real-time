@@ -285,7 +285,7 @@ private fun WalletBalanceCard(
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                balance.toString(),
+                fmtNum(balance),
                 color = Color.White,
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
