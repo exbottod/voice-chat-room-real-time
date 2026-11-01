@@ -210,6 +210,7 @@ label{font-size:12px;color:var(--mut)}
 <div id="tab-topup" class="hide">
   <div class="card">
     <h2>Nomor DANA untuk topup</h2>
+    <div id="payStatusTop" style="display:none;margin:8px 0;padding:10px;border-radius:10px;font-weight:800;font-size:15px"></div>
     <p class="muted">Nomor ini yang tampil di aplikasi saat user mau topup coin. Coin baru masuk setelah pengajuan disetujui di bawah.</p>
     <div class="row" style="margin-top:10px">
       <input id="payDana" placeholder="08xxxxxxxxxx" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
@@ -226,6 +227,7 @@ label{font-size:12px;color:var(--mut)}
     <img id="payQrisImg" style="max-width:180px;border-radius:10px;margin-top:8px;display:none" alt="QRIS">
     <div class="row" style="margin-top:12px">
       <button class="btn" id="paySave">Simpan</button>
+      <button class="btn out" id="payTest">Tes koneksi</button>
     </div>
     <div class="muted" id="payMsg" style="margin-top:8px"></div>
   </div>
@@ -285,6 +287,17 @@ async function payLoad() {
   } catch (e) { msg.textContent = "Gagal memuat: " + e.message; }
 }
 
+document.getElementById("payTest").onclick = async () => {
+  paySay("Menguji server…", true);
+  try {
+    const r = await adminCall({ op: "pay_get" });
+    if (r.ok) paySay("Server siap. Pengaturan sekarang: " + JSON.stringify(r.pay || {}), true);
+    else paySay("Server menolak: " + (r.e || "tanpa pesan"), false);
+  } catch (e) {
+    paySay("Gagal menghubungi server: " + (e.message || e), false);
+  }
+};
+
 document.getElementById("payQrisUpload").onclick = async () => {
   const f = document.getElementById("payQrisFile").files[0];
   const msg = document.getElementById("payQrisMsg");
@@ -303,13 +316,20 @@ document.getElementById("payQrisUpload").onclick = async () => {
 };
 
 const payMsgBox = document.getElementById("payMsg");
+const payTop = document.getElementById("payStatusTop");
 function paySay(text, ok) {
-  payMsgBox.textContent = text;
-  payMsgBox.style.color = ok ? "#4ADE80" : "#FF8A8A";
-  payMsgBox.style.fontWeight = "700";
-  try { payMsgBox.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
+  for (const box of [payMsgBox, payTop]) {
+    if (!box) continue;
+    box.textContent = text;
+    box.style.color = ok ? "#4ADE80" : "#FF8A8A";
+    box.style.fontWeight = "800";
+  }
+  payTop.style.display = "block";
+  payTop.style.background = ok ? "rgba(74,222,128,.12)" : "rgba(255,138,138,.12)";
+  payTop.style.border = "1px solid " + (ok ? "#4ADE80" : "#FF8A8A");
+  try { payTop.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
   if (ok) toast("Tersimpan ✓");
-  else toast(text);
+  else alert(text);
 }
 
 document.getElementById("paySave").onclick = async () => {
@@ -339,6 +359,10 @@ document.getElementById("paySave").onclick = async () => {
     const r = await adminCall({ op: "pay_set", dana: dana, name: name, gopay: gopay, qris: qris });
     if (r.ok) {
       paySay("✓ Tersimpan. Nomor ini langsung dipakai aplikasi.", true);
+      const lbl = btn.textContent;
+      btn.textContent = "✓ TERSIMPAN";
+      btn.style.background = "#4ADE80";
+      setTimeout(() => { btn.textContent = lbl; btn.style.background = ""; }, 2500);
     } else {
       const e = String(r.e || "");
       if (e.includes("Could not find") || e.includes("Gagal menyimpan")) {
