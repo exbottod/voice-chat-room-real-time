@@ -272,17 +272,25 @@ object SupaRepo {
 
     // ---------------- Topup manual DANA ----------------
 
-    class PayInfo(val dana: String, val name: String)
+    class PayInfo(val dana: String, val name: String, val gopay: String = "", val qris: String = "")
 
     suspend fun payInfo(): PayInfo? {
         val o = postRaw("pay_info", org.json.JSONObject()) ?: return null
         val pay = o.optJSONObject("pay") ?: return null
-        return PayInfo(pay.optString("dana"), pay.optString("name"))
+        return PayInfo(
+            dana = pay.optString("dana"),
+            name = pay.optString("name"),
+            gopay = pay.optString("gopay"),
+            qris = pay.optString("qris"),
+        )
     }
 
     /** Ajukan topup manual. null = berhasil, selain itu pesan kesalahan. */
-    suspend fun manualCreate(coins: Long, payer: String): String? {
-        val o = postRaw("manual_create", org.json.JSONObject().put("coins", coins).put("payer", payer))
+    suspend fun manualCreate(coins: Long, payer: String, method: String = "dana"): String? {
+        val o = postRaw(
+            "manual_create",
+            org.json.JSONObject().put("coins", coins).put("payer", payer).put("method", method),
+        )
             ?: return "Tidak bisa menghubungi server"
         if (o.optInt("ok") == 1) return null
         return o.optString("e").ifBlank { "Gagal mengajukan topup" }

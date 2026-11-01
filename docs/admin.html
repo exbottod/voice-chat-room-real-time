@@ -213,7 +213,18 @@ label{font-size:12px;color:var(--mut)}
     <p class="muted">Nomor ini yang tampil di aplikasi saat user mau topup coin. Coin baru masuk setelah pengajuan disetujui di bawah.</p>
     <div class="row" style="margin-top:10px">
       <input id="payDana" placeholder="08xxxxxxxxxx" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
-      <input id="payName" placeholder="Nama pemilik DANA" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
+      <input id="payName" placeholder="Nama pemilik DANA/GoPay" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input id="payGopay" placeholder="Nomor GoPay (08xxxxxxxxxx)" style="flex:1;min-width:160px;padding:11px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input type="file" id="payQrisFile" accept=".png,.jpg,.jpeg,.webp" style="flex:1;min-width:200px">
+      <button class="btn out" id="payQrisUpload">Unggah QRIS</button>
+    </div>
+    <div class="muted" id="payQrisMsg" style="margin-top:6px"></div>
+    <img id="payQrisImg" style="max-width:180px;border-radius:10px;margin-top:8px;display:none" alt="QRIS">
+    <div class="row" style="margin-top:12px">
       <button class="btn" id="paySave">Simpan</button>
     </div>
     <div class="muted" id="payMsg" style="margin-top:8px"></div>
@@ -259,20 +270,44 @@ async function payLoad() {
     if (r.ok) {
       document.getElementById("payDana").value = (r.pay && r.pay.dana) || "";
       document.getElementById("payName").value = (r.pay && r.pay.name) || "";
-      msg.textContent = r.pay && r.pay.dana ? "Tersimpan." : "Belum diatur.";
+      document.getElementById("payGopay").value = (r.pay && r.pay.gopay) || "";
+      const q = document.getElementById("payQrisImg");
+      if (r.pay && r.pay.qris) { q.src = r.pay.qris; q.style.display = "block"; } else { q.style.display = "none"; }
+      msg.textContent = r.pay && (r.pay.dana || r.pay.gopay || r.pay.qris) ? "Tersimpan." : "Belum diatur.";
     } else {
       msg.textContent = "Gagal memuat: " + (r.e || "");
     }
   } catch (e) { msg.textContent = "Gagal memuat: " + e.message; }
 }
 
+document.getElementById("payQrisUpload").onclick = async () => {
+  const f = document.getElementById("payQrisFile").files[0];
+  const msg = document.getElementById("payQrisMsg");
+  if (!f) { msg.textContent = "Pilih gambar QRIS dulu"; return; }
+  msg.textContent = "Mengunggah…";
+  try {
+    const url = await cldUpload(f, "qris_" + Date.now().toString(36));
+    const img = document.getElementById("payQrisImg");
+    img.src = url;
+    img.dataset.url = url;
+    img.style.display = "block";
+    msg.textContent = "Gambar terunggah. Tekan Simpan.";
+  } catch (e) {
+    msg.textContent = "Gagal unggah: " + (e.message || e);
+  }
+};
+
 document.getElementById("paySave").onclick = async () => {
   const msg = document.getElementById("payMsg");
   const dana = document.getElementById("payDana").value.trim();
   const name = document.getElementById("payName").value.trim();
-  if (dana.length < 8) { msg.textContent = "Nomor DANA terlalu pendek"; return; }
+  const gopay = document.getElementById("payGopay").value.trim();
+  const qris = document.getElementById("payQrisImg").dataset.url || "";
+  if (!dana && !gopay && !qris) { msg.textContent = "Isi minimal satu metode pembayaran"; return; }
+  if (dana && dana.length < 8) { msg.textContent = "Nomor DANA terlalu pendek"; return; }
+  if (gopay && gopay.length < 8) { msg.textContent = "Nomor GoPay terlalu pendek"; return; }
   try {
-    const r = await adminCall({ op: "pay_set", dana: dana, name: name });
+    const r = await adminCall({ op: "pay_set", dana: dana, name: name, gopay: gopay, qris: qris });
     msg.textContent = r.ok ? "Tersimpan. Nomor ini langsung dipakai aplikasi." : "Gagal: " + (r.e || "");
   } catch (e) { msg.textContent = "Gagal: " + e.message; }
 };
@@ -296,7 +331,7 @@ async function manualLoad(all) {
         '<div style="font-weight:700">' + Number(m.coins).toLocaleString("id-ID") + " coin · Rp " +
         Number(m.amount).toLocaleString("id-ID") + "</div>" +
         '<div class="muted">Pengirim: ' + (m.payer || "-") + " · User: " + (m.name || m.uid) + "</div>" +
-        '<div class="muted">Status: ' + m.status + " · " + when + "</div>";
+        '<div class="muted">Status: ' + m.status + " · " + (m.method || "dana") + " · " + when + "</div>";
       if (m.status === "pending") {
         const okBtn = document.createElement("button");
         okBtn.className = "btn";

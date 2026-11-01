@@ -20,7 +20,8 @@ create table if not exists public.topup_manual (
   payer       text not null,
   status      text not null default 'pending',   -- pending | paid | rejected
   created_at  bigint not null,
-  decided_at  bigint
+  decided_at  bigint,
+  method      text not null default 'dana'          -- dana | gopay | qris
 );
 create index if not exists topup_manual_status_idx on public.topup_manual (status, created_at desc);
 create index if not exists topup_manual_uid_idx on public.topup_manual (uid, created_at desc);
@@ -79,13 +80,15 @@ language sql security definer set search_path = public as $$
    limit greatest(1, least(coalesce(p_limit, 20), 50));
 $$;
 
+alter table public.topup_manual add column if not exists method text not null default 'dana';
+
 -- Daftar pengajuan untuk panel developer.
 create or replace function public.w_manual_list(p_status text default 'pending', p_limit int default 60)
 returns table (id text, uid text, coins bigint, amount bigint, payer text,
-               status text, created_at bigint, name text)
+               status text, created_at bigint, name text, method text)
 language sql security definer set search_path = public as $$
   select m.id, m.uid, m.coins, m.amount, m.payer, m.status, m.created_at,
-         coalesce(w.name, '') as name
+         coalesce(w.name, '') as name, coalesce(m.method, 'dana') as method
     from public.topup_manual m
     left join public.wallets w on w.uid = m.uid
    where (coalesce(p_status, 'pending') = 'all' or m.status = p_status)
@@ -131,3 +134,53 @@ grant execute on function public.w_manual_create(text,text,bigint,bigint,text) t
 grant execute on function public.w_manual_history(text,int) to service_role;
 grant execute on function public.w_manual_list(text,int) to service_role;
 grant execute on function public.w_manual_decide(text,boolean) to service_role;
+
+-- Kalau tabel sudah pernah dibuat sebelum ada kolom metode, tambahkan tanpa menghapus data.
+alter table public.topup_manual add column if not exists method text not null default 'dana';
+
+-- Simpan 3 metode pembayaran sekaligus (DANA, GoPay, QRIS berupa gambar).
+create or replace function public.w_pay_set_v2(p_dana text, p_name text, p_gopay text, p_qris text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v jsonb;
+begin
+  v := jsonb_build_object(
+    'dana', coalesce(p_dana, ''),
+    'name', coalesce(p_name, ''),
+    'gopay', coalesce(p_gopay, ''),
+    'qris', coalesce(p_qris, '')
+  );
+  insert into public.app_cfg (k, v, updated_at) values ('pay', v, now())
+    on conflict (k) do update set v = excluded.v, updated_at = now();
+  return v;
+end;
+$$;
+
+-- Pengajuan dengan metode pembayaran.
+create or replace function public.w_manual_create_v2(
+  p_id text, p_uid text, p_coins bigint, p_amount bigint, p_payer text, p_method text
+) returns jsonb language plpgsql security definer set search_path = public as $$
+declare jumlah int;
+begin
+  if coalesce(p_coins, 0) <= 0 or coalesce(p_amount, 0) <= 0 then
+    raise exception 'Nominal tidak valid';
+  end if;
+  if coalesce(length(trim(p_payer)), 0) < 3 then
+    raise exception 'Nama pengirim terlalu pendek';
+  end if;
+  select count(*) into jumlah from public.topup_manual
+   where uid = p_uid and status = 'pending';
+  if jumlah >= 3 then
+    raise exception 'Masih ada pengajuan yang menunggu persetujuan';
+  end if;
+  insert into public.topup_manual (id, uid, coins, amount, payer, status, created_at, method)
+  values (p_id, p_uid, p_coins, p_amount, trim(p_payer), 'pending',
+          (extract(epoch from now()) * 1000)::bigint,
+          coalesce(nullif(trim(p_method), ''), 'dana'));
+  return jsonb_build_object('id', p_id, 'status', 'pending');
+end;
+$$;
+
+revoke all on function public.w_pay_set_v2(text,text,text,text) from public, anon, authenticated;
+revoke all on function public.w_manual_create_v2(text,text,bigint,bigint,text,text) from public, anon, authenticated;
+grant execute on function public.w_pay_set_v2(text,text,text,text) to service_role;
+grant execute on function public.w_manual_create_v2(text,text,bigint,bigint,text,text) to service_role;

@@ -295,7 +295,15 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
   }
 
   if (op === "pay_set") {
-    const r = await rpc("w_pay_set", { p_dana: String(p.dana ?? ""), p_name: String(p.name ?? "") });
+    let r = await rpc("w_pay_set_v2", {
+      p_dana: String(p.dana ?? ""),
+      p_name: String(p.name ?? ""),
+      p_gopay: String(p.gopay ?? ""),
+      p_qris: String(p.qris ?? ""),
+    });
+    if (!r.ok) {
+      r = await rpc("w_pay_set", { p_dana: String(p.dana ?? ""), p_name: String(p.name ?? "") });
+    }
     if (!r.ok) return json({ ok: 0, e: "Gagal menyimpan info pembayaran" }, 200);
     return json({ ok: 1, pay: await r.json().catch(() => ({})) });
   }
@@ -758,15 +766,28 @@ async function manualCreate(uid: string, body: Record<string, unknown>): Promise
   const amount = TOPUP_PACKS[coins];
   if (!amount) return json({ ok: 0, e: "Paket coin tidak dikenal" }, 200);
   const payer = String(body.payer ?? "").trim();
-  if (payer.length < 3) return json({ ok: 0, e: "Isi nama pengirim DANA" }, 200);
+  if (payer.length < 3) return json({ ok: 0, e: "Isi nama pengirim" }, 200);
+  const method = String(body.method ?? "dana").toLowerCase();
+  if (!["dana", "gopay", "qris"].includes(method)) return json({ ok: 0, e: "Metode tidak dikenal" }, 200);
   const id = "MN" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
-  const r = await rpc("w_manual_create", {
+  let r = await rpc("w_manual_create_v2", {
     p_id: id,
     p_uid: uid,
     p_coins: Number(coins),
     p_amount: amount,
     p_payer: payer.slice(0, 40),
+    p_method: method,
   });
+  if (!r.ok) {
+    // fungsi versi lama (belum dijalankan SQL terbaru) -> tetap simpan pengajuan
+    r = await rpc("w_manual_create", {
+      p_id: id,
+      p_uid: uid,
+      p_coins: Number(coins),
+      p_amount: amount,
+      p_payer: payer.slice(0, 40),
+    });
+  }
   if (!r.ok) {
     let msg = "Gagal mengajukan topup";
     try {

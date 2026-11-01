@@ -371,6 +371,19 @@ private fun TopupMethodRow(
 }
 
 @Composable
+private fun MethodChip(label: String, active: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.clip(RoundedCornerShape(50))
+            .background(if (active) WalNavy else Color.White)
+            .border(1.dp, if (active) WalNavy else Color(0xFFD9D9E3), RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 7.dp),
+    ) {
+        Text(label, color = if (active) Color.White else WalNavy, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
 private fun RezoMark(size: Int = 52) {
     Image(
         painter = androidx.compose.ui.res.painterResource(R.drawable.ic_launcher_logo),
@@ -400,6 +413,9 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     var manualPayer by remember { mutableStateOf("") }
     var payDana by remember { mutableStateOf("") }
     var payName by remember { mutableStateOf("") }
+    var payGopay by remember { mutableStateOf("") }
+    var payQris by remember { mutableStateOf("") }
+    var payMethod by remember { mutableStateOf("dana") }
     var payUrl by remember { mutableStateOf<String?>(null) }
     BackHandler(onBack = { if (showPacks) showPacks = false else onBack() })
     val toast = { m: String -> Toast.makeText(context, m, Toast.LENGTH_SHORT).show() }
@@ -517,10 +533,17 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                                                 busy = true
                                                 scope.launch {
                                                     val info = SupaRepo.payInfo()
-                                                    if (info != null && info.dana.isNotBlank()) {
+                                                    if (info != null && (info.dana.isNotBlank() || info.gopay.isNotBlank() || info.qris.isNotBlank())) {
                                                         busy = false
                                                         payDana = info.dana
+                                                        payGopay = info.gopay
+                                                        payQris = info.qris
                                                         payName = info.name
+                                                        payMethod = when {
+                                                            info.dana.isNotBlank() -> "dana"
+                                                            info.gopay.isNotBlank() -> "gopay"
+                                                            else -> "qris"
+                                                        }
                                                         manualPayer = ""
                                                         manualCoins = coins
                                                         return@launch
@@ -640,11 +663,46 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 onDismissRequest = { manualCoins = null },
                 title = { Text("Topup ${fmtNum(mCoins)} coin") },
                 text = {
-                    Column {
-                        Text("Transfer $harga ke DANA:")
-                        Spacer(Modifier.height(6.dp))
-                        Text(payDana, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF118EEA))
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        Text("Topup $harga untuk ${fmtNum(mCoins)} coin", fontSize = 13.sp, color = WalGrey)
+                        Spacer(Modifier.height(10.dp))
+                        // pilihan metode pembayaran
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (payDana.isNotBlank()) {
+                                MethodChip("DANA", payMethod == "dana") { payMethod = "dana" }
+                            }
+                            if (payGopay.isNotBlank()) {
+                                MethodChip("GoPay", payMethod == "gopay") { payMethod = "gopay" }
+                            }
+                            if (payQris.isNotBlank()) {
+                                MethodChip("QRIS", payMethod == "qris") { payMethod = "qris" }
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        when (payMethod) {
+                            "gopay" -> {
+                                Text("Transfer ke GoPay:")
+                                Spacer(Modifier.height(6.dp))
+                                Text(payGopay, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00A66A))
+                            }
+                            "qris" -> {
+                                Text("Scan QRIS ini lalu bayar $harga:")
+                                Spacer(Modifier.height(8.dp))
+                                AsyncImage(
+                                    model = payQris,
+                                    contentDescription = "QRIS",
+                                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                                    contentScale = ContentScale.Fit,
+                                )
+                            }
+                            else -> {
+                                Text("Transfer ke DANA:")
+                                Spacer(Modifier.height(6.dp))
+                                Text(payDana, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF118EEA))
+                            }
+                        }
                         if (payName.isNotBlank()) {
+                            Spacer(Modifier.height(4.dp))
                             Text("a.n $payName", fontSize = 14.sp, color = WalGrey)
                         }
                         Spacer(Modifier.height(12.dp))
@@ -665,7 +723,7 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     TextButton(enabled = manualPayer.trim().length >= 3 && !busy, onClick = {
                         busy = true
                         scope.launch {
-                            val e = SupaRepo.manualCreate(mCoins, manualPayer.trim())
+                            val e = SupaRepo.manualCreate(mCoins, manualPayer.trim(), payMethod)
                             busy = false
                             if (e == null) {
                                 manualCoins = null
