@@ -73,6 +73,8 @@ data class Gift(
     val cbRate: Int = 0,
     /** Nilai dasar hitung cashback (kalau 0, pakai harga gift). */
     val cbPrice: Long = 0L,
+    /** Gift khusus cashback: tidak tampil di tab Hadiah, hanya di tab Cashback. */
+    val cashback: Boolean = false,
     /** Gift roket: efek terbang melintasi layar + suara, terlihat semua orang di room. */
     val rocket: Boolean = false,
 )
@@ -958,112 +960,6 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
     }
 }
 
-/** Tab Cashback: total koin cashback user, daftar gift khas dengan cashback, dan riwayat. */
-@Composable
-fun CashbackTab(myUid: String) {
-    var total by remember { mutableStateOf(0L) }
-    var logs by remember { mutableStateOf<List<Triple<Long, String, Long>>>(emptyList()) }
-    val teal = Color(0xFF2BD9C4)
-
-    DisposableEffect(myUid) {
-        val reg = Rtdb.listen(Rtdb.ref("cashback/$myUid")) { s ->
-            total = s.child("total").getValue(Long::class.java) ?: 0L
-            logs = s.child("log").children
-                .mapNotNull { c ->
-                    val g = c.child("g").getValue(String::class.java) ?: return@mapNotNull null
-                    val cb = c.child("cb").getValue(Long::class.java) ?: 0L
-                    val ts = c.child("ts").getValue(Long::class.java) ?: 0L
-                    Triple(ts, g, cb)
-                }
-                .sortedByDescending { it.first }
-                .take(8)
-        }
-        onDispose { reg.remove() }
-    }
-
-    val cbGifts = remember(GiftCatalog.list) { GiftCatalog.list.filter { it.cbRate > 0 } }
-
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .height(240.dp)
-            .padding(horizontal = 14.dp)
-            .verticalScroll(rememberScrollState()),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("💵", fontSize = 26.sp)
-            Spacer(Modifier.width(8.dp))
-            Column {
-                Text(tr("Total cashback kamu"), color = Color(0xFF8FA3A0), fontSize = 12.sp)
-                Text("${fmtNum(total)} koin", color = teal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            tr("Gift khas dengan cashback") + ":",
-            color = Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(Modifier.height(4.dp))
-        if (cbGifts.isEmpty()) {
-            Text(
-                tr("Belum ada. Persen cashback diatur admin di Panel Developer"),
-                color = Color(0xFF8FA3A0),
-                fontSize = 12.sp,
-            )
-        } else {
-            cbGifts.forEach { g ->
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (g.mediaUrl.isNotBlank() && !isVideoMedia(g.mediaUrl, g.mediaType) && !isSvgaMedia(g.mediaUrl, g.mediaType)) {
-                        AsyncImage(
-                            model = g.mediaUrl,
-                            contentDescription = g.name,
-                            modifier = Modifier.size(30.dp).clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop,
-                        )
-                    } else {
-                        Text(g.emoji, fontSize = 20.sp)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        g.name,
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text("+${g.cbRate}%", color = teal, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        if (logs.isNotEmpty()) {
-            Text(
-                tr("Riwayat terakhir") + ":",
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(Modifier.height(4.dp))
-            logs.forEach { (ts, gname, cb) ->
-                val t = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.getDefault())
-                    .format(java.util.Date(ts))
-                Text(
-                    "💵 +${fmtNum(cb)} 🪙 • $gname • $t",
-                    color = Color(0xFFB8C8C5),
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
 /** Panel hadiah di dalam room: kirim ke semua user di mic (All) atau pilih user tertentu. */
 @Composable
 fun GiftPanel(
@@ -1083,11 +979,15 @@ fun GiftPanel(
     // Jaring pengaman: pastikan katalog gift sudah dimuat saat panel dibuka.
     LaunchedEffect(Unit) { GiftCatalog.start() }
     val gifts = GiftCatalog.list
-    var selected by remember { mutableStateOf(gifts.firstOrNull()?.id ?: "") }
+    // Tab Hadiah hanya untuk gift biasa; gift cashback punya tempat sendiri.
+    val normalGifts = remember(gifts) { gifts.filter { !it.cashback && it.cbRate <= 0 } }
+    val cbGifts = remember(gifts) { gifts.filter { it.cashback || it.cbRate > 0 } }
+    var selected by remember { mutableStateOf(normalGifts.firstOrNull()?.id ?: "") }
 
     // Jaga selected tetap valid saat daftar gift berubah / masih kosong.
-    LaunchedEffect(gifts) {
-        if (gifts.none { it.id == selected }) selected = gifts.firstOrNull()?.id ?: ""
+    LaunchedEffect(gifts, tab) {
+        val now = if (tab == 2) cbGifts else normalGifts
+        if (now.none { it.id == selected }) selected = now.firstOrNull()?.id ?: ""
     }
     var count by remember { mutableStateOf(1) }
     var countMenu by remember { mutableStateOf(false) }
@@ -1100,7 +1000,8 @@ fun GiftPanel(
         val me = seats.firstOrNull { it.uid == myUid } ?: Seat(-1, myUid, myName, myAvatarB64, false)
         listOf(me) + seats.filter { it.uid.isNotBlank() && it.uid != myUid }.sortedBy { it.index }
     }
-    val pages = remember(gifts) { gifts.chunked(8) }
+    val shown = if (tab == 2) cbGifts else normalGifts
+    val pages = remember(shown) { shown.chunked(8) }
     val pager = rememberPagerState(pageCount = { pages.size })
     val teal = Color(0xFF2BD9C4)
 
@@ -1148,7 +1049,7 @@ fun GiftPanel(
             }
             Spacer(Modifier.height(10.dp))
 
-            if (tab == 0) {
+            if (tab != 1) {
                 // ---- Penerima: All + foto profil user di mic ----
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp),
@@ -1232,7 +1133,11 @@ fun GiftPanel(
                 if (pages.isEmpty()) {
                     // Daftar gift kosong / belum termuat: jangan crash.
                     Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
-                        Text("Belum ada gift", color = Color(0xFF8FA3A0), fontSize = 14.sp)
+                        Text(
+                            if (tab == 2) tr("Belum ada gift cashback") else "Belum ada gift",
+                            color = Color(0xFF8FA3A0),
+                            fontSize = 14.sp,
+                        )
                     }
                 } else {
                     HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(240.dp)) { p ->
@@ -1259,8 +1164,6 @@ fun GiftPanel(
                         }
                     }
                 }
-            } else if (tab == 2) {
-                CashbackTab(myUid)
             } else {
                 Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) {
                     Text(tr("Segera hadir"), color = Color(0xFF8FA3A0))

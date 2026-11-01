@@ -83,6 +83,7 @@ object GiftCatalog {
                     jpMult = c.child("jpMult").getValue(Long::class.java) ?: 0L,
                     cbRate = (c.child("cbRate").getValue(Long::class.java) ?: 0L).toInt(),
                     cbPrice = (c.child("cbPrice").getValue(Long::class.java) ?: 0L),
+                    cashback = c.child("cashback").getValue(Boolean::class.java) ?: false,
                     rocket = c.child("rocket").getValue(Boolean::class.java) ?: false,
                 )
             }
@@ -109,6 +110,7 @@ object GiftCatalog {
                             jpMult = d.getLong("jpMult") ?: 0L,
                             cbRate = (d.getLong("cbRate") ?: 0L).toInt(),
                             cbPrice = (d.getLong("cbPrice") ?: 0L),
+                            cashback = d.getBoolean("cashback") ?: false,
                             rocket = d.getBoolean("rocket") ?: false,
                         )
                     }
