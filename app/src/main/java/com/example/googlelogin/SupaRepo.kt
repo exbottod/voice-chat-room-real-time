@@ -257,6 +257,38 @@ object SupaRepo {
             }
         }
 
+    /** Panggil fungsi SQL Supabase langsung (cadangan kalau edge function menolak aksi). */
+    private suspend fun restRpc(fn: String, params: org.json.JSONObject): org.json.JSONObject? =
+        withContext(Dispatchers.IO) {
+            try {
+                val conn = (URL("$BASE/rest/v1/rpc/$fn").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 8000
+                    readTimeout = 15000
+                    doOutput = true
+                    setRequestProperty("apikey", KEY)
+                    setRequestProperty("Authorization", "Bearer $KEY")
+                    setRequestProperty("Content-Type", "application/json")
+                }
+                conn.outputStream.use { it.write(params.toString().toByteArray()) }
+                val code = conn.responseCode
+                val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                if (txt.isBlank()) null
+                else if (txt.trimStart().startsWith("[")) {
+                    val arr = org.json.JSONArray(txt)
+                    if (arr.length() > 0) arr.optJSONObject(0) else null
+                } else org.json.JSONObject(txt)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+    private fun myUid(): String? =
+        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+
     /** Buat transaksi topup (Midtrans). Server yang menentukan harga paket. */
     suspend fun topupCreate(coins: Long): TopupStart {
         val name = com.google.firebase.auth.FirebaseAuth.getInstance()
@@ -274,33 +306,62 @@ object SupaRepo {
 
     class PayInfo(val dana: String, val name: String, val gopay: String = "", val qris: String = "")
 
-    suspend fun payInfo(): PayInfo? {
-        val o = postRaw("pay_info", org.json.JSONObject()) ?: return null
-        val pay = o.optJSONObject("pay") ?: return null
-        return PayInfo(
-            dana = pay.optString("dana"),
-            name = pay.optString("name"),
-            gopay = pay.optString("gopay"),
-            qris = pay.optString("qris"),
-        )
+    private fun parsePay(pay: org.json.JSONObject?): PayInfo? {
+        if (pay == null) return null
+        val dana = pay.optString("dana")
+        val gopay = pay.optString("gopay")
+        val qris = pay.optString("qris")
+        if (dana.isBlank() && gopay.isBlank() && qris.isBlank()) return null
+        return PayInfo(dana = dana, name = pay.optString("name"), gopay = gopay, qris = qris)
     }
 
-    /** Ajukan topup manual. null = berhasil, selain itu pesan kesalahan. */
-    suspend fun manualCreate(coins: Long, payer: String, method: String = "dana"): String? {
+    suspend fun payInfo(): PayInfo? {
+        val o = postRaw("pay_info", org.json.JSONObject())
+        if (o != null && o.optInt("ok") == 1) parsePay(o.optJSONObject("pay"))?.let { return it }
+        return parsePay(restRpc("w_app_pay", org.json.JSONObject()))
+    }
+
+    class ManualStart(val order: String?, val error: String?)
+
+    /**
+     * Ajukan topup manual. Harga ditentukan server (tabel topup_price).
+     * Kalau edge function masih versi lama (menolak aksi), pengajuan dikirim
+     * lewat fungsi SQL w_app_topup_ask supaya topup tetap jalan.
+     */
+    suspend fun manualCreate(coins: Long, payer: String, method: String = "dana"): ManualStart {
         val o = postRaw(
             "manual_create",
             org.json.JSONObject().put("coins", coins).put("payer", payer).put("method", method),
         )
-            ?: return "Tidak bisa menghubungi server"
-        if (o.optInt("ok") == 1) return null
-        return o.optString("e").ifBlank { "Gagal mengajukan topup" }
+        if (o != null && o.optInt("ok") == 1) return ManualStart(o.optString("order"), null)
+        val pesan = o?.optString("e").orEmpty()
+        if (o != null && pesan.isNotBlank() && pesan != "Permintaan tidak valid") {
+            return ManualStart(null, pesan)
+        }
+        val uid = myUid() ?: return ManualStart(null, "Sesi login tidak ditemukan")
+        val r = restRpc(
+            "w_app_topup_ask",
+            org.json.JSONObject()
+                .put("p_uid", uid).put("p_coins", coins)
+                .put("p_payer", payer).put("p_method", method),
+        ) ?: return ManualStart(null, "Tidak bisa menghubungi server")
+        if (r.optInt("ok") == 1) return ManualStart(r.optString("order"), null)
+        return ManualStart(null, r.optString("e").ifBlank { "Gagal mengajukan topup" })
     }
 
-    /** Cek status pesanan: "pending", "paid", "expired", "failed". */
+    /** Cek status pesanan: "pending", "paid", "rejected". */
     suspend fun topupStatus(order: String): String? {
-        val o = postRaw("topup_status", org.json.JSONObject().put("order", order)) ?: return null
-        if (o.optInt("ok") != 1) return null
-        return o.optJSONObject("order")?.optString("status")
+        val o = postRaw("topup_status", org.json.JSONObject().put("order", order))
+        if (o != null && o.optInt("ok") == 1) {
+            val st = o.optJSONObject("order")?.optString("status")
+            if (!st.isNullOrBlank()) return st
+        }
+        val uid = myUid() ?: return null
+        val r = restRpc(
+            "w_app_topup_state",
+            org.json.JSONObject().put("p_uid", uid).put("p_id", order),
+        ) ?: return null
+        return if (r.optInt("ok") == 1) r.optString("status") else null
     }
 
 

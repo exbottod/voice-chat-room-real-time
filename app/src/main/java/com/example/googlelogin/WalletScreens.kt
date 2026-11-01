@@ -30,6 +30,21 @@ import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+// QR DANA milik admin (hasil baca QR terima uang). Tombol di dialog topup
+// membuka tautan ini supaya aplikasi DANA langsung terbuka.
+const val DANA_LINK = "https://link.dana.id/minta?full_url=https://qr.dana.id/v1/281012012023020637707267"
+const val DANA_QR_IMG = "https://exbottod.github.io/voice-chat-room-real-time/dana-qr.png"
+
+private fun openDana(ctx: android.content.Context) {
+    try {
+        val i = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(DANA_LINK))
+        i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        ctx.startActivity(i)
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(ctx, "Aplikasi DANA tidak bisa dibuka", android.widget.Toast.LENGTH_SHORT).show()
+    }
+}
+
 const val DIAMOND_PER_COIN = 2L // 2 diamond = 1 coin
 const val INVITE_REWARD_COINS = 10_000_000L
 const val TOPUP_TEST_MODE = false // false = coin dibeli lewat payment gateway (Midtrans)
@@ -731,6 +746,32 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                                 Text("Transfer ke DANA:")
                                 Spacer(Modifier.height(6.dp))
                                 Text(payDana, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF118EEA))
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    "Tekan tombol ini, aplikasi DANA terbuka sendiri, lalu masukkan nominal $harga.",
+                                    fontSize = 12.sp,
+                                    color = WalGrey,
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Box(
+                                    Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF118EEA))
+                                        .clickable { openDana(context) }
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text("Buka DANA", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                Text("Atau pindai QR ini dari HP lain:", fontSize = 12.sp, color = WalGrey)
+                                Spacer(Modifier.height(6.dp))
+                                AsyncImage(
+                                    model = DANA_QR_IMG,
+                                    contentDescription = "QR DANA",
+                                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                                    contentScale = ContentScale.Fit,
+                                )
                             }
                         }
                         if (payName.isNotBlank()) {
@@ -755,13 +796,17 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     TextButton(enabled = manualPayer.trim().length >= 3 && !busy, onClick = {
                         busy = true
                         scope.launch {
-                            val e = SupaRepo.manualCreate(mCoins, manualPayer.trim(), payMethod)
+                            val r = SupaRepo.manualCreate(mCoins, manualPayer.trim(), payMethod)
                             busy = false
-                            if (e == null) {
+                            if (r.order != null) {
+                                val metode = payMethod
                                 manualCoins = null
-                                toast("Pengajuan dikirim, tunggu persetujuan admin")
+                                manualPayer = ""
+                                payUrl = if (metode == "dana") DANA_LINK else null
+                                payOrder = r.order
+                                toast("Pengajuan dikirim. Coin masuk otomatis setelah admin menyetujui.")
                             } else {
-                                toast(e)
+                                toast(r.error ?: "Gagal mengajukan topup")
                             }
                         }
                     }) { Text("Saya sudah transfer") }
@@ -788,10 +833,16 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         toast("Pembayaran diterima, coin sudah ditambahkan")
                         return@LaunchedEffect
                     }
-                    if (st == "expired" || st == "failed") {
+                    if (st == "expired" || st == "failed" || st == "rejected") {
                         payOrder = null
                         payUrl = null
-                        toast(if (st == "expired") "Waktu pembayaran habis" else "Pembayaran gagal")
+                        toast(
+                            when (st) {
+                                "expired" -> "Waktu pembayaran habis"
+                                "rejected" -> "Pengajuan ditolak admin"
+                                else -> "Pembayaran gagal"
+                            },
+                        )
                         return@LaunchedEffect
                     }
                 }
@@ -804,9 +855,16 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 title = { Text("Selesaikan pembayaran") },
                 text = {
                     Column {
-                        Text("Halaman pembayaran sudah dibuka di browser. Bayar dengan DANA, OVO, ShopeePay, atau QRIS.")
+                        Text(
+                            if (payUrl == null) "Pengajuan sudah masuk. Coin otomatis masuk begitu admin menyetujui, layar ini menutup sendiri."
+                            else "Halaman pembayaran sudah dibuka di browser. Bayar dengan DANA, OVO, ShopeePay, atau QRIS.",
+                        )
                         Spacer(Modifier.height(8.dp))
-                        Text("Coin masuk otomatis setelah pembayaran terkonfirmasi.", fontSize = 12.sp, color = WalGrey)
+                        Text(
+                            if (payUrl == null) "Anda boleh menutup layar ini, coin tetap masuk." else "Coin masuk otomatis setelah pembayaran terkonfirmasi.",
+                            fontSize = 12.sp,
+                            color = WalGrey,
+                        )
                     }
                 },
                 confirmButton = {
