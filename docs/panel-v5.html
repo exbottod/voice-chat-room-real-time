@@ -59,7 +59,7 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
   <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="rocket">🚀 Roket</div><div class="tab" data-t="cb">💵 Gift CB</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="rocket">🚀 Roket</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -265,6 +265,38 @@ label{font-size:12px;color:var(--mut)}
     <div id="rkFly"></div>
     <div class="muted" id="rkMsg" style="margin-top:8px"></div>
   </div>
+</div>
+
+<div id="tab-gift" class="hide">
+  <div class="card">
+    <h2>Kelola gift</h2>
+    <p class="muted">Semua gift di sini tampil di tab Hadiah aplikasi. Media bisa URL atau upload dari perangkat (lewat Cloudinary).
+      Gift khas = ada kombo dan bisa JP (jackpot) sesuai rate. Centang "gift cashback" supaya gift pindah ke tab Cashback aplikasi
+      dan ikut sistem cashback.</p>
+    <label>Nama gift</label><input type="text" id="gfName" placeholder="Contoh: Mawar">
+    <div class="row">
+      <div style="flex:1;min-width:100px"><label>Emoji</label><input type="text" id="gfEmoji" placeholder="🌹"></div>
+      <div style="flex:2;min-width:160px"><label>Harga (koin)</label><input type="number" id="gfPrice" min="1" value="1000"></div>
+    </div>
+    <label>URL media (svga, mp4, gif, png, webp)</label><input type="text" id="gfUrl" placeholder="https://...">
+    <div class="prev" id="gfPrev">Ketuk untuk pilih file</div>
+    <label>Upload dari perangkat (maks sekitar 10 MB)</label><input type="file" id="gfFile" accept=".svga,.mp4,.gif,.png,.webp">
+    <div class="row" style="margin-top:10px">
+      <label style="display:flex;align-items:center;gap:8px;flex:1"><input type="checkbox" id="gfSpecial" style="width:auto"> Gift khas (kombo + JP)</label>
+      <label style="display:flex;align-items:center;gap:8px;flex:1"><input type="checkbox" id="gfCb" style="width:auto"> Gift cashback (tab Cashback)</label>
+    </div>
+    <div class="row">
+      <div style="flex:1;min-width:120px"><label>Peluang JP (%)</label><input type="number" id="gfJpRate" min="0" max="100" value="0"></div>
+      <div style="flex:1;min-width:120px"><label>Hadiah JP (x harga)</label><input type="number" id="gfJpMult" min="0" value="0"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1;min-width:120px"><label>Cashback (%)</label><input type="number" id="gfCbRate" min="0" max="100" value="0"></div>
+      <div style="flex:1;min-width:120px"><label>Harga cashback (koin)</label><input type="number" id="gfCbPrice" min="0" placeholder="kosong = harga gift"></div>
+    </div>
+    <button class="btn" id="gfSave" style="margin-top:12px">SIMPAN GIFT</button>
+    <div class="muted" id="gfMsg" style="margin-top:8px"></div>
+  </div>
+  <div id="gfList"></div>
 </div>
 
 <div id="tab-cb" class="hide">
@@ -944,7 +976,7 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "rocket", "cb"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "rocket", "gift", "cb"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
@@ -2448,6 +2480,149 @@ document.getElementById("manualAll").onclick = () => manualLoad(true);
   }
 
   window.__cbgList = list;
+  setTimeout(list, 1200);
+})();
+</script>
+<script>
+/* ---------- Kelola gift (pindahan dari aplikasi) ---------- */
+(function(){
+  const G = (id) => document.getElementById(id);
+  let gFile = null;
+  const msg = (t) => { const m = G("gfMsg"); if (m) m.textContent = t; };
+
+  document.addEventListener("change", (e) => {
+    if (e.target && e.target.id === "gfFile") {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      if (f.size > 12 * 1024 * 1024) { msg("File terlalu besar (maks 12 MB)"); gFile = null; return; }
+      gFile = f;
+      const ext = (f.name.split(".").pop() || "").toLowerCase();
+      const prev = G("gfPrev");
+      if (/^(png|webp|gif|jpg|jpeg)$/.test(ext)) {
+        const r = new FileReader();
+        r.onload = () => { prev.innerHTML = '<img src="' + r.result + '" style="max-height:110px;border-radius:10px">'; };
+        r.readAsDataURL(f);
+      } else {
+        prev.textContent = f.name + " (" + (f.size / 1048576).toFixed(1) + " MB)";
+      }
+      msg("File siap diunggah.");
+    }
+  });
+
+  function gid(name) {
+    return String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24) || ("gift" + Date.now());
+  }
+
+  const save = G("gfSave");
+  if (save) save.onclick = async () => {
+    const name = G("gfName").value.trim();
+    const price = parseInt(G("gfPrice").value, 10) || 0;
+    const emoji = G("gfEmoji").value.trim() || "🎁";
+    if (!name) { msg("Nama gift wajib diisi"); return; }
+    if (price < 1) { msg("Harga wajib angka lebih dari 0"); return; }
+    const isCb = G("gfCb").checked;
+    const special = G("gfSpecial").checked || isCb;
+    const jpRate = Math.max(0, Math.min(100, parseInt(G("gfJpRate").value, 10) || 0));
+    const jpMult = Math.max(0, parseInt(G("gfJpMult").value, 10) || 0);
+    const cbRate = Math.max(0, Math.min(100, parseInt(G("gfCbRate").value, 10) || 0));
+    const cbPrice = Math.max(0, parseInt(G("gfCbPrice").value, 10) || 0);
+    save.disabled = true;
+    try {
+      let url = G("gfUrl").value.trim();
+      if (gFile) {
+        msg("Mengunggah ke Cloudinary...");
+        url = await cldUpload(gFile, "gift");
+      }
+      if (!/^https?:\/\//i.test(url)) throw new Error("URL media belum ada");
+      if (!isCb && !special) {
+        const sp = await rtdb.ref("giftCfg").get();
+        const all = sp.val() || {};
+        const dup = Object.keys(all).find(k => all[k] && all[k].name === name);
+        if (dup) throw new Error("Nama gift sudah ada");
+      }
+      const data = {
+        name: name,
+        emoji: emoji,
+        price: price,
+        mediaUrl: url,
+        mediaType: (url.split("?")[0].split(".").pop() || "").toLowerCase(),
+        special: special,
+        jpRate: special ? jpRate : 0,
+        jpMult: special ? jpMult : 0,
+        cbRate: isCb ? (cbRate || 100) : 0,
+        cbPrice: isCb ? cbPrice : 0,
+        cashback: isCb,
+        updatedAt: Date.now(),
+      };
+      msg("Menyimpan ke database...");
+      await rtdb.ref("giftCfg/" + gid(name)).update(data);
+      if (isCb) await rtdb.ref("pub/_cashbackCfg/on").set(true);
+      msg("Gift tersimpan ✅");
+      gFile = null; G("gfFile").value = "";
+      G("gfPrev").textContent = "Ketuk untuk pilih file";
+      G("gfName").value = ""; G("gfEmoji").value = ""; G("gfUrl").value = "";
+      G("gfSpecial").checked = false; G("gfCb").checked = false;
+      G("gfJpRate").value = 0; G("gfJpMult").value = 0;
+      G("gfCbRate").value = 0; G("gfCbPrice").value = "";
+      if (typeof toast === "function") toast("Gift tersimpan");
+      list();
+    } catch (e) {
+      msg("Gagal menyimpan: " + (e.message || e));
+    }
+    save.disabled = false;
+  };
+
+  async function list() {
+    const box = G("gfList");
+    if (!box) return;
+    box.innerHTML = '<div class="card"><h2>Daftar gift</h2><div class="muted">Memuat...</div></div>';
+    try {
+      const snap = await rtdb.ref("giftCfg").get();
+      const v = snap.val() || {};
+      const keys = Object.keys(v);
+      if (!keys.length) {
+        box.innerHTML = '<div class="card"><h2>Daftar gift</h2><div class="muted">Belum ada gift.</div></div>';
+        return;
+      }
+      let html = '<div class="card"><h2>Daftar gift (' + keys.length + ')</h2>';
+      keys.forEach(k => {
+        const g = v[k] || {};
+        const tag = g.cashback ? " · CB" : (g.special ? " · khas" : "");
+        html += '<div class="row" style="align-items:flex-start;gap:10px;margin-bottom:12px;flex-wrap:wrap">' +
+          '<div class="info" style="flex:1;min-width:150px"><div class="t">' + (g.emoji || "🎁") + " " + (g.name || k) +
+          " · " + (g.price || 0) + " koin" + tag + '</div>' +
+          '<div class="s" style="word-break:break-all">' + (g.mediaUrl || "tanpa media") + '</div></div>' +
+          '<button class="btn out" data-gedit="' + k + '">Edit</button>' +
+          '<button class="btn out" data-ghapus="' + k + '">Hapus</button></div>';
+      });
+      html += '</div>';
+      box.innerHTML = html;
+      box.querySelectorAll("[data-gedit]").forEach(b => b.onclick = () => {
+        const g = v[b.dataset.gedit] || {};
+        G("gfName").value = g.name || b.dataset.gedit;
+        G("gfEmoji").value = g.emoji || "";
+        G("gfPrice").value = g.price || 0;
+        G("gfUrl").value = g.mediaUrl || "";
+        G("gfSpecial").checked = g.special === true;
+        G("gfCb").checked = g.cashback === true;
+        G("gfJpRate").value = g.jpRate || 0;
+        G("gfJpMult").value = g.jpMult || 0;
+        G("gfCbRate").value = g.cbRate || 0;
+        G("gfCbPrice").value = g.cbPrice || "";
+        G("gfPrev").textContent = "Data dimuat, ketuk simpan kalau sudah benar";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      box.querySelectorAll("[data-ghapus]").forEach(b => b.onclick = async () => {
+        if (!confirm("Hapus gift ini?")) return;
+        await rtdb.ref("giftCfg/" + b.dataset.ghapus).remove();
+        list();
+      });
+    } catch (e) {
+      box.innerHTML = '<div class="card"><h2>Daftar gift</h2><div class="muted">Gagal memuat: ' + (e.message || e) + '</div></div>';
+    }
+  }
+
+  window.__giftList = list;
   setTimeout(list, 1200);
 })();
 </script>

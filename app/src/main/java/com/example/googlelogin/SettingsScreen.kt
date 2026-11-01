@@ -84,7 +84,6 @@ fun SettingsScreen(
     var showAddEmail by remember { mutableStateOf(false) }
     var showLogout by remember { mutableStateOf(false) }
     var showLang by remember { mutableStateOf(false) }
-    var showDev by remember { mutableStateOf(false) }
     var showDevBg by remember { mutableStateOf(false) }
     var showSvip by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
@@ -93,7 +92,6 @@ fun SettingsScreen(
     // Tombol back: tutup panel yang sedang terbuka dulu, baru keluar dari Pengaturan
     BackHandler {
         when {
-            showDev -> showDev = false
             showDevBg -> showDevBg = false
             showPrivacy -> showPrivacy = false
             showSvip -> showSvip = false
@@ -102,10 +100,6 @@ fun SettingsScreen(
         }
     }
 
-    if (showDev) {
-        OverlayBox { DeveloperGiftPanel(onBack = { showDev = false }) }
-        return
-    }
     if (showDevBg) {
         OverlayBox { TabBgPanel(onBack = { showDevBg = false }) }
         return
@@ -147,7 +141,6 @@ fun SettingsScreen(
                 SettingRow(tr("SVIP Settings")) { showSvip = true }
                 SettingRow(tr("Tentang Rezo Chat Voice"), appVersionName()) { showAbout = true }
                 if (isDeveloper) {
-                    SettingRow(tr("Panel Developer")) { showDev = true }
                     SettingRow(tr("Background Tab")) { showDevBg = true }
                 }
                 Spacer(Modifier.height(20.dp))
