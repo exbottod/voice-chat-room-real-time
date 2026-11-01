@@ -375,9 +375,10 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
-                RocketLiveBanner(currentRoomId = activeRoom?.id) { rid ->
-                    RoomDeepLink.pendingRoomId = rid
-                }
+                RocketLiveBanner(
+                    currentRoomId = activeRoom?.id,
+                    onOpen = { rid -> RoomDeepLink.pendingRoomId = rid },
+                )
             }
 
             val room = activeRoom

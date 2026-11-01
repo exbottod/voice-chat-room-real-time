@@ -953,7 +953,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
     }
 
     val e = ev
-    val tinggiNaik = with(androidx.compose.ui.platform.LocalDensity.current) { 420.dp.toPx() }
+    val tinggiNaik = with(LocalDensity.current) { 420.dp.toPx() }
     if (e != null && step == 0) {
         Box(Modifier.fillMaxSize()) {
             // Roketnya didorong naik tinggi ke atas layar selama meluncur.
