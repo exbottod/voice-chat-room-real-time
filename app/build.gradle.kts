@@ -62,6 +62,17 @@ android {
         }
     }
 
+    // Android 16 (2016) menolak APK yang pustaka aslinya (.so) tidak pas
+    // dengan halaman memori 16 KB pada HP tertentu, dan keluhan yang muncul
+    // justru "ada masalah saat mengurai paket". Dengan pustaka dikemas
+    // terkompresi (diekstrak saat pemasangan), APK jauh lebih kecil dan
+    // tidak lagi bergantung pada perataan zip.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
