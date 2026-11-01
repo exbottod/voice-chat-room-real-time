@@ -442,7 +442,6 @@ fun GiftFxOverlay(roomId: String) {
     LaunchedEffect(d.ts) {
         // SVGA butuh waktu unduh + urai, jadi diberi waktu lebih panjang.
         val ms = when {
-            d.rocket && d.mediaUrl.isNotBlank() -> 20000L
             d.mediaUrl.isNotBlank() && kindOf(d.mediaUrl, d.mediaType) == "svga" -> 15000L
             big -> 8000L
             else -> 3000L
@@ -456,7 +455,7 @@ fun GiftFxOverlay(roomId: String) {
             if (isVideoMedia(d.mediaUrl, d.mediaType)) {
                 // mp4: diputar otomatis. TextureView dipakai supaya tidak
                 // tertutup lapisan video Agora (SurfaceView) di room.
-                GiftVideo(d.mediaUrl, Modifier.fillMaxSize(), sound = d.rocket, onEnd = { fx = null })
+                GiftVideo(d.mediaUrl, Modifier.fillMaxSize(), onEnd = { fx = null })
             } else {
                 val kind = kindOf(d.mediaUrl, d.mediaType)
                 if (kind == "svga") {
@@ -473,7 +472,6 @@ fun GiftFxOverlay(roomId: String) {
         } else {
             Text(d.emoji, fontSize = if (big) 120.sp else 64.sp)
         }
-        if (d.rocket) RocketFly(d.from)
         Column(
             Modifier
                 .align(Alignment.BottomCenter)
@@ -677,7 +675,6 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
     var price by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var special by remember { mutableStateOf(false) }
-    var rocket by remember { mutableStateOf(false) }
     var jpRate by remember { mutableStateOf("") }
     var jpMult by remember { mutableStateOf("") }
     var cbRate by remember { mutableStateOf("") }
@@ -750,10 +747,6 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
             Checkbox(special, { special = it })
             Text("Gift khas (kombo + JP)", color = Color.White, fontSize = 13.sp)
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(rocket, { rocket = it })
-            Text("Gift roket 🚀 (efek terbang + suara)", color = Color.White, fontSize = 13.sp)
-        }
         if (special) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -806,7 +799,6 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                         "jpRate" to (jpRate.toIntOrNull() ?: 0).coerceIn(0, 100),
                         "jpMult" to (jpMult.toLongOrNull() ?: 0L),
                         "cbRate" to (cbRate.toIntOrNull() ?: 0).coerceIn(0, 100),
-                        "rocket" to rocket,
                     )
                     // UTAMA: Realtime Database giftCfg/{id} (tidak kena kuota Firestore).
                     Rtdb.ref("giftCfg/$id").updateChildren(data).await()
@@ -822,7 +814,6 @@ fun DeveloperGiftPanel(onBack: () -> Unit) {
                     price = ""
                     url = ""
                     special = false
-                    rocket = false
                     jpRate = ""
                     jpMult = ""
                     cbRate = ""
