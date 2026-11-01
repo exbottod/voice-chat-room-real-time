@@ -339,17 +339,73 @@ object RoomRepo {
         }
     }
 
-    /** Apakah user di-kick (daftar hitam) dari room ini. */
-    suspend fun isBanned(roomId: String, uid: String): Boolean = try {
-        Rtdb.ref("blacklist/$roomId/$uid").get().await().exists()
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        false
+    /** Satu catatan kick (daftar hitam) di sebuah room. */
+    data class RoomBan(
+        val uid: String,
+        val name: String,
+        val until: Long, // 0 = permanen
+        val at: Long,
+    ) {
+        fun active(now: Long = System.currentTimeMillis()): Boolean = until <= 0L || until > now
+
+        /** Sisa waktu dalam bahasa manusia. */
+        fun sisa(now: Long = System.currentTimeMillis()): String {
+            if (until <= 0L) return "Permanen"
+            val ms = until - now
+            if (ms <= 0L) return "Sudah berakhir"
+            val mnt = ms / 60000L
+            return when {
+                mnt < 60L -> "$mnt menit lagi"
+                mnt < 1440L -> "${mnt / 60L} jam ${mnt % 60L} menit lagi"
+                else -> "${mnt / 1440L} hari lagi"
+            }
+        }
     }
 
-    /** Owner menendang user keluar room; user tidak bisa masuk lagi sampai kick-nya dibuka. null = sukses. */
-    suspend fun kickFromRoom(roomId: String, uid: String): String? {
+    private fun parseBan(uid: String, s: com.google.firebase.database.DataSnapshot): RoomBan {
+        // Data lama disimpan sebagai "true" (berarti permanen).
+        if (s.value is Boolean) return RoomBan(uid = uid, name = "", until = 0L, at = 0L)
+        return RoomBan(
+            uid = uid,
+            name = s.child("name").getValue(String::class.java) ?: "",
+            until = (s.child("until").value as? Number)?.toLong() ?: 0L,
+            at = (s.child("at").value as? Number)?.toLong() ?: 0L,
+        )
+    }
+
+    /** Data kick yang masih berlaku di satu room. null = tidak di-kick. */
+    suspend fun banOf(roomId: String, uid: String): RoomBan? {
+        val s = try {
+            Rtdb.ref("blacklist/$roomId/$uid").get().await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return null
+        }
+        if (!s.exists()) return null
+        val b = parseBan(uid, s)
+        if (!b.active()) {
+            // Kick sementara sudah lewat: bersihkan sendiri supaya tidak mengunci selamanya.
+            try {
+                Rtdb.ref("blacklist/$roomId/$uid").removeValue().await()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+            }
+            return null
+        }
+        return b
+    }
+
+    /** Apakah user di-kick (daftar hitam) dari room ini. */
+    suspend fun isBanned(roomId: String, uid: String): Boolean = banOf(roomId, uid) != null
+
+    /**
+     * Owner menendang user keluar room. User otomatis masuk daftar hitam.
+     * [durationMs] = 0 berarti permanen, selain itu kick sementara.
+     * null = sukses.
+     */
+    suspend fun kickFromRoom(roomId: String, uid: String, name: String = "", durationMs: Long = 0L): String? {
         // FIX Anti Kick (SVIP5): user yang mengaktifkan tidak bisa ditendang.
         val pub = try {
             UserDirectory.findByUid(uid)
@@ -357,14 +413,22 @@ object RoomRepo {
         if (pub != null && vipActive(pub.vip, pub.vipUntil) && pub.vip >= 5 && pub.svipOn("antiKick")) {
             return "User ini mengaktifkan Anti Kick"
         }
+        val now = System.currentTimeMillis()
+        val until = if (durationMs > 0L) now + durationMs else 0L
         return try {
-        val seats = Rtdb.ref("seats/$roomId").get().await()
-        val seatKey = seats.children.firstOrNull { it.child("uid").getValue(String::class.java) == uid }?.key
-        if (seatKey != null) Rtdb.ref("seats/$roomId/$seatKey").removeValue().await()
-        Rtdb.ref("members/$roomId/$uid").removeValue().await()
-        Rtdb.ref("live/$uid").removeValue().await()
-        Rtdb.ref("blacklist/$roomId/$uid").setValue(true).await()
-        null
+            val seats = Rtdb.ref("seats/$roomId").get().await()
+            val seatKey = seats.children.firstOrNull { it.child("uid").getValue(String::class.java) == uid }?.key
+            if (seatKey != null) Rtdb.ref("seats/$roomId/$seatKey").removeValue().await()
+            Rtdb.ref("members/$roomId/$uid").removeValue().await()
+            Rtdb.ref("live/$uid").removeValue().await()
+            Rtdb.ref("blacklist/$roomId/$uid").setValue(
+                hashMapOf(
+                    "name" to (name.ifBlank { pub?.name ?: "" }),
+                    "until" to until,
+                    "at" to now,
+                ),
+            ).await()
+            null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -381,6 +445,18 @@ object RoomRepo {
     } catch (e: Exception) {
         e.message ?: "Gagal membuka kick"
     }
+
+    fun observeBans(roomId: String, onChange: (List<RoomBan>) -> Unit): Reg =
+        Rtdb.listen(Rtdb.ref("blacklist/$roomId")) { snap ->
+            val now = System.currentTimeMillis()
+            onChange(
+                snap.children.mapNotNull { c ->
+                    val id = c.key ?: return@mapNotNull null
+                    val b = parseBan(id, c)
+                    if (b.active(now)) b else null
+                }.sortedBy { it.name.lowercase() },
+            )
+        }
 
     fun observeBlacklist(roomId: String, onChange: (Set<String>) -> Unit): Reg =
         Rtdb.listen(Rtdb.ref("blacklist/$roomId")) { snap ->

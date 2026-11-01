@@ -135,9 +135,9 @@ fun RoomScreen(
             if (snap.exists()) {
                 joinedOnce = true
             } else if (joinedOnce && !kickedOut) {
+                // Status dikeluarkan ditangani lewat daftar hitam supaya muncul dialog
+                // "Anda telah di kick dari room", bukan langsung dilempar keluar.
                 kickedOut = true
-                Toast.makeText(context, "Kamu dikeluarkan owner dari room ini", Toast.LENGTH_LONG).show()
-                onExit()
             }
         }
         kotlinx.coroutines.delay(600000)
@@ -159,7 +159,9 @@ fun RoomScreen(
     var seatSheet by remember { mutableStateOf<Int?>(null) }
     var waveOpen by remember { mutableStateOf(false) }
     var seatInvite by remember { mutableStateOf<Int?>(null) }
-    var blacklist by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var bans by remember { mutableStateOf<List<RoomRepo.RoomBan>>(emptyList()) }
+    // Pilihan durasi saat menekan "Kick dari room": uid ke nama user.
+    var kickPick by remember { mutableStateOf<Pair<String, String>?>(null) }
     var roomMuted by remember { mutableStateOf(false) }
 
     // Saklar efek (Kotak 4): matikan efek masuk room dan efek gift kalau ramai.
@@ -226,12 +228,9 @@ fun RoomScreen(
         val d = RoomExtras.observeEmotes(roomId) { emotes = it }
         val e1 = RoomRepo.observeMembers(roomId) { members = it }
         val e2 = RoomRepo.observeLocks(roomId) { locks = it }
-        val f = RoomRepo.observeBlacklist(roomId) { set ->
-            blacklist = set
-            if (myUid in set) {
-                toast("Kamu dikeluarkan dari room ini")
-                onExit()
-            }
+        val f = RoomRepo.observeBans(roomId) { list ->
+            bans = list
+            if (list.any { it.uid == myUid } && !kickedOut) kickedOut = true
         }
         onDispose {
             resetDrafts()
@@ -708,15 +707,7 @@ fun RoomScreen(
                                         onClick = {
                                             menu = false
                                             seatSheet = null
-                                            scope.launch {
-                                                val err = RoomRepo.kickFromRoom(r.id, s.uid)
-                                                if (err != null) {
-                                                    toast(err)
-                                                } else {
-                                                    toast("${s.name} dikeluarkan dari room")
-                                                    RoomExtras.sendChat(r.id, myUid, myName, "🦾 ${s.name} dikeluarkan dari room")
-                                                }
-                                            }
+                                            kickPick = s.uid to s.name
                                         },
                                     )
                                     DropdownMenuItem(
@@ -852,6 +843,77 @@ fun RoomScreen(
             TopRankDialog(onDismiss = { showRank = false }, initialTab = 0, onOpenRoom = {})
         }
 
+        // Jalankan kick sesuai durasi yang dipilih owner.
+        val doKick: (String, String, Long) -> Unit = { targetUid, targetName, durasiMs ->
+            scope.launch {
+                val err = RoomRepo.kickFromRoom(r.id, targetUid, targetName, durasiMs)
+                if (err != null) {
+                    toast(err)
+                } else {
+                    toast("$targetName dikeluarkan dari room")
+                    RoomExtras.sendChat(r.id, myUid, myName, "🦾 $targetName dikeluarkan dari room")
+                }
+            }
+        }
+
+        // Pilih lama kick: 30 menit, 1 hari, atau permanen.
+        kickPick?.let { pick ->
+            val targetUid = pick.first
+            val targetName = pick.second
+            Dialog(onDismissRequest = { kickPick = null }) {
+                DialogCard {
+                    Text(tr("Kick") + " " + targetName, color = Color(0xFFFF8A65), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        tr("User otomatis masuk daftar hitam. Kick sementara berakhir sendiri, kick permanen dibuka manual dari halaman Daftar hitam."),
+                        color = Color(0xFFBDBDBD), fontSize = 12.sp,
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    GoldButton(tr("Kick 30 menit")) {
+                        kickPick = null
+                        doKick(targetUid, targetName, 30L * 60_000L)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlineButton(tr("Kick 1 hari")) {
+                        kickPick = null
+                        doKick(targetUid, targetName, 24L * 60L * 60_000L)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlineButton(tr("Kick permanen")) {
+                        kickPick = null
+                        doKick(targetUid, targetName, 0L)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        tr("Batal"), color = Color(0xFFBDBDBD), fontSize = 13.sp,
+                        modifier = Modifier.clickable { kickPick = null }.padding(8.dp),
+                    )
+                }
+            }
+        }
+
+        // Pemberitahuan untuk user yang dikeluarkan dari room.
+        if (kickedOut) {
+            Dialog(onDismissRequest = { kickedOut = false; onExit() }) {
+                DialogCard {
+                    Text(
+                        tr("Anda telah di kick dari room ⚠️"),
+                        color = Color(0xFFFF7043), fontSize = 19.sp, fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        tr("Owner membuka kick lewat Daftar hitam kalau Anda boleh masuk lagi."),
+                        color = Color(0xFFBDBDBD), fontSize = 12.sp,
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    GoldButton(tr("Oke")) {
+                        kickedOut = false
+                        onExit()
+                    }
+                }
+            }
+        }
+
         if (panel == P_POWER) {
             Dialog(onDismissRequest = { panel = P_NONE }) {
                 DialogCard {
@@ -971,12 +1033,12 @@ fun RoomScreen(
         }
 
         if (panel == P_BLACKLIST) {
-            var bUsers by remember(blacklist) { mutableStateOf<Map<String, PublicUser?>>(emptyMap()) }
-            LaunchedEffect(blacklist) {
+            var bUsers by remember(bans) { mutableStateOf<Map<String, PublicUser?>>(emptyMap()) }
+            LaunchedEffect(bans) {
                 val m = HashMap<String, PublicUser?>()
-                for (uid in blacklist) {
-                    m[uid] = try {
-                        UserCache.byUid(uid)
+                for (b in bans) {
+                    m[b.uid] = try {
+                        UserCache.byUid(b.uid)
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -988,28 +1050,43 @@ fun RoomScreen(
             RmPanel(onDismiss = { panel = P_NONE }) {
                 Text(tr("Daftar hitam"), color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(14.dp))
-                Text(tr("User di daftar ini tidak bisa masuk room sampai kick-nya dibuka."), color = Color(0xFFBDBDBD), fontSize = 12.sp)
+                Text(
+                    tr("User di daftar ini tidak bisa masuk room sampai kick-nya dibuka. Kick sementara berakhir sendiri."),
+                    color = Color(0xFFBDBDBD), fontSize = 12.sp,
+                )
                 Spacer(Modifier.height(12.dp))
-                if (blacklist.isEmpty()) {
+                if (bans.isEmpty()) {
                     Text(tr("Belum ada user yang di-kick"), color = Color(0xFFBDBDBD))
                 } else {
-                    LazyColumn(Modifier.heightIn(max = 300.dp)) {
-                        items(blacklist.size) { i ->
-                            val uid = blacklist.elementAt(i)
+                    LazyColumn(Modifier.heightIn(max = 320.dp)) {
+                        items(bans.size) { i ->
+                            val b = bans[i]
+                            val pu = bUsers[b.uid]
                             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                InvAvatar(bUsers[uid], uid)
+                                InvAvatar(pu, b.uid)
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(bUsers[uid]?.name ?: "UID $uid", color = Color.White, fontSize = 15.sp, maxLines = 1)
-                                    Text(bUsers[uid]?.userId ?: "", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+                                    Text(
+                                        pu?.name ?: b.name.ifBlank { "UID ${b.uid}" },
+                                        color = Color.White, fontSize = 15.sp, maxLines = 1,
+                                    )
+                                    Text(
+                                        if (b.until <= 0L) tr("Kick permanen") else tr("Kick ") + b.sisa(),
+                                        color = if (b.until <= 0L) Color(0xFFFF8A65) else Color(0xFF9A9A9A),
+                                        fontSize = 12.sp,
+                                    )
                                 }
                                 OutlineButton(tr("Buka kick")) {
-                                    scope.launch { toast(RoomRepo.unbanFromRoom(r.id, uid) ?: "User boleh masuk room lagi") }
+                                    scope.launch {
+                                        toast(RoomRepo.unbanFromRoom(r.id, b.uid) ?: (tr("Kick dibuka, user boleh masuk lagi")))
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                Spacer(Modifier.height(10.dp))
+                OutlineButton(tr("Tutup")) { panel = P_NONE }
             }
         }
         if (panel == P_MEMBERS && isOwner) {
@@ -1052,15 +1129,7 @@ fun RoomScreen(
                                     Spacer(Modifier.width(8.dp))
                                 }
                                 OutlineButton(tr("Kick")) {
-                                    scope.launch {
-                                        val err = RoomRepo.kickFromRoom(r.id, uid)
-                                        if (err != null) {
-                                            toast(err)
-                                        } else {
-                                            toast((pu?.name ?: "User") + " dikeluarkan dari room")
-                                            RoomExtras.sendChat(r.id, myUid, myName, "🦾 " + (pu?.name ?: "User") + " dikeluarkan dari room")
-                                        }
-                                    }
+                                    kickPick = uid to (pu?.name ?: "User")
                                 }
                             }
                         }

@@ -16,12 +16,15 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -86,6 +89,8 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     // ---- cek in harian: muncul otomatis sekali sehari sesudah tanggal berganti
     var showSignin by remember { mutableStateOf(false) }
     var signinChecked by remember { mutableStateOf(false) }
+    // Info kick saat user mencoba masuk room yang mem-blacklist dirinya.
+    var kickNote by remember { mutableStateOf<RoomRepo.RoomBan?>(null) }
     var following by remember { mutableStateOf(0L) }
     var fans by remember { mutableStateOf(0L) }
     var followTick by remember { mutableStateOf(0) }
@@ -128,10 +133,22 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             minimized = false
             return
         }
-        val old = activeRoom
-        activeRoom = room
-        minimized = false
         scope.launch {
+            // Daftar hitam: user yang di-kick tidak bisa masuk dan diberi tahu.
+            val ban = try {
+                RoomRepo.banOf(room.id, uid)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (ban != null) {
+                kickNote = ban
+                return@launch
+            }
+            val old = activeRoom
+            activeRoom = room
+            minimized = false
             if (old != null) RoomRepo.leave(old.id, uid)
             RoomRepo.join(room.id, myName, if (vipActive(wallet.vip, wallet.vipUntil)) wallet.vip else 0, activeEquip(wallet, "entry"), activeEquip(wallet, "banner"))
         }
@@ -480,6 +497,25 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                         if (full != null && activeRoom?.id == full.id) activeRoom = full
                     }
                 }
+            }
+            kickNote?.let { b ->
+                AlertDialog(
+                    onDismissRequest = { kickNote = null },
+                    containerColor = Color(0xFF1E1A16),
+                    title = { Text(tr("Anda telah di kick dari room ⚠️"), color = Color(0xFFFF7043), fontWeight = FontWeight.Bold) },
+                    text = {
+                        Text(
+                            if (b.until <= 0L) tr("Kick permanen. Owner bisa membuka kick lewat Daftar hitam.")
+                            else tr("Kick sementara, ") + b.sisa() + ". " + tr("Owner bisa membuka kick lebih awal lewat Daftar hitam."),
+                            color = Color(0xFFD8D3C6), fontSize = 13.sp,
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { kickNote = null }) {
+                            Text(tr("Oke"), color = Color(0xFFFFC65C), fontWeight = FontWeight.Bold)
+                        }
+                    },
+                )
             }
             if (showSignin) {
                 SigninDialog(
