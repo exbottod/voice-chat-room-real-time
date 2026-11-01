@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -348,9 +349,17 @@ fun RoomScreen(
         val rows = (r.micCount + cols - 1) / cols
         val seatSize = if (cols == 4) 54.dp else 48.dp
         val listState = rememberLazyListState()
-        val visible = messages.filter { clearedAt == 0L || it.createdAt > clearedAt }
-        val total = visible.size + (if (r.announcement.isNotBlank()) 1 else 0)
+        // Tab chat: false = Semua (user + gift + sistem), true = Obrolan (hanya ketikan user).
+        var onlyChat by remember { mutableStateOf(false) }
+        val visible = messages.filter {
+            (clearedAt == 0L || it.createdAt > clearedAt) &&
+                (!onlyChat || it.uid.isNotEmpty() || it.img.isNotBlank())
+        }
+        val total = visible.size + (if (r.announcement.isNotBlank() && !onlyChat) 1 else 0)
         val lastMsgId = visible.lastOrNull()?.id
+        LaunchedEffect(onlyChat) {
+            if (total > 0) listState.scrollToItem(total - 1)
+        }
         LaunchedEffect(lastMsgId, sendTick) {
             if (total > 0) {
                 val info = listState.layoutInfo
@@ -502,13 +511,59 @@ fun RoomScreen(
             // Banner kemenangan game (terbang di atas daftar chat publik).
             GameWinBanner()
 
+            // Tab "Semua | Obrolan": bisa diklik atau digeser kiri/kanan di daftar chat.
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                for ((label, isChatTab) in listOf("Semua" to false, "Obrolan" to true)) {
+                    val sel = onlyChat == isChatTab
+                    Column(
+                        Modifier
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { onlyChat = isChatTab }
+                            .padding(end = 22.dp, top = 4.dp, bottom = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            tr(label),
+                            color = if (sel) Color.White else Color(0xFF9A9A9A),
+                            fontSize = 16.sp,
+                            fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Box(
+                            Modifier.width(22.dp).height(2.dp)
+                                .background(if (sel) Color.White else Color.Transparent),
+                        )
+                    }
+                }
+            }
+
             LazyColumn(
-                Modifier.weight(1f).fillMaxWidth(),
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .pointerInput(onlyChat) {
+                        var dx = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { dx = 0f },
+                            onDragEnd = {
+                                // Geser ke kiri -> Obrolan, geser ke kanan -> Semua.
+                                if (dx < -80f) onlyChat = true
+                                else if (dx > 80f) onlyChat = false
+                            },
+                            onDragCancel = { dx = 0f },
+                            onHorizontalDrag = { _, amount -> dx += amount },
+                        )
+                    },
                 state = listState,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                if (r.announcement.isNotBlank()) {
+                if (r.announcement.isNotBlank() && !onlyChat) {
                     item { RmMsgBox("Pengumuman kamar: ${r.announcement}", Gold) }
                 }
                 items(visible, key = { it.id }) { m ->
