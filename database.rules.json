@@ -185,6 +185,17 @@
         ".write": "auth != null"
       }
     },
+    "betCfg": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')",
+      "$game": {
+        ".validate": "newData.hasChild('chips')"
+      }
+    },
+    "signinCfg": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+    },
     "giftCfg": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"

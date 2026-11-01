@@ -518,16 +518,29 @@ function betShort(v) {
   return String(v);
 }
 
+// Lokasi pengaturan taruhan. "betCfg" lokasi utama;
+// "pub/_betCfg" dipakai kalau aturan database belum mengizinkan betCfg.
+const BET_PATHS = ["betCfg", "pub/_betCfg"];
+
+async function betReadCfg() {
+  for (const path of BET_PATHS) {
+    try {
+      const snap = await rtdb.ref(path).get();
+      const v = snap.val();
+      if (v && typeof v === "object") return { cfg: v, path: path };
+    } catch (e) { /* coba lokasi berikutnya */ }
+  }
+  return { cfg: null, path: BET_PATHS[0] };
+}
+
 async function betStart() {
   const msg = document.getElementById("betMsg");
   msg.textContent = "Memuat pengaturan…";
-  let cfg = null;
-  try {
-    const snap = await rtdb.ref("betCfg").get();
-    cfg = snap.val() || null;
-  } catch (e) { cfg = null; }
-  betRender(cfg);
-  msg.textContent = cfg ? "Pengaturan dimuat." : "Belum ada pengaturan, memakai nilai bawaan.";
+  const res = await betReadCfg();
+  betRender(res.cfg);
+  msg.textContent = res.cfg
+    ? "Pengaturan dimuat dari " + res.path + "."
+    : "Belum ada pengaturan, memakai nilai bawaan.";
 }
 
 document.getElementById("betSave").onclick = async () => {
@@ -539,8 +552,19 @@ document.getElementById("betSave").onclick = async () => {
       if (!vs.length) throw new Error("Nilai taruhan " + g.n + " masih kosong");
       out[g.k] = { chips: vs, updatedAt: Date.now() };
     }
-    await rtdb.ref("betCfg").set(out);
-    msg.textContent = "Tersimpan. Game memakai nilai taruhan ini saat dibuka berikutnya.";
+    let saved = "";
+    let lastErr = null;
+    for (const path of BET_PATHS) {
+      try {
+        await rtdb.ref(path).set(out);
+        saved = path;
+        break;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    if (!saved) throw lastErr || new Error("Semua lokasi penyimpanan ditolak");
+    msg.textContent = "Tersimpan di " + saved + ". Game memakai nilai taruhan ini saat dibuka berikutnya.";
   } catch (e) {
     msg.textContent = "Gagal menyimpan: " + (e.message || e);
   }

@@ -16,14 +16,20 @@ object BetCfg {
     /** Ambil nilai chip dari server sekali per sesi, lalu simpan di memori. */
     suspend fun load(key: String, fallback: List<Long>): List<Long> {
         memo[key]?.let { return it }
-        val out = try {
-            val snap = Rtdb.ref("betCfg/$key/chips").get().await()
-            val list = snap.children.mapNotNull { c ->
-                c.getValue(Long::class.java) ?: c.getValue(Int::class.java)?.toLong()
-            }.filter { it > 0L }.distinct().sorted()
-            if (list.isNotEmpty() && list.size <= 6) list else fallback
-        } catch (e: Exception) {
-            fallback
+        var out: List<Long> = fallback
+        for (base in listOf("betCfg", "pub/_betCfg")) {
+            try {
+                val snap = Rtdb.ref("$base/$key/chips").get().await()
+                val list = snap.children.mapNotNull { c ->
+                    c.getValue(Long::class.java) ?: c.getValue(Int::class.java)?.toLong()
+                }.filter { it > 0L }.distinct().sorted()
+                if (list.isNotEmpty() && list.size <= 6) {
+                    out = list
+                    break
+                }
+            } catch (e: Exception) {
+                // coba lokasi berikutnya
+            }
         }
         memo[key] = out
         return out
