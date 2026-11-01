@@ -71,7 +71,8 @@ label{font-size:12px;color:var(--mut)}
     <input type="text" id="link" placeholder="https://...">
     <label>Urutan (angka kecil tampil lebih dulu)</label>
     <input type="number" id="order" value="1">
-    <button class="btn" id="btnSave" disabled>Upload banner</button>
+    <div id="bstatus" style="color:#c8a15a;font-size:13px;margin:10px 0;line-height:1.4">Siap. Ketuk kotak gambar di atas untuk memilih foto banner.</div>
+    <button class="btn" id="btnSave">Simpan banner</button>
   </div>
 
   <div class="card">
@@ -310,28 +311,35 @@ auth.onAuthStateChanged(u => {
 });
 
 $("prev").onclick = () => $("file").click();
+let imgFile = null;
+function bstat(t){ const el = $("bstatus"); if (el) el.textContent = t; }
+$("prev").onclick = () => $("file").click();
 $("file").onchange = async e => {
-  const f = e.target.files[0]; if (!f) return;
+  const f = e.target.files && e.target.files[0];
+  if (!f) { bstat("Tidak ada file yang dipilih."); return; }
   try {
-    imgB64 = await toB64(f);
-    const im = document.createElement("img"); im.src = "data:image/jpeg;base64," + imgB64;
+    bstat("Membaca gambar...");
+    imgFile = await bannerFile(f);
+    const im = document.createElement("img"); im.src = URL.createObjectURL(imgFile);
     $("prev").textContent = ""; $("prev").appendChild(im);
-    $("btnSave").disabled = false;
-  } catch(err){ toast("Gambar tidak bisa dibaca"); }
+    bstat("Gambar siap (" + Math.round(imgFile.size / 1024) + " KB). Ketuk Simpan banner.");
+  } catch (err) { imgFile = null; bstat("Gambar tidak bisa dibaca: " + (err.message || err)); }
 };
 
-function toB64(file){
+function bannerFile(file){
   return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
-      const W = 1200, H = 400, c = document.createElement("canvas");
-      c.width = W; c.height = H;
-      const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
-      c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
-      URL.revokeObjectURL(url);
-      res(c.toDataURL("image/jpeg", 0.82).split(",")[1]);
+      try {
+        const W = 1200, H = 400, c = document.createElement("canvas");
+        c.width = W; c.height = H;
+        const s = Math.max(W / img.width, H / img.height), w = img.width * s, h = img.height * s;
+        c.getContext("2d").drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+        c.toBlob(b => b ? res(new File([b], "banner.jpg", { type: "image/jpeg" })) : rej(new Error("Gagal memproses gambar")), "image/jpeg", 0.85);
+      } catch (e) { rej(e); } finally { URL.revokeObjectURL(url); }
     };
-    img.onerror = rej; img.src = url;
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Format gambar tidak didukung")); };
+    img.src = url;
   });
 }
 
@@ -353,12 +361,12 @@ function toB64(file){
 } 
 
 $("btnSave").onclick = async () => {
-  if (!imgB64) return;
   const link = $("link").value.trim();
-  if (link && !/^https?:\/\//i.test(link)) return toast("Link harus diawali http:// atau https://");
+  if (!imgFile) { bstat("Belum ada gambar. Ketuk kotak gambar di atas dulu."); toast("Pilih gambar banner dulu"); return; }
+  if (link && !/^https?:\/\//i.test(link)) { bstat("Link harus diawali http:// atau https://"); return; }
   $("btnSave").disabled = true;
   const payload = {
-    imageB64: imgB64,
+    imageUrl: "",
     title: $("title").value.trim(),
     subtitle: $("sub").value.trim(),
     link: link,
@@ -367,26 +375,32 @@ $("btnSave").onclick = async () => {
     createdAt: Date.now()
   };
   try {
-    // Simpan seperti biasa ke Firestore (tampilan & banner lama tidak berubah).
-    // Kalau Firestore menolak, dicoba ke Realtime Database supaya tidak hilang.
+    // File diunggah ke CLOUDINARY (bukan Supabase), dokumen hanya menyimpan URL.
+    bstat("Mengunggah gambar ke Cloudinary...");
+    const url = await cldUpload(imgFile, "banner");
+    payload.imageUrl = url;
+    bstat("Gambar terunggah. Menyimpan data banner...");
     let jalur = "Firestore";
     try {
       await db.collection("banners").add(payload);
     } catch (e1) {
-      jalur = "RTDB";
+      jalur = "Realtime Database";
       try {
         await rtdb.ref("banners").push(payload);
-        throw new Error("Firestore menolak (" + (e1.message || e1) + "), banner disimpan di Realtime Database. Cek aturan Firestore.");
       } catch (e2) {
-        if ((e2.message || "").indexOf("Firestore menolak") === 0) throw e2;
         throw new Error("Firestore: " + (e1.message || e1) + " | RTDB: " + (e2.message || e2));
       }
     }
-    toast("Banner terupload ✅ (" + jalur + ")");
-    imgB64 = null; $("file").value = ""; $("title").value = ""; $("sub").value = ""; $("link").value = "";
+    bstat("Tersimpan \u2705 (" + jalur + "). Gambar: " + url);
+    toast("Banner tersimpan \u2705");
+    imgFile = null; $("file").value = ""; $("title").value = ""; $("sub").value = ""; $("link").value = "";
     $("prev").textContent = "Ketuk untuk pilih gambar (rasio 3:1, otomatis dipotong)";
     $("order").value = (parseInt($("order").value, 10) || 0) + 1;
-  } catch(e){ toast("Gagal upload: " + e.message); $("btnSave").disabled = false; }
+  } catch (e) {
+    bstat("Gagal: " + (e.message || e));
+    toast("Gagal: " + (e.message || e));
+  }
+  $("btnSave").disabled = false;
 };
 
 function renderList(snap){
@@ -394,7 +408,7 @@ function renderList(snap){
   if (snap.empty) { box.textContent = "Belum ada banner. Aplikasi memakai banner bawaan."; return; }
   snap.forEach(d => {
     const b = d.data(), row = document.createElement("div"); row.className = "item";
-    const im = document.createElement("img"); im.src = "data:image/jpeg;base64," + b.imageB64;
+    const im = document.createElement("img"); im.src = b.imageUrl ? b.imageUrl : ("data:image/jpeg;base64," + (b.imageB64 || ""));
     const info = document.createElement("div"); info.className = "info";
     const t = document.createElement("b"); t.textContent = b.title || "(tanpa judul)";
     const s = document.createElement("span"); s.className = "muted"; s.textContent = (b.subtitle || "") + (b.link ? "  🔗 " + b.link : "");

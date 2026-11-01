@@ -233,7 +233,7 @@ private fun TopTabs(
     }
 }
 
-private data class AppBanner(val title: String, val subtitle: String, val imageB64: String?, val link: String = "")
+private data class AppBanner(val title: String, val subtitle: String, val imageB64: String?, val link: String = "", val imageUrl: String = "")
 
 @Composable
 private fun BannerPager() {
@@ -262,10 +262,44 @@ private fun BannerPager() {
                 com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("banners").get().await()
             }
             if (snap != null) {
-                remote = snap.documents
-                    .filter { it.getBoolean("active") != false && !it.getString("imageB64").isNullOrBlank() }
+                val dariFs = snap.documents
+                    .filter { it.getBoolean("active") != false && (!it.getString("imageB64").isNullOrBlank() || !it.getString("imageUrl").isNullOrBlank()) }
                     .sortedBy { it.getLong("order") ?: 0L }
-                    .map { AppBanner(it.getString("title") ?: "", it.getString("subtitle") ?: "", it.getString("imageB64"), it.getString("link") ?: "") }
+                    .map {
+                        AppBanner(
+                            it.getString("title") ?: "", it.getString("subtitle") ?: "",
+                            it.getString("imageB64"), it.getString("link") ?: "",
+                            it.getString("imageUrl") ?: "",
+                        )
+                    }
+                // Banner yang disimpan lewat Realtime Database (panel baru) ikut ditampilkan,
+                // banner lama tetap ada (tidak diganti).
+                val dariRt = try {
+                    val rt = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                        com.google.firebase.database.FirebaseDatabase.getInstance().getReference("banners").get().await()
+                    }
+                    rt?.children?.mapNotNull { c ->
+                        val url = c.child("imageUrl").value as? String
+                        if (url.isNullOrBlank()) return@mapNotNull null
+                        if ((c.child("active").value as? Boolean) == false) return@mapNotNull null
+                        Pair(
+                            (c.child("order").value as? Number)?.toLong() ?: 0L,
+                            AppBanner(
+                                c.child("title").value as? String ?: "",
+                                c.child("subtitle").value as? String ?: "",
+                                null,
+                                c.child("link").value as? String ?: "",
+                                url,
+                            ),
+                        )
+                    }?.sortedBy { it.first }?.map { it.second }.orEmpty()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                val semua = (dariFs + dariRt.filter { r -> dariFs.none { it.imageUrl == r.imageUrl } })
+                remote = semua
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
         } catch (e: Exception) {
@@ -289,6 +323,12 @@ private fun BannerPager() {
                     if (bmp != null) {
                         androidx.compose.foundation.Image(
                             bitmap = bmp, contentDescription = null,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else if (b.imageUrl.isNotBlank()) {
+                        coil.compose.AsyncImage(
+                            model = b.imageUrl, contentDescription = null,
                             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                             modifier = Modifier.fillMaxSize(),
                         )
