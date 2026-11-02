@@ -61,16 +61,30 @@ object RocketCfg {
     /** Lama roket meluncur (ms). Semua orang memakai jam yang sama, jadi
      *  yang masuk di tengah jalan tetap melihat roketnya masih meluncur. */
     var flyDurMs by mutableStateOf(15_000L)
-    val defaultImg = listOf("\uD83D\uDE80", "\uD83D\uDE80", "\uD83D\uDE80", "\uD83D\uDE80", "\uD83D\uDE80")
+    // Ikon roket kecil per level, sudah ikut di dalam APK.
+    fun bundledIcon(lv: Int): String =
+        "asset/rocket/votaky_rocket_small_level_" + lv.coerceIn(1, 5) + ".svga"
+
+    // Animasi meluncur (mp4) bawaan per level, ikut di dalam APK.
+    fun bundledFly(lv: Int): String =
+        "asset/rocket/votaky_rocket_large_level_" + lv.coerceIn(1, 5) + "_launch.mp4"
+
+    /** Animasi "giff" (roket sebagai hadiah) per level. */
+    fun bundledGift(lv: Int): String =
+        "asset/rocket/votaky_rocket_large_level_" + lv.coerceIn(1, 5) + "_giff.mp4"
+
+    /** Animasi keberuntungan (lucky) per level. */
+    fun bundledLuck(lv: Int): String =
+        "asset/rocket/votaky_rocket_large_level_" + lv.coerceIn(1, 5) + "_luck.mp4"
+
+    val defaultImg = List(5) { bundledIcon(it + 1) }
     val defaultRewards = listOf("\uD83C\uDFC5", "\uD83D\uDC51", "\uD83D\uDCA5", "\uD83D\uDE97", "\uD83D\uDEF8", "\uD83C\uDFAB")
 
     /** Animasi bawaan; dipakai kalau panel belum mengisi animasi per level. */
-    var flyUrl by mutableStateOf(
-        "https://exbottod.github.io/voice-chat-room-real-time/rocket/roket_emas_v6.svga",
-    )
+    var flyUrl by mutableStateOf(bundledFly(1))
 
-    /** Animasi meluncur tiap roket (index 0..4 = Lv.1..Lv.5), SVGA atau MP4. */
-    var flyUrls by mutableStateOf<List<String>>(List(5) { flyUrl })
+    /** Animasi meluncur tiap roket (index 0..4 = Lv.1..Lv.5), MP4 atau SVGA. */
+    var flyUrls by mutableStateOf<List<String>>(List(5) { bundledFly(it + 1) })
 
     /** Hadiah 6 kolom untuk tiap roket (index 0..4 = Lv.1..Lv.5), diisi dari panel admin. */
     var lvRewards by mutableStateOf<List<List<String>>>(List(5) { emptyList() })
@@ -121,8 +135,12 @@ object RocketCfg {
                     if (v in 5L..120L) flyDurMs = v * 1000L
                 }
                 // Animasi roket meluncur per level: rocketCfg/fly1..fly5.
+                // Kalau panel belum mengisi, pakai mp4 bawaan di dalam APK.
+                val globalFly = s.child("flyUrl").getValue(String::class.java)?.takeIf { it.isNotBlank() }
                 flyUrls = (1..5).map { n ->
-                    s.child("fly$n").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: flyUrl
+                    s.child("fly$n").getValue(String::class.java)?.takeIf { it.isNotBlank() }
+                        ?: globalFly
+                        ?: bundledFly(n)
                 }
                 // Hadiah per roket: rocketCfg/lv{N}/r{1..6} (gambar + VIP + coin).
                 // Data lama yang hanya berisi gambar di p{K} tetap dibaca.
@@ -460,7 +478,20 @@ private fun ringkas(n: Long): String = when {
 /** Tampilan satu aset roket/hadiah: kalau URL dipakai gambar, kalau bukan dipakai teks. */
 @Composable
 private fun RocketAsset(value: String, size: androidx.compose.ui.unit.Dp, glow: Boolean) {
-    if (value.startsWith("http")) {
+    if (value.startsWith("asset/") && value.endsWith(".svga")) {
+        // Ikon roket dari aset APK: animasi kecil yang berputar terus.
+        Box(contentAlignment = Alignment.Center) {
+            if (glow) {
+                Box(
+                    Modifier.size(size * 1.15f).clip(CircleShape)
+                        .background(Brush.radialGradient(listOf(Color(0x6600AAFF), Color.Transparent))),
+                )
+            }
+            key(value) {
+                GiftSvga(value, "\uD83D\uDE80", Modifier.size(size), loops = -1)
+            }
+        }
+    } else if (value.startsWith("http")) {
         Box(contentAlignment = Alignment.Center) {
             if (glow) {
                 Box(
@@ -1174,6 +1205,12 @@ fun RocketPrizeDialog(
     }
 
     Box(Modifier.fillMaxSize().background(Color(0xB3000000)), contentAlignment = Alignment.Center) {
+        // Animasi keberuntungan roket (mp4 ikut di dalam APK) di belakang kartu hadiah.
+        if (mode == "lucky") {
+            key(lv) {
+                GiftVideo(RocketCfg.bundledLuck(lv), Modifier.fillMaxSize())
+            }
+        }
         Column(
             Modifier
                 .padding(24.dp)

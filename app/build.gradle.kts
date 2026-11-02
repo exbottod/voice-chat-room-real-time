@@ -27,6 +27,12 @@ android {
     namespace = "com.example.googlelogin"
     compileSdk = 35
 
+    // Aset roket (mp4/svga) ikut di dalam APK dan dibaca langsung dari assets,
+    // jadi tidak boleh dikompres lagi oleh aapt.
+    androidResources {
+        noCompress += listOf("mp4", "svga")
+    }
+
     defaultConfig {
         // Nama paket baru untuk rilis (Play Store / APKPure).
         // Namespace Kotlin dibiarkan com.example.googlelogin supaya kode tidak perlu diubah.

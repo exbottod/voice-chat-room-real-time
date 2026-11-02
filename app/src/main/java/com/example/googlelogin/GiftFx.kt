@@ -773,7 +773,13 @@ fun GiftVideo(
                         try {
                             player = android.media.MediaPlayer().apply {
                                 setSurface(android.view.Surface(st))
-                                setDataSource(context, Uri.parse(url))
+                                // "asset/..." = video yang ikut di dalam APK (aset roket).
+                                if (url.startsWith("asset/")) {
+                                    val afd = context.assets.openFd(url.removePrefix("asset/"))
+                                    afd.use { setDataSource(it.fileDescriptor, it.startOffset, it.length) }
+                                } else {
+                                    setDataSource(context, Uri.parse(url))
+                                }
                                 isLooping = false
                                 setVolume(if (sound) 1f else 0f, if (sound) 1f else 0f)
                                 setOnVideoSizeChangedListener { _, vw, vh -> fitMatrix(vw, vh) }
@@ -819,6 +825,7 @@ fun GiftSvga(
     url: String,
     emoji: String = "\uD83C\uDF81",
     modifier: Modifier = Modifier,
+    loops: Int = 1,
     onEnd: () -> Unit = {},
 ) {
     val endRef = rememberUpdatedState(onEnd)
@@ -861,7 +868,7 @@ fun GiftSvga(
             modifier = modifier,
             factory = { c ->
                 com.opensource.svgaplayer.SVGAImageView(c).apply {
-                    loops = 1
+                    loops = loops
                     clearsAfterStop = true
                     isClickable = false
                     scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
