@@ -48,6 +48,32 @@ object SigninRepo {
     private fun dayFmt() = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     fun today(): String = dayFmt().format(Date())
 
+    // Cadangan status cek-in di HP. Dipakai kalau database lambat/menolak,
+    // supaya dialog "Sign in" tidak muncul lagi di hari yang sama.
+    private fun sp(): android.content.SharedPreferences? = try {
+        val ctx = com.google.firebase.FirebaseApp.getInstance().applicationContext
+        ctx.getSharedPreferences("signin_local", android.content.Context.MODE_PRIVATE)
+    } catch (e: Exception) { null }
+
+    private fun localState(uid: String): SigninState = try {
+        val p = sp()
+        SigninState(
+            last = p?.getString("last_" + uid, "") ?: "",
+            day = p?.getInt("day_" + uid, 0) ?: 0,
+            total = p?.getInt("total_" + uid, 0) ?: 0,
+        )
+    } catch (e: Exception) { SigninState() }
+
+    private fun saveLocal(uid: String, st: SigninState) {
+        try {
+            sp()?.edit()
+                ?.putString("last_" + uid, st.last)
+                ?.putInt("day_" + uid, st.day)
+                ?.putInt("total_" + uid, st.total)
+                ?.apply()
+        } catch (e: Exception) { }
+    }
+
     private fun parseCfg(s: com.google.firebase.database.DataSnapshot?): SigninCfg {
         if (s == null || !s.exists()) return SigninCfg()
         val target = (s.child("target").value as? Number)?.toInt() ?: 18
@@ -72,14 +98,26 @@ object SigninRepo {
         parseCfg(Rtdb.ref(CFG).get().await())
     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { SigninCfg() }
 
-    suspend fun loadState(uid: String): SigninState = try {
-        val s = Rtdb.ref("signin/$uid").get().await()
-        SigninState(
-            last = s.child("last").getValue(String::class.java) ?: "",
-            day = (s.child("day").value as? Number)?.toInt() ?: 0,
-            total = (s.child("total").value as? Number)?.toInt() ?: 0,
-        )
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { SigninState() }
+    suspend fun loadState(uid: String): SigninState {
+        val local = localState(uid)
+        val remote = try {
+            val s = Rtdb.ref("signin/$uid").get().await()
+            SigninState(
+                last = s.child("last").getValue(String::class.java) ?: "",
+                day = (s.child("day").value as? Number)?.toInt() ?: 0,
+                total = (s.child("total").value as? Number)?.toInt() ?: 0,
+            )
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            SigninState()
+        }
+        // Ambil catatan yang paling baru, supaya status tidak pernah "mundur".
+        val last = if (remote.last >= local.last) remote.last else local.last
+        val day = if (remote.last >= local.last) remote.day else local.day
+        val total = maxOf(remote.total, local.total)
+        return SigninState(last = last, day = day, total = total)
+    }
 
     fun canClaim(st: SigninState): Boolean = st.last != today()
 
@@ -147,7 +185,8 @@ object SigninRepo {
             }
         }
 
-        // 4) Catat status (paling akhir, dan tidak boleh gagal diam-diam)
+        // 4) Catat status: lokal dulu (tidak pernah gagal), lalu database.
+        saveLocal(uid, SigninState(last = today(), day = idx + 1, total = st.total + 1))
         val simpan = try {
             Rtdb.ref("signin/$uid").setValue(
                 hashMapOf(
@@ -164,7 +203,7 @@ object SigninRepo {
             false
         }
         try { PublicSync.push(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-        if (!simpan) return (idx + 1) to "Hadiah masuk, tapi status gagal disimpan. Pasang rules database terbaru."
+        if (!simpan) return (idx + 1) to "Hadiah masuk. Status tersimpan di HP, pasang rules database agar tersinkron."
         return (idx + 1) to gagal.ifBlank { null }
     }
 }
