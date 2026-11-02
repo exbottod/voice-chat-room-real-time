@@ -1253,7 +1253,10 @@ Deno.serve(async (req) => {
       params = { p_uid: uid, p_price: p.price, p_item_id: p.item_id ?? null, p_room_id: p.room_id ?? null };
       break;
     case "exchange":
+      // p_req = nomor permintaan dari app, supaya penukaran yang diulang
+      // (misal karena jaringan putus) tidak memotong berlian dua kali.
       params = { p_uid: uid, p_diamonds: p.diamonds };
+      if (p.req) params.p_req = String(p.req);
       break;
     case "buy_vip":
       params = { p_uid: uid, p_tier: p.tier };
@@ -1269,8 +1272,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const r = await rpc(fn, params);
-    const text = await r.text();
+    let r = await rpc(fn, params);
+    let text = await r.text();
+    // Kalau database belum memakai versi fungsi bertanda p_req, ulangi tanpa p_req.
+    if (!r.ok && params.p_req && /Could not find the function|does not exist|PGRST202/i.test(text)) {
+      delete params.p_req;
+      r = await rpc(fn, params);
+      text = await r.text();
+    }
     if (!r.ok) {
       // WALLET_NOT_FOUND (kode 404/P0001) -> app akan migrasi dari Firestore.
       let msg = "Server database sibuk, coba lagi";

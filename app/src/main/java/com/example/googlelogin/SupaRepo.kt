@@ -22,10 +22,20 @@ object SupaRepo {
     class Res(val wallet: Wallet?, val error: String?, val needMigrate: Boolean = false)
 
     /** POST kecil ke edge function. Semua argumen dompet dikirim sebagai JSON. */
-    private suspend fun call(action: String, params: org.json.JSONObject): Res =
-        kotlinx.coroutines.withTimeoutOrNull(28_000L) {
+    private suspend fun call(action: String, params: org.json.JSONObject): Res {
+        // Server kadang bangun dulu (cold start) sebelum menjawab. Untuk aksi
+        // baca (get) aman diulang; untuk transaksi tidak diulang otomatis,
+        // supaya coin/berlian tidak terpotong dua kali.
+        var hasil = kotlinx.coroutines.withTimeoutOrNull(62_000L) {
             callInner(action, params)
         } ?: Res(null, "Server dompet lambat (timeout), coba lagi")
+        if (hasil.error != null && action == "get" && hasil.error.contains("timeout", true)) {
+            hasil = kotlinx.coroutines.withTimeoutOrNull(62_000L) {
+                callInner(action, params)
+            } ?: hasil
+        }
+        return hasil
+    }
 
     private suspend fun callInner(action: String, params: org.json.JSONObject): Res =
         withContext(Dispatchers.IO) {
@@ -39,10 +49,10 @@ object SupaRepo {
                     .put("p", params)
                 val conn = (URL(FN).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
-                    connectTimeout = 12_000
+                    connectTimeout = 15_000
                     // Edge function kadang perlu bangun dulu (cold start) sebelum
                     // menjawab. Waktu baca diperpanjang supaya tidak dianggap mati.
-                    readTimeout = 22_000
+                    readTimeout = 50_000
                     doOutput = true
                     setRequestProperty("apikey", KEY)
                     setRequestProperty("Content-Type", "application/json")
@@ -314,7 +324,18 @@ object SupaRepo {
         return RocketPrize(j.optLong("coins"), j.optInt("vip"), j.optInt("days"), null)
     }
 
-    suspend fun exchange(uid: String, diamonds: Long) = call("exchange", uidJson(uid).put("diamonds", diamonds))
+    suspend fun exchange(uid: String, diamonds: Long): Res {
+        // Nomor permintaan (req) membuat tukar aman diulang: server mengenali
+        // permintaan yang sama dan tidak memotong berlian dua kali.
+        val req = "ex" + System.currentTimeMillis() + uid.takeLast(6)
+        val r = call("exchange", uidJson(uid).put("diamonds", diamonds).put("req", req))
+        // Kalau gagal karena waktu habis, hasilnya belum pasti: jangan ulangi,
+        // cukup beri tahu bahwa saldo sedang dicek ulang.
+        if (r.error != null && (r.error.contains("timeout", true) || r.error.contains("Tidak bisa menghubungi", true))) {
+            return Res(null, "Server sedang lambat. Saldo dicek ulang otomatis, tunggu sebentar.")
+        }
+        return r
+    }
 
 
     // ---------------- Topup lewat payment gateway ----------------
