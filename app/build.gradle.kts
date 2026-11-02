@@ -5,9 +5,12 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+// App ID Agora: env/secret, gradle.properties, lalu nilai bawaan.
+// Nilai bawaan wajib ada supaya build lokal tetap punya suara di room.
 val agoraAppId: String =
     System.getenv("AGORA_APP_ID")?.takeIf { it.isNotBlank() }
-        ?: (project.findProperty("agoraAppId") as String? ?: "")
+        ?: (project.findProperty("agoraAppId") as String?)?.takeIf { it.isNotBlank() }
+        ?: "a64c0421b7814ded8f0b2806f00e1a90"
 
 // URL worker (token Agora + upload). Urutan: secret/env, gradle.properties, lalu nilai bawaan.
 // Nilai bawaan memastikan upload gift tidak gagal walau secret kosong.
