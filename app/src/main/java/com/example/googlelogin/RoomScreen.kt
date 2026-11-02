@@ -842,6 +842,8 @@ fun RoomScreen(
                 myAvatarB64 = myAvatarB64,
             )
         }
+        // Tombol kombo bulat untuk gift cashback (klik terus untuk kirim ulang).
+        GiftComboBar(myUid, myName)
         if (rocketOpen) RocketScreen(r.id) { rocketOpen = false }
         GiftBanner(r.id)
         if (fxEntryOn) VipEntryEffect(r.id)

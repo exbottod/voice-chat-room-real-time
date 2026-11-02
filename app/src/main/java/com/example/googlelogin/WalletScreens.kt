@@ -1326,6 +1326,22 @@ fun GiftPanel(
                                             kotlinx.coroutines.withTimeoutOrNull(4000L) { PublicSync.push(myUid) }
                                         } catch (e: Exception) { }
                                     }
+                                    // Gift cashback: panel ditutup, tombol kombo bulat muncul
+                                    // supaya bisa diklik terus untuk kirim ulang.
+                                    if (g.cashback || g.cbRate > 0) {
+                                        val t0 = receivers.firstOrNull()
+                                        GiftCombo.start(
+                                            GiftCombo.Sess(
+                                                roomId = roomId,
+                                                giftId = g.id,
+                                                count = count,
+                                                targetUid = t0?.uid ?: "",
+                                                targetName = t0?.name ?: "",
+                                                seat = t0?.index ?: -1,
+                                            ),
+                                        )
+                                        onDismiss()
+                                    }
                                     sending = false
                                 }
                             }
