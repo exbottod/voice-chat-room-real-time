@@ -59,7 +59,7 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
   <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -310,6 +310,21 @@ label{font-size:12px;color:var(--mut)}
     <p class="muted">Aset pecahan (wois_gift_number_10 sampai 10000) sudah ikut di dalam aplikasi,
       tidak perlu upload dari panel. Gift dan pecahan diputar terpisah: gift terbang ke kursi penerima,
       lalu angka pecahan muncul di titik itu. Yang diatur di panel hanya bobot dan peluangnya.</p>
+  </div>
+</div>
+
+<div id="tab-rocket" class="hide">
+  <div class="card">
+    <h2>Hadiah Roket</h2>
+    <p class="muted">Pilih roket 1 sampai 5, lalu isi 6 hadiahnya (gambar, VIP, coin, efek masuk, lencana). Hadiah diambil pemain saat roket meluncur dan masuk ke grid hadiah di aplikasi. Animasi dan syarat energi sudah ada di dalam aplikasi.</p>
+    <div id="rkMsg" class="muted" style="min-height:18px;margin:6px 0"></div>
+    <div id="rkLv" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0"></div>
+    <div id="rkSlots"></div>
+  </div>
+  <div class="card">
+    <h2>Hadiah peringkat mingguan</h2>
+    <p class="muted">Hadiah untuk Top 1, Top 2, dan Top 3 pengirim gift terbanyak di room.</p>
+    <div id="rkRank"></div>
   </div>
 </div>
 
@@ -930,13 +945,14 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
   if (t.dataset.t === "signin") signinStart();
   if (t.dataset.t === "bet") betStart();
   if (t.dataset.t === "cb") cbStart();
+  if (t.dataset.t === "rocket") rocketStart();
   if (t.dataset.t === "topup") { payLoad(); manualLoad(false); }
 });
 
@@ -1205,8 +1221,6 @@ function rkExpRender(){
 }
 function rkRender(){
   const lv = $("rkLv"); if (!lv) return;
-  rkExpRender();
-  rkUiRender();
   lv.innerHTML = "";
   for (let n = 1; n <= 5; n++) {
     const b = document.createElement("button");
@@ -1223,10 +1237,8 @@ function rkRender(){
     box.appendChild(rkPrize("Hadiah " + k, "rocketCfg/lv" + rkSel + "/r" + k, cur, "rk_l" + rkSel + "_" + k));
   }
   const rk = $("rkRank"); rk.innerHTML = "";
-  [["🏆 Top 1", 1], ["🥈 Top 2", 2], ["🥉 Top 3", 3], ["🎖 Top 4 ke bawah", 4]].forEach(a =>
+  [["🏆 Top 1", 1], ["🥈 Top 2", 2], ["🥉 Top 3", 3]].forEach(a =>
     rk.appendChild(rkPrize(a[0], "rocketCfg/rank/t" + a[1], (rkCfg.rank || {})["t" + a[1]] || null, "rk_r" + a[1])));
-  const fl = $("rkFly"); fl.innerHTML = "";
-  fl.appendChild(rkFlyCard());
 }
 function rkFlyItem(label, path, url, key, hint){
   const d = document.createElement("div");
@@ -1262,7 +1274,7 @@ function rkFlyCard(){
   return wrap;
 }
 
-$("rkExpSave").onclick = async () => {
+if ($("rkExpSave")) $("rkExpSave").onclick = async () => {
   const btn = $("rkExpSave"); btn.disabled = true;
   try {
     for (let n = 1; n <= 5; n++) {

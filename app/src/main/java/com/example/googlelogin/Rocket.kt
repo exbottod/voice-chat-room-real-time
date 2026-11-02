@@ -384,7 +384,7 @@ object RocketRepo {
     /**
      * Tambah energi roket room dari gift yang baru dikirim. Energi diisi untuk
      * roket tahap sekarang; begitu penuh roket itu meluncur, lalu tahap
-     * berikutnya mulai dari nol. Setelah roket 5 meluncur, kembali ke roket 1.
+     * berikutnya mulai dari nol. Setelah roket 5 meluncur, tetap di roket 5.
      */
     suspend fun addExp(roomId: String, name: String, coins: Long) {
         val u = uid()
@@ -420,7 +420,8 @@ object RocketRepo {
                     left -= need
                     seq += 1
                     launches.add(st to seq)
-                    st = if (st >= 5) 1 else st + 1
+                    // Setelah roket 5 meluncur, tetap di roket 5 (tidak kembali ke 1).
+                    st = if (st >= 5) 5 else st + 1
                     need = RocketCfg.exp.getOrElse(st - 1) { Long.MAX_VALUE }.coerceAtLeast(1L)
                     guard++
                 }
