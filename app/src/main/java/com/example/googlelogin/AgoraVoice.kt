@@ -50,6 +50,9 @@ object AgoraVoice {
 
     /** Sekali coba ulang saat token ditolak Agora (error 109/110). */
     @Volatile private var retriedToken = false
+
+    /** Waktu sambung ulang terakhir, supaya tidak berulang terus. */
+    @Volatile private var lastRejoin = 0L
     private var appCtx: Context? = null
     private var joinJob: Job? = null
 
@@ -94,6 +97,25 @@ object AgoraVoice {
             Log.i(TAG, lastStatus)
         }
 
+        override fun onConnectionStateChanged(state: Int, reason: Int) {
+            if (state == Constants.CONNECTION_STATE_DISCONNECTED || state == Constants.CONNECTION_STATE_FAILED) {
+                val c = appCtx
+                val r = roomId
+                if (c != null && r != null) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastRejoin > 10_000L) {
+                        lastRejoin = now
+                        lastStatus = "Suara: menyambung ulang…"
+                        Log.e(TAG, lastStatus)
+                        joined = false
+                        inChannel = false
+                        try { engine?.leaveChannel() } catch (e: Exception) { }
+                        join(c, r)
+                    }
+                }
+            }
+        }
+
         override fun onTokenPrivilegeWillExpire(token: String?) {
             val r = roomId ?: return
             scope.launch { fetchToken(r)?.let { engine?.renewToken(it.token) } }
@@ -121,11 +143,12 @@ object AgoraVoice {
                 mEventHandler = handler
             }
             RtcEngine.create(cfg).also {
-                it.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_CHATROOM)
+                // 48 kbps mono: cukup lega untuk suara mic dan musik, jauh lebih
+                // jarang pecah di jaringan seluler dibanding profil 18 kbps.
+                it.setAudioProfile(Constants.AUDIO_PROFILE_MUSIC_STANDARD, Constants.AUDIO_SCENARIO_CHATROOM)
                 it.enableAudio()
-                // Suara room harus keluar dari speaker, bukan earpiece.
+                // Speaker jadi jalur bawaan, tapi headset tetap dihormati kalau dipasang.
                 try { it.setDefaultAudioRoutetoSpeakerphone(true) } catch (e: Exception) { }
-                try { it.setEnableSpeakerphone(true) } catch (e: Exception) { }
                 engine = it
                 appIdInUse = use
             }
@@ -218,7 +241,6 @@ object AgoraVoice {
             }
             inChannel = true
             e.muteAllRemoteAudioStreams(muteRemote)
-            try { e.setEnableSpeakerphone(true) } catch (ex: Exception) { }
             applyRole()
 
             // Kalau 8 detik belum benar-benar masuk channel, coba sekali lagi.
@@ -242,6 +264,13 @@ object AgoraVoice {
             autoSubscribeAudio = true
         }
         e.updateChannelMediaOptions(opt)
+        if (on) {
+            // Pastikan mikrofon benar-benar terbuka dan tidak ikut ter-mute.
+            try { e.enableLocalAudio(true) } catch (ex: Exception) { }
+            try { e.muteLocalAudioStream(false) } catch (ex: Exception) { }
+        } else {
+            try { e.muteLocalAudioStream(true) } catch (ex: Exception) { }
+        }
     }
 
     /** true = broadcaster + kirim mic; false = audience. Aman dipanggil sebelum join selesai. */
