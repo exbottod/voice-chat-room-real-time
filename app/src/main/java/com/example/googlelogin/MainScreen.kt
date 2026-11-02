@@ -494,6 +494,12 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onOpenUser = { fullProfileUid = it },
                 )
             }
+            // Banner cashback terpisah dari banner gift biasa.
+            GlobalCashbackBanner(currentRoomId = activeRoom?.id) { quick ->
+                if (quick.id.isNotBlank()) {
+                    enterRoom(quick)
+                }
+            }
             GlobalGiftBanner(currentRoomId = activeRoom?.id) { quick ->
                 if (quick.id.isNotBlank()) {
                     // Masuk SEKETIKA dari data di banner (tanpa menunggu database),

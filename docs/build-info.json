@@ -1,0 +1,72 @@
+{
+  "status": "ok",
+  "masalah": [],
+  "versi": "1.0.601",
+  "ukuran_mb": 78.9,
+  "sha256": "6394d95302a2e873e2e92e82a544402d1675f8bc08a8d8f659552bb33f6be815",
+  "commit": "7ef2e79",
+  "waktu": "2026-11-02T13:00:21Z",
+  "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
+  "aset_roket": 30,
+  "aset_total": 116,
+  "fitur": [
+    {
+      "nama": "Banner cashback terpisah",
+      "ada": true
+    },
+    {
+      "nama": "Banner gift biasa",
+      "ada": true
+    },
+    {
+      "nama": "Animasi cashback di avatar",
+      "ada": true
+    },
+    {
+      "nama": "Tombol kombo cashback",
+      "ada": true
+    },
+    {
+      "nama": "Roket level 1-5 di room",
+      "ada": true
+    },
+    {
+      "nama": "Peluncuran roket cadangan",
+      "ada": true
+    },
+    {
+      "nama": "Sambung ulang suara otomatis",
+      "ada": true
+    },
+    {
+      "nama": "Tukar diamond nominal sendiri",
+      "ada": true
+    },
+    {
+      "nama": "Papan peringkat roket",
+      "ada": true
+    }
+  ],
+  "roket_level": [
+    {
+      "level": 1,
+      "ada": true
+    },
+    {
+      "level": 2,
+      "ada": true
+    },
+    {
+      "level": 3,
+      "ada": true
+    },
+    {
+      "level": 4,
+      "ada": true
+    },
+    {
+      "level": 5,
+      "ada": true
+    }
+  ]
+}

@@ -296,7 +296,13 @@ object GiftFx {
         val room = try {
             kotlinx.coroutines.withTimeoutOrNull(3000L) { RoomRepo.getRoom(roomId) }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
-        Rtdb.ref("giftBanner").setValue(
+        // Gift cashback memakai jalur banner sendiri (giftCbBanner) dan hanya
+        // dipublikasikan saat jackpot cashback 10.000 koin ke atas. Gift biasa
+        // tetap memakai giftBanner seperti sebelumnya.
+        val isCb = g.cashback || g.cbRate > 0
+        val cbBig = if (cbWin > jpWin) cbWin else jpWin
+        val bannerNode = if (isCb) "giftCbBanner" else "giftBanner"
+        if (!isCb || cbBig >= 10_000L) Rtdb.ref(bannerNode).setValue(
             hashMapOf<String, Any?>(
                 "roomId" to roomId,
                 "roomName" to (room?.name ?: ""),
@@ -313,6 +319,7 @@ object GiftFx {
                 "count" to count * receivers.coerceAtLeast(1),
                 "jp" to (jpWin > 0),
                 "combo" to comboN,
+                "cb" to cbBig,
                 "ts" to System.currentTimeMillis(),
             ),
         )
@@ -736,6 +743,62 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (RoomInfo) -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+    }
+}
+
+/** Banner cashback global (di luar room). Hanya untuk JP 10.000 ke atas. */
+@Composable
+fun GlobalCashbackBanner(currentRoomId: String?, onOpenRoom: (RoomInfo) -> Unit) {
+    var data by remember { mutableStateOf<Triple<String, Long, String>?>(null) }
+    var lastTs by remember { mutableStateOf<Long?>(null) }
+    DisposableEffect(Unit) {
+        val reg = Rtdb.listen(Rtdb.ref("giftCbBanner")) { snap ->
+            val ts = snap.child("ts").getValue(Long::class.java) ?: 0L
+            val prev = lastTs
+            lastTs = ts
+            if (prev == null || ts == prev || System.currentTimeMillis() - ts > 30_000) {
+                if (prev == null) return@listen
+                if (ts != prev) data = null
+                return@listen
+            }
+            val cb = snap.child("cb").getValue(Long::class.java) ?: 0L
+            val rid = snap.child("roomId").getValue(String::class.java) ?: ""
+            val from = snap.child("from").getValue(String::class.java) ?: ""
+            val rname = snap.child("roomName").getValue(String::class.java) ?: ""
+            val gift = snap.child("gift").getValue(String::class.java) ?: ""
+            if (cb < 10_000L || rid.isBlank()) {
+                data = null
+                return@listen
+            }
+            data = Triple("\uD83D\uDC8E $from • $gift  +${fmtNum(cb)}  •  $rname ›", cb, rid)
+        }
+        onDispose { reg.remove() }
+    }
+    LaunchedEffect(data?.third) {
+        if (data != null) {
+            delay(3500)
+            data = null
+        }
+    }
+    val d = data ?: return
+    if (d.third == currentRoomId) return
+    Box(
+        Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Box(
+            Modifier
+                .clip(RoundedCornerShape(50))
+                .background(Brush.horizontalGradient(listOf(Color(0xFF0E8F62), Color(0xFF1FBF7A), Color(0xFFD4AF37))))
+                .border(1.dp, Color(0xFFFFE082), RoundedCornerShape(50))
+                .padding(horizontal = 16.dp, vertical = 9.dp),
+        ) {
+            Text(
+                d.first,
+                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

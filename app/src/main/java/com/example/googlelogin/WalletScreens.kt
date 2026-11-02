@@ -658,7 +658,86 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         WalletBalanceCard(gem = true, balance = wallet.diamonds, action = tr("Catatan Berlian")) {
                             toast("Belum ada catatan berlian")
                         }
-                        Spacer(Modifier.height(18.dp))
+                        Spacer(Modifier.height(14.dp))
+                        // Tukar jumlah sendiri: pemain mengetik koin yang diinginkan,
+                        // berlian yang dibutuhkan dihitung otomatis (1 koin = 2 berlian).
+                        var custom by remember { mutableStateOf("") }
+                        val coinIn = custom.toLongOrNull() ?: 0L
+                        val gemNeed = coinIn * 2L
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                                .background(Color.White)
+                                .border(1.dp, Color(0xFFE0DEF0), RoundedCornerShape(18.dp))
+                                .padding(12.dp),
+                        ) {
+                            Text(
+                                tr("Tukar jumlah sendiri"),
+                                color = WalNavy, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CoinDot(28)
+                                Spacer(Modifier.width(10.dp))
+                                OutlinedTextField(
+                                    value = custom,
+                                    onValueChange = { t -> custom = t.filter { it.isDigit() }.take(15) },
+                                    singleLine = true,
+                                    placeholder = { Text("Jumlah koin", color = WalGrey, fontSize = 14.sp) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    tr("Berlian dibutuhkan"),
+                                    color = WalGrey, fontSize = 13.sp, modifier = Modifier.weight(1f),
+                                )
+                                GemDot(18)
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    fmtNum(gemNeed),
+                                    color = Color(0xFF6B3A00), fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            val bisa = coinIn > 0L && gemNeed <= wallet.diamonds && !busy
+                            Box(
+                                Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(50))
+                                    .background(
+                                        if (bisa) Brush.horizontalGradient(listOf(Color(0xFF6A2BD0), Color(0xFF9B6BE8)))
+                                        else Brush.horizontalGradient(listOf(Color(0xFFDADADF), Color(0xFFC9C9D2))),
+                                    )
+                                    .clickable(enabled = bisa) {
+                                        busy = true
+                                        scope.launch {
+                                            val e = WalletRepo.exchange(uid, gemNeed)
+                                            busy = false
+                                            if (e == null) {
+                                                custom = ""
+                                                toast("Berhasil menukar ${fmtNum(gemNeed)} berlian")
+                                            } else {
+                                                toast(e)
+                                            }
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    tr("Tukar"),
+                                    color = if (bisa) Color.White else WalGrey,
+                                    fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            if (coinIn > 0L && gemNeed > wallet.diamonds) {
+                                Text(
+                                    "Berlian tidak cukup",
+                                    color = Color(0xFFD0312D), fontSize = 12.sp,
+                                    modifier = Modifier.padding(top = 6.dp),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
                         DIAMOND_PACKS.forEach { (coins, gems) ->
                             val enough = wallet.diamonds >= gems
                             Row(

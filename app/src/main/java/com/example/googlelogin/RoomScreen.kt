@@ -849,6 +849,8 @@ fun RoomScreen(
         GiftComboBar(myUid, myName)
         if (rocketOpen) RocketScreen(r.id) { rocketOpen = false }
         if (fxBannerOn) GiftBanner(r.id)
+        // Banner cashback terpisah: hanya saat JP 10.000 ke atas.
+        if (fxBannerOn) CashbackBanner(r.id)
         if (fxEntryOn) VipEntryEffect(r.id)
         if (fxGiftOn) GiftFxOverlay(r.id)
         // Gift terbang ke avatar penerima lalu pecahan cashback muncul di titik itu.

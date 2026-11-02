@@ -139,19 +139,19 @@
         }
       }
     },
-  "giftFly": {
-   "$roomId": {
-    ".read": "auth != null",
-    ".write": "auth != null",
-    "$flyId": {
-     ".validate": "!newData.exists() || newData.child('ts').isNumber()"
-    }
-   }
-  },
-  "cashbackCfg": {
-   ".read": "auth != null",
-   ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
-  },
+    "giftFly": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$flyId": {
+          ".validate": "!newData.exists() || newData.child('ts').isNumber()"
+        }
+      }
+    },
+    "cashbackCfg": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+    },
     "giftCombo": {
       "$roomId": {
         ".read": "auth != null",
@@ -303,6 +303,26 @@
             ".write": "auth != null && auth.uid === $uid",
             ".validate": "newData.hasChildren(['name','bet','win']) && newData.child('bet').isNumber() && newData.child('win').isNumber() && newData.child('name').isString() && newData.child('name').val().length < 40"
           }
+        }
+      }
+    },
+    "giftCbBanner": {
+      "$k": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "rocketNow": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "rocketLaunchMark": {
+      "$roomId": {
+        "$uid": {
+          ".read": "auth != null",
+          ".write": "auth != null"
         }
       }
     }

@@ -521,10 +521,12 @@ async function giftCashback(uid: string, p: Record<string, unknown>): Promise<Re
 }
 
 async function giftCredit(targets: string[], each: number, itemId: string, roomId: string): Promise<number> {
-  let ok = 0;
-  for (const t of targets) {
-    const to = String(t || "").trim();
-    if (!to || each <= 0) continue;
+  // Semua penerima diproses SEKALIGUS dan catatan audit tidak ditunggu, supaya
+  // pengiriman gift tidak ikut menunggu satu per satu (dulu berasa lambat).
+  const list = targets.map((t) => String(t || "").trim()).filter((t) => t && each > 0);
+  if (!list.length) return 0;
+  const audit: Promise<unknown>[] = [];
+  const hasil = await Promise.all(list.map(async (to) => {
     let done = false;
     try {
       const r = await rpc("w_gift_credit", { p_to: to, p_amount: each });
@@ -547,20 +549,23 @@ async function giftCredit(targets: string[], each: number, itemId: string, roomI
           });
           done = patch.ok;
         }
-      } catch { /* abaikan, lanjut penerima berikutnya */ }
+      } catch { /* abaikan */ }
     }
     if (done) {
-      ok++;
-      try {
-        await sbRest("money_tx", {
+      // Catatan audit dikirim tanpa ditunggu.
+      audit.push(
+        sbRest("money_tx", {
           method: "POST",
           headers: { Prefer: "return=minimal" },
           body: JSON.stringify([{ uid: to, kind: "gift_recv", item_id: itemId, amount: each, room_id: roomId }]),
-        });
-      } catch { /* catatan audit opsional */ }
+        }).catch(() => null),
+      );
     }
-  }
-  return ok;
+    return done ? 1 : 0;
+  }));
+  // Beri kesempatan audit selesai, tapi tidak menahan balasan lama.
+  if (audit.length) await Promise.race([Promise.all(audit), new Promise((r) => setTimeout(r, 400))]);
+  return hasil.reduce((a, b) => a + b, 0);
 }
 
 async function sbRest(path: string, init: RequestInit = {}): Promise<Response> {

@@ -129,8 +129,11 @@ object RoomExtras {
     /** Notifikasi sistem di chat (tanpa nama pengirim), mis. user dikeluarkan dari room. */
     suspend fun sendSystemNotice(roomId: String, text: String): String? = addMessage(roomId, text)
 
-    suspend fun sendGiftMessage(roomId: String, name: String, g: Gift, count: Int, to: String = ""): String? =
-        addMessage(roomId, "🎁 $name mengirim ${g.emoji} ${g.name} x$count" + (if (to.isNotBlank()) " ke $to" else ""))
+    suspend fun sendGiftMessage(roomId: String, name: String, g: Gift, count: Int, to: String = ""): String? {
+        // Gift cashback punya penanda sendiri (💎) supaya banner gift biasa tidak ikut muncul.
+        val tag = if (g.cashback || g.cbRate > 0) "\uD83D\uDC8E" else "🎁"
+        return addMessage(roomId, "$tag $name mengirim ${g.emoji} ${g.name} x$count" + (if (to.isNotBlank()) " ke $to" else ""))
+    }
 
     suspend fun sendEmote(roomId: String, uid: String, emoji: String): String? = try {
         Rtdb.ref("emotes/$roomId/$uid").setValue(
@@ -251,6 +254,62 @@ fun RoomEmoteBar(emotes: List<RoomEmote> = emptyList(), onPick: (String) -> Unit
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size(34.dp).clickable { onPick(em.url) }.padding(2.dp),
             )
+        }
+    }
+}
+
+/**
+ * Banner khusus gift cashback. Punya bentuk dan warna sendiri, dan hanya muncul
+ * saat jackpot cashback 10.000 koin ke atas.
+ */
+@Composable
+fun CashbackBanner(roomId: String) {
+    var data by remember { mutableStateOf<Triple<String, Long, Long>?>(null) }
+    var lastTs by remember { mutableStateOf<Long?>(null) }
+    DisposableEffect(roomId) {
+        val reg = Rtdb.listen(Rtdb.ref("giftCbBanner")) { snap ->
+            val id = snap.child("roomId").getValue(String::class.java) ?: ""
+            val cb = snap.child("cb").getValue(Long::class.java) ?: 0L
+            val ts = snap.child("ts").getValue(Long::class.java) ?: 0L
+            val from = snap.child("from").getValue(String::class.java) ?: ""
+            val gfit = snap.child("gift").getValue(String::class.java) ?: ""
+            val prev = lastTs
+            lastTs = ts
+            if (id != roomId || cb < 10_000L) return@listen
+            if (prev != null && ts == prev) return@listen
+            data = Triple(if (from.isBlank()) gfit else "$from • $gfit", cb, ts)
+        }
+        onDispose { reg.remove() }
+    }
+    LaunchedEffect(data) {
+        if (data != null) {
+            delay(3500)
+            data = null
+        }
+    }
+    val d = data ?: return
+    Box(
+        Modifier.fillMaxWidth().statusBarsPadding().padding(top = 70.dp, start = 16.dp, end = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(Brush.horizontalGradient(listOf(Color(0xFF0E8F62), Color(0xFF1FBF7A), Color(0xFFD4AF37))))
+                .border(1.dp, Color(0xFFFFE082), RoundedCornerShape(14.dp))
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "\uD83D\uDC8E CASHBACK JP",
+                    color = Color(0xFF07301F), fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, fontSize = 13.sp,
+                )
+                Text(
+                    "${d.first}  +${fmtNum(d.second)}",
+                    color = Color.White, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
     }
 }

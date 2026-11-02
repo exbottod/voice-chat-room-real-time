@@ -236,6 +236,10 @@ object RocketRepo {
     var lastError by mutableStateOf<String?>(null)
         private set
 
+    /** Peluncuran cadangan di perangkat sendiri kalau database menolak tulisan. */
+    var localFx by mutableStateOf<Triple<Int, Long, Long>?>(null)
+        private set
+
     /** Peringkat roket room ini pada musim berjalan. */
     var rankRows by mutableStateOf<List<RocketRankRow>>(emptyList())
         private set
@@ -500,7 +504,8 @@ object RocketRepo {
             ).await()
             // Penanda untuk semua orang: banner "roket sedang meluncur" bisa diketuk
             // dan langsung membuka room yang sedang meluncurkan roket.
-            Rtdb.ref("rocketNow/$roomId").setValue(
+            // Opsional: kalau ditolak database, peluncuran tetap jalan.
+            try { Rtdb.ref("rocketNow/$roomId").setValue(
                 hashMapOf<String, Any?>(
                     "id" to id,
                     "room" to roomId,
@@ -511,12 +516,18 @@ object RocketRepo {
                     "ts" to now,
                     "dur" to dur,
                 ),
-            ).await()
+            ).await() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
+            // Database menolak tulisan utama: roket tetap diputar di perangkat ini
+            // supaya tidak terlihat seperti tidak jalan.
+            lastError = "Peluncuran roket ditolak database: ${(e.message ?: "").take(90)}"
+            localFx = Triple(lv, seq, now)
         }
     }
+
+    fun clearLocalFx() { localFx = null }
 }
 
 /** Satu baris peringkat roket. */
@@ -1053,6 +1064,20 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
             if (tambah.isNotEmpty()) pending = (pending + tambah).sortedBy { it.end }.take(5)
         }
         onDispose { reg.remove() }
+    }
+
+    // Peluncuran cadangan dari perangkat sendiri (database menolak tulisan).
+    LaunchedEffect(RocketRepo.localFx) {
+        val lf = RocketRepo.localFx ?: return@LaunchedEffect
+        pending = (pending + LaunchEv(
+            id = "local" + lf.second,
+            uid = myUid,
+            name = "",
+            lv = lf.first.coerceIn(1, 5),
+            url = RocketCfg.flyFor(lf.first),
+            end = System.currentTimeMillis() + RocketCfg.flyDurMs,
+        )).sortedBy { it.end }.take(5)
+        RocketRepo.clearLocalFx()
     }
 
     LaunchedEffect(pending, ev) {
