@@ -42,10 +42,23 @@ android {
         // Selalu naik (menit sejak 1970), jadi APK baru bisa menimpa APK lama baik dari GitHub maupun build lokal.
         versionCode = (System.currentTimeMillis() / 60000L).toInt()
         versionName = "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: (System.getenv("REZO_BUILD") ?: "575"))
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        // Pustaka native dipecah per jenis HP (lihat blok splits di bawah),
+        // supaya satu APK tidak membawa kode untuk dua prosesor sekaligus.
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         buildConfigField("String", "AGORA_TOKEN_URL", "\"$agoraTokenUrl\"")
         buildConfigField("String", "AGORA_APP_ID", "\"$agoraAppId\"")
+    }
+
+    // Satu APK per jenis prosesor: HP modern pakai arm64, HP lama pakai armv7.
+    // Hasilnya jauh lebih ringan karena pustaka Agora (~33 MB per jenis) tidak
+    // ikut dua-duanya. APK universal tetap dibuat sebagai cadangan.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = true
+        }
     }
 
     signingConfigs {
@@ -79,6 +92,12 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+            // Lip sync dan spatial audio tidak dipakai obrolan suara; dua
+            // pustaka ini saja ~21 MB di dalam APK.
+            excludes += setOf(
+                "**/libagora_lip_sync_extension.so",
+                "**/libagora_spatial_audio_extension.so",
+            )
         }
     }
 

@@ -53,7 +53,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: app-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/*.apk
 
       - name: Periksa isi APK
         if: success()
@@ -66,13 +66,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/release/app-release.apk REZO-CHAT-VOICE.apk
-          NOTES="Build otomatis dari commit ${GITHUB_SHA::7}"
+          set -e
+          D=app/build/outputs/apk/release
+          ls -la "$D"
+          cp "$D/app-universal-release.apk" REZO-CHAT-VOICE.apk
+          cp "$D/app-arm64-v8a-release.apk" REZO-CHAT-VOICE-arm64.apk
+          cp "$D/app-armeabi-v7a-release.apk" REZO-CHAT-VOICE-armv7.apk
+          NOTES="Build otomatis dari commit ${GITHUB_SHA::7}. Pakai arm64 untuk HP baru, armv7 untuk HP lama, universal kalau ragu."
+          BERKAS="REZO-CHAT-VOICE.apk REZO-CHAT-VOICE-arm64.apk REZO-CHAT-VOICE-armv7.apk"
           if gh release view terbaru >/dev/null 2>&1; then
-            gh release upload terbaru REZO-CHAT-VOICE.apk --clobber
+            gh release upload terbaru $BERKAS --clobber
             gh release edit terbaru --notes "$NOTES" --latest
           else
-            gh release create terbaru REZO-CHAT-VOICE.apk --title "REZO CHAT VOICE (terbaru)" --notes "$NOTES" --latest
+            gh release create terbaru $BERKAS --title "REZO CHAT VOICE (terbaru)" --notes "$NOTES" --latest
           fi
 
       - name: Catat error kalau build gagal
