@@ -11,15 +11,15 @@ Daemon will be stopped at the end of the build
 > Task :app:checkReleaseAarMetadata
 > Task :app:generateReleaseResValues
 > Task :app:processReleaseGoogleServices
-> Task :app:mapReleaseSourceSetPaths
-> Task :app:generateReleaseResources
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libagora-fdkaac.so, libagora-ffmpeg.so, libagora-rtc-sdk.so, libagora-soundtouch.so, libagora_ai_echo_cancellation_extension.so, libagora_ai_echo_cancellation_ll_extension.so, libagora_ai_noise_suppression_extension.so, libagora_ai_noise_suppression_ll_extension.so, libagora_audio_beauty_extension.so, libagora_lip_sync_extension.so, libagora_spatial_audio_extension.so, libandroidx.graphics.path.so, libaosl.so.
 
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
 > Task :app:extractReleaseNativeSymbolTables
-> Task :app:packageReleaseResources
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:packageReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
@@ -35,12 +35,12 @@ Unable to strip the following libraries, packaging them as they are: libagora-fd
 	application@android:supportsRtl was tagged at AndroidManifest.xml:25 to replace other declarations but no other declaration present
 
 > Task :app:processReleaseManifest
-> Task :app:processReleaseManifestForPackage
 > Task :app:javaPreCompileRelease
 > Task :app:desugarReleaseFileDependencies
+> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseStartupProfile
-> Task :app:mergeReleaseShaders
 > Task :app:mergeReleaseArtProfile
+> Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
@@ -53,35 +53,157 @@ Unable to strip the following libraries, packaging them as they are: libagora-fd
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:mergeReleaseResources
 > Task :app:processReleaseResources
-> Task :app:optimizeReleaseResources
 > Task :app:mergeExtDexRelease
+> Task :app:optimizeReleaseResources
 
-> Task :app:compileReleaseKotlin
-e: The daemon has terminated unexpectedly on startup attempt #1 with error code: 0. The daemon process output:
-    1. Kotlin compile daemon is ready
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ChatScreens.kt:67:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ChatScreens.kt:239:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/FruitsPartyHtml.kt:83:34 'var allowFileAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/FruitsPartyHtml.kt:84:34 'var allowUniversalAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:93:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:693:44 Condition is always 'false'.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:935:21 'var clearsAfterStop: Boolean' is deprecated. It is recommended to use clearAfterDetached, or manually call to SVGAVideoEntity#clear.If you just consider cleaning up the canvas after playing, you can use FillMode#Clear.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomScreen.kt:1224:21 Condition is always 'true'.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SigninDialog.kt:270:47 Condition is always 'true'.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SigninDialog.kt:277:44 Condition is always 'false'.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/StoreCatalog.kt:131:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/VipAssets.kt:115:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/VipAssets.kt:338:17 'var clearsAfterStop: Boolean' is deprecated. It is recommended to use clearAfterDetached, or manually call to SVGAVideoEntity#clear.If you just consider cleaning up the canvas after playing, you can use FillMode#Clear.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:181:38 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WaveGames.kt:351:30 'var databaseEnabled: Boolean' is deprecated. Deprecated in Java.
-
-> Task :app:compileReleaseJavaWithJavac
-> Task :app:dexBuilderRelease
-> Task :app:mergeReleaseGlobalSynthetics
-> Task :app:processReleaseJavaRes
-> Task :app:mergeReleaseJavaResource
-> Task :app:mergeDexRelease
-> Task :app:compileReleaseArtProfile
-> Task :app:packageRelease
-> Task :app:createReleaseApkListingFileRedirect
-> Task :app:assembleRelease
+> Task :app:compileReleaseKotlin FAILED
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:99:18 Unresolved reference 'wavePrepare'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:100:28 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:137:39 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:138:47 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:194:31 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:198:27 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:73:18 Unresolved reference 'wavePrepare'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:74:28 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:287:28 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:298:31 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:304:23 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:321:38 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:322:46 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:388:28 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:399:31 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:405:23 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:414:38 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:415:46 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:418:39 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:419:47 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:202:30 Unresolved reference 'giftCashback'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:205:34 Unresolved reference 'error'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:205:54 Unresolved reference 'amount'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:206:28 Unresolved reference 'amount'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:207:36 Unresolved reference 'parts'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:207:59 Unresolved reference 'parts'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:207:81 Unresolved reference 'pecahan'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:209:30 Unresolved reference 'parts'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:210:27 Unresolved reference 'jp'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:211:29 Unresolved reference 'mult'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GreedyCat.kt:137:24 Unresolved reference 'wavePrepare'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GreedyCat.kt:140:30 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GreedyCat.kt:217:43 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GreedyCat.kt:218:49 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GreedyCat.kt:270:32 Unresolved reference 'waveFlowMsg'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GreedyCat.kt:276:21 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GreedyCat.kt:297:31 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GreedyCat.kt:302:21 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:210:26 Unresolved reference 'buyVip'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:211:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:211:23 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:217:26 Unresolved reference 'buyItem'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:218:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:218:23 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:224:26 Unresolved reference 'equip'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:225:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:225:23 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:231:26 Unresolved reference 'claimLevel'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:232:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:232:23 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:239:26 Unresolved reference 'backfillVip'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:240:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:240:23 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/LevelVip.kt:1146:56 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Lucky77Html.kt:128:22 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Lucky77Html.kt:140:22 Unresolved reference 'waveFlowMsg'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Lucky77Html.kt:217:22 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Lucky77Wheel.kt:98:28 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Lucky77Wheel.kt:108:31 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Lucky77Wheel.kt:113:23 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Lucky77Wheel.kt:148:35 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Lucky77Wheel.kt:149:43 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/MainScreen.kt:542:51 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Rocket.kt:1352:26 Unresolved reference 'rocketClaimPrize'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SigninRepo.kt:183:30 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SigninRepo.kt:195:34 Unresolved reference 'buyItem'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SigninRepo.kt:207:30 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SigninRepo.kt:208:30 Unresolved reference 'buyVip'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:161:25 Unresolved reference 'token'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:162:31 Unresolved reference 'FN'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:166:46 Unresolved reference 'KEY'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:196:29 Unresolved reference 'token'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:203:35 Unresolved reference 'FN'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:208:50 Unresolved reference 'KEY'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:228:29 Unresolved reference 'token'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:236:35 Unresolved reference 'FN'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:241:50 Unresolved reference 'KEY'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:264:17 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:290:36 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:293:50 Unresolved reference 'Res'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:299:16 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:302:51 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:311:8 Unresolved reference 'Res'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:322:16 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:382:56 Unresolved reference 'Res'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:386:17 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:390:20 Unresolved reference 'Res'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:404:29 Unresolved reference 'token'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:405:83 Unresolved reference 'put'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:406:33 Unresolved reference 'FN'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:411:50 Unresolved reference 'KEY'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:430:35 Unresolved reference 'BASE'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:435:50 Unresolved reference 'KEY'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:436:66 Unresolved reference 'KEY'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:534:50 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:537:56 Unresolved reference 'Res'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:539:16 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:542:63 Unresolved reference 'Res'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:544:16 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:547:43 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:549:44 Unresolved reference 'call'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SupaRepo.kt:550:1 Syntax error: Expecting a top level declaration.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:309:26 Unresolved reference 'buyItem'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:310:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:310:23 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:314:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:314:25 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:315:27 Suspension functions can only be called within coroutine body.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:317:27 Suspension functions can only be called within coroutine body.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:789:26 Unresolved reference 'equip'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:790:26 Unresolved reference 'equip'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:791:26 Unresolved reference 'equip'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Sviph.kt:792:26 Unresolved reference 'equip'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ThreeCardPoker.kt:92:28 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ThreeCardPoker.kt:113:35 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ThreeCardPoker.kt:114:43 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ThreeCardPoker.kt:139:31 Unresolved reference 'waveFlow'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ThreeCardPoker.kt:144:23 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.Long' was expected.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:183:36 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:187:36 Unresolved reference 'migrate'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:189:29 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:189:33 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:203:26 Unresolved reference 'topUp'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:204:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:204:23 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:217:26 Unresolved reference 'sendGift'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:218:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:218:23 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:224:26 Unresolved reference 'exchange'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:225:19 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:225:23 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:595:73 Unresolved reference 'payInfo'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:596:79 Unresolved reference 'dana'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:596:105 Unresolved reference 'gopay'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:596:132 Unresolved reference 'qris'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:598:72 Unresolved reference 'dana'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:599:73 Unresolved reference 'gopay'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:600:72 Unresolved reference 'qris'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:601:72 Unresolved reference 'name'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:603:66 Unresolved reference 'dana'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:604:66 Unresolved reference 'gopay'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:611:74 Unresolved reference 'topupCreate'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:891:46 Unresolved reference 'manualCreate'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:920:39 Unresolved reference 'topupStatus'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:922:34 Unresolved reference 'get'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:922:51 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:922:55 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WaveGames.kt:124:22 Unresolved reference 'wavePrepare'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WaveGames.kt:278:68 Unresolved reference 'waveCheck'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WaveGames.kt:280:59 Assignment type mismatch: actual type is 'kotlin.Any', but 'kotlin.String' was expected.
