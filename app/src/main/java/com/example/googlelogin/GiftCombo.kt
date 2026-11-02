@@ -34,17 +34,25 @@ object GiftCombo {
     )
 
     var session by mutableStateOf<Sess?>(null)
-        private set
     var combo by mutableStateOf(0)
+    var expiry by mutableStateOf(0L)
 
     fun start(s: Sess) {
         session = s
         combo = 1
+        expiry = System.currentTimeMillis() + 12000L
+    }
+
+    /** Setiap ketukan menambah kombo dan memperpanjang waktu tombol tampil. */
+    fun touch() {
+        combo += 1
+        expiry = System.currentTimeMillis() + 12000L
     }
 
     fun stop() {
         session = null
         combo = 0
+        expiry = 0L
     }
 }
 
@@ -88,18 +96,19 @@ suspend fun sendComboGift(myUid: String, myName: String, s: GiftCombo.Sess): Str
 fun GiftComboBar(myUid: String, myName: String) {
     val s = GiftCombo.session ?: return
     val scope = rememberCoroutineScope()
-    var busy by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
-    val gift = GiftCatalog.list.firstOrNull { it.id == s.giftId }
-    val timer = remember { androidx.compose.animation.core.Animatable(1f) }
+    var inFlight by remember { mutableStateOf(0) }
+    var frac by remember { mutableStateOf(1f) }
+    val gift = remember(s.giftId) { GiftCatalog.list.firstOrNull { it.id == s.giftId } }
 
-    LaunchedEffect(GiftCombo.combo) {
-        timer.snapTo(1f)
-        timer.animateTo(
-            0f,
-            androidx.compose.animation.core.tween(6000, easing = androidx.compose.animation.core.LinearEasing),
-        )
-        GiftCombo.stop()
+    // Tidak di-restart saat diketuk: hanya mengecek sisa waktu.
+    LaunchedEffect(s) {
+        while (true) {
+            val left = GiftCombo.expiry - System.currentTimeMillis()
+            frac = (left / 12000f).coerceIn(0f, 1f)
+            if (left <= 0L) { GiftCombo.stop(); break }
+            delay(100)
+        }
     }
 
     // Selalu di kanan bawah, di atas bar kontrol.
@@ -109,9 +118,7 @@ fun GiftComboBar(myUid: String, myName: String) {
             .padding(end = 12.dp, bottom = 132.dp),
         contentAlignment = Alignment.BottomEnd,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 note ?: "Kombo x${GiftCombo.combo}",
                 color = Color.White,
@@ -124,7 +131,7 @@ fun GiftComboBar(myUid: String, myName: String) {
             )
             Spacer(Modifier.height(6.dp))
             Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) {
-                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                Canvas(Modifier.fillMaxSize()) {
                     val stroke = 5.dp.toPx()
                     drawArc(
                         color = Color(0x55FFFFFF),
@@ -139,7 +146,7 @@ fun GiftComboBar(myUid: String, myName: String) {
                     drawArc(
                         color = Color(0xFFFF4D6D),
                         startAngle = -90f,
-                        sweepAngle = 360f * timer.value,
+                        sweepAngle = 360f * frac,
                         useCenter = false,
                         style = androidx.compose.ui.graphics.drawscope.Stroke(
                             width = stroke,
@@ -156,17 +163,17 @@ fun GiftComboBar(myUid: String, myName: String) {
                                 listOf(Color(0xFFFF6B8B), Color(0xFFFF2E63)),
                             ),
                         )
-                        .clickable(enabled = !busy) {
-                            busy = true
-                            scope.launch {
-                                val e = sendComboGift(myUid, myName, s)
-                                if (e == null) {
-                                    GiftCombo.combo += 1
-                                    note = null
-                                } else {
-                                    note = e
+                        .clickable {
+                            // Ketukan langsung terasa: kombo naik dulu, gift dikirim di belakang.
+                            GiftCombo.touch()
+                            note = null
+                            if (inFlight < 3) {
+                                inFlight += 1
+                                val sess = s
+                                scope.launch {
+                                    val e = try { sendComboGift(myUid, myName, sess) } finally { inFlight -= 1 }
+                                    if (e != null) note = e
                                 }
-                                busy = false
                             }
                         },
                     contentAlignment = Alignment.Center,
@@ -174,13 +181,13 @@ fun GiftComboBar(myUid: String, myName: String) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(gift?.emoji?.ifBlank { "🎁" } ?: "🎁", fontSize = 18.sp)
                         Text(
-                            if (busy) "..." else "Beri",
+                            "Beri",
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
                         )
                         Text(
-                            if (busy) "" else "terus",
+                            "terus",
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
