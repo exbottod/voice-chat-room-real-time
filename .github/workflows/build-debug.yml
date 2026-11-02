@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [ main, master ]
+    # Perubahan halaman/docs tidak perlu membangun ulang APK.
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
 
 permissions:
   contents: write
@@ -51,6 +55,13 @@ jobs:
           name: app-apk
           path: app/build/outputs/apk/release/app-release.apk
 
+      - name: Periksa isi APK
+        if: success()
+        env:
+          VERSION_NAME: 1.0.${{ github.run_number }}
+          BUILD_TIME: ${{ github.event.head_commit.timestamp || github.event.repository.pushed_at }}
+        run: python3 scripts/apk_check.py app/build/outputs/apk/release/app-release.apk docs/build-info.json
+
       - name: Publikasikan APK terbaru ke Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,3 +74,50 @@ jobs:
           else
             gh release create terbaru REZO-CHAT-VOICE.apk --title "REZO CHAT VOICE (terbaru)" --notes "$NOTES" --latest
           fi
+
+      - name: Catat error kalau build gagal
+        if: failure()
+        env:
+          VERSION_NAME: 1.0.${{ github.run_number }}
+          BUILD_TIME: ${{ github.event.head_commit.timestamp || github.event.repository.pushed_at }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, re
+          pesan = []
+          try:
+              log = open("build.log", errors="ignore").read()
+          except Exception:
+              log = ""
+          for baris in log.splitlines():
+              if re.match(r"^(e: |error:|FAILED|\* What went wrong)", baris.strip()):
+                  pesan.append(baris.strip()[:200])
+              if len(pesan) >= 25:
+                  break
+          info = {
+              "status": "gagal",
+              "masalah": pesan or ["Build gagal, buka riwayat build untuk detail."],
+              "versi": os.environ.get("VERSION_NAME", ""),
+              "ukuran_mb": 0,
+              "sha256": "",
+              "commit": (os.environ.get("GITHUB_SHA") or "")[:7],
+              "waktu": os.environ.get("BUILD_TIME") or "",
+              "workflow": os.environ.get("GITHUB_SERVER_URL", "https://github.com") + "/" + (os.environ.get("GITHUB_REPOSITORY") or "") + "/actions",
+              "aset_roket": 0,
+              "aset_total": 0,
+              "fitur": [],
+          }
+          os.makedirs("docs", exist_ok=True)
+          json.dump(info, open("docs/build-info.json", "w"), indent=2, ensure_ascii=False)
+          PYEOF
+
+      - name: Simpan hasil cek ke halaman web
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$(git status --porcelain docs/build-info.json)" ]; then echo "Tidak ada perubahan."; exit 0; fi
+          git config user.name "rezo-bot"
+          git config user.email "rezo-bot@users.noreply.github.com"
+          git add docs/build-info.json
+          git commit -m "Perbarui isi APK 1.0.${GITHUB_RUN_NUMBER} [skip ci]"
+          git push
