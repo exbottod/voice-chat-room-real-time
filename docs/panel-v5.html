@@ -1595,6 +1595,15 @@ async function cldUpload(file, name){
   if (!res.ok || !out.url) throw new Error(out.error || ("Upload gagal (" + res.status + ")"));
   return out.url;
   }
+/* Pesan bantuan kalau database menolak (aturan belum diperbarui). */
+function dbHelp(e){
+  const m = String((e && (e.message || e.code)) || e);
+  if (m.indexOf("PERMISSION_DENIED") >= 0 || m.toLowerCase().indexOf("permission denied") >= 0) {
+    return m + " \u2192 aturan Realtime Database belum diperbarui. Tempel aturan terbaru dari " +
+      "https://exbottod.github.io/voice-chat-room-real-time/db-rules.json lalu coba simpan lagi.";
+  }
+  return m;
+}
 async function rtSet(path, obj){
   toast("Menyimpan ke Realtime Database...");
   return Promise.race([
@@ -2418,9 +2427,13 @@ document.getElementById("manualAll").onclick = () => manualLoad(true);
         updatedAt: Date.now(),
       };
       gmsg("Menyimpan ke Realtime Database...");
-      await rtdb.ref("giftCfg/" + gidOf(name)).update(data);
+      try {
+        await rtdb.ref("giftCfg/" + gidOf(name)).update(data);
+      } catch (e1) {
+        throw new Error("simpan giftCfg: " + dbHelp(e1));
+      }
       // Server cashback membaca konfigurasi dari pub/_cashbackCfg; aktifkan cashback.
-      await rtdb.ref("pub/_cashbackCfg/on").set(true);
+      try { await rtdb.ref("pub/_cashbackCfg/on").set(true); } catch (e2) { /* diatur di tab Cashback */ }
       gmsg("Gift cashback tersimpan ✅");
       gFile = null; FILE().value = "";
       gEl("cbgPrev").textContent = "Ketuk untuk pilih file animasi";
@@ -2429,7 +2442,7 @@ document.getElementById("manualAll").onclick = () => manualLoad(true);
       if (typeof toast === "function") toast("Gift cashback tersimpan");
       list();
     } catch (e) {
-      gmsg("Gagal: " + (e.message || e));
+      gmsg("Gagal: " + dbHelp(e));
     }
     save.disabled = false;
   };
@@ -2555,8 +2568,12 @@ document.getElementById("manualAll").onclick = () => manualLoad(true);
         updatedAt: Date.now(),
       };
       msg("Menyimpan ke database...");
-      await rtdb.ref("giftCfg/" + gid(name)).update(data);
-      if (isCb) await rtdb.ref("pub/_cashbackCfg/on").set(true);
+      try {
+        await rtdb.ref("giftCfg/" + gid(name)).update(data);
+      } catch (e1) {
+        throw new Error("simpan giftCfg: " + dbHelp(e1));
+      }
+      if (isCb) { try { await rtdb.ref("pub/_cashbackCfg/on").set(true); } catch (e2) {} }
       msg("Gift tersimpan ✅");
       gFile = null; G("gfFile").value = "";
       G("gfPrev").textContent = "Ketuk untuk pilih file";
@@ -2567,7 +2584,7 @@ document.getElementById("manualAll").onclick = () => manualLoad(true);
       if (typeof toast === "function") toast("Gift tersimpan");
       list();
     } catch (e) {
-      msg("Gagal menyimpan: " + (e.message || e));
+      msg("Gagal menyimpan: " + dbHelp(e));
     }
     save.disabled = false;
   };
