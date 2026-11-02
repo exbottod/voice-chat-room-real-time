@@ -183,7 +183,8 @@ private fun GiftFlyOnce(
         Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
             FlyMedia(f)
         }
-        f.parts.forEachIndexed { i, v -> PartPop(v, i, target) }
+        // Pecahan disebar ke seluruh layar, bukan menumpuk di avatar.
+        f.parts.forEachIndexed { i, v -> PartPop(v, i, box) }
         if (f.mult > 0 && f.cb > 0) MultBall(f.mult, f.cb, target)
     }
     if (f.cb > 0) {
@@ -229,21 +230,30 @@ private fun GiftFlyOnce(
  * di sekitar avatar penerima. Nilai pecahan = harga gift x pengali undian.
  */
 @Composable
-private fun PartPop(value: Long, index: Int, center: Offset) {
+private fun PartPop(value: Long, index: Int, box: IntSize) {
     val scale = remember { Animatable(0.6f) }
     LaunchedEffect(value, index) {
         kotlinx.coroutines.delay(index * 260L)
         scale.animateTo(1.15f, tween(220))
         scale.animateTo(1f, tween(120))
     }
-    val jitter = listOf(
-        Pair(0f, -84f), Pair(-86f, -34f), Pair(86f, -34f),
-        Pair(-52f, 46f), Pair(52f, 46f), Pair(0f, -150f),
-    )[index % 6]
+    // Posisi di layar: kiri atas, kanan atas, tengah, kiri bawah, kanan bawah, tengah atas.
+    val spots = listOf(
+        Pair(0.24f, 0.26f), Pair(0.76f, 0.26f), Pair(0.50f, 0.44f),
+        Pair(0.26f, 0.62f), Pair(0.74f, 0.62f), Pair(0.50f, 0.20f),
+        Pair(0.22f, 0.44f), Pair(0.78f, 0.44f),
+    )
+    val spot = spots[index % spots.size]
+    val size = 168f
     Box(
         Modifier
-            .offset { IntOffset((center.x - 78f + jitter.first).toInt(), (center.y - 78f + jitter.second).toInt()) }
-            .size(156.dp)
+            .offset {
+                IntOffset(
+                    (box.width * spot.first - size / 2f).toInt(),
+                    (box.height * spot.second - size / 2f).toInt(),
+                )
+            }
+            .size(168.dp)
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value },
         contentAlignment = Alignment.Center,
     ) {

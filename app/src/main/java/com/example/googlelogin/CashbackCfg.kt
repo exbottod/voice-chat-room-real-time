@@ -22,7 +22,7 @@ object CashbackCfg {
         val out = ArrayList<Long>()
         var rem = total
         var guard = 0
-        while (rem >= 10L && out.size < 5 && guard++ < 12) {
+        while (rem >= 10L && out.size < 8 && guard++ < 16) {
             val v = ladder.firstOrNull { it <= rem } ?: break
             out.add(v)
             rem -= v

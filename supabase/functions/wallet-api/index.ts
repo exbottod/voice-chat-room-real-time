@@ -455,7 +455,7 @@ function cbSplit(total: number): number[] {
   const out: number[] = [];
   let rem = Math.floor(total);
   let guard = 0;
-  while (rem >= 10 && out.length < 5 && guard++ < 12) {
+  while (rem >= 10 && out.length < 8 && guard++ < 16) {
     const v = CB_LADDER.find((x) => x <= rem);
     if (!v) break;
     out.push(v);
