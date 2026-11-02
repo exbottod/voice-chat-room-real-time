@@ -47,6 +47,17 @@ fetch("build-info.json?t="+Date.now()).then(function(r){return r.json()}).then(f
   ada.forEach(function(f){ h += "<div>✅ "+esc(f.nama)+"</div>"; });
   hilang.forEach(function(f){ h += "<div style=\"color:#f85149\">❌ "+esc(f.nama)+" (tidak ada di APK ini)</div>"; });
   document.getElementById("fitur").innerHTML = h || "";
-}).catch(function(){ document.getElementById("ringkas").textContent = "Belum ada data build."; });
+}).catch(function(){
+  // Cadangan: ambil info dari halaman rilis GitHub kalau build-info belum ada.
+  fetch("https://api.github.com/repos/exbottod/voice-chat-room-real-time/releases/latest")
+    .then(function(r){return r.json()}).then(function(d){
+      var a=(d.assets||[])[0]||{};
+      document.getElementById("ringkas").innerHTML =
+        "Versi rilis <b>"+esc(d.tag_name||d.name||"?")+"</b> &middot; "+esc(viewMb(a.size))+" MB"+
+        "<br><span style=\"color:#8b949e;font-size:12px\">Diunggah "+esc(d.published_at?new Date(d.published_at).toLocaleString("id-ID"):"-")+"</span>";
+      document.getElementById("status").innerHTML="<span style=\"color:#d29922\">Data isi APK belum ada di build ini</span>";
+    }).catch(function(){ document.getElementById("ringkas").textContent = "Belum ada data build."; });
+});
+function viewMb(n){ n=Number(n||0); return n?(n/1048576).toFixed(1):"?" }
 </script>
 </body></html>
