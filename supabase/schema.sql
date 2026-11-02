@@ -124,8 +124,12 @@ $$;
 -- Tukar diamond ke coin: 2 diamond = 1 coin (sisa 1 diamond tetap tersimpan).
 -- Penanda permintaan: satu nomor hanya diproses sekali, jadi app boleh
 -- mengulang kalau jaringan putus tanpa risiko berlian terpotong dua kali.
-alter table public.money_tx add column if not exists req_id text;
-create unique index if not exists money_tx_req_uniq on public.money_tx (req_id) where req_id is not null;
+create table if not exists public.exchange_req (
+  req_id text primary key,
+  uid text,
+  at timestamptz not null default now()
+);
+revoke all on public.exchange_req from public, anon, authenticated;
 
 drop function if exists public.w_exchange(text, bigint);
 
@@ -137,8 +141,12 @@ begin
   select * into w from public.wallets where uid = p_uid for update;
   if not found then raise exception 'WALLET_NOT_FOUND'; end if;
   -- Permintaan yang sama sudah pernah diproses: kembalikan saldo tanpa memotong lagi.
-  if p_req is not null and exists (select 1 from public.money_tx where req_id = p_req) then
-    return w;
+  if p_req is not null then
+    insert into public.exchange_req (req_id, uid) values (p_req, p_uid)
+      on conflict (req_id) do nothing;
+    if not found then
+      return w;
+    end if;
   end if;
   if p_diamonds > w.diamonds then raise exception 'Diamond tidak cukup'; end if;
   gain := p_diamonds / 2;
@@ -148,7 +156,7 @@ begin
     diamonds = diamonds - gain * 2,
     updated_at = now()
   where uid = p_uid returning * into w;
-  insert into public.money_tx (uid, kind, amount, req_id) values (p_uid, 'exchange', p_diamonds, p_req);
+  insert into public.money_tx (uid, kind, amount) values (p_uid, 'exchange', p_diamonds);
   return w;
 end
 $$;
