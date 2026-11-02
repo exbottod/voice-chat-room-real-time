@@ -14,6 +14,11 @@
   <div id="fitur" style="margin-top:10px;font-size:14px;line-height:1.9"></div>
 </div>
 
+<div id="kotak-gambar" style="display:none;text-align:left;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:14px 16px;margin:18px 0">
+  <b>Tampilan APK ini</b> <span style="color:#8b949e;font-size:13px">(diambil otomatis tanpa install)</span>
+  <div id="gambar" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px"></div>
+</div>
+
 <p style="font-size:13px"><a href="https://github.com/exbottod/voice-chat-room-real-time/actions" style="color:#58a6ff">Riwayat build</a> &middot; <a href="privacy.html" style="color:#58a6ff">Kebijakan Privasi</a></p>
 <script>
 var k=new URLSearchParams(location.search).get("invite");
@@ -48,6 +53,16 @@ fetch("build-info.json?t="+Date.now()).then(function(r){return r.json()}).then(f
   ada.forEach(function(f){ h += "<div>✅ "+esc(f.nama)+"</div>"; });
   hilang.forEach(function(f){ h += "<div style=\"color:#f85149\">❌ "+esc(f.nama)+" (tidak ada di APK ini)</div>"; });
   document.getElementById("fitur").innerHTML = h || "";
+  fetch("shots/index.json?t="+Date.now()).then(function(r){return r.json()}).then(function(d){
+    if(!d||!d.length) return;
+    var g=document.getElementById("gambar");
+    d.forEach(function(x){
+      g.innerHTML += '<a href="shots/'+esc(x.file)+'" style="text-decoration:none;color:#c9d1d9;font-size:12px">'+
+        '<img src="shots/'+esc(x.file)+'" style="width:100%;border-radius:8px;border:1px solid #30363d">'+
+        '<div style="margin-top:4px">'+esc(x.judul)+'</div></a>';
+    });
+    document.getElementById("kotak-gambar").style.display="block";
+  }).catch(function(){});
 }).catch(function(){
   // Cadangan: ambil info dari halaman rilis GitHub kalau build-info belum ada.
   fetch("https://api.github.com/repos/exbottod/voice-chat-room-real-time/releases/latest")
