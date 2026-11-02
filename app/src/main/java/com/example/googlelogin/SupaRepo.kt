@@ -149,7 +149,6 @@ object SupaRepo {
                 Res(null, "Tidak bisa menghubungi server dompet")
             }
         }
-        }
 
     /**
      * Cek jalur coin untuk game: panggil endpoint yang sama dengan yang dipakai
