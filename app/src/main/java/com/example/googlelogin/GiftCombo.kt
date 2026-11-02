@@ -111,12 +111,15 @@ fun GiftComboBar(myUid: String, myName: String) {
         }
     }
 
-    // Selalu di kanan bawah, di atas bar kontrol.
-    Box(
-        Modifier
-            .fillMaxSize()
-            .padding(end = 12.dp, bottom = 132.dp),
-        contentAlignment = Alignment.BottomEnd,
+    // Ditempel ke kanan bawah layar (popup), tidak ikut alur tata letak room.
+    val dens = androidx.compose.ui.platform.LocalDensity.current
+    androidx.compose.ui.window.Popup(
+        alignment = Alignment.BottomEnd,
+        offset = androidx.compose.ui.unit.IntOffset(
+            with(dens) { (-10).dp.roundToPx() },
+            with(dens) { (-140).dp.roundToPx() },
+        ),
+        properties = androidx.compose.ui.window.PopupProperties(focusable = false),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(

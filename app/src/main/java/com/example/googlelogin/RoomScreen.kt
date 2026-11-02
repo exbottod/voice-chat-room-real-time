@@ -173,6 +173,8 @@ fun RoomScreen(
     // Disimpan per akun di Realtime Database supaya tetap sama saat buka room lain.
     var fxEntryOn by remember { mutableStateOf(true) }
     var fxGiftOn by remember { mutableStateOf(true) }
+    // Banner efek gift di atas layar: bisa dimatikan dari room.
+    var fxBannerOn by remember { mutableStateOf(true) }
     val fxUid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
     DisposableEffect(fxUid) {
         if (fxUid.isBlank()) {
@@ -181,6 +183,7 @@ fun RoomScreen(
             val reg = Rtdb.listen(Rtdb.ref("fxPrefs/$fxUid")) { snap ->
                 fxEntryOn = snap.child("entry").getValue(Boolean::class.java) ?: true
                 fxGiftOn = snap.child("gift").getValue(Boolean::class.java) ?: true
+                fxBannerOn = snap.child("banner").getValue(Boolean::class.java) ?: true
             }
             onDispose { reg.remove() }
         }
@@ -845,7 +848,7 @@ fun RoomScreen(
         // Tombol kombo bulat untuk gift cashback (klik terus untuk kirim ulang).
         GiftComboBar(myUid, myName)
         if (rocketOpen) RocketScreen(r.id) { rocketOpen = false }
-        GiftBanner(r.id)
+        if (fxBannerOn) GiftBanner(r.id)
         if (fxEntryOn) VipEntryEffect(r.id)
         if (fxGiftOn) GiftFxOverlay(r.id)
         // Gift terbang ke avatar penerima lalu pecahan cashback muncul di titik itu.
@@ -990,6 +993,15 @@ fun RoomScreen(
                             toast(if (fxGiftOn) "Efek gift aktif" else "Efek gift dimatikan")
                         },
                     ) { Text("🎁", fontSize = 24.sp) }
+                    RmToolToggle(
+                        "Banner gift",
+                        on = fxBannerOn,
+                        onClick = {
+                            fxBannerOn = !fxBannerOn
+                            if (fxUid.isNotBlank()) Rtdb.ref("fxPrefs/$fxUid/banner").setValue(fxBannerOn)
+                            toast(if (fxBannerOn) "Banner gift aktif" else "Banner gift dimatikan")
+                        },
+                    ) { Text("📢", fontSize = 24.sp) }
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

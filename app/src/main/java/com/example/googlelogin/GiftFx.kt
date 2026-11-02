@@ -680,6 +680,9 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (RoomInfo) -> Unit) {
     }
 
     val d = data
+    // Di dalam room tidak ada banner dari room lain; banner room sendiri diputar
+    // oleh GiftBanner(roomId) di layar room.
+    if (currentRoomId != null) return
     if (d == null || d.roomId.isBlank() || d.roomId == currentRoomId) return
 
     Box(
