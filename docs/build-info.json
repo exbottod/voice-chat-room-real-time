@@ -1,72 +1,39 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.0.608",
-  "ukuran_mb": 78.9,
-  "sha256": "1de07d795e64d77e255270e580cb6c10566736a9ce126c883e7e0c4f5c94b1ad",
-  "commit": "86c99a1",
-  "waktu": "2026-11-02T14:40:51Z",
-  "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 30,
-  "aset_total": 116,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
+  "status": "gagal",
+  "masalah": [
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:99:18 Unresolved reference 'wavePrepare'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:100:28 Unresolved reference 'get'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:137:39 Unresolved reference 'waveFlow'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:138:47 Assignment type mismatch: actual type is 'kotlin.Any', b",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:194:31 Unresolved reference 'waveFlow'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/DragonTiger.kt:198:27 Assignment type mismatch: actual type is 'kotlin.Any', b",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:73:18 Unresolved reference 'wavePrepare'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:74:28 Unresolved reference 'get'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:287:28 Unresolved reference 'get'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:298:31 Unresolved reference 'waveFlow'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:304:23 Assignment type mismatch: actual type is 'kotlin.Any', but 'ko",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:321:38 Unresolved reference 'waveFlow'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:322:46 Assignment type mismatch: actual type is 'kotlin.Any', but 'ko",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:388:28 Unresolved reference 'get'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:399:31 Unresolved reference 'waveFlow'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:405:23 Assignment type mismatch: actual type is 'kotlin.Any', but 'ko",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:414:38 Unresolved reference 'waveFlow'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:415:46 Assignment type mismatch: actual type is 'kotlin.Any', but 'ko",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:418:39 Unresolved reference 'waveFlow'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/Games.kt:419:47 Assignment type mismatch: actual type is 'kotlin.Any', but 'ko",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:202:30 Unresolved reference 'giftCashback'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:205:34 Unresolved reference 'error'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:205:54 Unresolved reference 'amount'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:206:28 Unresolved reference 'amount'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:207:36 Unresolved reference 'parts'."
   ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ]
+  "versi": "1.0.609",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "8a0c03c",
+  "waktu": "2026-11-02T15:04:31Z",
+  "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
