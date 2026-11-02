@@ -66,20 +66,42 @@ object RocketCfg {
         "asset/rocket/votaky_rocket_small_level_" + lv.coerceIn(1, 5) + ".svga"
 
     // Animasi meluncur (mp4) bawaan per level, ikut di dalam APK.
-    fun bundledFly(lv: Int): String =
-        if (lv == 1) "asset/rocket/rocket_v2_lv1_launch.mp4"
+    fun bundledFly(lv: Int): String {
+        val v2 = "asset/rocket/rocket_v2_lv" + lv.coerceIn(1, 5) + "_launch.mp4"
+        return if (assetAda(v2)) v2
         else "asset/rocket/votaky_rocket_large_level_" + lv.coerceIn(1, 5) + "_launch.mp4"
+    }
+
+    /** Apakah file aset ikut di dalam APK. */
+    private fun assetAda(path: String): Boolean = try {
+        val ctx = QuotaGuard.appContext ?: return false
+        ctx.assets.open(path.removePrefix("asset/")).close()
+        true
+    } catch (e: Exception) {
+        false
+    }
 
     /** Panjang tiap video bawaan (ms), sesuai file aslinya. */
-    fun videoMs(url: String): Long = when {
-        url.endsWith("rocket_v2_lv1_launch.mp4") -> 4_740L
-        url.endsWith("rocket_v2_lv1_burst.mp4") -> 3_940L
-        else -> 5_000L
+    fun videoMs(url: String): Long = try {
+        val ctx = QuotaGuard.appContext ?: return 5_000L
+        val afd = ctx.assets.openFd(url.removePrefix("asset/"))
+        val mmr = android.media.MediaMetadataRetriever()
+        try {
+            mmr.setDataSource(afd.fileDescriptor, afd.startOffset, afd.declaredLength)
+            (mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull() ?: 5_000L).coerceIn(1_000L, 20_000L)
+        } finally {
+            mmr.release()
+        }
+    } catch (e: Exception) {
+        5_000L
     }
 
     /** Animasi roket pecah di atas setelah meluncur. Null = level ini belum punya. */
-    fun bundledBurst(lv: Int): String? =
-        if (lv == 1) "asset/rocket/rocket_v2_lv1_burst.mp4" else null
+    fun bundledBurst(lv: Int): String? {
+        val v2 = "asset/rocket/rocket_v2_lv" + lv.coerceIn(1, 5) + "_burst.mp4"
+        return if (assetAda(v2)) v2 else null
+    }
 
     /** Animasi "giff" (roket sebagai hadiah) per level. */
     fun bundledGift(lv: Int): String =
