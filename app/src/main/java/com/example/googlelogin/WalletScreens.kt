@@ -179,6 +179,7 @@ object WalletRepo {
         val cb: (String, Wallet) -> Unit = { u, w -> if (u == uid) onChange(w) }
         backupCbs.add(cb)
         val job = kotlinx.coroutines.GlobalScope.launch {
+            var jeda = 60_000L
             while (true) {
                 var res = SupaRepo.get(uid)
                 if (res.needMigrate) {
@@ -187,7 +188,13 @@ object WalletRepo {
                     res = SupaRepo.migrate(uid, legacy)
                 }
                 res.wallet?.let { emitBackup(uid, it) }
-                kotlinx.coroutines.delay(15_000L)
+                // Dulu 15 detik. Server Supabase punya kuota; permintaan sesering
+                // itu dari semua user membuat kuota cepat habis dan server
+                // menolak permintaan (timeout/504). Sekarang 1 menit, dan kalau
+                // server sedang bermasalah jedanya dilipatkan supaya tidak
+                // makin membebani.
+                jeda = if (res.error == null) 60_000L else minOf(jeda * 2, 300_000L)
+                kotlinx.coroutines.delay(jeda)
             }
         }
         return object : ListenerRegistration {
