@@ -157,11 +157,16 @@ private fun GiftFlyOnce(
     }
     val playSrc = localAsset.ifBlank { f.asset }
 
+    // Gift yang mendarat memudar lalu hilang, tidak berhenti menempel di layar.
+    val giftAlpha = remember(f.ts) { Animatable(1f) }
+
     LaunchedEffect(f.ts) {
         prog.animateTo(1f, tween(durationMillis = 750, easing = FastOutSlowInEasing))
         landed = true
-        // Tunggu semua pecahan selesai diputar sebelum efektor dilepas.
-        delay(1400L + f.parts.size * 260L)
+        delay(650L)
+        giftAlpha.animateTo(0f, tween(320))
+        // Tunggu pecahan selesai diputar sebelum efektor dilepas.
+        delay(maxOf(0L, 700L + f.parts.size * 260L))
         onDone()
     }
 
@@ -189,7 +194,12 @@ private fun GiftFlyOnce(
     ) {
         // Gift dan pecahan diputar terpisah: gift tetap di sini, lalu angka pecahan
         // (hasil harga gift x pengali) muncul satu per satu di sekitar titik ini.
-        Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(64.dp)
+                .graphicsLayer { alpha = giftAlpha.value },
+            contentAlignment = Alignment.Center,
+        ) {
             FlyMedia(f)
         }
         // Pecahan disebar ke seluruh layar, bukan menumpuk di avatar.

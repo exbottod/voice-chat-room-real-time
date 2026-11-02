@@ -102,9 +102,14 @@ fun GiftComboBar(myUid: String, myName: String) {
         GiftCombo.stop()
     }
 
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+    // Selalu di kanan bawah, di atas bar kontrol.
+    Box(
+        Modifier
+            .fillMaxSize()
+            .padding(end = 12.dp, bottom = 132.dp),
+        contentAlignment = Alignment.BottomEnd,
+    ) {
         Column(
-            Modifier.padding(end = 14.dp, bottom = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
