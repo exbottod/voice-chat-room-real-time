@@ -72,6 +72,7 @@ object AgoraVoice {
                 val c = appCtx
                 val r = roomId
                 problem("Suara: token diperbarui, menyambung ulang…")
+                if (r != null) tokenCache.remove(r)
                 if (c != null && r != null) {
                     scope.launch {
                         kotlinx.coroutines.delay(600)
@@ -136,37 +137,55 @@ object AgoraVoice {
 
     private data class Tok(val token: String, val appId: String)
 
+    /** Token terakhir per channel, dipakai ulang kalau worker lambat (berlaku 24 jam). */
+    private val tokenCache = HashMap<String, Pair<Long, Tok>>()
+
     private suspend fun fetchToken(channel: String): Tok? {
         val url = BuildConfig.AGORA_TOKEN_URL
         if (url.isBlank()) {
             problem("Suara mati: AGORA_TOKEN_URL kosong di build")
             return null
         }
-        return try {
-            val idToken = FirebaseAuth.getInstance().currentUser?.getIdToken(false)?.await()?.token
-            if (idToken == null) { problem("Suara mati: belum login"); return null }
-            val c = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 10000
-                readTimeout = 10000
-                doOutput = true
-                setRequestProperty("Authorization", "Bearer $idToken")
-                setRequestProperty("Content-Type", "application/json")
-            }
-            c.outputStream.use { it.write(JSONObject().put("channel", channel).toString().toByteArray()) }
-            if (c.responseCode != 200) {
-                val body = c.errorStream?.bufferedReader()?.readText().orEmpty()
-                problem("Suara mati: token gagal ${c.responseCode} $body".take(140))
-                return null
-            }
-            val o = JSONObject(c.inputStream.bufferedReader().readText())
-            Tok(o.getString("token"), o.optString("appId", ""))
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            problem("Suara mati: token error ${e.message}".take(140))
-            null
+        val now = System.currentTimeMillis()
+        tokenCache[channel]?.let { (at, tok) ->
+            if (now - at < 6L * 3600_000L) return tok
         }
+        var lastErr = ""
+        // Sampai 3 percobaan: jaringan seluler sering putus-nyambung.
+        for (attempt in 1..3) {
+            try {
+                val idToken = FirebaseAuth.getInstance().currentUser
+                    ?.getIdToken(attempt > 1)?.await()?.token
+                if (idToken == null) { problem("Suara mati: belum login"); return null }
+                val c = (URL(url).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15000
+                    readTimeout = 25000
+                    doOutput = true
+                    setRequestProperty("Authorization", "Bearer $idToken")
+                    setRequestProperty("Content-Type", "application/json")
+                }
+                c.outputStream.use { it.write(JSONObject().put("channel", channel).toString().toByteArray()) }
+                if (c.responseCode != 200) {
+                    val body = c.errorStream?.bufferedReader()?.readText().orEmpty()
+                    lastErr = "token gagal ${c.responseCode} $body"
+                    // 4xx dari worker (login/secret salah) tidak akan sembuh dengan mengulang.
+                    if (c.responseCode in 400..499 && c.responseCode != 408 && c.responseCode != 429) break
+                } else {
+                    val o = JSONObject(c.inputStream.bufferedReader().readText())
+                    val tok = Tok(o.getString("token"), o.optString("appId", ""))
+                    tokenCache[channel] = System.currentTimeMillis() to tok
+                    return tok
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                lastErr = "token error ${e.message}"
+            }
+            kotlinx.coroutines.delay(900L * attempt)
+        }
+        problem("Suara mati: $lastErr".take(140))
+        return null
     }
 
     /** Masuk channel sebagai audience (hanya mendengar). */
