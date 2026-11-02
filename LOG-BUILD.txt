@@ -82,3 +82,4 @@ w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/
 > Task :app:packageRelease
 > Task :app:createReleaseApkListingFileRedirect
 > Task :app:assembleRelease
+> Task :app:pushBuildLog
