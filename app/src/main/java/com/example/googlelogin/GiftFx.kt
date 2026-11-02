@@ -825,8 +825,8 @@ fun GiftSvga(
     url: String,
     emoji: String = "\uD83C\uDF81",
     modifier: Modifier = Modifier,
-    loops: Int = 1,
     onEnd: () -> Unit = {},
+    loops: Int = 1,
 ) {
     val endRef = rememberUpdatedState(onEnd)
     // 0 = coba dari URL, 1 = pakai byte hasil unduhan, 2 = gagal total.
