@@ -185,6 +185,7 @@ object GiftFx {
         var cbAsset = ""
         var cbParts = ""
         var cbJp = false
+        var cbMult = 0
         var comboN = 0
         if (g.special) {
             comboN = try {
@@ -207,6 +208,32 @@ object GiftFx {
                 cbAsset = ""
                 cbParts = cb.parts.joinToString(",")
                 cbJp = cb.jp
+                cbMult = cb.mult
+                try {
+                    Rtdb.ref("cashback/$uid/total").setValue(ServerValue.increment(cbWin))
+                    Rtdb.ref("cashback/$uid/log").push().setValue(
+                        hashMapOf<String, Any?>(
+                            "g" to g.name,
+                            "cb" to cbWin,
+                            "p" to cbPecahan,
+                            "ts" to System.currentTimeMillis(),
+                        ),
+                    )
+                } catch (e: Exception) { }
+            }
+        }
+        // Server belum siap / belum di-deploy: undi lokal dari pengaturan panel
+        // supaya animasi pecahan tetap jalan.
+        if (cbWin <= 0L && (cbParts.isBlank() || cbMult <= 0)) {
+            val value = (if (g.cbPrice > 0L) g.cbPrice else g.price) * count
+            val local = CashbackCfg.roll(value)
+            if (local != null && local.parts.isNotEmpty()) {
+                cbParts = local.parts.joinToString(",")
+                cbPecahan = local.parts.first()
+                cbMult = local.mult
+                cbWin = local.parts.sum()
+                cbJp = cbWin >= local.jpMin
+                try { WalletRepo.topUp(uid, cbWin) } catch (e: Exception) { }
                 try {
                     Rtdb.ref("cashback/$uid/total").setValue(ServerValue.increment(cbWin))
                     Rtdb.ref("cashback/$uid/log").push().setValue(
@@ -239,6 +266,7 @@ object GiftFx {
                     "cb" to cbWin,
                     "pecahan" to cbPecahan,
                     "parts" to cbParts,
+                    "mult" to cbMult,
                     "asset" to cbAsset,
                     "jp" to cbJp,
                     "ts" to System.currentTimeMillis(),
@@ -249,7 +277,8 @@ object GiftFx {
         // EXP roket: bertambah dari koin yang dipakai mengirim gift.
         RocketRepo.addExp(roomId, name, g.price * count)
         // Efek layar penuh untuk semua orang di room (mp4/gif/svga) atau emoji besar.
-        Rtdb.ref("giftFx/$roomId").push().setValue(
+        // Gift cashback dilewati: animasinya sudah terbang ke kursi penerima.
+        if (!(g.cashback || g.cbRate > 0)) Rtdb.ref("giftFx/$roomId").push().setValue(
             hashMapOf<String, Any?>(
                 "from" to name,
                 "gift" to g.name,

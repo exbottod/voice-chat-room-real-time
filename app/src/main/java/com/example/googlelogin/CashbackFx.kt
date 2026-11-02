@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -13,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.border
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
@@ -39,6 +41,9 @@ data class GiftFly(
     val pecahan: Long,
     val parts: List<Long> = emptyList(),
     val asset: String,
+    val mediaUrl: String = "",
+    val mediaType: String = "",
+    val mult: Int = 0,
     val jp: Boolean,
     val ts: Long,
 )
@@ -82,6 +87,9 @@ fun GiftFlyOverlay(roomId: String, seatPoints: Map<Int, Offset>) {
                     parts = (c.child("parts").getValue(String::class.java) ?: "")
                         .split(",").mapNotNull { it.trim().toLongOrNull() }.filter { it > 0L },
                     asset = c.child("asset").getValue(String::class.java) ?: "",
+                    mediaUrl = c.child("mediaUrl").getValue(String::class.java) ?: "",
+                    mediaType = c.child("mediaType").getValue(String::class.java) ?: "",
+                    mult = (c.child("mult").getValue(Long::class.java) ?: 0L).toInt(),
                     jp = c.child("jp").getValue(Boolean::class.java) ?: false,
                     ts = ts,
                     ),
@@ -155,10 +163,10 @@ private fun GiftFlyOnce(
         Box(
             Modifier
                 .offset { IntOffset(x.toInt(), y.toInt()) }
-                .size(52.dp),
+                .size(78.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(f.emoji.ifBlank { "🎁" }, fontSize = 32.sp)
+            FlyMedia(f)
         }
         return
     }
@@ -173,9 +181,10 @@ private fun GiftFlyOnce(
         // Gift dan pecahan diputar terpisah: gift tetap di sini, lalu angka pecahan
         // (hasil harga gift x pengali) muncul satu per satu di sekitar titik ini.
         Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
-            Text(f.emoji.ifBlank { "🎁" }, fontSize = 34.sp)
+            FlyMedia(f)
         }
         f.parts.forEachIndexed { i, v -> PartPop(v, i, target) }
+        if (f.mult > 0 && f.cb > 0) MultBall(f.mult, f.cb, target)
     }
     if (f.cb > 0) {
         Box(
@@ -239,6 +248,61 @@ private fun PartPop(value: Long, index: Int, center: Offset) {
         contentAlignment = Alignment.Center,
     ) {
         GiftSvga("asset/cashback/wois_gift_number_" + value + ".svga", "🪙", Modifier.fillMaxSize()) {
+        }
+    }
+}
+
+
+/** Media gift apa adanya (gambar/svga) untuk animasi terbang; emoji kalau kosong. */
+@Composable
+private fun FlyMedia(f: GiftFly) {
+    val url = f.mediaUrl
+    when {
+        url.isBlank() -> Text(f.emoji.ifBlank { "🎁" }, fontSize = 34.sp)
+        isVideoMedia(url, f.mediaType) ->
+            Text(f.emoji.ifBlank { "🎁" }, fontSize = 34.sp)
+        url.substringBefore('?').lowercase().endsWith(".svga") ||
+            f.mediaType.lowercase().startsWith("svga") ->
+            GiftSvga(url, f.emoji, Modifier.fillMaxSize()) { }
+        else -> coil.compose.AsyncImage(
+            model = url,
+            contentDescription = f.emoji,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+        )
+    }
+}
+
+/** Bola bulat berisi pengali dan total cashback, muncul di avatar penerima. */
+@Composable
+private fun MultBall(mult: Int, total: Long, center: Offset) {
+    val pop = remember { Animatable(0.4f) }
+    LaunchedEffect(mult, total) {
+        pop.animateTo(1.06f, tween(260))
+        pop.animateTo(1f, tween(120))
+    }
+    Box(
+        Modifier
+            .offset { IntOffset((center.x - 58f).toInt(), (center.y + 34f).toInt()) }
+            .size(116.dp)
+            .graphicsLayer { scaleX = pop.value; scaleY = pop.value }
+            .background(
+                androidx.compose.ui.graphics.Brush.radialGradient(
+                    listOf(Color(0xFFFFD54F), Color(0xFFF57C00)),
+                ),
+                androidx.compose.foundation.shape.CircleShape,
+            )
+            .border(3.dp, Color(0xFFFFF3C4), androidx.compose.foundation.shape.CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("x$mult", color = Color(0xFF3E2723), fontSize = 22.sp, fontWeight = FontWeight.Black)
+            Text(
+                "+${fmtNum(total)}",
+                color = Color(0xFF3E2723),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }
