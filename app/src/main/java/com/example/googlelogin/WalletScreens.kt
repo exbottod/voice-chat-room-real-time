@@ -1338,6 +1338,7 @@ fun GiftPanel(
                                                 targetUid = t0?.uid ?: "",
                                                 targetName = t0?.name ?: "",
                                                 seat = t0?.index ?: -1,
+                                                receivers = receivers.map { Triple(it.uid, it.name, it.index) },
                                             ),
                                         )
                                         onDismiss()

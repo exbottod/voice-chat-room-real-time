@@ -31,7 +31,16 @@ object GiftCombo {
         val targetUid: String,
         val targetName: String,
         val seat: Int,
-    )
+        /** Semua penerima (uid, nama, kursi). Kosong = hanya penerima tunggal di atas. */
+        val receivers: List<Triple<String, String, Int>> = emptyList(),
+    ) {
+        /** Daftar penerima yang dipakai tiap ketukan kombo. */
+        fun all(): List<Triple<String, String, Int>> = when {
+            receivers.isNotEmpty() -> receivers
+            targetUid.isNotBlank() -> listOf(Triple(targetUid, targetName, seat))
+            else -> emptyList()
+        }
+    }
 
     var session by mutableStateOf<Sess?>(null)
     var combo by mutableStateOf(0)
@@ -64,8 +73,13 @@ private val visualScope = kotlinx.coroutines.CoroutineScope(
 fun playComboVisuals(myUid: String, myName: String, s: GiftCombo.Sess) {
     visualScope.launch {
         val g = GiftCatalog.list.firstOrNull { it.id == s.giftId } ?: return@launch
-        val uids = if (s.targetUid.isNotBlank()) listOf(s.targetUid) else emptyList()
-        try { RoomExtras.sendGiftMessage(s.roomId, myName, g, s.count, s.targetName) } catch (e: Exception) { }
+        val rec = s.all()
+        val first = rec.firstOrNull()
+        val toText = when {
+            rec.size > 1 -> "semua mic (${rec.size})"
+            else -> s.targetName
+        }
+        try { RoomExtras.sendGiftMessage(s.roomId, myName, g, s.count, toText) } catch (e: Exception) { }
         try {
             GiftFx.sent(
                 s.roomId,
@@ -73,16 +87,18 @@ fun playComboVisuals(myUid: String, myName: String, s: GiftCombo.Sess) {
                 myName,
                 g,
                 s.count,
-                if (uids.isEmpty()) 1 else uids.size,
-                s.targetUid,
-                s.targetName,
-                s.seat,
-                if (s.targetUid.isNotBlank()) listOf(Triple(s.targetUid, s.targetName, s.seat)) else emptyList(),
+                if (rec.isEmpty()) 1 else rec.size,
+                first?.first ?: "",
+                first?.second ?: "",
+                first?.third ?: -1,
+                rec,
             )
         } catch (e: Exception) { }
-        if (s.seat >= 0) {
+        // Poin mic naik untuk SETIAP penerima, bukan hanya yang pertama.
+        for (r in rec) {
+            if (r.third < 0) continue
             try {
-                Rtdb.ref("micPoints/" + s.roomId + "/" + s.seat)
+                Rtdb.ref("micPoints/" + s.roomId + "/" + r.third)
                     .setValue(ServerValue.increment(g.price * s.count))
             } catch (e: Exception) { }
         }
@@ -124,10 +140,13 @@ object GiftComboSend {
                 }
                 val s = cur.s
                 val g = GiftCatalog.list.firstOrNull { it.id == s.giftId } ?: continue
-                val total = g.price * s.count * n
-                val uids = if (s.targetUid.isNotBlank()) listOf(s.targetUid) else emptyList()
+                val rec = s.all()
+                val uids = rec.map { it.first }
+                // Harga per penerima x jumlah ketukan; total dikali jumlah penerima.
+                val perReceiver = g.price * s.count * n
+                val total = perReceiver * uids.size.coerceAtLeast(1)
                 val err = try {
-                    WalletRepo.sendGift(cur.uid, total, g.id, s.roomId, uids, total)
+                    WalletRepo.sendGift(cur.uid, total, g.id, s.roomId, uids, perReceiver)
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
