@@ -79,3 +79,8 @@ w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/
 > Task :app:mergeReleaseJavaResource
 > Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
+> Task :app:pushBuildLog
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793657166776.json
