@@ -44,6 +44,8 @@ data class GiftFly(
     val mediaUrl: String = "",
     val mediaType: String = "",
     val mult: Int = 0,
+    val combo: Int = 0,
+    val gname: String = "",
     val jp: Boolean,
     val ts: Long,
 )
@@ -90,6 +92,8 @@ fun GiftFlyOverlay(roomId: String, seatPoints: Map<Int, Offset>) {
                     mediaUrl = c.child("mediaUrl").getValue(String::class.java) ?: "",
                     mediaType = c.child("mediaType").getValue(String::class.java) ?: "",
                     mult = (c.child("mult").getValue(Long::class.java) ?: 0L).toInt(),
+                    combo = (c.child("combo").getValue(Long::class.java) ?: 0L).toInt(),
+                    gname = c.child("gname").getValue(String::class.java) ?: "",
                     jp = c.child("jp").getValue(Boolean::class.java) ?: false,
                     ts = ts,
                     ),
@@ -112,6 +116,11 @@ fun GiftFlyOverlay(roomId: String, seatPoints: Map<Int, Offset>) {
                 key(f.ts, f.seat, f.toUid) {
                     GiftFlyOnce(f, seatPoints, origin, box) { flights.remove(f) }
                 }
+            }
+            // Banner biru kombo + angka kombo emas besar, gaya referensi.
+            val latest = flights.lastOrNull()
+            if (latest != null && latest.combo >= 1) {
+                key(latest.ts) { ComboBanner(latest) }
             }
         }
     }
@@ -283,7 +292,7 @@ private fun FlyMedia(f: GiftFly) {
     }
 }
 
-/** Bola bulat berisi pengali dan total cashback, muncul di avatar penerima. */
+/** Bola kemenangan: "win {total}" dan "{mult} Times", muncul di avatar penerima. */
 @Composable
 private fun MultBall(mult: Int, total: Long, center: Offset) {
     val pop = remember { Animatable(0.4f) }
@@ -293,25 +302,116 @@ private fun MultBall(mult: Int, total: Long, center: Offset) {
     }
     Box(
         Modifier
-            .offset { IntOffset((center.x - 58f).toInt(), (center.y + 34f).toInt()) }
-            .size(116.dp)
+            .offset { IntOffset((center.x - 78f).toInt(), (center.y + 26f).toInt()) }
+            .size(156.dp)
             .graphicsLayer { scaleX = pop.value; scaleY = pop.value }
             .background(
                 androidx.compose.ui.graphics.Brush.radialGradient(
-                    listOf(Color(0xFFFFD54F), Color(0xFFF57C00)),
+                    listOf(Color(0xFFFFE082), Color(0xFFFF9800)),
                 ),
                 androidx.compose.foundation.shape.CircleShape,
             )
-            .border(3.dp, Color(0xFFFFF3C4), androidx.compose.foundation.shape.CircleShape),
+            .border(3.dp, Color(0xFFFFF8E1), androidx.compose.foundation.shape.CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("x$mult", color = Color(0xFF3E2723), fontSize = 22.sp, fontWeight = FontWeight.Black)
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .background(Color(0x66FFFFFF), androidx.compose.foundation.shape.CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("🪙", fontSize = 18.sp)
+            }
+            Spacer(Modifier.height(3.dp))
             Text(
-                "+${fmtNum(total)}",
-                color = Color(0xFF3E2723),
+                "win ${fmtNum(total)}",
+                color = Color(0xFF4A2600),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Text(
+                "$mult Times",
+                color = Color(0xFF7A3E00),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+
+/** Banner biru: pengirim, gift, xKombo, dan total cashback (+12K) di sisi kanan. */
+@Composable
+private fun ComboBanner(f: GiftFly) {
+    var show by remember(f.ts) { mutableStateOf(true) }
+    LaunchedEffect(f.ts) {
+        kotlinx.coroutines.delay(3200)
+        show = false
+    }
+    if (!show) return
+    val k = if (f.cb >= 1000L) "+${fmtNum(f.cb / 1000L)}K" else "+${fmtNum(f.cb)}"
+    Box(Modifier.fillMaxSize()) {
+        Row(
+            Modifier
+                .align(Alignment.CenterStart)
+                .padding(top = 60.dp)
+                .fillMaxWidth(0.94f)
+                .background(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        listOf(Color(0xFF3D5AFE), Color(0xFF6C8CFF)),
+                    ),
+                    androidx.compose.foundation.shape.RoundedCornerShape(
+                        topEnd = 40.dp, bottomEnd = 40.dp, topStart = 40.dp, bottomStart = 40.dp,
+                    ),
+                )
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(f.from, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(
+                    "ke ${f.toName.ifBlank { "semua" }}",
+                    color = Color(0xFFE3E9FF),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                )
+            }
+            Text(f.emoji.ifBlank { "🎁" }, fontSize = 22.sp)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                "x${f.combo}",
+                color = Color(0xFFFFE082),
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black,
+            )
+            if (f.cb > 0) {
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    Modifier
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                listOf(Color(0xFFD50000), Color(0xFF8E0000)),
+                            ),
+                            androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                        )
+                        .border(
+                            2.dp, Color(0xFFFFD54F),
+                            androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                        )
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                ) {
+                    Text(k, color = Color(0xFFFFE082), fontSize = 18.sp, fontWeight = FontWeight.Black)
+                }
+            }
+        }
+        if (f.combo >= 2) {
+            Text(
+                "${f.combo}",
+                color = Color(0xFFFFC107),
+                fontSize = 96.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.align(Alignment.Center),
             )
         }
     }

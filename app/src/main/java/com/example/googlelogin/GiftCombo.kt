@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,7 +83,7 @@ suspend fun sendComboGift(myUid: String, myName: String, s: GiftCombo.Sess): Str
     return null
 }
 
-/** Tombol kombo bulat yang muncul otomatis setelah gift cashback dikirim. */
+/** Tombol kombo bulat gaya "Beri terus" dengan cincin waktu, di kanan bawah. */
 @Composable
 fun GiftComboBar(myUid: String, myName: String) {
     val s = GiftCombo.session ?: return
@@ -90,79 +91,107 @@ fun GiftComboBar(myUid: String, myName: String) {
     var busy by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
     val gift = GiftCatalog.list.firstOrNull { it.id == s.giftId }
-    val teal = Color(0xFF2BD9C4)
+    val timer = remember { androidx.compose.animation.core.Animatable(1f) }
 
-    // Berhenti sendiri kalau 8 detik tidak ada klik.
     LaunchedEffect(GiftCombo.combo) {
-        delay(8000)
+        timer.snapTo(1f)
+        timer.animateTo(
+            0f,
+            androidx.compose.animation.core.tween(6000, easing = androidx.compose.animation.core.LinearEasing),
+        )
         GiftCombo.stop()
     }
 
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         Column(
-            Modifier
-                .clip(RoundedCornerShape(50))
-                .background(Color(0xE607161A))
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+            Modifier.padding(end = 14.dp, bottom = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                "Kombo x${GiftCombo.combo}",
-                color = teal,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                note ?: (gift?.name ?: "Gift"),
-                color = Color(0xFFB8C8C5),
+                note ?: "Kombo x${GiftCombo.combo}",
+                color = Color.White,
                 fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xCC2A0F1C))
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
             )
-        }
-        Spacer(Modifier.width(10.dp))
-        Box(
-            Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(if (busy) Color(0xFF16302F) else teal)
-                .clickable(enabled = !busy) {
-                    busy = true
-                    scope.launch {
-                        val e = sendComboGift(myUid, myName, s)
-                        if (e == null) {
-                            GiftCombo.combo += 1
-                            note = null
-                        } else {
-                            note = e
-                        }
-                        busy = false
+            Spacer(Modifier.height(6.dp))
+            Box(Modifier.size(96.dp), contentAlignment = Alignment.Center) {
+                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                    val stroke = 5.dp.toPx()
+                    drawArc(
+                        color = Color(0x55FFFFFF),
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = stroke,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        ),
+                    )
+                    drawArc(
+                        color = Color(0xFFFF4D6D),
+                        startAngle = -90f,
+                        sweepAngle = 360f * timer.value,
+                        useCenter = false,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = stroke,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        ),
+                    )
+                }
+                Box(
+                    Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.linearGradient(
+                                listOf(Color(0xFFFF6B8B), Color(0xFFFF2E63)),
+                            ),
+                        )
+                        .clickable(enabled = !busy) {
+                            busy = true
+                            scope.launch {
+                                val e = sendComboGift(myUid, myName, s)
+                                if (e == null) {
+                                    GiftCombo.combo += 1
+                                    note = null
+                                } else {
+                                    note = e
+                                }
+                                busy = false
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(gift?.emoji?.ifBlank { "🎁" } ?: "🎁", fontSize = 18.sp)
+                        Text(
+                            if (busy) "..." else "Beri",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                        Text(
+                            if (busy) "" else "terus",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                        )
                     }
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(gift?.emoji?.ifBlank { "🎁" } ?: "🎁", fontSize = 22.sp)
-                Text(
-                    if (busy) "..." else "Klik",
-                    color = Color.Black,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+                }
             }
-        }
-        Spacer(Modifier.width(8.dp))
-        Box(
-            Modifier
-                .size(26.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF16302F))
-                .clickable { GiftCombo.stop() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("✕", color = Color(0xFF8FA3A0), fontSize = 12.sp)
+            Text(
+                "✕",
+                color = Color(0xFFB8C8C5),
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable { GiftCombo.stop() }
+                    .padding(6.dp),
+            )
         }
     }
 }

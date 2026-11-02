@@ -267,6 +267,7 @@ object GiftFx {
                     "pecahan" to cbPecahan,
                     "parts" to cbParts,
                     "mult" to cbMult,
+                    "combo" to comboN,
                     "asset" to cbAsset,
                     "jp" to cbJp,
                     "ts" to System.currentTimeMillis(),

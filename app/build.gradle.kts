@@ -32,7 +32,7 @@ android {
         targetSdk = 35
         // Selalu naik (menit sejak 1970), jadi APK baru bisa menimpa APK lama baik dari GitHub maupun build lokal.
         versionCode = (System.currentTimeMillis() / 60000L).toInt()
-        versionName = "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "1")
+        versionName = "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: (System.getenv("REZO_BUILD") ?: "575"))
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         buildConfigField("String", "AGORA_TOKEN_URL", "\"$agoraTokenUrl\"")
