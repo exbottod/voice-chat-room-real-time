@@ -32,8 +32,18 @@ p{font-size:14px;color:#cfc4a8;line-height:1.6}
   var go = document.getElementById('go');
   var info = document.getElementById('info');
   if (!id) {
-    info.textContent = 'Link room tidak lengkap. Minta ulang link ke temanmu.';
+    // Tanpa ID: beri cara tempel link/ID supaya halaman tidak jadi jalan buntu.
+    info.innerHTML = 'Link room tidak lengkap. Tempel link atau ID room di bawah ini:' +
+      '<input id="manual" placeholder="ID room atau link undangan" style="width:100%;margin-top:10px;padding:12px;border-radius:10px;border:1px solid #4a3a63;background:#1c142c;color:#fff8e1;font-size:14px;box-sizing:border-box">' +
+      '<button id="bukam" style="width:100%;margin-top:10px;padding:14px;border-radius:12px;border:0;font-weight:800;font-size:15px;background:linear-gradient(#f6c744,#b9821c);color:#2a1a00">Buka Room</button>';
     go.style.display = 'none';
+    document.getElementById('bukam').onclick = function () {
+      var v = (document.getElementById('manual').value || '').trim();
+      var m = v.match(/[?&]id=([^&#\s]+)/) || v.match(/\/room[\/.]([^\/?#\s]+)/);
+      var roomId = m ? decodeURIComponent(m[1]) : v.replace(/\s+/g, '');
+      if (!roomId) { document.getElementById('manual').focus(); return; }
+      location.href = '/voice-chat-room-real-time/room.html?id=' + encodeURIComponent(roomId);
+    };
     return;
   }
   var deep = 'rezo://room/' + id;
