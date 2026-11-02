@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preview APK - REZO CHAT VOICE</title></head>
+<body style="margin:0;background:#0d1117;color:#e6edf3;font-family:sans-serif;text-align:center">
+<div style="padding:10px 14px;border-bottom:1px solid #30363d">
+  <b>Preview APK tanpa install</b>
+  <div id="v" style="color:#8b949e;font-size:13px;margin-top:4px"></div>
+  <div style="margin-top:8px;font-size:13px">
+    <a href="https://appetize.io/app/uu5uvnp5rxgo2g4gs4ocvw5xgi" style="color:#58a6ff">Buka layar penuh</a> &middot;
+    <a href="index.html" style="color:#58a6ff">Kembali</a>
+  </div>
+</div>
+<iframe id="f" src="https://appetize.io/embed/uu5uvnp5rxgo2g4gs4ocvw5xgi?autoplay=false&screenOnly=false&device=pixel7&osVersion=13.0&scale=auto"
+  style="width:100%;height:calc(100vh - 92px);border:0" allow="clipboard-write"></iframe>
+<script>
+fetch("build-info.json?t="+Date.now()).then(function(r){return r.json()}).then(function(d){
+  document.getElementById("v").textContent = "Versi " + (d.versi||"?") + " · aset " + (d.aset_total||0) + " file";
+}).catch(function(){});
+</script>
+</body></html>
