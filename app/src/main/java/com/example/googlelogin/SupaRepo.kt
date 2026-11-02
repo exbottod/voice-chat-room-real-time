@@ -2,6 +2,8 @@ package com.example.googlelogin
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import java.net.HttpURLConnection
 import java.net.URL
@@ -21,14 +23,60 @@ object SupaRepo {
 
     class Res(val wallet: Wallet?, val error: String?, val needMigrate: Boolean = false)
 
+    // ---------------------------------------------------------------
+    // Token login diambil dari simpanan. Mengambil token dengan "paksa
+    // segarkan" setiap kali (getIdToken(true)) membuat SETIAP aksi dompet
+    // menunggu Google dulu; di jaringan lambat itu terlihat seperti
+    // "server dompet lambat". Sekarang token dipakai ulang sampai mendekati
+    // kedaluwarsa, dan hanya disegarkan kalau server menolak sesi.
+    private var tokCache: String? = null
+    private var tokUid: String? = null
+    private var tokAt: Long = 0L
+
+    private suspend fun token(): String? {
+        val u = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            ?: return null
+        val c = tokCache
+        // Token hanya dipakai untuk akun yang sama, supaya ganti akun tidak
+        // memakai sesi lama.
+        if (c != null && tokUid == u.uid && System.currentTimeMillis() - tokAt < 25 * 60_000L) return c
+        val t = u.getIdToken(false).await()?.token ?: return null
+        tokCache = t
+        tokUid = u.uid
+        tokAt = System.currentTimeMillis()
+        return t
+    }
+
+    private suspend fun tokenFresh(): String? {
+        val u = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            ?: return null
+        tokCache = null
+        val t = u.getIdToken(true).await()?.token ?: return null
+        tokCache = t
+        tokUid = u.uid
+        tokAt = System.currentTimeMillis()
+        return t
+    }
+
+    /** Satu aksi dompet pada satu waktu, supaya kiriman beruntun tidak menumpuk. */
+    private val tulisKunci = Mutex()
+
     /** POST kecil ke edge function. Semua argumen dompet dikirim sebagai JSON. */
     private suspend fun call(action: String, params: org.json.JSONObject): Res {
         // Server kadang bangun dulu (cold start) sebelum menjawab. Untuk aksi
         // baca (get) aman diulang; untuk transaksi tidak diulang otomatis,
         // supaya coin/berlian tidak terpotong dua kali.
-        var hasil = kotlinx.coroutines.withTimeoutOrNull(62_000L) {
-            callInner(action, params)
-        } ?: Res(null, "Server dompet lambat (timeout), coba lagi")
+        // Aksi tulis (gift, tukar, beli) diantrikan satu per satu: kalau
+        // dikirim beruntun, permintaan saling menunggu di server dan
+        // akhirnya tampak "server lambat".
+        val hasilAwal = if (action == "get") {
+            kotlinx.coroutines.withTimeoutOrNull(62_000L) { callInner(action, params) }
+        } else {
+            tulisKunci.withLock {
+                kotlinx.coroutines.withTimeoutOrNull(62_000L) { callInner(action, params) }
+            }
+        }
+        var hasil = hasilAwal ?: Res(null, "Server dompet lambat (timeout), coba lagi")
         if (hasil.error != null && action == "get" && hasil.error.contains("timeout", true)) {
             hasil = kotlinx.coroutines.withTimeoutOrNull(62_000L) {
                 callInner(action, params)
@@ -37,49 +85,58 @@ object SupaRepo {
         return hasil
     }
 
+    private suspend fun postWallet(body: org.json.JSONObject): Pair<Int, String> {
+        val conn = (URL(FN).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 15_000
+            // Edge function kadang perlu bangun dulu (cold start) sebelum
+            // menjawab. Waktu baca diperpanjang supaya tidak dianggap mati.
+            readTimeout = 50_000
+            doOutput = true
+            setRequestProperty("apikey", KEY)
+            setRequestProperty("Content-Type", "application/json")
+        }
+        conn.outputStream.use { it.write(body.toString().toByteArray()) }
+        val code = conn.responseCode
+        val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+            ?.bufferedReader()?.use { it.readText() } ?: ""
+        return Pair(code, txt)
+    }
+
+    private fun parseWalletResponse(code: Int, txt: String): Res {
+        if (code !in 200..299 && txt.isBlank()) return Res(null, "Server dompet error $code")
+        val o = try {
+            if (txt.isNotBlank()) org.json.JSONObject(txt) else org.json.JSONObject()
+        } catch (e: Exception) {
+            return Res(null, if (code in 200..299) "Jawaban server dompet tidak terbaca" else "Server dompet error $code")
+        }
+        if (o.optInt("ok") == 1) return Res(parseWallet(o.optJSONObject("w")), null)
+        val err = o.optString("e", "")
+        return Res(null, err.ifBlank { "Server sibuk, coba lagi" }, err.contains("WALLET_NOT_FOUND"))
+    }
+
     private suspend fun callInner(action: String, params: org.json.JSONObject): Res =
         withContext(Dispatchers.IO) {
             try {
-                val token = com.google.firebase.auth.FirebaseAuth.getInstance()
-                    .currentUser?.getIdToken(true)?.await()?.token
-                    ?: return@withContext Res(null, "Belum login")
+                var token = token() ?: return@withContext Res(null, "Belum login")
                 val body = org.json.JSONObject()
                     .put("a", action)
                     .put("t", token)
                     .put("p", params)
-                val conn = (URL(FN).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 15_000
-                    // Edge function kadang perlu bangun dulu (cold start) sebelum
-                    // menjawab. Waktu baca diperpanjang supaya tidak dianggap mati.
-                    readTimeout = 50_000
-                    doOutput = true
-                    setRequestProperty("apikey", KEY)
-                    setRequestProperty("Content-Type", "application/json")
+                var (code, txt) = postWallet(body)
+                // Sesi kadaluwarsa: segarkan token sekali lalu ulangi. Aman untuk
+                // transaksi yang memakai nomor permintaan (req).
+                if (code == 401 || code == 403) {
+                    val segar = tokenFresh()
+                    if (segar != null) {
+                        token = segar
+                        body.put("t", segar)
+                        val ulang = postWallet(body)
+                        code = ulang.first
+                        txt = ulang.second
+                    }
                 }
-                conn.outputStream.use { it.write(body.toString().toByteArray()) }
-                val code = conn.responseCode
-                val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
-                    ?.bufferedReader()?.use { it.readText() } ?: ""
-                if (code !in 200..299 && txt.isBlank()) {
-                    return@withContext Res(null, "Server dompet error $code")
-                }
-                val o = try {
-                    if (txt.isNotBlank()) org.json.JSONObject(txt) else org.json.JSONObject()
-                } catch (e: Exception) {
-                    return@withContext Res(
-                        null,
-                        if (code in 200..299) "Jawaban server dompet tidak terbaca"
-                        else "Server dompet error $code",
-                    )
-                }
-                if (o.optInt("ok") == 1) {
-                    Res(parseWallet(o.optJSONObject("w")), null)
-                } else {
-                    val err = o.optString("e", "")
-                    val nf = err.contains("WALLET_NOT_FOUND")
-                    Res(null, err.ifBlank { "Server sibuk, coba lagi" }, nf)
-                }
+                parseWalletResponse(code, txt)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: java.net.SocketTimeoutException) {
@@ -92,6 +149,7 @@ object SupaRepo {
                 Res(null, "Tidak bisa menghubungi server dompet")
             }
         }
+        }
 
     /**
      * Cek jalur coin untuk game: panggil endpoint yang sama dengan yang dipakai
@@ -100,8 +158,7 @@ object SupaRepo {
      */
     suspend fun waveCheck(): String? = withContext(Dispatchers.IO) {
         try {
-            val token = com.google.firebase.auth.FirebaseAuth.getInstance()
-                .currentUser?.getIdToken(true)?.await()?.token ?: return@withContext "Belum login"
+            val token = token() ?: return@withContext "Belum login"
             val conn = (URL("$FN/wave/game/userInfo").openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 8000
@@ -136,8 +193,7 @@ object SupaRepo {
     suspend fun waveFlow(amount: Long, kind: Int, tx: String, game: String): Long? =
         withContext(Dispatchers.IO) {
             try {
-                val token = com.google.firebase.auth.FirebaseAuth.getInstance()
-                    .currentUser?.getIdToken(true)?.await()?.token ?: return@withContext null
+                val token = token() ?: return@withContext null
                 val body = org.json.JSONObject()
                     .put("betAmount", amount)
                     .put("type", kind)
@@ -169,8 +225,7 @@ object SupaRepo {
     suspend fun waveFlowMsg(amount: Long, kind: Int, tx: String, game: String): Pair<Long?, String> =
         withContext(Dispatchers.IO) {
             try {
-                val token = com.google.firebase.auth.FirebaseAuth.getInstance()
-                    .currentUser?.getIdToken(true)?.await()?.token
+                val token = token()
                     ?: return@withContext Pair(null, "Belum login, buka ulang aplikasi")
                 val body = org.json.JSONObject()
                     .put("betAmount", amount)
@@ -346,8 +401,7 @@ object SupaRepo {
     private suspend fun postRaw(action: String, params: org.json.JSONObject): org.json.JSONObject? =
         withContext(Dispatchers.IO) {
             try {
-                val token = com.google.firebase.auth.FirebaseAuth.getInstance()
-                    .currentUser?.getIdToken(true)?.await()?.token ?: return@withContext null
+                val token = token() ?: return@withContext null
                 val body = org.json.JSONObject().put("a", action).put("t", token).put("p", params)
                 val conn = (URL(FN).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
