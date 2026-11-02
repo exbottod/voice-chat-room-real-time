@@ -23,9 +23,9 @@ object SupaRepo {
 
     /** POST kecil ke edge function. Semua argumen dompet dikirim sebagai JSON. */
     private suspend fun call(action: String, params: org.json.JSONObject): Res =
-        kotlinx.coroutines.withTimeoutOrNull(20_000L) {
+        kotlinx.coroutines.withTimeoutOrNull(28_000L) {
             callInner(action, params)
-        } ?: Res(null, "Server timeout, coba lagi")
+        } ?: Res(null, "Server dompet lambat (timeout), coba lagi")
 
     private suspend fun callInner(action: String, params: org.json.JSONObject): Res =
         withContext(Dispatchers.IO) {
@@ -39,8 +39,10 @@ object SupaRepo {
                     .put("p", params)
                 val conn = (URL(FN).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
-                    connectTimeout = 8000
-                    readTimeout = 12000
+                    connectTimeout = 12_000
+                    // Edge function kadang perlu bangun dulu (cold start) sebelum
+                    // menjawab. Waktu baca diperpanjang supaya tidak dianggap mati.
+                    readTimeout = 22_000
                     doOutput = true
                     setRequestProperty("apikey", KEY)
                     setRequestProperty("Content-Type", "application/json")
@@ -49,7 +51,18 @@ object SupaRepo {
                 val code = conn.responseCode
                 val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
                     ?.bufferedReader()?.use { it.readText() } ?: ""
-                val o = if (txt.isNotBlank()) org.json.JSONObject(txt) else org.json.JSONObject()
+                if (code !in 200..299 && txt.isBlank()) {
+                    return@withContext Res(null, "Server dompet error $code")
+                }
+                val o = try {
+                    if (txt.isNotBlank()) org.json.JSONObject(txt) else org.json.JSONObject()
+                } catch (e: Exception) {
+                    return@withContext Res(
+                        null,
+                        if (code in 200..299) "Jawaban server dompet tidak terbaca"
+                        else "Server dompet error $code",
+                    )
+                }
                 if (o.optInt("ok") == 1) {
                     Res(parseWallet(o.optJSONObject("w")), null)
                 } else {
@@ -59,6 +72,12 @@ object SupaRepo {
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
+            } catch (e: java.net.SocketTimeoutException) {
+                Res(null, "Server dompet lambat (timeout), coba lagi")
+            } catch (e: java.net.UnknownHostException) {
+                Res(null, "Internet bermasalah, cek koneksi")
+            } catch (e: javax.net.ssl.SSLException) {
+                Res(null, "Koneksi ke server dompet gagal, coba lagi")
             } catch (e: Exception) {
                 Res(null, "Tidak bisa menghubungi server dompet")
             }
@@ -117,8 +136,8 @@ object SupaRepo {
                     .put("token", token)
                 val conn = (URL("$FN/wave/game/submitFlow").openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
-                    connectTimeout = 8000
-                    readTimeout = 15000
+                    connectTimeout = 12_000
+                    readTimeout = 22_000
                     doOutput = true
                     setRequestProperty("apikey", KEY)
                     setRequestProperty("Content-Type", "application/json")
