@@ -257,14 +257,6 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn" id="rkExpSave" style="margin-top:10px">Simpan syarat energi</button>
     <div class="muted" id="rkExpMsg" style="margin-top:8px"></div>
   </div>
-  <div class="card">
-    <h2>Animasi roket meluncur</h2>
-    <p class="muted">Upload animasi meluncur untuk tiap roket Lv.1 sampai Lv.5, file SVGA atau MP4.
-      Saat energi roket penuh, animasi roket level itu diputar untuk semua orang, lalu muncul dialog hadiah
-      dengan tombol Okey.</p>
-    <div id="rkFly"></div>
-    <div class="muted" id="rkMsg" style="margin-top:8px"></div>
-  </div>
 </div>
 
 <div id="tab-gift" class="hide">
@@ -1126,7 +1118,7 @@ document.addEventListener("DOMContentLoaded", cbStartOnce);
 
 /* ---------- Roket: hadiah per level + hadiah peringkat ---------- */
 let rkSel = 1, rkCfg = {}, rkOff = null;
-function rkMsg(t){ const e = $("rkMsg"); if (e) e.textContent = t; toast(t); }
+function rkMsg(t){ toast(t); }
 // Salinan publik rocketCfg supaya server (wallet-api) bisa membaca hadiah tanpa login.
 function rkMirrorPath(path){ return String(path || "").replace(/^rocketCfg\//, "pub/_rocketCfg/"); }
 async function rkSave(path, obj){
@@ -1272,8 +1264,7 @@ function rkRender(){
   const rk = $("rkRank"); rk.innerHTML = "";
   [["🏆 Top 1", 1], ["🥈 Top 2", 2], ["🥉 Top 3", 3], ["🎖 Top 4 ke bawah", 4]].forEach(a =>
     rk.appendChild(rkPrize(a[0], "rocketCfg/rank/t" + a[1], (rkCfg.rank || {})["t" + a[1]] || null, "rk_r" + a[1])));
-  const fl = $("rkFly"); fl.innerHTML = "";
-  fl.appendChild(rkFlyCard());
+  // Upload animasi roket sudah tidak dipakai: video roket 1-5 ada di dalam aplikasi.
 }
 function rkFlyItem(label, path, url, key, hint){
   const d = document.createElement("div");

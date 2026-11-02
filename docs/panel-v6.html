@@ -1240,54 +1240,7 @@ function rkRender(){
   [["🏆 Top 1", 1], ["🥈 Top 2", 2], ["🥉 Top 3", 3]].forEach(a =>
     rk.appendChild(rkPrize(a[0], "rocketCfg/rank/t" + a[1], (rkCfg.rank || {})["t" + a[1]] || null, "rk_r" + a[1])));
 }
-function rkFlyItem(label, path, url, key, hint){
-  const d = document.createElement("div");
-  d.style.cssText = "border:1px solid #2a3f6b;border-radius:10px;padding:10px;margin:8px 0";
-  d.innerHTML = '<b>' + label + '</b>' +
-    '<div class="muted" style="word-break:break-all;margin:6px 0">' + (url || "Belum ada file") + '</div>' +
-    '<input type="file" id="f_' + key + '" accept=".svga,.mp4">' +
-    (hint ? '<div class="muted" style="font-size:11px;margin-top:4px">' + hint + '</div>' : "") +
-    '<div style="margin-top:6px"><button class="btn" id="s_' + key + '">Upload & simpan</button> ' +
-    '<button class="btn" id="d_' + key + '" style="background:#7a1f1f;color:#fff">Hapus</button></div>';
-  d.querySelector("#s_" + key).onclick = async () => {
-    const f = d.querySelector("#f_" + key).files[0];
-    if (!f) return rkMsg("Pilih file dulu");
-    const btn = d.querySelector("#s_" + key); btn.disabled = true;
-    try { const u = await cldUpload(f, key); await rkSave(path, u); rkMsg("Tersimpan ✅ " + label); }
-    catch (e) { rkMsg("Gagal: " + e.message); }
-    finally { btn.disabled = false; }
-  };
-  d.querySelector("#d_" + key).onclick = async () => {
-    if (!confirm("Hapus " + label + "?")) return;
-    try { await rkRemove(path); rkMsg("Dihapus ✅"); } catch (e) { rkMsg("Gagal: " + e.message); }
-  };
-  return d;
-}
-function rkFlyCard(){
-  const wrap = document.createElement("div");
-  for (let n = 1; n <= 5; n++) {
-    wrap.appendChild(rkFlyItem("Animasi roket Lv." + n + " meluncur", "rocketCfg/fly" + n,
-      rkCfg["fly" + n] || "", "rk_fly" + n, "SVGA atau MP4. Diputar saat roket Lv." + n + " penuh energinya."));
-  }
-  wrap.appendChild(rkFlyItem("Animasi cadangan (kalau level belum diisi)", "rocketCfg/flyUrl",
-    rkCfg.flyUrl || "", "rk_fly", "Dipakai untuk roket yang animasinya belum diupload."));
-  return wrap;
-}
-
-if ($("rkExpSave")) $("rkExpSave").onclick = async () => {
-  const btn = $("rkExpSave"); btn.disabled = true;
-  try {
-    for (let n = 1; n <= 5; n++) {
-      const v = Number($("rexp_" + n).value || 0);
-      if (v > 0) await rkSave("rocketCfg/exp" + n, v); else await rkRemove("rocketCfg/exp" + n);
-    }
-    const fd = Number($("rkFlyDur").value || 0);
-    if (fd >= 5 && fd <= 120) await rkSave("rocketCfg/flyDur", fd);
-    $("rkExpMsg").textContent = "Tersimpan ✅";
-    toast("Syarat energi tersimpan ✅");
-  } catch (e) { $("rkExpMsg").textContent = "Gagal: " + e.message; }
-  finally { btn.disabled = false; }
-};
+// Syarat energi dan animasi roket sudah ada di dalam aplikasi, tidak diatur dari panel.
 
 async function lookup(raw){
   const id = String(raw || "").trim();
