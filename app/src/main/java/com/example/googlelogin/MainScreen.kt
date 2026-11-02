@@ -192,6 +192,12 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         if (uid.isNotBlank()) SvipInv.observe(uid)
     }
 
+    // Hadiah cek-in yang tertunda (server lambat waktu klaim) dikirim ulang diam-diam.
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try { SigninRepo.retryPending(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+
     // Cek in harian: kalau hari ini belum klaim, tampilkan dialog otomatis.
     LaunchedEffect(uid, signinChecked) {
         if (uid.isEmpty() || signinChecked) return@LaunchedEffect

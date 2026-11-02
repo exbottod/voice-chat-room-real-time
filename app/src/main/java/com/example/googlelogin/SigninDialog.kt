@@ -254,7 +254,13 @@ fun SigninDialog(
                         msg = ""
                         scope.launch {
                             try {
-                                val (day, err) = SigninRepo.claim(uid)
+                                // Batas waktu keras: tombol tidak boleh berhenti di "Memproses…".
+                                val hasil = kotlinx.coroutines.withTimeoutOrNull(60_000L) {
+                                    SigninRepo.claim(uid)
+                                }
+                                val day = hasil?.first ?: 0
+                                val err = hasil?.second
+                                    ?: "Server lambat, hadiah dikirim ulang otomatis"
                                 claiming = false
                                 if (day <= 0) {
                                     msg = err ?: "Gagal cek in, coba lagi"
@@ -273,8 +279,9 @@ fun SigninDialog(
                             } catch (e: kotlinx.coroutines.CancellationException) {
                                 throw e
                             } catch (e: Exception) {
-                                claiming = false
                                 msg = "Gagal cek in: ${e.message ?: "koneksi bermasalah"}"
+                            } finally {
+                                claiming = false
                             }
                         }
                     },

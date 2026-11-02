@@ -126,12 +126,131 @@ object SigninRepo {
 
     fun dayIndexFor(st: SigninState): Int = nextDay(st)
 
+    // ---- Hadiah yang belum tentu masuk, dicoba ulang otomatis ----
+
+    private data class Pending(
+        val date: String,
+        val day: Int,
+        val coins: Long,
+        val itemId: String,
+        val itemDays: Long,
+        val vipTier: Int,
+        val vipDays: Int,
+    )
+
+    private fun savePending(uid: String, p: Pending?) {
+        try {
+            val e = sp()?.edit()
+            if (p == null) e?.remove("pending_$uid") else e?.putString(
+                "pending_$uid",
+                listOf(p.date, p.day, p.coins, p.itemId, p.itemDays, p.vipTier, p.vipDays).joinToString("|"),
+            )
+            e?.apply()
+        } catch (e: Exception) { }
+    }
+
+    private fun loadPending(uid: String): Pending? = try {
+        val raw = sp()?.getString("pending_$uid", "").orEmpty()
+        val f = raw.split("|")
+        if (f.size < 7) null else Pending(
+            date = f[0], day = f[1].toIntOrNull() ?: 0, coins = f[2].toLongOrNull() ?: 0L,
+            itemId = f[3], itemDays = f[4].toLongOrNull() ?: 3L,
+            vipTier = f[5].toIntOrNull() ?: 0, vipDays = f[6].toIntOrNull() ?: 0,
+        )
+    } catch (e: Exception) { null }
+
+    /** Kode transaksi tetap per hari, jadi percobaan ulang tidak pernah dobel. */
+    private fun txFor(uid: String, date: String, apa: String): String =
+        UUID.nameUUIDFromBytes("signin|$uid|$date|$apa".toByteArray()).toString()
+
+    private fun vipPrice(tier: Int): Long = when (tier) {
+        1 -> 500_000L; 2 -> 1_500_000L; 3 -> 3_000_000L; 4 -> 6_000_000L
+        5 -> 12_000_000L; 6 -> 25_000_000L; 7 -> 50_000_000L; 8 -> 100_000_000L
+        else -> 250_000_000L
+    }
+
     /**
-     * Klaim hadiah hari ini. Mengembalikan pasangan (hari ke, pesan error).
+     * Kirim hadiah ke server. Tiap langkah dibatasi waktu supaya dialog tidak
+     * pernah menggantung. null = semua masuk.
+     */
+    private suspend fun deliver(uid: String, p: Pending): String? {
+        var gagal: String? = null
+        fun catat(pesan: String) { if (gagal == null) gagal = pesan }
+
+        if (p.coins > 0L) {
+            val ok = try {
+                kotlinx.coroutines.withTimeoutOrNull(20_000L) {
+                    SupaRepo.waveFlow(p.coins, 2, txFor(uid, p.date, "coin"), "Sign-in")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { null }
+            if (ok == null) catat("Coin belum masuk, akan dicoba otomatis")
+        }
+        if (p.itemId.isNotBlank()) {
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(20_000L) {
+                    val it = findItem(p.itemId)
+                    if (it != null) {
+                        SupaRepo.buyItem(uid, it.copy(price = 0, days = if (p.itemDays > 0) p.itemDays else it.days))
+                    }
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                catat("Item tertunda, akan dicoba otomatis")
+            }
+        }
+        if (p.vipTier in 1..9) {
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(30_000L) {
+                    SupaRepo.waveFlow(vipPrice(p.vipTier), 2, txFor(uid, p.date, "vipcoin"), "Sign-in VIP")
+                    SupaRepo.buyVip(uid, p.vipTier)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                catat("VIP tertunda, akan dicoba otomatis")
+            }
+        }
+        return gagal
+    }
+
+    /** Coba kirim ulang hadiah yang tertunda (dipanggil saat aplikasi dibuka). */
+    suspend fun retryPending(uid: String) {
+        val p = loadPending(uid) ?: return
+        if (p.day <= 0) { savePending(uid, null); return }
+        val err = deliver(uid, p)
+        // Kalau masih gagal, simpan lagi untuk dicoba lain waktu.
+        if (err == null) savePending(uid, null)
+        try { PublicSync.push(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+
+    private suspend fun saveRemote(uid: String, st: SigninState): Boolean = try {
+        kotlinx.coroutines.withTimeoutOrNull(10_000L) {
+            Rtdb.ref("signin/$uid").setValue(
+                hashMapOf(
+                    "last" to st.last,
+                    "day" to st.day.toLong(),
+                    "total" to st.total.toLong(),
+                    "at" to System.currentTimeMillis(),
+                ),
+            ).await()
+            true
+        } ?: false
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
+    }
+
+    /**
+     * Klaim hadiah hari ini.
      *
-     * Setiap hadiah dicoba satu per satu dan kegagalannya tidak menghentikan
-     * proses, karena status "sudah sign-in hari ini" WAJIB tersimpan supaya
-     * dialog tidak muncul lagi di hari yang sama.
+     * Status "sudah sign-in" disimpan lebih dulu (lokal lalu database), baru
+     * hadiah dikirim ke server. Jadi tombol tidak pernah berhenti di
+     * "Memproses…" walau server lambat, dan hadiah yang gagal dikirim ulang
+     * otomatis dengan kode transaksi tetap (tidak bisa dobel).
      */
     suspend fun claim(uid: String): Pair<Int, String?> {
         val st = loadState(uid)
@@ -140,70 +259,21 @@ object SigninRepo {
         val idx = nextDay(st) - 1
         val r = cfg.days.getOrNull(idx) ?: return 0 to "Hadiah belum diatur"
 
-        var gagal = ""
-        fun catat(pesan: String) { if (gagal.isBlank()) gagal = pesan }
+        val baru = SigninState(last = today(), day = idx + 1, total = st.total + 1)
+        saveLocal(uid, baru)
+        val simpan = saveRemote(uid, baru)
 
-        // 1) Coin masuk dompet (server Supabase, tercatat di money_tx)
-        if (r.coins > 0) {
-            try {
-                val ok = SupaRepo.waveFlow(r.coins, 2, UUID.randomUUID().toString(), "Sign-in")
-                if (ok == null) catat("Coin belum masuk, coba lagi nanti")
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                catat("Coin tertunda: ${e.message}")
-            }
-        }
-        // 2) Item (bingkai / badge / medal / kartu) masuk My Item
-        if (r.itemId.isNotBlank()) {
-            try {
-                val it = findItem(r.itemId)
-                if (it != null) {
-                    SupaRepo.buyItem(uid, it.copy(price = 0, days = if (r.itemDays > 0) r.itemDays else it.days))
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                catat("Item tertunda: ${e.message}")
-            }
-        }
-        // 3) VIP: tambah coin sebesar harga lalu beli tier-nya (server tetap yang menghitung).
-        if (r.vipTier in 1..9) {
-            try {
-                val price = when (r.vipTier) {
-                    1 -> 500_000L; 2 -> 1_500_000L; 3 -> 3_000_000L; 4 -> 6_000_000L
-                    5 -> 12_000_000L; 6 -> 25_000_000L; 7 -> 50_000_000L; 8 -> 100_000_000L
-                    else -> 250_000_000L
-                }
-                val ok = SupaRepo.waveFlow(price, 2, UUID.randomUUID().toString(), "Sign-in VIP")
-                if (ok == null) catat("VIP belum masuk, coba lagi nanti")
-                SupaRepo.buyVip(uid, r.vipTier)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                catat("VIP tertunda: ${e.message}")
-            }
-        }
-
-        // 4) Catat status: lokal dulu (tidak pernah gagal), lalu database.
-        saveLocal(uid, SigninState(last = today(), day = idx + 1, total = st.total + 1))
-        val simpan = try {
-            Rtdb.ref("signin/$uid").setValue(
-                hashMapOf(
-                    "last" to today(),
-                    "day" to (idx + 1).toLong(),
-                    "total" to (st.total + 1).toLong(),
-                    "at" to System.currentTimeMillis(),
-                ),
-            ).await()
-            true
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            false
-        }
+        val p = Pending(today(), idx + 1, r.coins, r.itemId, r.itemDays, r.vipTier, r.vipDays)
+        savePending(uid, p)
+        val gagal = deliver(uid, p)
+        if (gagal == null) savePending(uid, null)
         try { PublicSync.push(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
-        if (!simpan) return (idx + 1) to "Hadiah masuk. Status tersimpan di HP, pasang rules database agar tersinkron."
-        return (idx + 1) to gagal.ifBlank { null }
+
+        val pesan = when {
+            gagal != null -> gagal
+            !simpan -> "Hadiah masuk. Status tersimpan di HP, pasang rules database agar tersinkron."
+            else -> null
+        }
+        return (idx + 1) to pesan
     }
 }
