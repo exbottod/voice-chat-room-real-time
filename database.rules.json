@@ -79,6 +79,49 @@
         }
       }
     },
+    "rocket": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$child": {
+          ".validate": "true"
+        }
+      }
+    },
+    "rocketFx": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$fxId": {
+          ".validate": "!newData.exists() || (newData.child('ts').isNumber() && newData.child('lv').isNumber())"
+        }
+      }
+    },
+    "rocketRank": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$season": {
+          "$uid": {
+            ".write": "auth != null"
+          }
+        }
+      }
+    },
+    "rocketLucky": {
+      "$launchId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "$uid": {
+          ".validate": "newData.val() === true"
+        }
+      }
+    },
+    "signin": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
     "giftBanner": {
       ".read": "auth != null",
       ".write": "auth != null"

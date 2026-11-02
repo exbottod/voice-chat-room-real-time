@@ -181,6 +181,10 @@ object RocketRepo {
     var stage by mutableStateOf(1)
         private set
 
+    /** Pesan terakhir bila energi roket gagal disimpan ke database. */
+    var lastError by mutableStateOf<String?>(null)
+        private set
+
     /** Peringkat roket room ini pada musim berjalan. */
     var rankRows by mutableStateOf<List<RocketRankRow>>(emptyList())
         private set
@@ -335,8 +339,9 @@ object RocketRepo {
         if (u.isBlank() || coins <= 0L || roomId.isBlank()) return
         if (roomId != liveRoom) room(roomId)
         val launches = mutableListOf<Int>()
+        var txErr: String? = null
         try {
-            Rtdb.tx(Rtdb.ref("rocket/$roomId")) { d ->
+            txErr = Rtdb.tx(Rtdb.ref("rocket/$roomId")) { d ->
                 val today = dayKey()
                 val savedDay = d.child("day").getValue(String::class.java) ?: ""
                 var cur = d.child("exp").getValue(Long::class.java) ?: 0L
@@ -366,7 +371,11 @@ object RocketRepo {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
+            txErr = e.message ?: "gagal menyimpan energi"
         }
+        // Energi gagal disimpan = roket tidak akan pernah meluncur.
+        // Ditampilkan di panel Rocket supaya penyebabnya kelihatan.
+        lastError = txErr?.let { "Energi roket ditolak database: ${it.take(90)}" }
         // Peringkat: siapa paling banyak kirim gift di room ini pekan ini.
         try {
             Rtdb.ref("rocketRank/$roomId/${season()}/$u").setValue(
@@ -658,9 +667,23 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("lv.$lv", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
+                // Angka energi supaya kelihatan gift benar-benar menambah energi.
+                Text(
+                    ringkas(total) + " / " + ringkas(need),
+                    color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.weight(1f))
                 Text(
                     if (lv >= 5) "lv.1" else "lv.${lv + 1}",
                     color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                )
+            }
+            RocketRepo.lastError?.let { pesan ->
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    pesan,
+                    color = Color(0xFFFF8A80), fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                 )
             }
 
