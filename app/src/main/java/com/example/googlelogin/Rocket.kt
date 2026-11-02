@@ -171,11 +171,10 @@ object RocketCfg {
                 // Animasi roket meluncur per level: rocketCfg/fly1..fly5.
                 // Kalau panel belum mengisi, pakai mp4 bawaan di dalam APK.
                 val globalFly = s.child("flyUrl").getValue(String::class.java)?.takeIf { it.isNotBlank() }
-                flyUrls = (1..5).map { n ->
-                    s.child("fly$n").getValue(String::class.java)?.takeIf { it.isNotBlank() }
-                        ?: globalFly
-                        ?: bundledFly(n)
-                }
+                // Animasi meluncur selalu memakai video yang tertanam di APK.
+                // URL sisa panel lama (flyN/flyUrl) diabaikan supaya roket tidak
+                // gagal tampil gara-gara tautan yang sudah mati.
+                flyUrls = (1..5).map { n -> bundledFly(n) }
                 // Hadiah per roket: rocketCfg/lv{N}/r{1..6} (gambar + VIP + coin).
                 // Data lama yang hanya berisi gambar di p{K} tetap dibaca.
                 fun prizeAt(node: com.google.firebase.database.DataSnapshot): Triple<String, String, String> {
@@ -1079,17 +1078,43 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                     .graphicsLayer { translationY = if (bawaan) 0f else -rise },
             ) {
                 key(playCount) {
+                    var lewat by remember(playCount, e.id) { mutableStateOf(false) }
                     val selesai = {
                         if (bawaan) {
-                            step = if (burstUrl != null) 1 else 2
+                            if (!lewat) { lewat = true; step = if (burstUrl != null) 1 else 2 }
                         } else if (System.currentTimeMillis() < e.end - 1200L) {
                             playCount++
                         } else {
                             step = 2
                         }
                     }
+                    if (bawaan) {
+                        // Video bawaan ditayangkan sampai habis. Kalau pemutar gagal
+                        // (mis. codec di HP tertentu), roket tetap tampil sebagai gambar
+                        // diam selama durasi video, baru dialog hadiah muncul.
+                        val ms = RocketCfg.videoMs(e.url).coerceAtLeast(2_500L)
+                        LaunchedEffect(playCount, e.id) {
+                            kotlinx.coroutines.delay(ms)
+                            selesai()
+                        }
+                    }
                     if (isVideoMedia(e.url)) {
-                        GiftVideo(e.url, Modifier.fillMaxSize()) { selesai() }
+                        if (bawaan) {
+                            // Latar cadangan: ikon roket level ini, terlihat kalau video
+                            // gagal diputar di HP tersebut.
+                            androidx.compose.foundation.Image(
+                                painter = coil.compose.rememberAsyncImagePainter(
+                                    RocketCfg.img.getOrNull(e.lv - 1).orEmpty(),
+                                ),
+                                contentDescription = null,
+                                modifier = Modifier.align(Alignment.Center).fillMaxWidth(0.72f),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                            )
+                        }
+                        // Untuk video bawaan, lanjut ke tahap berikutnya hanya lewat
+                        // timer durasi video, supaya dialog hadiah tidak muncul
+                        // mendahului roket yang meluncur.
+                        GiftVideo(e.url, Modifier.fillMaxSize()) { if (!bawaan) selesai() }
                         if (bawaan) RocketTopPhoto(RocketRepo.rankRows.firstOrNull()?.photo.orEmpty())
                     } else {
                         GiftSvga(e.url, "\uD83D\uDE80", Modifier.fillMaxSize(), onEnd = { selesai() })
@@ -1139,11 +1164,13 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
 
     // Tahap 1: roket pecah di atas (hanya untuk level yang punya videonya).
     if (e != null && step == 1 && burstUrl != null) {
+        val bMs = RocketCfg.videoMs(burstUrl).coerceAtLeast(1_500L)
         Box(Modifier.fillMaxSize()) {
-            GiftVideo(burstUrl, Modifier.fillMaxSize()) { step = 2 }
+            GiftVideo(burstUrl, Modifier.fillMaxSize()) { }
         }
         LaunchedEffect(e.id, "burst") {
-            delay(RocketCfg.videoMs(burstUrl) + 2500L)
+            // Efek pecah ditayangkan penuh dulu, baru dialog hadiah muncul.
+            delay(bMs + 400L)
             if (step == 1) step = 2
         }
     }
