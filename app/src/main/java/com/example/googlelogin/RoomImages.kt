@@ -19,9 +19,9 @@ import java.net.URL
  * Bucket dan izinnya dibuat lewat supabase/room-image.sql.
  */
 object RoomImages {
-    private const val BASE = "https://poeqhncfrxssilhjvibf.supabase.co"
+    private const val BASE = "https://fdemjdqagxkhgqkmfvwk.supabase.co"
     // Kunci publishable, sama seperti yang dipakai SupaRepo (aman ada di app).
-    private const val KEY = "sb_publishable_l6orVwlNXTICFL4Cc1QMOw_vobFaSfL"
+    private const val KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W"
     private const val BUCKET = "chatimg"
     private const val MAX_DIM = 1080
     private const val MAX_BYTES = 2_000_000
