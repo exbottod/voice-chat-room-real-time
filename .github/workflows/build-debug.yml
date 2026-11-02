@@ -60,7 +60,10 @@ jobs:
         env:
           VERSION_NAME: 1.0.${{ github.run_number }}
           BUILD_TIME: ${{ github.event.head_commit.timestamp || github.event.repository.pushed_at }}
-        run: python3 scripts/apk_check.py app/build/outputs/apk/release/app-release.apk docs/build-info.json
+        run: |
+          APK=app/build/outputs/apk/release/app-universal-release.apk
+          [ -f "$APK" ] || APK=app/build/outputs/apk/release/app-release.apk
+          python3 scripts/apk_check.py "$APK" docs/build-info.json
 
       - name: Publikasikan APK terbaru ke Release
         env:
