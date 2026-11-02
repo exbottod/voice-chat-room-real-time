@@ -117,6 +117,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        AppAktif.ya = true
+    }
+
+    override fun onPause() {
+        AppAktif.ya = false
+        super.onPause()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         RoomDeepLink.parse(intent)

@@ -188,12 +188,17 @@ object WalletRepo {
                     res = SupaRepo.migrate(uid, legacy)
                 }
                 res.wallet?.let { emitBackup(uid, it) }
-                // Dulu 15 detik. Server Supabase punya kuota; permintaan sesering
-                // itu dari semua user membuat kuota cepat habis dan server
-                // menolak permintaan (timeout/504). Sekarang 1 menit, dan kalau
-                // server sedang bermasalah jedanya dilipatkan supaya tidak
-                // makin membebani.
-                jeda = if (res.error == null) 60_000L else minOf(jeda * 2, 300_000L)
+                // Saat aplikasi sedang dibuka, saldo diperbarui tiap 15 detik
+                // seperti biasa. Saat ditinggal di latar belakang, jedanya
+                // dilonggarkan jadi 5 menit supaya kuota Supabase tidak habis.
+                // Kalau server bermasalah, jeda dilipatkan.
+                jeda = when {
+                    res.error != null -> minOf(jeda * 2, 300_000L)
+                    // Sedang dipakai: tetap segar seperti dulu.
+                    AppAktif.ya -> 15_000L
+                    // Ditinggal di latar belakang: hemat kuota.
+                    else -> 300_000L
+                }
                 kotlinx.coroutines.delay(jeda)
             }
         }
