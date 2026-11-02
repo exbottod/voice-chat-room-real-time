@@ -315,15 +315,9 @@ label{font-size:12px;color:var(--mut)}
 
 <div id="tab-rocket" class="hide">
   <div class="card">
-    <h2>Hadiah Roket</h2>
-    <p class="muted">Pilih roket 1 sampai 5, lalu isi 6 hadiahnya (gambar, VIP, coin, efek masuk, lencana). Hadiah diambil pemain saat roket meluncur dan masuk ke grid hadiah di aplikasi. Animasi dan syarat energi sudah ada di dalam aplikasi.</p>
-    <div id="rkMsg" class="muted" style="min-height:18px;margin:6px 0"></div>
-    <div id="rkLv" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0"></div>
-    <div id="rkSlots"></div>
-  </div>
-  <div class="card">
     <h2>Hadiah peringkat mingguan</h2>
-    <p class="muted">Hadiah untuk Top 1, Top 2, dan Top 3 pengirim gift terbanyak di room.</p>
+    <p class="muted">Hadiah untuk pengirim gift terbanyak di room tiap pekan. Isi Top 1, Top 2, Top 3, dan satu hadiah untuk Top 4 ke bawah (berlaku sama untuk peringkat 4 dan seterusnya). Hadiah roket per level, animasi, dan syarat energi sudah ada di dalam aplikasi.</p>
+    <div id="rkMsg" class="muted" style="min-height:18px;margin:6px 0"></div>
     <div id="rkRank"></div>
   </div>
 </div>
@@ -1220,24 +1214,11 @@ function rkExpRender(){
   }
 }
 function rkRender(){
-  const lv = $("rkLv"); if (!lv) return;
-  lv.innerHTML = "";
-  for (let n = 1; n <= 5; n++) {
-    const b = document.createElement("button");
-    b.className = "btn"; b.textContent = "Roket Lv." + n;
-    b.style.opacity = n === rkSel ? "1" : ".55";
-    b.onclick = () => { rkSel = n; rkRender(); };
-    lv.appendChild(b);
-  }
-  const lvCfg = rkCfg["lv" + rkSel] || {};
-  const box = $("rkSlots"); box.innerHTML = "";
-  for (let k = 1; k <= 6; k++) {
-    // Data baru: rocketCfg/lvN/rK. Data lama (gambar saja) masih dibaca dari pK.
-    const cur = lvCfg["r" + k] || lvCfg["p" + k] || null;
-    box.appendChild(rkPrize("Hadiah " + k, "rocketCfg/lv" + rkSel + "/r" + k, cur, "rk_l" + rkSel + "_" + k));
-  }
-  const rk = $("rkRank"); rk.innerHTML = "";
-  [["🏆 Top 1", 1], ["🥈 Top 2", 2], ["🥉 Top 3", 3]].forEach(a =>
+  // Tab Rocket hanya mengatur hadiah peringkat mingguan. Hadiah roket per level
+  // dan animasinya sudah menyatu di dalam aplikasi.
+  const rk = $("rkRank"); if (!rk) return;
+  rk.innerHTML = "";
+  [["🏆 Top 1", 1], ["🥈 Top 2", 2], ["🥉 Top 3", 3], ["🎁 Top 4 ke bawah", 4]].forEach(a =>
     rk.appendChild(rkPrize(a[0], "rocketCfg/rank/t" + a[1], (rkCfg.rank || {})["t" + a[1]] || null, "rk_r" + a[1])));
 }
 // Syarat energi dan animasi roket sudah ada di dalam aplikasi, tidak diatur dari panel.
