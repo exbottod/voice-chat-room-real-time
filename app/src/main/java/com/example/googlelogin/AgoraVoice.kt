@@ -47,6 +47,10 @@ object AgoraVoice {
     @Volatile private var wantSpeaking = false
 
     @Volatile private var muteRemote = false
+
+    /** Sekali coba ulang saat token ditolak Agora (error 109/110). */
+    @Volatile private var retriedToken = false
+    private var appCtx: Context? = null
     private var joinJob: Job? = null
 
     /** Status terakhir untuk diagnosa (ditampilkan sebagai toast bila gagal). */
@@ -61,11 +65,30 @@ object AgoraVoice {
 
     private val handler = object : IRtcEngineEventHandler() {
         override fun onError(err: Int) {
+            // 109/110 = token Agora ditolak. Ambil token baru lalu masuk ulang sekali,
+            // supaya suara tidak mati sampai aplikasi ditutup.
+            if ((err == 109 || err == 110) && !retriedToken) {
+                retriedToken = true
+                val c = appCtx
+                val r = roomId
+                problem("Suara: token diperbarui, menyambung ulang…")
+                if (c != null && r != null) {
+                    scope.launch {
+                        kotlinx.coroutines.delay(600)
+                        joined = false
+                        inChannel = false
+                        try { engine?.leaveChannel() } catch (e: Exception) { }
+                        join(c, r)
+                    }
+                }
+                return
+            }
             problem("Suara error $err")
         }
 
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
             joined = true
+            retriedToken = false
             lastStatus = "OK joined $channel"
             Log.i(TAG, lastStatus)
         }
@@ -149,6 +172,7 @@ object AgoraVoice {
     /** Masuk channel sebagai audience (hanya mendengar). */
     fun join(ctx: Context, id: String) {
         val app = ctx.applicationContext
+        appCtx = app
         joinJob?.cancel()
         roomId = id
         joinJob = scope.launch {
