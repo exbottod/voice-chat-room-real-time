@@ -374,6 +374,7 @@ object RocketRepo {
                         uid = id,
                         name = c.child("name").getValue(String::class.java) ?: "Player",
                         coins = c.child("coins").getValue(Long::class.java) ?: 0L,
+                        photo = c.child("photo").getValue(String::class.java).orEmpty(),
                     )
                 }.sortedByDescending { it.coins }.take(20)
             }
@@ -446,6 +447,7 @@ object RocketRepo {
             Rtdb.ref("rocketRank/$roomId/${season()}/$u").setValue(
                 hashMapOf<String, Any?>(
                     "name" to name,
+                    "photo" to (FirebaseAuth.getInstance().currentUser?.photoUrl?.toString().orEmpty()),
                     "coins" to ServerValue.increment(coins),
                 ),
             ).await()
@@ -519,7 +521,7 @@ object RocketRepo {
 }
 
 /** Satu baris peringkat roket. */
-data class RocketRankRow(val uid: String, val name: String, val coins: Long)
+data class RocketRankRow(val uid: String, val name: String, val coins: Long, val photo: String = "")
 
 /** Angka ringkas gaya panel: 374.6K, 20.2M. */
 private fun ringkas(n: Long): String = when {
@@ -1088,6 +1090,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                     }
                     if (isVideoMedia(e.url)) {
                         GiftVideo(e.url, Modifier.fillMaxSize()) { selesai() }
+                        if (bawaan) RocketTopPhoto(RocketRepo.rankRows.firstOrNull()?.photo.orEmpty())
                     } else {
                         GiftSvga(e.url, "\uD83D\uDE80", Modifier.fillMaxSize(), onEnd = { selesai() })
                     }
@@ -1362,3 +1365,74 @@ fun RocketPrizeDialog(
     }
 }
 
+/**
+ * Foto profil Top 1 EXP roket di jendela bulat badan roket. Posisi dilacak dari
+ * video roket bawaan (294x642, disamakan untuk roket 1-5): roket naik dari bawah
+ * ke atas pada 0,4 detik pertama, melayang, lalu kamera zoom dan jendela
+ * membesar. Foto ikut naik, tetap di jendela saat melayang, lalu memudar.
+ */
+@Composable
+private fun RocketTopPhoto(photo: String) {
+    if (photo.isBlank()) return
+    val t = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(Unit) {
+        t.animateTo(
+            4.7f,
+            androidx.compose.animation.core.tween(4700, easing = androidx.compose.animation.core.LinearEasing),
+        )
+    }
+    val sec = t.value
+    // Titik jalur (detik, y relatif tinggi video) hasil pengukuran frame demi frame.
+    val kunci = listOf(
+        0.10f to 1.10f, 0.15f to 0.957f, 0.20f to 0.792f, 0.25f to 0.627f,
+        0.35f to 0.462f, 0.40f to 0.297f, 1.30f to 0.297f, 1.40f to 0.427f,
+        1.50f to 0.480f,
+    )
+    val y = when {
+        sec <= kunci.first().first -> kunci.first().second
+        sec >= kunci.last().first -> kunci.last().second
+        else -> {
+            var out = kunci.last().second
+            for (i in 0 until kunci.size - 1) {
+                val a = kunci[i]; val b = kunci[i + 1]
+                if (sec in a.first..b.first) {
+                    val f = (sec - a.first) / (b.first - a.first)
+                    out = a.second + (b.second - a.second) * f
+                    break
+                }
+            }
+            out
+        }
+    }
+    val alpha = when {
+        sec < 0.15f -> 0f
+        sec <= 1.45f -> 1f
+        sec < 1.75f -> 1f - (sec - 1.45f) / 0.3f
+        else -> 0f
+    }
+    if (alpha <= 0f) return
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+        // Video 294x642 ditampilkan "fit": tinggi/lebar dihitung dari layar.
+        val vw = 294f; val vh = 642f
+        val scale = minOf(constraints.maxWidth / vw, constraints.maxHeight / vh)
+        val w = vw * scale; val h = vh * scale
+        val left = (constraints.maxWidth - w) / 2f
+        val top = (constraints.maxHeight - h) / 2f
+        val diameter = w * 0.115f
+        AsyncImage(
+            model = photo,
+            contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier
+                .offset {
+                    androidx.compose.ui.unit.IntOffset(
+                        (left + w * 0.504f - diameter / 2f).toInt(),
+                        (top + h * y - diameter / 2f).toInt(),
+                    )
+                }
+                .size(with(LocalDensity.current) { diameter.toDp() })
+                .graphicsLayer { this.alpha = alpha }
+                .clip(androidx.compose.foundation.shape.CircleShape),
+        )
+    }
+}
