@@ -126,6 +126,9 @@ object RoomExtras {
         e.message ?: "Gagal mengirim gambar"
     }
 
+    /** Notifikasi sistem di chat (tanpa nama pengirim), mis. user dikeluarkan dari room. */
+    suspend fun sendSystemNotice(roomId: String, text: String): String? = addMessage(roomId, text)
+
     suspend fun sendGiftMessage(roomId: String, name: String, g: Gift, count: Int, to: String = ""): String? =
         addMessage(roomId, "🎁 $name mengirim ${g.emoji} ${g.name} x$count" + (if (to.isNotBlank()) " ke $to" else ""))
 

@@ -588,7 +588,7 @@ fun RoomScreen(
                     } else if (m.uid.isNotEmpty()) {
                         RmChatRow(m, myUid) { uid -> profileUid = uid }
                     } else {
-                        RmMsgBox(m.text, if (m.text.startsWith("🎁")) Gold else Color.White)
+                        RmMsgBox(m.text, if (m.text.startsWith("🎁")) Gold else if (m.text.startsWith("🚫")) Color(0xFFFF8A65) else Color.White)
                     }
                 }
             }
@@ -870,7 +870,13 @@ fun RoomScreen(
                     toast(err)
                 } else {
                     toast("$targetName dikeluarkan dari room")
-                    RoomExtras.sendChat(r.id, myUid, myName, "🦾 $targetName dikeluarkan dari room")
+                    val lama = when {
+                        durasiMs <= 0L -> "permanen"
+                        durasiMs < 3_600_000L -> "${durasiMs / 60_000L} menit"
+                        durasiMs < 86_400_000L -> "${durasiMs / 3_600_000L} jam"
+                        else -> "${durasiMs / 86_400_000L} hari"
+                    }
+                    RoomExtras.sendSystemNotice(r.id, "🚫 Sistem: $targetName telah di-kick dari room ($lama)")
                 }
             }
         }
