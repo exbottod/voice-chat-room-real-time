@@ -1024,7 +1024,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                     if (isVideoMedia(e.url)) {
                         GiftVideo(e.url, Modifier.fillMaxSize()) { selesai() }
                     } else {
-                        GiftSvga(e.url, "\uD83D\uDE80", Modifier.fillMaxSize()) { selesai() }
+                        GiftSvga(e.url, "\uD83D\uDE80", Modifier.fillMaxSize(), onEnd = { selesai() })
                     }
                 }
             }

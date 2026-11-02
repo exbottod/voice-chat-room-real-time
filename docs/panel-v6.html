@@ -59,7 +59,7 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
   <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="rocket">🚀 Roket</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -219,53 +219,7 @@ label{font-size:12px;color:var(--mut)}
   </div>
 </div>
 
-<div id="tab-rocket" class="hide">
-  <div class="card">
-    <h2>Hadiah roket</h2>
-    <p class="muted">Pilih roket Lv.1 sampai Lv.5. Tiap roket punya 6 hadiah. Untuk setiap hadiah isi gambar,
-      VIP 1-9 (opsional), jumlah coin, efek masuk, dan lencana. Efek dan lencana bisa diambil dari item Store
-      atau diupload sendiri. File ke Cloudinary, datanya ke Realtime Database (rocketCfg).</p>
-    <div id="rkLv" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"></div>
-    <div id="rkSlots"></div>
-  </div>
-  <div class="card">
-    <h2>Hadiah peringkat roket</h2>
-    <p class="muted">Hadiah untuk Top 1, Top 2, Top 3, dan Top 4 ke bawah: gambar, VIP, dan coin.
-      Tampil di tombol kado pada panel roket.</p>
-    <div id="rkRank"></div>
-  </div>
-  <div class="card">
-    <h2>Saklar roket di room</h2>
-    <p class="muted">Kalau ikon atau animasi roket membuat room macet, matikan di sini tanpa perlu
-      pasang aplikasi baru. Ikon dan animasi akan hilang, data roket tetap tersimpan.</p>
-    <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
-      <button class="btn" id="rkUiOn">Roket aktif</button>
-      <button class="btn" id="rkUiOff" style="background:#7a1f1f;color:#fff">Matikan di room</button>
-      <span class="muted" id="rkUiNow"></span>
-    </div>
-  </div>
-  <div class="card">
-    <h2>Syarat energi tiap roket</h2>
-    <p class="muted">Berapa koin gift yang harus terkumpul sebelum roket itu meluncur. Bawaan sekarang:
-      100 jt, 500 jt, 1 M, 1,5 M, 2 M. Roket 1 meluncur lebih dulu, lalu roket 2, dan seterusnya.</p>
-    <div style="display:flex;gap:8px;align-items:center;margin:6px 0 10px">
-      <span style="width:150px">Lama roket meluncur</span>
-      <input type="number" id="rkFlyDur" min="5" max="120" step="1" placeholder="15" style="width:90px">
-      <span class="muted">detik</span>
-    </div>
-    <div id="rkExp"></div>
-    <button class="btn" id="rkExpSave" style="margin-top:10px">Simpan syarat energi</button>
-    <div class="muted" id="rkExpMsg" style="margin-top:8px"></div>
-  </div>
-  <div class="card">
-    <h2>Animasi roket meluncur</h2>
-    <p class="muted">Upload animasi meluncur untuk tiap roket Lv.1 sampai Lv.5, file SVGA atau MP4.
-      Saat energi roket penuh, animasi roket level itu diputar untuk semua orang, lalu muncul dialog hadiah
-      dengan tombol Okey.</p>
-    <div id="rkFly"></div>
-    <div class="muted" id="rkMsg" style="margin-top:8px"></div>
-  </div>
-</div>
+
 
 <div id="tab-gift" class="hide">
   <div class="card">
@@ -976,13 +930,12 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "rocket", "gift", "cb"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
   if (t.dataset.t === "signin") signinStart();
   if (t.dataset.t === "bet") betStart();
-  if (t.dataset.t === "rocket") rocketStart();
   if (t.dataset.t === "cb") cbStart();
   if (t.dataset.t === "topup") { payLoad(); manualLoad(false); }
 });

@@ -276,8 +276,7 @@ private fun PartPop(value: Long, index: Int, box: IntSize) {
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value },
         contentAlignment = Alignment.Center,
     ) {
-        GiftSvga("asset/cashback/wois_gift_number_" + value + ".svga", "🪙", Modifier.fillMaxSize()) {
-        }
+        GiftSvga("asset/cashback/wois_gift_number_" + value + ".svga", "🪙", Modifier.fillMaxSize(), onEnd = { })
     }
 }
 
@@ -292,7 +291,7 @@ private fun FlyMedia(f: GiftFly) {
             Text(f.emoji.ifBlank { "🎁" }, fontSize = 34.sp)
         url.substringBefore('?').lowercase().endsWith(".svga") ||
             f.mediaType.lowercase().startsWith("svga") ->
-            GiftSvga(url, f.emoji, Modifier.fillMaxSize()) { }
+            GiftSvga(url, f.emoji, Modifier.fillMaxSize(), onEnd = { })
         else -> coil.compose.AsyncImage(
             model = url,
             contentDescription = f.emoji,

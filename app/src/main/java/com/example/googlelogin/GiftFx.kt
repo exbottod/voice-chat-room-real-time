@@ -868,7 +868,7 @@ fun GiftSvga(
             modifier = modifier,
             factory = { c ->
                 com.opensource.svgaplayer.SVGAImageView(c).apply {
-                    loops = loops
+                    this.loops = loops
                     clearsAfterStop = true
                     isClickable = false
                     scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
