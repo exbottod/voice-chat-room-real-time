@@ -67,7 +67,19 @@ object RocketCfg {
 
     // Animasi meluncur (mp4) bawaan per level, ikut di dalam APK.
     fun bundledFly(lv: Int): String =
-        "asset/rocket/votaky_rocket_large_level_" + lv.coerceIn(1, 5) + "_launch.mp4"
+        if (lv == 1) "asset/rocket/rocket_v2_lv1_launch.mp4"
+        else "asset/rocket/votaky_rocket_large_level_" + lv.coerceIn(1, 5) + "_launch.mp4"
+
+    /** Panjang tiap video bawaan (ms), sesuai file aslinya. */
+    fun videoMs(url: String): Long = when {
+        url.endsWith("rocket_v2_lv1_launch.mp4") -> 4_740L
+        url.endsWith("rocket_v2_lv1_burst.mp4") -> 3_940L
+        else -> 5_000L
+    }
+
+    /** Animasi roket pecah di atas setelah meluncur. Null = level ini belum punya. */
+    fun bundledBurst(lv: Int): String? =
+        if (lv == 1) "asset/rocket/rocket_v2_lv1_burst.mp4" else null
 
     /** Animasi "giff" (roket sebagai hadiah) per level. */
     fun bundledGift(lv: Int): String =
@@ -356,10 +368,16 @@ object RocketRepo {
         val u = uid()
         if (u.isBlank() || coins <= 0L || roomId.isBlank()) return
         if (roomId != liveRoom) room(roomId)
-        val launches = mutableListOf<Int>()
+        // Pasangan (level, nomor urut) yang benar-benar penuh pada percobaan
+        // transaksi yang menang. Nomor urut membuat penulisan idempoten:
+        // transaksi Firebase bisa diulang, jadi hasil ulangan tidak menambah
+        // peluncuran baru.
+        var launches = mutableListOf<Pair<Int, Long>>()
         var txErr: String? = null
         try {
             txErr = Rtdb.tx(Rtdb.ref("rocket/$roomId")) { d ->
+                // Setiap percobaan mulai dari daftar kosong supaya tidak dobel.
+                launches = mutableListOf()
                 val today = dayKey()
                 val savedDay = d.child("day").getValue(String::class.java) ?: ""
                 var cur = d.child("exp").getValue(Long::class.java) ?: 0L
@@ -369,19 +387,24 @@ object RocketRepo {
                     st = 1
                 }
                 st = st.coerceIn(1, 5)
+                var seq = d.child("seq").getValue(Long::class.java) ?: 0L
                 d.child("day").value = today
                 var left = cur + coins
                 var need = RocketCfg.exp.getOrElse(st - 1) { Long.MAX_VALUE }.coerceAtLeast(1L)
                 var guard = 0
-                while (left >= need && guard < 30) {
+                // Maksimal 5 peluncuran per transaksi (satu putaran 1..5), sisanya
+                // tetap tersimpan sebagai energi dan diluncurkan pada gift berikutnya.
+                while (left >= need && guard < 5) {
                     left -= need
-                    launches.add(st)
+                    seq += 1
+                    launches.add(st to seq)
                     st = if (st >= 5) 1 else st + 1
                     need = RocketCfg.exp.getOrElse(st - 1) { Long.MAX_VALUE }.coerceAtLeast(1L)
                     guard++
                 }
                 d.child("exp").value = left
                 d.child("stage").value = st
+                d.child("seq").value = seq
                 d.child("lastBy").value = name
                 d.child("ts").value = System.currentTimeMillis()
                 null
@@ -390,6 +413,7 @@ object RocketRepo {
             throw e
         } catch (e: Exception) {
             txErr = e.message ?: "gagal menyimpan energi"
+            launches = mutableListOf()
         }
         // Energi gagal disimpan = roket tidak akan pernah meluncur.
         // Ditampilkan di panel Rocket supaya penyebabnya kelihatan.
@@ -406,16 +430,21 @@ object RocketRepo {
             throw e
         } catch (e: Exception) {
         }
-        // Tiap roket yang penuh dicatat berurutan supaya semua orang melihat
-        // roket 1 meluncur dulu, lalu roket berikutnya.
-        for (lv in launches) publishLaunch(roomId, name, lv)
+        // Kalau energi gagal disimpan, jangan umumkan peluncuran apa pun:
+        // dulu inilah penyebab dialog "roket sudah meluncur" muncul berulang
+        // setiap ketukan padahal energinya tidak pernah tersimpan.
+        if (txErr == null) {
+            // Tiap roket yang penuh dicatat berurutan supaya semua orang melihat
+            // roket 1 meluncur dulu, lalu roket berikutnya.
+            for ((lv, seq) in launches) publishLaunch(roomId, name, lv, seq)
+        }
     }
 
     /**
      * Catat satu peluncuran roket ke room. Semua orang membaca node ini lalu
      * memutar animasi roket sesuai levelnya, satu per satu.
      */
-    private suspend fun publishLaunch(roomId: String, name: String, lv: Int) {
+    private suspend fun publishLaunch(roomId: String, name: String, lv: Int, seq: Long) {
         val u = uid()
         if (u.isBlank()) return
         val now = System.currentTimeMillis()
@@ -431,7 +460,9 @@ object RocketRepo {
         } catch (e: Exception) {
         }
         try {
-            val id = Rtdb.ref("rocketFx/$roomId").push().key ?: return
+            // Kunci tetap per nomor urut: kalau transaksi diulang, tulisan yang
+            // sama menimpa dirinya sendiri, bukan membuat peluncuran baru.
+            val id = "rk" + seq
             Rtdb.ref("rocketFx/$roomId/$id").setValue(
                 hashMapOf<String, Any?>(
                     "uid" to u,
@@ -963,6 +994,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
 
     val seen = remember(roomId) { mutableSetOf<String>() }
     var pending by remember(roomId) { mutableStateOf(listOf<LaunchEv>()) }
+    var tertunda by remember(roomId) { mutableStateOf(listOf<Pair<LaunchEv, String>>()) }
     var ev by remember(roomId) { mutableStateOf<LaunchEv?>(null) }
     var step by remember(roomId) { mutableStateOf(0) }
     var dialogMode by remember(ev?.id) { mutableStateOf("") }
@@ -993,7 +1025,8 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                     ),
                 )
             }
-            if (tambah.isNotEmpty()) pending = pending + tambah
+            // Antrean dibatasi supaya combo gift tidak menumpuk dialog.
+            if (tambah.isNotEmpty()) pending = (pending + tambah).sortedBy { it.end }.take(5)
         }
         onDispose { reg.remove() }
     }
@@ -1008,18 +1041,27 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
 
     val e = ev
     val tinggiNaik = with(LocalDensity.current) { 420.dp.toPx() }
+    // Roket yang punya video bawaan diputar satu kali saja (tanpa diulang),
+    // lalu langsung ke tahap berikutnya. Roket tanpa video bawaan memakai
+    // perilaku lama: diulang sampai waktu meluncur habis.
+    val bawaan = e != null && e.url.startsWith("asset/")
+    val burstUrl = e?.let { RocketCfg.bundledBurst(it.lv) }
     if (e != null && step == 0) {
         Box(Modifier.fillMaxSize()) {
-            // Roketnya didorong naik tinggi ke atas layar selama meluncur.
             Box(
                 Modifier
                     .fillMaxSize()
-                    .graphicsLayer { translationY = -rise },
+                    .graphicsLayer { translationY = if (bawaan) 0f else -rise },
             ) {
                 key(playCount) {
                     val selesai = {
-                        // Kalau waktu meluncur belum habis, ulangi animasinya.
-                        if (System.currentTimeMillis() < e.end - 1200L) playCount++ else step = 1
+                        if (bawaan) {
+                            step = if (burstUrl != null) 1 else 2
+                        } else if (System.currentTimeMillis() < e.end - 1200L) {
+                            playCount++
+                        } else {
+                            step = 2
+                        }
                     }
                     if (isVideoMedia(e.url)) {
                         GiftVideo(e.url, Modifier.fillMaxSize()) { selesai() }
@@ -1042,27 +1084,50 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                 )
             }
         }
-        // Naik tinggi, sekali per putaran animasi.
-        LaunchedEffect(playCount) {
-            rise = 0f
-            val start = System.currentTimeMillis()
-            val lama = 2400L
-            while (System.currentTimeMillis() - start < lama) {
-                delay(16)
-                rise = tinggiNaik * ((System.currentTimeMillis() - start) / lama.toFloat()).coerceIn(0f, 1f)
+        if (!bawaan) {
+            // Naik tinggi, sekali per putaran animasi (hanya animasi dari panel).
+            LaunchedEffect(playCount) {
+                rise = 0f
+                val start = System.currentTimeMillis()
+                val lama = 2400L
+                while (System.currentTimeMillis() - start < lama) {
+                    delay(16)
+                    rise = tinggiNaik * ((System.currentTimeMillis() - start) / lama.toFloat()).coerceIn(0f, 1f)
+                }
             }
-        }
-        // Dialog baru muncul setelah waktu meluncur benar-benar habis.
-        LaunchedEffect(e.id) {
-            val sisa = e.end - System.currentTimeMillis()
-            if (sisa > 0L) delay(sisa)
-            step = 1
+            // Dialog baru muncul setelah waktu meluncur benar-benar habis.
+            LaunchedEffect(e.id) {
+                val sisa = e.end - System.currentTimeMillis()
+                if (sisa > 0L) delay(sisa)
+                step = 2
+            }
+        } else {
+            // Pengaman: hanya kalau video gagal diputar. Mengikuti panjang video
+            // roketnya (bukan timer tetap) ditambah jeda aman.
+            LaunchedEffect(e.id) {
+                delay(RocketCfg.videoMs(e.url) + 2500L)
+                if (step == 0) step = if (burstUrl != null) 1 else 2
+            }
         }
     }
 
+    // Tahap 1: roket pecah di atas (hanya untuk level yang punya videonya).
+    if (e != null && step == 1 && burstUrl != null) {
+        Box(Modifier.fillMaxSize()) {
+            GiftVideo(burstUrl, Modifier.fillMaxSize()) { step = 2 }
+        }
+        LaunchedEffect(e.id, "burst") {
+            delay(RocketCfg.videoMs(burstUrl) + 2500L)
+            if (step == 1) step = 2
+        }
+    }
+
+    // Tahap 2: video selesai. Kalau masih ada roket berikutnya yang sudah penuh
+    // di antrean, langsung lanjut ke roket itu tanpa menunggu dialog. Hadiah
+    // ditampilkan sekali setelah rangkaian peluncuran terakhir selesai.
     LaunchedEffect(e?.id, step) {
         val cur = e ?: return@LaunchedEffect
-        if (step != 1 || dialogMode.isNotBlank()) return@LaunchedEffect
+        if (step != 2 || dialogMode.isNotBlank()) return@LaunchedEffect
         val mode = if (cur.uid == myUid) {
             "launch"
         } else if (RocketRepo.canLucky(myUid, cur.id)) {
@@ -1070,11 +1135,21 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
         } else {
             ""
         }
-        if (mode.isBlank()) {
+        if (pending.isNotEmpty()) {
+            // Roket berikutnya sudah penuh: langsung meluncur. Hadiah roket ini
+            // disimpan dan ditampilkan di akhir rangkaian.
+            if (mode.isNotBlank()) tertunda = tertunda + (cur to mode)
+            ev = null
+            step = 0
+            playCount = 0
+        } else if (mode.isBlank() && tertunda.isEmpty()) {
             ev = null
             step = 0
         } else {
-            dialogMode = mode
+            // Akhir rangkaian: tampilkan hadiah paling akhir (atau yang tertunda).
+            val tampil = if (mode.isNotBlank()) mode else tertunda.last().second
+            tertunda = emptyList()
+            dialogMode = tampil
         }
     }
 
