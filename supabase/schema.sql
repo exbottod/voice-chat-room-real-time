@@ -313,6 +313,29 @@ grant execute on function public.w_buy_vip(text,int) to service_role;
 grant execute on function public.w_buy_item(text,text,bigint,bigint) to service_role;
 grant execute on function public.w_equip(text,text,text) to service_role;
 grant execute on function public.w_claim_level(text) to service_role;
+
+-- Reset saldo semua user (dipakai tombol panel). Satu perintah, aman untuk
+-- jumlah user besar; mengembalikan jumlah baris yang berubah.
+create or replace function public.w_admin_reset_all(p_field text)
+returns integer language plpgsql security definer set search_path = public as $$
+declare n integer;
+begin
+  if p_field = 'coins' then
+    update public.wallets set coins = 0, updated_at = now() where coins <> 0;
+  elsif p_field = 'diamonds' then
+    update public.wallets set diamonds = 0, updated_at = now() where diamonds <> 0;
+  else
+    raise exception 'Kolom tidak dikenal';
+  end if;
+  get diagnostics n = row_count;
+  return n;
+end
+$$;
+
+revoke all on function public.w_admin_reset_all(text) from public, anon, authenticated;
+grant execute on function public.w_admin_reset_all(text) to service_role;
+
+
 grant execute on function public.w_backfill_vip(text) to service_role;
 revoke all on public.money_tx from anon, authenticated;
 grant select, insert on public.money_tx to service_role;

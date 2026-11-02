@@ -581,6 +581,32 @@ async function sbRest(path: string, init: RequestInit = {}): Promise<Response> {
   });
 }
 
+/**
+ * Kosongkan satu kolom saldo untuk semua user dengan satu perintah di database.
+ * Hasilnya jumlah baris yang berubah (0 kalau sudah kosong), atau null kalau gagal.
+ */
+async function resetAllField(field: "coins" | "diamonds"): Promise<number | null> {
+  const r = await sbRest("rpc/w_admin_reset_all", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ p_field: field }),
+  });
+  if (r.ok) {
+    const n = await r.json().catch(() => null);
+    if (typeof n === "number") return n;
+  }
+  // Cadangan kalau fungsi database belum dipasang: update tanpa mengembalikan data.
+  const r2 = await sbRest(`wallets?${field}=neq.0&select=uid`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal, count=exact" },
+    body: JSON.stringify({ [field]: 0, updated_at: new Date().toISOString() }),
+  });
+  if (!r2.ok) return null;
+  const cr = r2.headers.get("content-range") ?? "";
+  const m = cr.match(/\/(\d+)$/);
+  return m ? Number(m[1]) : 0;
+}
+
 async function adminWallet(uid: string): Promise<Record<string, unknown> | null> {
   const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(uid)}&select=*`);
   if (!r.ok) return null;
@@ -717,14 +743,12 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
   }
 
   if (op === "reset_all") {
-    const r = await sbRest("wallets?coins=neq.0", {
-      method: "PATCH",
-      headers: { Prefer: "return=representation" },
-      body: JSON.stringify({ coins: 0, updated_at: new Date().toISOString() }),
-    });
-    if (!r.ok) return json({ ok: 0, e: "Gagal reset semua" }, 200);
-    const rows = await r.json().catch(() => []);
-    return json({ ok: 1, count: Array.isArray(rows) ? rows.length : 0 });
+    // Satu perintah SQL di database. Cara lama (PATCH + return=representation)
+    // mengembalikan seluruh isi tabel sekaligus sehingga fungsi kehabisan
+    // tenaga (HTTP 546) waktu user sudah banyak.
+    const n = await resetAllField("coins");
+    if (n === null) return json({ ok: 0, e: "Gagal reset semua" }, 200);
+    return json({ ok: 1, count: n });
   }
 
   // ---- reset diamond (panel developer) ----
@@ -738,13 +762,8 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
   }
 
   if (op === "reset_gem_all") {
-    const r = await sbRest("wallets?diamonds=neq.0", {
-      method: "PATCH",
-      headers: { Prefer: "return=representation" },
-      body: JSON.stringify({ diamonds: 0, updated_at: new Date().toISOString() }),
-    });
-    if (!r.ok) return json({ ok: 0, e: "Gagal reset semua diamond" }, 200);
-    const rows = await r.json().catch(() => []);
+    const n = await resetAllField("diamonds");
+    if (n === null) return json({ ok: 0, e: "Gagal reset semua diamond" }, 200);
     // audit trail: catat siapa yang mengosongkan diamond semua user
     await sbRest("money_tx", {
       method: "POST",
@@ -755,7 +774,7 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
         amount: 0,
       }),
     });
-    return json({ ok: 1, count: Array.isArray(rows) ? rows.length : 0 });
+    return json({ ok: 1, count: n });
   }
 
   return json({ ok: 0, e: "Operasi tidak dikenal" }, 400);

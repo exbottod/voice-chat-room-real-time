@@ -1476,7 +1476,7 @@ async function walletAdmin(p){
     body: JSON.stringify({ a: "admin", t: idToken, p })
   });
   const out = await res.json().catch(() => ({}));
-  if (!out.ok) throw new Error(out.e || ("HTTP " + res.status));
+  if (!out.ok) throw new Error(out.e || (res.status === 546 ? "Server kehabisan tenaga (546), coba lagi" : ("HTTP " + res.status)));
   return out;
 }
 async function cldUpload(file, name){
