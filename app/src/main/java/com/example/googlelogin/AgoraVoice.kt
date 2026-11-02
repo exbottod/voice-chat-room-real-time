@@ -40,6 +40,8 @@ object AgoraVoice {
 
     @Volatile private var inChannel = false
 
+    @Volatile private var joined = false
+
     @Volatile private var roomId: String? = null
 
     @Volatile private var wantSpeaking = false
@@ -63,6 +65,7 @@ object AgoraVoice {
         }
 
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
+            joined = true
             lastStatus = "OK joined $channel"
             Log.i(TAG, lastStatus)
         }
@@ -94,8 +97,11 @@ object AgoraVoice {
                 mEventHandler = handler
             }
             RtcEngine.create(cfg).also {
-                it.setAudioProfile(Constants.AUDIO_PROFILE_DEFAULT, Constants.AUDIO_SCENARIO_GAME_STREAMING)
+                it.setAudioProfile(Constants.AUDIO_PROFILE_SPEECH_STANDARD, Constants.AUDIO_SCENARIO_CHATROOM)
                 it.enableAudio()
+                // Suara room harus keluar dari speaker, bukan earpiece.
+                try { it.setDefaultAudioRoutetoSpeakerphone(true) } catch (e: Exception) { }
+                try { it.setEnableSpeakerphone(true) } catch (e: Exception) { }
                 engine = it
                 appIdInUse = use
             }
@@ -146,28 +152,40 @@ object AgoraVoice {
         joinJob?.cancel()
         roomId = id
         joinJob = scope.launch {
-            val t = fetchToken(id) ?: return@launch
+            // Coba minta token; kalau worker gagal, tetap coba masuk tanpa token
+            // (berhasil bila project Agora tidak memakai sertifikat).
+            val t = fetchToken(id)
             if (roomId != id) return@launch
-            val e = ensure(app, t.appId) ?: return@launch
+            val useAppId = t?.appId?.takeIf { it.isNotBlank() } ?: BuildConfig.AGORA_APP_ID
+            val e = ensure(app, useAppId) ?: return@launch
             if (inChannel) {
                 e.leaveChannel()
                 inChannel = false
             }
-            val token = t.token
             val opt = ChannelMediaOptions().apply {
                 clientRoleType = Constants.CLIENT_ROLE_AUDIENCE
                 channelProfile = Constants.CHANNEL_PROFILE_LIVE_BROADCASTING
                 autoSubscribeAudio = true
                 publishMicrophoneTrack = false
             }
-            val r = e.joinChannel(token, id, 0, opt)
+            val r = e.joinChannel(t?.token ?: "", id, 0, opt)
             if (r != 0) {
                 problem("Suara mati: joinChannel gagal $r")
                 return@launch
             }
             inChannel = true
             e.muteAllRemoteAudioStreams(muteRemote)
+            try { e.setEnableSpeakerphone(true) } catch (ex: Exception) { }
             applyRole()
+
+            // Kalau 8 detik belum benar-benar masuk channel, coba sekali lagi.
+            kotlinx.coroutines.delay(8000)
+            if (roomId != id) return@launch
+            if (!joined) {
+                lastStatus = "Suara: menyambung ulang…"
+                Log.e(TAG, lastStatus)
+                join(ctx, id)
+            }
         }
     }
 
@@ -196,6 +214,7 @@ object AgoraVoice {
 
     fun leave() {
         joinJob?.cancel()
+        joined = false
         roomId = null
         wantSpeaking = false
         muteRemote = false

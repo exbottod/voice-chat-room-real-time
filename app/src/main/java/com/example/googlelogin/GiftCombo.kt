@@ -56,39 +56,91 @@ object GiftCombo {
     }
 }
 
-/** Kirim ulang gift yang sama untuk klik kombo. */
-suspend fun sendComboGift(myUid: String, myName: String, s: GiftCombo.Sess): String? {
-    val g = GiftCatalog.list.firstOrNull { it.id == s.giftId } ?: return "Gift tidak ditemukan"
-    val total = g.price * s.count
-    val uids = if (s.targetUid.isNotBlank()) listOf(s.targetUid) else emptyList()
-    val err = try {
-        WalletRepo.sendGift(myUid, total, g.id, s.roomId, uids, total)
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-        "Gagal memproses gift"
-    }
-    if (err != null) return err
-    try { RoomExtras.sendGiftMessage(s.roomId, myName, g, s.count, s.targetName) } catch (e: Exception) { }
-    try {
-        GiftFx.sent(
-            s.roomId,
-            myUid,
-            myName,
-            g,
-            s.count,
-            if (uids.isEmpty()) 1 else uids.size,
-            s.targetUid,
-            s.targetName,
-            s.seat,
-            if (s.targetUid.isNotBlank()) listOf(Triple(s.targetUid, s.targetName, s.seat)) else emptyList(),
-        )
-    } catch (e: Exception) { }
-    if (s.seat >= 0) {
+/** Efek lokal yang langsung tampil saat tombol diketuk (tanpa menunggu server). */
+private val visualScope = kotlinx.coroutines.CoroutineScope(
+    kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main,
+)
+
+fun playComboVisuals(myUid: String, myName: String, s: GiftCombo.Sess) {
+    visualScope.launch {
+        val g = GiftCatalog.list.firstOrNull { it.id == s.giftId } ?: return@launch
+        val uids = if (s.targetUid.isNotBlank()) listOf(s.targetUid) else emptyList()
+        try { RoomExtras.sendGiftMessage(s.roomId, myName, g, s.count, s.targetName) } catch (e: Exception) { }
         try {
-            Rtdb.ref("micPoints/" + s.roomId + "/" + s.seat)
-                .setValue(ServerValue.increment(g.price * s.count))
+            GiftFx.sent(
+                s.roomId,
+                myUid,
+                myName,
+                g,
+                s.count,
+                if (uids.isEmpty()) 1 else uids.size,
+                s.targetUid,
+                s.targetName,
+                s.seat,
+                if (s.targetUid.isNotBlank()) listOf(Triple(s.targetUid, s.targetName, s.seat)) else emptyList(),
+            )
         } catch (e: Exception) { }
+        if (s.seat >= 0) {
+            try {
+                Rtdb.ref("micPoints/" + s.roomId + "/" + s.seat)
+                    .setValue(ServerValue.increment(g.price * s.count))
+            } catch (e: Exception) { }
+        }
     }
-    return null
+}
+
+/**
+ * Antrean kirim kombo.
+ *
+ * Ketukan cepat digabung dalam jendela 150 ms lalu dikirim sebagai satu
+ * permintaan, jadi tombol terasa instan dan server tidak kebanjiran request.
+ */
+object GiftComboSend {
+    private val scope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
+    )
+    private class Tap(val s: GiftCombo.Sess, val n: Int, val uid: String)
+    private val taps = kotlinx.coroutines.channels.Channel<Tap>(256)
+
+    /** Pesan error terakhir untuk ditampilkan di tombol kombo. */
+    var lastError by mutableStateOf<String?>(null)
+
+    init {
+        scope.launch {
+            for (first in taps) {
+                var cur = first
+                var n = first.n
+                // Kumpulkan ketukan berikutnya yang cepat.
+                while (true) {
+                    val more = kotlinx.coroutines.withTimeoutOrNull(150L) { taps.receive() }
+                        ?: break
+                    if (more.s.giftId != cur.s.giftId || more.s.roomId != cur.s.roomId) {
+                        // Gift/room berbeda: kirim yang terkumpul dulu, sisanya antre berikutnya.
+                        taps.trySend(more)
+                        break
+                    }
+                    cur = more
+                    n += more.n
+                }
+                val s = cur.s
+                val g = GiftCatalog.list.firstOrNull { it.id == s.giftId } ?: continue
+                val total = g.price * s.count * n
+                val uids = if (s.targetUid.isNotBlank()) listOf(s.targetUid) else emptyList()
+                val err = try {
+                    WalletRepo.sendGift(cur.uid, total, g.id, s.roomId, uids, total)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    "Gagal memproses gift"
+                }
+                if (err != null) lastError = err
+            }
+        }
+    }
+
+    fun enqueue(s: GiftCombo.Sess, uid: String, n: Int = 1) {
+        taps.trySend(Tap(s, n, uid))
+    }
 }
 
 /** Tombol kombo bulat gaya "Beri terus" dengan cincin waktu, di kanan bawah. */
@@ -97,7 +149,6 @@ fun GiftComboBar(myUid: String, myName: String) {
     val s = GiftCombo.session ?: return
     val scope = rememberCoroutineScope()
     var note by remember { mutableStateOf<String?>(null) }
-    var inFlight by remember { mutableStateOf(0) }
     var frac by remember { mutableStateOf(1f) }
     val gift = remember(s.giftId) { GiftCatalog.list.firstOrNull { it.id == s.giftId } }
 
@@ -123,7 +174,7 @@ fun GiftComboBar(myUid: String, myName: String) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                note ?: "Kombo x${GiftCombo.combo}",
+                note ?: GiftComboSend.lastError ?: "Kombo x${GiftCombo.combo}",
                 color = Color.White,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -167,17 +218,12 @@ fun GiftComboBar(myUid: String, myName: String) {
                             ),
                         )
                         .clickable {
-                            // Ketukan langsung terasa: kombo naik dulu, gift dikirim di belakang.
+                            // Instan: kombo naik, gift langsung terbang, tagihan diantre di belakang.
                             GiftCombo.touch()
                             note = null
-                            if (inFlight < 3) {
-                                inFlight += 1
-                                val sess = s
-                                scope.launch {
-                                    val e = try { sendComboGift(myUid, myName, sess) } finally { inFlight -= 1 }
-                                    if (e != null) note = e
-                                }
-                            }
+                            GiftComboSend.lastError = null
+                            playComboVisuals(myUid, myName, s)
+                            GiftComboSend.enqueue(s, myUid, 1)
                         },
                     contentAlignment = Alignment.Center,
                 ) {
