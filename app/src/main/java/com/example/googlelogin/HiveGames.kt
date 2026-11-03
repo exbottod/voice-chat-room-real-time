@@ -350,30 +350,50 @@ fun HiveHubScreen(uid: String, onClose: () -> Unit) {
  * Halaman tidak pernah diperbesar, jadi game yang sudah pas tidak berubah.
  */
 private const val FIT_JS = """(function(){
-  if (window.__rezoFitInit) { try { window.__rezoFit(); } catch(e){} return; }
+  if (window.__rezoFitInit) { try{window.__rezoFit();}catch(e){} return; }
   window.__rezoFitInit = 1;
   window.__rezoFit = function(){
     try {
       var h = document.documentElement, b = document.body;
-      if (!h) return;
-      h.style.zoom = "";
+      if (!h || !b) return;
       var vw = window.innerWidth, vh = window.innerHeight;
       if (vw < 50 || vh < 50) return;
-      var w = Math.max(h.scrollWidth || 0, b ? (b.scrollWidth || 0) : 0);
-      var ht = Math.max(h.scrollHeight || 0, b ? (b.scrollHeight || 0) : 0);
-      var z = 1;
-      if (w > vw * 1.03) z = Math.min(z, vw / w);
-      if (ht > vh * 1.03) z = Math.min(z, vh / ht);
-      z = Math.max(0.5, Math.min(1, z));
-      if (z < 0.995) h.style.zoom = z;
+      var z = window.__rezoZ || 1;
+      for (var pass = 0; pass < 6; pass++) {
+        h.style.zoom = z < 0.995 ? String(z) : "";
+        var maxR = vw, maxB = vh;
+        var els = b.getElementsByTagName("*");
+        for (var i = 0; i < els.length; i++) {
+          var r = els[i].getBoundingClientRect();
+          if (r.width < 24 || r.height < 24) continue;
+          if (r.right > maxR) maxR = r.right;
+          if (r.bottom > maxB) maxB = r.bottom;
+        }
+        if (h.scrollWidth > maxR) maxR = h.scrollWidth;
+        if (h.scrollHeight > maxB) maxB = h.scrollHeight;
+        var perlu = Math.min(vw / maxR, vh / maxB);
+        if (perlu > 0.995) break;
+        var baru = Math.max(0.6, z * perlu);
+        if (baru >= z - 0.004) break;
+        z = baru;
+      }
+      window.__rezoZ = z;
+      h.style.zoom = z < 0.995 ? String(z) : "";
     } catch(e) {}
   };
-  setTimeout(window.__rezoFit, 700);
-  setTimeout(window.__rezoFit, 1800);
-  setTimeout(window.__rezoFit, 3500);
-  setTimeout(window.__rezoFit, 6500);
-  window.addEventListener("resize", function(){ setTimeout(window.__rezoFit, 400); });
-  window.addEventListener("orientationchange", function(){ setTimeout(window.__rezoFit, 700); });
+  var jadwal = [400, 900, 1500, 2400, 3600, 5200, 7500, 10000, 14000, 19000];
+  for (var k = 0; k < jadwal.length; k++) setTimeout(window.__rezoFit, jadwal[k]);
+  window.addEventListener("resize", function(){ setTimeout(window.__rezoFit, 300); });
+  window.addEventListener("orientationchange", function(){ setTimeout(window.__rezoFit, 600); });
+  try {
+    var mo = new MutationObserver(function(){
+      clearTimeout(window.__rezoFitT);
+      window.__rezoFitT = setTimeout(window.__rezoFit, 500);
+    });
+    document.addEventListener("DOMContentLoaded", function(){
+      try { mo.observe(document.body, {childList:true, subtree:true}); } catch(e){}
+    });
+  } catch(e) {}
 })();"""
 
 
