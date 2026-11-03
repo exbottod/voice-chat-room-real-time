@@ -1,28 +1,8 @@
 <!DOCTYPE html>
 <html lang="id"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=460,user-scalable=no,viewport-fit=cover">
 <title>Greedy Baby</title>
 <link rel="stylesheet" href="style.css">
-<script>
-/* Kanvas desain game ini 460px. Di layar sempit (360dp) semua elemen jadi
-   terlalu besar, jadi seluruh halaman diperkecil supaya pas dengan layar
-   dan tampilannya sama di semua HP. */
-(function () {
-  function fit() {
-    var de = document.documentElement;
-    de.style.zoom = "1";
-    var w = de.clientWidth || window.innerWidth || 0;
-    if (!w) return;
-    var z = Math.min(1, w / 460);
-    if (z < 0.8) z = 0.8;
-    de.style.zoom = z;
-  }
-  document.addEventListener("DOMContentLoaded", fit);
-  window.addEventListener("resize", fit);
-  window.addEventListener("orientationchange", fit);
-  fit();
-})();
-</script>
 </head><body>
 <div id="root" class="gg-root">
   <div class="gg-machine">

@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=430,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#360143">
 <title>Lucky 77 — Game Room</title>
 <style>
@@ -80,31 +80,6 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 @media(max-width:350px){.game{padding-left:7px;padding-right:7px}.wheel-wrap{width:calc(100vw - 24px)}.symbol{--distance:31vw}.multi{--distance:15vw}.option{border-width:4px}.chip{border-width:4px}}
 @media(prefers-reduced-motion:reduce){.chip.selected{transform:none}}
 </style>
-<script>
-/* Tampilan game menyesuaikan layar: kanvas desain 0 px diperkecil agar pas
-   di semua HP, dan isi yang melebar dipaksa masuk lebar layar. */
-(function () {
-  var CANVAS = 0;
-  function fit() {
-    var de = document.documentElement;
-    de.style.zoom = "1";
-    var w = de.clientWidth || window.innerWidth || 0;
-    if (!w) return;
-    var z = CANVAS > 0 ? Math.min(1, w / CANVAS) : 1;
-    var over = Math.max(de.scrollWidth || 0, document.body ? (document.body.scrollWidth || 0) : 0);
-    if (over > w + 1) z = Math.min(z, w / over);
-    if (z > 1) z = 1;
-    if (z < 0.7) z = 0.7;
-    de.style.zoom = z;
-  }
-  document.addEventListener("DOMContentLoaded", fit);
-  window.addEventListener("resize", fit);
-  window.addEventListener("orientationchange", fit);
-  setTimeout(fit, 400);
-  setTimeout(fit, 1500);
-  fit();
-})();
-</script>
 </head>
 <body>
 <main class="game">

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="viewport" content="width=640,user-scalable=no,viewport-fit=cover">
     <title>Sloty</title>
     <link rel="stylesheet" href="./style.css">
     <script src="./engine.js" defer></script>
@@ -14,31 +14,6 @@ window.addEventListener('load',function(){
   var rows=[['🍓','42K'],['🍇','16.8K'],['🍑','10K'],['🍐','8.4K'],['🍊','8.4K'],['🍒','6.7K'],['🍎','2.1K'],['7️⃣','scatter']];
   t.innerHTML=rows.map(function(r){return '<div>'+r[0]+'<br>'+r[1]+'</div>';}).join('');
 });
-</script>
-<script>
-/* Tampilan game menyesuaikan layar: kanvas desain 0 px diperkecil agar pas
-   di semua HP, dan isi yang melebar dipaksa masuk lebar layar. */
-(function () {
-  var CANVAS = 0;
-  function fit() {
-    var de = document.documentElement;
-    de.style.zoom = "1";
-    var w = de.clientWidth || window.innerWidth || 0;
-    if (!w) return;
-    var z = CANVAS > 0 ? Math.min(1, w / CANVAS) : 1;
-    var over = Math.max(de.scrollWidth || 0, document.body ? (document.body.scrollWidth || 0) : 0);
-    if (over > w + 1) z = Math.min(z, w / over);
-    if (z > 1) z = 1;
-    if (z < 0.7) z = 0.7;
-    de.style.zoom = z;
-  }
-  document.addEventListener("DOMContentLoaded", fit);
-  window.addEventListener("resize", fit);
-  window.addEventListener("orientationchange", fit);
-  setTimeout(fit, 400);
-  setTimeout(fit, 1500);
-  fit();
-})();
 </script>
 </head>
 <body>
