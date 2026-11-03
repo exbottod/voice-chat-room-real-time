@@ -688,7 +688,7 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
   const p = body.p ?? {};
   const op = String(p.op ?? "");
   const target = String(p.uid ?? "");
-  const tanpaUid = ["reset_all", "reset_gem_all", "pay_get", "pay_set", "manual_pending", "manual_all", "manual_decide"];
+  const tanpaUid = ["reset_all", "reset_gem_all", "reset_all_assets", "delete_users", "pay_get", "pay_set", "manual_pending", "manual_all", "manual_decide"];
   if (!tanpaUid.includes(op) && !target) return json({ ok: 0, e: "uid kosong" }, 400);
 
   const num = (v: unknown) => {

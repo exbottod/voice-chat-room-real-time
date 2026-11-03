@@ -1850,9 +1850,14 @@ const UPLOAD_URL = "https://rezo-agora-token.bangexx01.workers.dev/upload";
 const BACKUP_URL = "https://rezo-agora-token.bangexx01.workers.dev";
 const WALLET_API = "https://fdemjdqagxkhgqkmfvwk.supabase.co/functions/v1/smart-processor";
 const WALLET_KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W";
+/* Operasi massal tidak butuh uid. Versi server lama tetap menolak kalau uid
+   kosong ("uid kosong"), jadi uid netral dikirim supaya tidak error. */
+const OPS_TANPA_UID = new Set(["reset_all", "reset_gem_all", "reset_all_assets", "delete_users",
+  "pay_get", "pay_set", "manual_pending", "manual_all", "manual_decide"]);
 async function walletAdmin(p){
   const u = auth.currentUser;
   if (!u) throw new Error("Belum login");
+  if (OPS_TANPA_UID.has(p.op) && !p.uid) p = Object.assign({}, p, { uid: "-" });
   const idToken = await u.getIdToken(true);
   const res = await fetch(WALLET_API, {
     method: "POST",
