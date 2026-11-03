@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +44,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -346,6 +349,56 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
     val url = remember(game.id, uid) { HiveGames.launchUrl(game, uid) }
     val act = ctx.activityOrNull()
 
+    // ==== Top 3 pemenang versi REZO ====
+    // Dialog di dalam game Hive milik server Hive, jadi peringkat pemain REZO
+    // ditampilkan di lapisan app: tombol 🏆 kapan saja + otomatis saat menang.
+    var top3 by remember { mutableStateOf<List<JsonTop>>(emptyList()) }
+    var myWin by remember { mutableStateOf(0L) }
+    var showTop by remember { mutableStateOf(false) }
+    var topLoading by remember { mutableStateOf(false) }
+    val scope3 = rememberCoroutineScope()
+
+    fun muatTop3(buka: Boolean) {
+        if (topLoading) return
+        topLoading = true
+        scope3.launch {
+            val o = SupaRepo.hiveRank(game.thirdPartyId.toString())
+            if (o != null && o.optInt("ok") == 1) {
+                val arr = o.optJSONArray("top")
+                val list = ArrayList<JsonTop>()
+                if (arr != null) for (i in 0 until arr.length()) {
+                    val x = arr.optJSONObject(i) ?: continue
+                    list.add(
+                        JsonTop(
+                            rank = x.optInt("rank", i + 1),
+                            name = x.optString("name", "Player").ifBlank { "Player" },
+                            avatar = x.optString("avatar", ""),
+                            win = x.optLong("win"),
+                        )
+                    )
+                }
+                top3 = list
+                myWin = o.optJSONObject("me")?.optLong("win") ?: 0L
+            }
+            topLoading = false
+            if (buka) showTop = true
+        }
+    }
+
+    // Saldo naik = baru menang: dialog Top 3 muncul sendiri.
+    LaunchedEffect(uid, game.id) {
+        var saldoLama: Long? = null
+        while (true) {
+            delay(10_000)
+            val w = SupaRepo.get(uid).wallet?.coins
+            if (w != null) {
+                val lama = saldoLama
+                if (lama != null && w > lama) muatTop3(buka = true)
+                saldoLama = w
+            }
+        }
+    }
+
     // Game lanskap diputar otomatis; orientasi lama dikembalikan saat keluar.
     DisposableEffect(game.landscape, act) {
         val old = act?.requestedOrientation
@@ -463,5 +516,110 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                 }
             },
         )
+
+        // Tombol papan Top 3 REZO (tidak menutupi tombol game).
+        Box(
+            Modifier.align(Alignment.TopStart).padding(6.dp).size(30.dp)
+                .clip(RoundedCornerShape(15.dp))
+                .background(Color(0x99000000))
+                .clickable { muatTop3(buka = true) },
+            contentAlignment = Alignment.Center,
+        ) { Text("🏆", fontSize = 14.sp) }
+
+        if (showTop) {
+            Box(Modifier.fillMaxSize().background(Color(0xCC000000)).clickable { showTop = false })
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                TopThreeCard(
+                    list = top3,
+                    myWin = myWin,
+                    loading = topLoading,
+                    onClose = { showTop = false },
+                )
+            }
+        }
+    }
+}
+
+private data class JsonTop(val rank: Int, val name: String, val avatar: String, val win: Long)
+
+private fun fmtWin(n: Long): String {
+    val v = n.toDouble()
+    val s = when {
+        v >= 1e12 -> "%.2fT".format(v / 1e12)
+        v >= 1e9 -> "%.2fB".format(v / 1e9)
+        v >= 1e6 -> "%.2fM".format(v / 1e6)
+        v >= 1e3 -> "%.1fK".format(v / 1e3)
+        else -> n.toString()
+    }
+    return s.replace(".00", "").replace("T", "T").let { if (it.endsWith(".0")) it.dropLast(2) else it }
+}
+
+/** Kartu Top 1-3 pemenang game (data dari catatan menang di server REZO). */
+@Composable
+private fun TopThreeCard(
+    list: List<JsonTop>,
+    myWin: Long,
+    loading: Boolean,
+    onClose: () -> Unit,
+) {
+    Column(
+        Modifier.padding(18.dp).fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF141018))
+            .border(1.dp, Color(0xFF3A2E4A), RoundedCornerShape(16.dp))
+            .padding(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("Top 3 Pemenang", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text("24 jam terakhir · pemain REZO", color = Color(0xFF9A93A6), fontSize = 11.sp)
+        Spacer(Modifier.height(10.dp))
+        if (loading && list.isEmpty()) {
+            CircularProgressIndicator(color = Gold, modifier = Modifier.size(22.dp))
+        } else if (list.isEmpty()) {
+            Text("Belum ada pemenang", color = Color.White, fontSize = 12.sp)
+        } else {
+            list.forEach { t ->
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        when (t.rank) { 1 -> "1"; 2 -> "2"; else -> "3" },
+                        color = when (t.rank) { 1 -> Gold; 2 -> Color(0xFFC9C9D1); else -> Color(0xFFC58B58) },
+                        fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.width(20.dp),
+                    )
+                    if (t.avatar.isNotBlank()) {
+                        AsyncImage(
+                            model = t.avatar,
+                            contentDescription = t.name,
+                            modifier = Modifier.size(26.dp).clip(RoundedCornerShape(13.dp)),
+                        )
+                    } else {
+                        Box(
+                            Modifier.size(26.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFF2A2135)),
+                            contentAlignment = Alignment.Center,
+                        ) { Text("👤", fontSize = 12.sp) }
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        t.name, color = Color.White, fontSize = 12.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("🪙 " + fmtWin(t.win), color = Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        if (myWin > 0) {
+            Spacer(Modifier.height(8.dp))
+            Text("Kemenangan kamu: 🪙 " + fmtWin(myWin), color = Color(0xFF7CE38B), fontSize = 12.sp)
+        }
+        Spacer(Modifier.height(12.dp))
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                .background(Gold).clickable { onClose() }.padding(vertical = 9.dp),
+            contentAlignment = Alignment.Center,
+        ) { Text("Tutup", color = Color(0xFF1A1206), fontSize = 13.sp, fontWeight = FontWeight.Bold) }
     }
 }

@@ -1406,6 +1406,58 @@ async function topupHistory(uid: string): Promise<Response> {
   return json({ ok: 1, list: rows });
 }
 
+// ---------- Peringkat pemenang game Hive (Top 1-3) ----------
+// Game Hive menampilkan dialog sendiri yang isinya dari server Hive, jadi
+// pemenang antar pemain REZO dihitung di sini dari catatan menang (kind=2)
+// pada tabel wave_tx. Dipakai app untuk dialog Top 3 versi REZO.
+async function hiveRank(uid: string, p: Record<string, unknown>): Promise<Response> {
+  const game = String(p.game ?? "").trim();
+  const hours = Math.min(Math.max(Number(p.hours ?? 24), 1), 24 * 14);
+  const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+  const q = new URLSearchParams({
+    select: "uid,amount",
+    kind: "eq.2",
+    created_at: `gte.${since}`,
+    order: "created_at.desc",
+    limit: "4000",
+  });
+  if (game) q.set("game_name", `eq.hive:${game}`);
+  const r = await sbRest(`wave_tx?${q.toString()}`);
+  const rows = r.ok ? await r.json().catch(() => []) : [];
+  const total = new Map<string, number>();
+  for (const row of (rows as Array<{ uid: string; amount: number }>)) {
+    if (!row?.uid) continue;
+    const amt = Number(row.amount ?? 0);
+    if (!Number.isFinite(amt) || amt <= 0) continue;
+    total.set(row.uid, (total.get(row.uid) ?? 0) + amt);
+  }
+  const sorted = [...total.entries()].sort((a, b) => b[1] - a[1]);
+  const top = sorted.slice(0, 3);
+  const ids = top.map((e) => e[0]);
+  let profil = new Map<string, { name: string; avatar: string }>();
+  if (ids.length) {
+    const pq = new URLSearchParams({ select: "uid,name,avatar", uid: `in.(${ids.join(",")})` });
+    const pr = await sbRest(`wave_players?${pq.toString()}`);
+    const prow = pr.ok ? await pr.json().catch(() => []) : [];
+    profil = new Map((prow as Array<{ uid: string; name: string; avatar: string }>)
+      .map((x) => [x.uid, { name: String(x.name ?? ""), avatar: String(x.avatar ?? "") }]));
+  }
+  const rankSaya = sorted.findIndex((e) => e[0] === uid);
+  return json({
+    ok: 1,
+    game,
+    top: top.map((e, i) => ({
+      rank: i + 1,
+      uid: e[0],
+      name: (profil.get(e[0])?.name || "Player"),
+      avatar: (profil.get(e[0])?.avatar || ""),
+      win: hiveSafe(e[1]),
+      me: e[0] === uid,
+    })),
+    me: { win: hiveSafe(total.get(uid) ?? 0), rank: rankSaya >= 0 ? rankSaya + 1 : 0 },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   const wpath = new URL(req.url).pathname.replace(/\/+$/, "").toLowerCase();
@@ -1439,6 +1491,7 @@ Deno.serve(async (req) => {
     "topup_history",
     "rocket_claim",
     "gift_cashback",
+    "hive_rank",
   ]);
   const fn = ACTIONS[action];
   if ((!fn && !DIRECT.has(action)) || !body.t) {
@@ -1467,6 +1520,7 @@ Deno.serve(async (req) => {
   if (action === "topup_history") return await topupHistory(uid);
   if (action === "rocket_claim") return await rocketClaim(uid, p);
   if (action === "gift_cashback") return await giftCashback(uid, p);
+  if (action === "hive_rank") return await hiveRank(uid, p);
   // Nama parameter HARUS persis dengan definisi fungsi SQL (p_*).
   let params: Record<string, unknown>;
   switch (action) {

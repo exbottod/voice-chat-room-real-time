@@ -288,6 +288,24 @@ object SupaRepo {
 
     suspend fun get(uid: String) = call("get", uidJson(uid))
 
+    /** Balasan mentah (tidak diubah jadi Wallet), untuk aksi yang bentuknya lain. */
+    private suspend fun raw(action: String, params: org.json.JSONObject): org.json.JSONObject? =
+        withContext(Dispatchers.IO) {
+            try {
+                var token = token() ?: return@withContext null
+                val body = org.json.JSONObject().put("a", action).put("t", token).put("p", params)
+                var (_, txt) = postWallet(body)
+                if (txt.isBlank()) return@withContext null
+                org.json.JSONObject(txt)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+    /** Top 1-3 pemenang game Hive (24 jam terakhir) versi REZO. */
+    suspend fun hiveRank(game: String): org.json.JSONObject? =
+        raw("hive_rank", org.json.JSONObject().put("game", game))
+
     /** Pindahkan saldo lama dari Firestore ke Supabase (sekali seumur user, aman diulang). */
     suspend fun migrate(uid: String, w: Wallet): Res {
         val p = uidJson(uid)
