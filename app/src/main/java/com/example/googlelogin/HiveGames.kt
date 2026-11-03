@@ -469,7 +469,37 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { c ->
-                WebView(c).apply {
+                // Halaman game dilukis pada lebar desain aslinya (720 px) lalu
+                // diperkecil/diperbesar pas ke layar. Dengan cara ini tata letak
+                // game sama seperti aslinya dan tidak ada bagian yang terpotong.
+                val wv = WebView(c)
+                val density = c.resources.displayMetrics.density
+                val designWpx = (720f * density).toInt()
+                val fit = android.widget.FrameLayout(c).apply {
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                    addView(
+                        wv,
+                        android.widget.FrameLayout.LayoutParams(
+                            designWpx, designWpx, android.view.Gravity.CENTER,
+                        ),
+                    )
+                    fun applyFit() {
+                        if (width <= 0 || height <= 0) return
+                        val hPx = (designWpx.toFloat() * height / width).toInt().coerceAtLeast(1)
+                        val lp = wv.layoutParams as android.widget.FrameLayout.LayoutParams
+                        if (lp.width != designWpx || lp.height != hPx) {
+                            lp.width = designWpx
+                            lp.height = hPx
+                            wv.layoutParams = lp
+                        }
+                        val sc = width.toFloat() / designWpx
+                        wv.scaleX = sc
+                        wv.scaleY = sc
+                    }
+                    addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyFit() }
+                    post { applyFit() }
+                }
+                wv.apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
@@ -559,6 +589,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                     web = this
                     loadUrl(url)
                 }
+                fit
             },
         )
 
