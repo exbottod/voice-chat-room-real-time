@@ -1522,6 +1522,37 @@ $("rsAllDo").onclick = async () => {
   $("rsAllDo").disabled = false;
 };
 
+/* ---------- Hapus akun: fungsi bersama ---------- */
+/* u = { uid, id, name }. Mengembalikan laporan teks, atau null bila dibatalkan. */
+async function hapusAkun(u){
+  const uid = u.uid, idUser = u.id || "";
+  const blok = await blokOfficial(uid);
+  if (blok) throw new Error("ditolak, " + blok);
+  const judul = "HAPUS AKUN " + (u.name || uid) + (idUser ? (" (ID " + idUser + ")") : "");
+  if (!confirm(judul + "?\n\nSemua data dihapus dan user harus daftar ulang. Tidak bisa dibatalkan.")) return null;
+  if (prompt("Ketik HAPUS huruf kapital untuk konfirmasi:") !== "HAPUS") return null;
+  const lapor = [];
+  try {
+    const r = await walletAdmin({ op: "delete_user", uid });
+    lapor.push("wallet & riwayat dihapus");
+    lapor.push("akun login: " + (r.auth || "?"));
+  } catch (e) {
+    lapor.push("wallet gagal: " + e.message);
+  }
+  for (const jalur of ["pub/" + uid, "ids/u/" + uid, "fxPrefs/" + uid]) {
+    try { await rtdb.ref(jalur).remove(); } catch (e) { /* lanjut */ }
+  }
+  if (idUser) { try { await rtdb.ref("ids/i/" + idUser).remove(); } catch (e) { /* lanjut */ } }
+  try {
+    await db.collection("users").doc(uid).delete();
+    lapor.push("profil dihapus");
+  } catch (e) {
+    lapor.push("profil gagal: " + e.message);
+  }
+  logAction({ type: "deleteUser", uid, targetId: idUser, from: "panel" });
+  return lapor.join(" | ");
+}
+
 /* ---------- Hapus AKUN user (harus daftar ulang) ---------- */
 /* Akun official yang tidak boleh dihapus. Tambahkan UID di sini bila perlu,
    atau tandai true di Realtime Database pada officialUids/<uid>. */
@@ -1559,42 +1590,23 @@ async function blokOfficial(uid){
 }
 $("delDo").onclick = async () => {
   if (!foundCoin) { toast("Cari user dulu di kolom ID user"); return; }
-  const uid = foundCoin.uid, idUser = foundCoin.id;
-  $("delInfo").textContent = "";
-  const blok = await blokOfficial(uid);
-  if (blok) {
-    $("delInfo").textContent = "Ditolak: " + blok;
-    toast("Tidak bisa dihapus: " + blok);
-    return;
-  }
-  if (!confirm("HAPUS AKUN " + foundCoin.name + " (ID " + idUser + ")?\n\nSemua data dihapus dan user harus daftar ulang. Tidak bisa dibatalkan.")) return;
-  if (prompt("Ketik HAPUS huruf kapital untuk konfirmasi:") !== "HAPUS") return;
   $("delDo").disabled = true;
-  $("delInfo").textContent = "Sedang menghapus...";
-  const lapor = [];
+  $("delInfo").textContent = "Memproses...";
   try {
-    const r = await walletAdmin({ op: "delete_user", uid });
-    lapor.push("wallet & riwayat dihapus");
-    lapor.push("akun login: " + (r.auth || "?"));
+    const lapor = await hapusAkun(foundCoin);
+    if (!lapor) {
+      $("delInfo").textContent = "Dibatalkan.";
+    } else {
+      $("delInfo").textContent = lapor;
+      toast("Selesai ✅ " + lapor);
+      foundCoin = null;
+      $("coinForm").style.display = "none";
+      $("coinUser").textContent = "";
+    }
   } catch (e) {
-    lapor.push("wallet gagal: " + e.message);
+    $("delInfo").textContent = "Gagal: " + e.message;
+    toast("Gagal: " + e.message);
   }
-  for (const jalur of ["pub/" + uid, "ids/u/" + uid, "fxPrefs/" + uid]) {
-    try { await rtdb.ref(jalur).remove(); } catch (e) { /* lanjut */ }
-  }
-  if (idUser) { try { await rtdb.ref("ids/i/" + idUser).remove(); } catch (e) { /* lanjut */ } }
-  try {
-    await db.collection("users").doc(uid).delete();
-    lapor.push("profil dihapus");
-  } catch (e) {
-    lapor.push("profil gagal: " + e.message);
-  }
-  logAction({ type: "deleteUser", uid, targetId: idUser, from: "panel" });
-  $("delInfo").textContent = lapor.join(" | ");
-  toast("Selesai ✅ " + lapor.join(", "));
-  foundCoin = null;
-  $("coinForm").style.display = "none";
-  $("coinUser").textContent = "";
   $("delDo").disabled = false;
 };
 
@@ -1675,9 +1687,15 @@ $("coinFind").onclick = async () => {
   foundCoin = null; $("coinForm").style.display = "none"; $("coinUser").textContent = "";
   try {
     foundCoin = await lookup($("coinId").value);
+  } catch (e) { toast(e.message); return; }
+  try {
     await showCoinUser();
-    $("coinForm").style.display = "block";
-  } catch (e) { toast(e.message); }
+  } catch (e) {
+    // Saldo gagal dimuat (misal fungsi belum diperbarui) tetap tampilkan form
+    // supaya Reset user dan Hapus akun tetap bisa dipakai.
+    userCard($("coinUser"), foundCoin, "Saldo tidak bisa dimuat: " + e.message);
+  }
+  $("coinForm").style.display = "block";
 };
 $("coinSend").onclick = async () => {
   if (!foundCoin) return;
@@ -2227,7 +2245,23 @@ $("userLoad").onclick = async () => {
       b1.onclick = () => { if (!d.id) return toast("Akun ini belum punya ID"); goFind("ban", "banId", "banFind", d.id); };
       const b2 = document.createElement("button"); b2.className = "btn"; b2.textContent = "Coin";
       b2.onclick = () => { if (!d.id) return toast("Akun ini belum punya ID"); goFind("coin", "coinId", "coinFind", d.id); };
-      row.append(av, info, b1, b2);
+      const bHapus = document.createElement("button"); bHapus.className = "btn bad"; bHapus.textContent = "Hapus";
+      bHapus.onclick = async () => {
+        bHapus.disabled = true;
+        try {
+          const lapor = await hapusAkun({ uid: d.uid, id: d.id || "", name: name });
+          if (lapor) {
+            toast("Terhapus ✅ " + lapor);
+            $("userLoad").click();
+          } else {
+            toast("Dibatalkan");
+          }
+        } catch (e) {
+          toast("Gagal: " + e.message);
+        }
+        bHapus.disabled = false;
+      };
+      row.append(av, info, b1, b2, bHapus);
       if (!d.id) {
         const b3 = document.createElement("button"); b3.className = "btn"; b3.textContent = "Buat ID";
         b3.onclick = async () => {
