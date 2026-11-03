@@ -48,6 +48,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -112,6 +114,8 @@ private const val P_BLACKLIST = 8
 
 private const val P_MEMBERS = 9
 
+private const val P_EFEK = 10
+
 private val Teal = Color(0xFF2BD9C4)
 
 @Composable
@@ -175,6 +179,9 @@ fun RoomScreen(
     var fxGiftOn by remember { mutableStateOf(true) }
     // Banner efek gift di atas layar: bisa dimatikan dari room.
     var fxBannerOn by remember { mutableStateOf(true) }
+    // Efek roket (peluncuran + ikon di sisi room) dan efek game (banner menang).
+    var fxRocketOn by remember { mutableStateOf(true) }
+    var fxGameOn by remember { mutableStateOf(true) }
     val fxUid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
     DisposableEffect(fxUid) {
         if (fxUid.isBlank()) {
@@ -184,6 +191,8 @@ fun RoomScreen(
                 fxEntryOn = snap.child("entry").getValue(Boolean::class.java) ?: true
                 fxGiftOn = snap.child("gift").getValue(Boolean::class.java) ?: true
                 fxBannerOn = snap.child("banner").getValue(Boolean::class.java) ?: true
+                fxRocketOn = snap.child("rocket").getValue(Boolean::class.java) ?: true
+                fxGameOn = snap.child("game").getValue(Boolean::class.java) ?: true
             }
             onDispose { reg.remove() }
         }
@@ -525,7 +534,7 @@ fun RoomScreen(
 
             // Pengumuman dan notifikasi masuk
             // Banner kemenangan game (terbang di atas daftar chat publik).
-            GameWinBanner()
+            if (fxGameOn) GameWinBanner()
 
             // Tab "Semua | Obrolan": bisa diklik atau digeser kiri/kanan di daftar chat.
             Row(
@@ -594,7 +603,7 @@ fun RoomScreen(
             }
 
                 // Panel melayang sisi kanan: ikon roket + persen menuju level berikutnya.
-                if (ROCKET_ROOM_UI) RocketRail(
+                if (ROCKET_ROOM_UI && fxRocketOn) RocketRail(
                     roomId = r.id,
                     onOpen = { rocketOpen = true },
                     modifier = Modifier
@@ -857,7 +866,7 @@ fun RoomScreen(
         if (fxGiftOn) GiftFlyOverlay(r.id, seatPoints)
         // Peluncuran roket 1..5 berurutan, dengan dialog hadiah bertombol Okey.
         // Build uji: dimatikan sementara untuk mencari penyebab aplikasi macet di room.
-        if (ROCKET_ROOM_UI) RocketLaunchOverlay(r.id, myUid)
+        if (ROCKET_ROOM_UI && fxRocketOn) RocketLaunchOverlay(r.id, myUid)
 
         // Tombol power: keluar / minimalkan
         if (showRank) {
@@ -983,33 +992,8 @@ fun RoomScreen(
                 Text(tr("Efek di layar"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    RmToolToggle(
-                        "Efek masuk",
-                        on = fxEntryOn,
-                        onClick = {
-                            fxEntryOn = !fxEntryOn
-                            if (fxUid.isNotBlank()) Rtdb.ref("fxPrefs/$fxUid/entry").setValue(fxEntryOn)
-                            toast(if (fxEntryOn) "Efek masuk room aktif" else "Efek masuk room dimatikan")
-                        },
-                    ) { Text("🎬", fontSize = 24.sp) }
-                    RmToolToggle(
-                        "Efek gift",
-                        on = fxGiftOn,
-                        onClick = {
-                            fxGiftOn = !fxGiftOn
-                            if (fxUid.isNotBlank()) Rtdb.ref("fxPrefs/$fxUid/gift").setValue(fxGiftOn)
-                            toast(if (fxGiftOn) "Efek gift aktif" else "Efek gift dimatikan")
-                        },
-                    ) { Text("🎁", fontSize = 24.sp) }
-                    RmToolToggle(
-                        "Banner gift",
-                        on = fxBannerOn,
-                        onClick = {
-                            fxBannerOn = !fxBannerOn
-                            if (fxUid.isNotBlank()) Rtdb.ref("fxPrefs/$fxUid/banner").setValue(fxBannerOn)
-                            toast(if (fxBannerOn) "Banner gift aktif" else "Banner gift dimatikan")
-                        },
-                    ) { Text("📢", fontSize = 24.sp) }
+                    // Satu pintu untuk semua efek: masuk, gift, banner, roket, game.
+                    RmTool(tr("Blok Efek"), onClick = { panel = P_EFEK }) { Text("\u2728", fontSize = 24.sp) }
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1177,7 +1161,92 @@ fun RoomScreen(
         if (panel == P_MODE) RmPanel(onDismiss = { panel = P_NONE }) { RmMode(r) { panel = P_NONE } }
         if (panel == P_SETTINGS) RmPanel(onDismiss = { panel = P_NONE }) { RmSettings(r) { panel = P_NONE } }
         if (panel == P_LOCK) RmPanel(onDismiss = { panel = P_NONE }) { RmLock(r) { panel = P_NONE } }
+        if (panel == P_EFEK) RmPanel(onDismiss = { panel = P_NONE }) {
+            RmBlokEfek(
+                masuk = fxEntryOn, gift = fxGiftOn, banner = fxBannerOn, roket = fxRocketOn, game = fxGameOn,
+                onChange = { kunci, nilai ->
+                    when (kunci) {
+                        "entry" -> fxEntryOn = nilai
+                        "gift" -> fxGiftOn = nilai
+                        "banner" -> fxBannerOn = nilai
+                        "rocket" -> fxRocketOn = nilai
+                        "game" -> fxGameOn = nilai
+                    }
+                    if (fxUid.isNotBlank()) Rtdb.ref("fxPrefs/$fxUid/$kunci").setValue(nilai)
+                },
+            )
+        }
     }
+}
+
+/** Satu baris saklar: judul, keterangan, dan tombol geser. */
+@Composable
+private fun RmEfekBaris(judul: String, ket: String, peringatan: String? = null, on: Boolean, onToggle: (Boolean) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(judul, color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
+            Switch(
+                checked = on,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = Teal,
+                    checkedThumbColor = Color.White,
+                    uncheckedTrackColor = Color(0xFF3A3A3A),
+                    uncheckedThumbColor = Color.White,
+                    uncheckedBorderColor = Color(0xFF3A3A3A),
+                ),
+            )
+        }
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Color(0xFF161616)).padding(12.dp)) {
+            Text(ket, color = Color(0xFF9A9A9A), fontSize = 13.sp)
+            if (peringatan != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(peringatan, color = Color(0xFFE06A6A), fontSize = 13.sp)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+    }
+}
+
+/**
+ * Panel "Blok Efek": satu tempat untuk mematikan tiap jenis efek di layar.
+ * Saklar ON = efek tampil, OFF = efek disembunyikan. Disimpan per akun.
+ */
+@Composable
+private fun RmBlokEfek(
+    masuk: Boolean, gift: Boolean, banner: Boolean, roket: Boolean, game: Boolean,
+    onChange: (String, Boolean) -> Unit,
+) {
+    Text(tr("Blok Efek"), color = Color.White, fontSize = 20.sp)
+    Spacer(Modifier.height(4.dp))
+    Text(tr("Hijau berarti efek tampil. Matikan untuk menyembunyikan."), color = Color(0xFF9A9A9A), fontSize = 12.sp)
+    Spacer(Modifier.height(12.dp))
+    RmEfekBaris(
+        tr("Efek masuk room"),
+        tr("Jika dimatikan, animasi pemain VIP yang masuk room tidak diputar."),
+        on = masuk,
+    ) { onChange("entry", it) }
+    RmEfekBaris(
+        tr("Efek gift"),
+        tr("Jika dimatikan, animasi gift dan pecahan cashback di layar tidak diputar."),
+        on = gift,
+    ) { onChange("gift", it) }
+    RmEfekBaris(
+        tr("Banner gift"),
+        tr("Jika dimatikan, banner gift dan banner cashback di atas layar tidak muncul."),
+        on = banner,
+    ) { onChange("banner", it) }
+    RmEfekBaris(
+        tr("Efek roket"),
+        tr("Jika dimatikan, ikon roket di sisi room dan animasi peluncuran roket tidak ditampilkan."),
+        on = roket,
+    ) { onChange("rocket", it) }
+    RmEfekBaris(
+        tr("Efek game"),
+        tr("Jika dimatikan, banner kemenangan game tidak ditampilkan."),
+        peringatan = tr("Ini tidak mengubah hasil game, hanya sembunyikan banner."),
+        on = game,
+    ) { onChange("game", it) }
 }
 
 @Composable
