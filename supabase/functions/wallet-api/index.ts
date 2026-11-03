@@ -139,6 +139,150 @@ function json(body: unknown, status = 200): Response {
 // Token yang dikirim WaveGames = token login Firebase milik pemain (parameter
 // "token" di URL game). Semua perubahan coin tetap di tabel wallets.
 
+// ================= HIVE PLAY (game pihak ketiga) =================
+// Hive memanggil 3 endpoint ini (tanpa token Firebase, keaslian dicek lewat
+// signature md5(signature_nonce + app_key + timestamp)):
+//   /hive/get_sstoken     -> code  => ss_token
+//   /hive/get_user_info   -> ss_token => profil + saldo coin
+//   /hive/change_balance  -> bet/win/refund => saldo terbaru
+// Semua perubahan coin memakai RPC yang sama dengan WaveGames (w_wave_flow),
+// jadi saldo tetap satu sumber dan order ganda tidak diproses dua kali.
+
+const HIVE_APP_ID = "100198";
+const HIVE_KEY = Deno.env.get("HIVE_APP_KEY") ?? "eb09c56d97454d43ab2698ad548697ab";
+const HIVE_CODE_SALT = Deno.env.get("HIVE_CODE_SALT") ?? "rezo-hive-2026";
+const HIVE_MAX_SKEW = 300; // detik
+
+async function md5hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("MD5", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function hiveOk(data: unknown): Response {
+  return json({
+    code: 0,
+    message: "succeed",
+    unique_id: "rezo_" + crypto.randomUUID(),
+    data,
+  });
+}
+
+function hiveFail(message: string, code = 500): Response {
+  return json({ code, message, unique_id: "rezo_" + crypto.randomUUID(), data: null });
+}
+
+async function hiveSsToken(uid: string): Promise<string> {
+  const b = btoa(uid).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return `${b}.${await md5hex(uid + HIVE_KEY)}`;
+}
+
+async function hiveReadToken(token: unknown): Promise<string | null> {
+  const s = String(token ?? "");
+  const i = s.lastIndexOf(".");
+  if (i < 1) return null;
+  const b = s.slice(0, i);
+  const sig = s.slice(i + 1);
+  let uid = "";
+  try {
+    const pad = b.length % 4 ? "=".repeat(4 - (b.length % 4)) : "";
+    uid = atob(b.replace(/-/g, "+").replace(/_/g, "/") + pad);
+  } catch {
+    return null;
+  }
+  if (!uid) return null;
+  return (await md5hex(uid + HIVE_KEY)) === sig ? uid : null;
+}
+
+// code dari app: "<uid>" polos, atau "<uid>.<expDetik>.<md5(uid.exp.salt)>"
+async function hiveReadCode(code: unknown): Promise<string | null> {
+  const s = String(code ?? "").trim();
+  if (!s) return null;
+  const parts = s.split(".");
+  if (parts.length === 1) return parts[0];
+  if (parts.length !== 3) return null;
+  const [uid, exp, sig] = parts;
+  if (!uid || !exp || !sig) return null;
+  if ((await md5hex(`${uid}.${exp}.${HIVE_CODE_SALT}`)) !== sig) return null;
+  const expMs = Number(exp) * 1000;
+  if (Number.isFinite(expMs) && expMs > 0 && Date.now() > expMs) return null;
+  return uid;
+}
+
+async function hivePlay(req: Request): Promise<Response> {
+  if (req.method !== "POST") return hiveFail("POST only", 405);
+  const ep = new URL(req.url).pathname.toLowerCase();
+  let body: Record<string, unknown> = {};
+  try {
+    body = await req.json();
+  } catch {
+    return hiveFail("body bukan JSON", 400);
+  }
+
+  const nonce = String(body.signature_nonce ?? "");
+  const ts = Number(body.timestamp ?? 0);
+  const sig = String(body.signature ?? "");
+  if (!nonce || !ts || !sig) return hiveFail("signature tidak lengkap", 400);
+  if (Math.abs(Date.now() / 1000 - ts) > HIVE_MAX_SKEW) return hiveFail("timestamp kadaluarsa", 400);
+  if ((await md5hex(nonce + HIVE_KEY + ts)) !== sig) return hiveFail("signature salah", 400);
+  if (String(body.app_id ?? "") !== HIVE_APP_ID) return hiveFail("app_id tidak dikenal", 400);
+
+  // 1) code -> ss_token
+  if (ep.includes("get_sstoken")) {
+    const uid = await hiveReadCode(body.code);
+    if (!uid) return hiveFail("code tidak valid", 400);
+    return hiveOk({
+      ss_token: await hiveSsToken(uid),
+      expire_date: Date.now() + 365 * 24 * 3600 * 1000,
+    });
+  }
+
+  // 2) ss_token -> profil + saldo
+  if (ep.includes("get_user_info")) {
+    const uid = await hiveReadToken(body.ss_token);
+    if (!uid) return hiveFail("ss_token tidak valid", 401);
+    if (String(body.user_id ?? "") && String(body.user_id) !== uid) {
+      return hiveFail("user_id tidak cocok", 401);
+    }
+    const pl = await wavePlayer(uid);
+    return hiveOk({
+      user_id: uid,
+      user_name: pl?.name ?? "Player",
+      user_avatar: pl?.profilePicture ?? "",
+      balance: Number(pl?.balance ?? 0),
+    });
+  }
+
+  // 3) perubahan saldo
+  if (ep.includes("change_balance")) {
+    const uid = await hiveReadToken(body.ss_token);
+    if (!uid) return hiveFail("ss_token tidak valid", 401);
+    const orderId = String(body.order_id ?? "");
+    if (!orderId) return hiveFail("order_id kosong", 400);
+
+    const diff = Math.trunc(Number(body.currency_diff ?? 0));
+    if (!Number.isFinite(diff)) return hiveFail("currency_diff tidak valid", 400);
+
+    if (diff === 0) {
+      const pl = await wavePlayer(uid);
+      return hiveOk({ currency_balance: Number(pl?.balance ?? 0) });
+    }
+
+    const r = await rpc("w_wave_flow", {
+      p_uid: uid,
+      p_amount: Math.abs(diff),
+      p_kind: diff < 0 ? 1 : 2,
+      p_tx: `hive_${orderId}`,
+      p_game: `hive:${String(body.game_id ?? "")}`,
+    });
+    const rows = r.ok ? await r.json().catch(() => null) : null;
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    if (!row) return hiveFail("gagal memperbarui saldo", 500);
+    return hiveOk({ currency_balance: Number(row.coins ?? 0) });
+  }
+
+  return hiveFail("endpoint tidak dikenal", 404);
+}
+
 async function wavePlayer(uid: string) {
   const r = await rpc("w_wave_player", { p_uid: uid });
   if (!r.ok) return null;
@@ -614,68 +758,6 @@ async function adminWallet(uid: string): Promise<Record<string, unknown> | null>
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
-// ---------- Hapus akun login Firebase (butuh service account) ----------
-// Service account disimpan sebagai secret function FIREBASE_SA_JSON
-// (isi file JSON dari Firebase Console > Project settings > Service accounts).
-// Tanpa secret ini data user tetap bisa dihapus, tapi akun loginnya tetap ada.
-async function firebaseDeleteUser(uid: string): Promise<string> {
-  const raw = Deno.env.get("FIREBASE_SA_JSON") ?? "";
-  if (!raw) return "belum diatur";
-  let sa: { project_id?: string; client_email?: string; private_key?: string };
-  try {
-    sa = JSON.parse(raw);
-  } catch {
-    return "format secret salah";
-  }
-  if (!sa.project_id || !sa.client_email || !sa.private_key) return "secret tidak lengkap";
-  try {
-    const b64u = (b: ArrayBuffer) =>
-      btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    const b64uStr = (t: string) => b64u(new TextEncoder().encode(t).buffer as ArrayBuffer);
-    const now = Math.floor(Date.now() / 1000);
-    const kepala = b64uStr(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-    const badan = b64uStr(JSON.stringify({
-      iss: sa.client_email,
-      scope: "https://www.googleapis.com/auth/identitytoolkit",
-      aud: "https://oauth2.googleapis.com/token",
-      iat: now,
-      exp: now + 3600,
-    }));
-    const inti = `${kepala}.${badan}`;
-    const pem = sa.private_key.replace(/-----[A-Z ]+-----/g, "").replace(/\s+/g, "");
-    const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
-    const kunci = await crypto.subtle.importKey(
-      "pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"],
-    );
-    const ttd = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", kunci, new TextEncoder().encode(inti));
-    const jwt = `${inti}.${b64u(ttd)}`;
-    const tr = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion: jwt,
-      }).toString(),
-    });
-    const tj = await tr.json().catch(() => ({})) as { access_token?: string };
-    if (!tj.access_token) return "gagal ambil token Google";
-    const del = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/projects/${sa.project_id}/accounts:delete`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tj.access_token}` },
-        body: JSON.stringify({ localId: uid }),
-      },
-    );
-    if (del.ok) return "terhapus";
-    const txt = await del.text().catch(() => "");
-    if (txt.includes("USER_NOT_FOUND")) return "terhapus";
-    return "gagal: " + txt.slice(0, 100);
-  } catch (e) {
-    return "gagal: " + (e instanceof Error ? e.message : "tidak diketahui");
-  }
-}
-
 async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): Promise<Response> {
   let who: { uid: string; email: string };
   try {
@@ -688,7 +770,7 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
   const p = body.p ?? {};
   const op = String(p.op ?? "");
   const target = String(p.uid ?? "");
-  const tanpaUid = ["reset_all", "reset_gem_all", "reset_all_assets", "delete_users", "pay_get", "pay_set", "manual_pending", "manual_all", "manual_decide"];
+  const tanpaUid = ["reset_all", "reset_gem_all", "pay_get", "pay_set", "manual_pending", "manual_all", "manual_decide"];
   if (!tanpaUid.includes(op) && !target) return json({ ok: 0, e: "uid kosong" }, 400);
 
   const num = (v: unknown) => {
@@ -793,169 +875,6 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
     });
     if (!r.ok) return json({ ok: 0, e: "Gagal menyimpan VIP" }, 200);
     return json({ ok: 1, w: (await adminWallet(target)) });
-  }
-
-  // ---- hapus akun user (panel developer) ----
-  // Menghapus semua data milik user: wallet, riwayat transaksi, permintaan tukar,
-  // topup, dan data permainan. Setelah itu akun login Firebase ikut dihapus
-  // (kalau secret FIREBASE_SA_JSON tersedia) sehingga user harus daftar ulang.
-  if (op === "delete_user") {
-    if (target === who.uid) return json({ ok: 0, e: "Tidak bisa menghapus akun sendiri" }, 400);
-    const tabel = [
-      "wallets", "money_tx", "exchange_req", "topup_orders",
-      "topup_manual", "wave_players", "wave_tx",
-    ];
-    const gagal: string[] = [];
-    for (const t of tabel) {
-      const r = await sbRest(`${t}?uid=eq.${encodeURIComponent(target)}`, { method: "DELETE" });
-      if (!r.ok) gagal.push(t);
-    }
-    const auth = await firebaseDeleteUser(target);
-    return json({ ok: 1, auth, tabel_gagal: gagal });
-  }
-
-  // ---- hapus akun BANYAK user sekaligus (panel developer) ----
-  // Panel mengirim daftar uid per batch kecil. Server tidak pernah menghapus
-  // akun admin yang sedang login, dan melewati uid yang masuk daftar "kecuali".
-  if (op === "delete_users") {
-    const bersih = (v: unknown) =>
-      Array.isArray(v)
-        ? (v as unknown[]).map((x) => String(x ?? "")).filter((x) => /^[A-Za-z0-9_-]{6,128}$/.test(x))
-        : [];
-    const daftar = bersih(p.uids).slice(0, 25);
-    const kecuali = new Set(bersih(p.kecuali));
-    kecuali.add(who.uid);
-    const tabel = [
-      "wallets", "money_tx", "exchange_req", "topup_orders",
-      "topup_manual", "wave_players", "wave_tx",
-    ];
-    let terhapus = 0, dilewati = 0, authGagal = 0;
-    for (const uid of daftar) {
-      if (kecuali.has(uid)) { dilewati++; continue; }
-      for (const t of tabel) {
-        await sbRest(`${t}?uid=eq.${encodeURIComponent(uid)}`, { method: "DELETE" });
-      }
-      const a = await firebaseDeleteUser(uid);
-      if (a !== "terhapus" && a !== "belum diatur") authGagal++;
-      terhapus++;
-    }
-    const authDiatur = (Deno.env.get("FIREBASE_SA_JSON") ?? "") !== "";
-    return json({ ok: 1, terhapus, dilewati, authGagal, authDiatur });
-  }
-
-  // ---- reset aset SEMUA user (panel developer) ----
-  // Membersihkan aset/VIP/level seluruh user sekaligus. Katalog store
-  // (item unggahan) tidak disentuh.
-  if (op === "reset_all_assets") {
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    const bagian: string[] = [];
-    if (p.assets !== false) {
-      patch.inv = {};
-      patch.equip = {};
-      bagian.push("aset");
-    }
-    if (p.vip !== false) {
-      patch.vip = 0;
-      patch.vip_until = 0;
-      bagian.push("vip");
-    }
-    if (p.level === true) {
-      patch.exp = 0;
-      patch.lv_claimed = 0;
-      bagian.push("level");
-    }
-    if (p.coins === true) {
-      patch.coins = 0;
-      bagian.push("coin");
-    }
-    if (p.gems === true) {
-      patch.diamonds = 0;
-      bagian.push("diamond");
-    }
-    if (bagian.length === 0) return json({ ok: 0, e: "Tidak ada bagian yang dipilih" }, 400);
-    // Akun official yang harus dilewati (dikirim panel).
-    const kecuali = Array.isArray(p.kecuali)
-      ? (p.kecuali as unknown[]).map((x) => String(x ?? "")).filter((x) => /^[A-Za-z0-9]+$/.test(x))
-      : [];
-    let saring = "uid=not.is.null";
-    if (kecuali.length > 0) {
-      saring += `&uid=not.in.(${kecuali.join(",")})`;
-    }
-    // Satu perintah untuk semua baris. Hanya uid yang dikembalikan supaya
-    // fungsi tidak kehabisan tenaga (HTTP 546) saat user sudah banyak.
-    const r = await sbRest(`wallets?${saring}&select=uid`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    });
-    let jumlah = 0;
-    if (r.ok) {
-      const rows = await r.json().catch(() => []);
-      jumlah = Array.isArray(rows) ? rows.length : 0;
-    } else {
-      return json({ ok: 0, e: "Gagal reset semua aset" }, 200);
-    }
-    await sbRest("money_tx", {
-      method: "POST",
-      body: JSON.stringify({
-        uid: who.uid,
-        kind: "admin_reset_all_assets",
-        item_id: who.email,
-        amount: 0,
-      }),
-    });
-    return json({ ok: 1, count: jumlah, bagian, dilewati: kecuali.length });
-  }
-
-  // ---- reset aset user (panel developer) ----
-  // Menghapus yang DIMILIKI user: frame, medal, efek masuk, bubble, badge,
-  // gelar, VIP/SVIP, level. Katalog store (item unggahan) tidak disentuh,
-  // jadi item tetap tampil di store dan bisa dibeli lagi.
-  if (op === "reset_user") {
-    const ada = await adminWallet(target);
-    if (!ada) return json({ ok: 0, e: "User ini belum punya dompet" }, 200);
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    const bagian: string[] = [];
-    // Default: aset + VIP. Coin, diamond, dan level hanya jika diminta.
-    if (p.assets !== false) {
-      patch.inv = {};
-      patch.equip = {};
-      bagian.push("aset");
-    }
-    if (p.vip !== false) {
-      patch.vip = 0;
-      patch.vip_until = 0;
-      bagian.push("vip");
-    }
-    if (p.level === true) {
-      patch.exp = 0;
-      patch.lv_claimed = 0;
-      bagian.push("level");
-    }
-    if (p.coins === true) {
-      patch.coins = 0;
-      bagian.push("coin");
-    }
-    if (p.gems === true) {
-      patch.diamonds = 0;
-      bagian.push("diamond");
-    }
-    if (bagian.length === 0) return json({ ok: 0, e: "Tidak ada bagian yang dipilih" }, 400);
-    const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(target)}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    });
-    if (!r.ok) return json({ ok: 0, e: "Gagal reset aset" }, 200);
-    // Jejak audit supaya jelas siapa yang membersihkan aset user ini.
-    await sbRest("money_tx", {
-      method: "POST",
-      body: JSON.stringify({
-        uid: target,
-        kind: "admin_reset_user",
-        item_id: who.email,
-        amount: 0,
-      }),
-    });
-    return json({ ok: 1, bagian, w: (await adminWallet(target)) });
   }
 
   if (op === "reset") {
@@ -1424,6 +1343,8 @@ Deno.serve(async (req) => {
   // Webhook pembayaran: tanpa token login, keaslian dicek lewat signature Midtrans.
   if (wpath.includes("midtrans")) return await midtransNotify(req);
   if (wpath.includes("xendit")) return await xenditNotify(req);
+  // Hive Play (game pihak ketiga) - keaslian dicek lewat signature md5.
+  if (wpath.includes("hive")) return await hivePlay(req);
   if (wpath.includes("userinfo")) return await waveUserInfo(req);
   if (wpath.includes("submitflow")) return await waveSubmitFlow(req);
   if (req.method !== "POST") return json({ ok: 0, e: "Method tidak didukung" }, 405);
