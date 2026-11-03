@@ -8,8 +8,8 @@ Daemon will be stopped at the end of the build
 > Task :app:generateReleaseBuildConfig
 > Task :app:checkReleaseDuplicateClasses
 > Task :app:mergeReleaseNativeLibs
-> Task :app:generateReleaseResValues
 > Task :app:checkReleaseAarMetadata
+> Task :app:generateReleaseResValues
 > Task :app:processReleaseGoogleServices
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
@@ -27,22 +27,22 @@ Unable to strip the following libraries, packaging them as they are: libagora-fd
 > Task :app:processReleaseMainManifest
 [io.agora.rtc:voice-sdk:4.5.2] /home/runner/.gradle/caches/8.9/transforms/cb706c06c5d188613e6d686685527e34/transformed/voice-sdk-4.5.2/AndroidManifest.xml Warning:
 	Namespace 'io.agora.rtc' is used in multiple modules and/or libraries: io.agora.rtc:voice-sdk:4.5.2, io.agora.rtc:voice-rtc-basic:4.5.2, io.agora.rtc:ains:4.5.2, io.agora.rtc:ains-ll:4.5.2, io.agora.rtc:audio-beauty:4.5.2, io.agora.rtc:spatial-audio:4.5.2, io.agora.rtc:aiaec:4.5.2, io.agora.rtc:aiaec-ll:4.5.2, io.agora.rtc:full-voice-drive:4.5.2, io.agora.infra:aosl:1.2.13.1. Please ensure that all modules and libraries have a unique namespace. For more information, See https://developer.android.com/studio/build/configure-app-module#set-namespace
-/home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:25:5-50:19 Warning:
-	application@android:icon was tagged at AndroidManifest.xml:25 to replace other declarations but no other declaration present
-/home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:25:5-50:19 Warning:
-	application@android:theme was tagged at AndroidManifest.xml:25 to replace other declarations but no other declaration present
-/home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:25:5-50:19 Warning:
-	application@android:supportsRtl was tagged at AndroidManifest.xml:25 to replace other declarations but no other declaration present
+/home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:26:5-60:19 Warning:
+	application@android:icon was tagged at AndroidManifest.xml:26 to replace other declarations but no other declaration present
+/home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:26:5-60:19 Warning:
+	application@android:theme was tagged at AndroidManifest.xml:26 to replace other declarations but no other declaration present
+/home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/AndroidManifest.xml:26:5-60:19 Warning:
+	application@android:supportsRtl was tagged at AndroidManifest.xml:26 to replace other declarations but no other declaration present
 
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease
+> Task :app:processReleaseManifestForPackage
 > Task :app:desugarReleaseFileDependencies
 > Task :app:mergeReleaseStartupProfile
-> Task :app:processReleaseManifestForPackage
-> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseAssets
 > Task :app:extractReleaseVersionControlInfo
 > Task :app:compressReleaseAssets
@@ -80,8 +80,3 @@ w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/
 > Task :app:mergeReleaseJavaResource
 > Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
-> Task :app:packageRelease
-> Task :app:createReleaseApkListingFileRedirect
-> Task :app:assembleRelease
-> Task :app:pushBuildLog
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793726222209.json
