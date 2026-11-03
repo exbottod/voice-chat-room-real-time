@@ -77,6 +77,8 @@ object SupaRepo {
             }
         }
         var hasil = hasilAwal ?: Res(null, "Server dompet lambat (timeout), coba lagi")
+        // Aksi tulis mengubah saldo: cache lama tidak boleh dipakai lagi.
+        if (action != "get") lupakanSaldo()
         if (hasil.error != null && action == "get" && hasil.error.contains("timeout", true)) {
             hasil = kotlinx.coroutines.withTimeoutOrNull(62_000L) {
                 callInner(action, params)
@@ -286,7 +288,35 @@ object SupaRepo {
 
     private fun uidJson(uid: String) = org.json.JSONObject().put("uid", uid)
 
-    suspend fun get(uid: String) = call("get", uidJson(uid))
+    // ---- Cache saldo ----
+    // Layar game/menu sering meminta saldo saat dibuka, dan game memantaunya
+    // berkala. Tanpa cache, tiap permintaan = satu panggilan Edge Function.
+    // Kuota free plan cuma 500 ribu panggilan sebulan, jadi saldo disimpan
+    // sebentar dan permintaan yang bersamaan digabung jadi satu.
+    private const val CACHE_MS = 20_000L
+    private class Entri(val res: Res, val at: Long)
+    private val cacheSaldo = java.util.concurrent.ConcurrentHashMap<String, Entri>()
+    private val bacaKunci = Mutex()
+
+    /** Saldo dari cache kalau masih segar. fresh = true memaksa ambil ulang. */
+    suspend fun get(uid: String, fresh: Boolean = false): Res {
+        if (!fresh) {
+            cacheSaldo[uid]?.let { if (System.currentTimeMillis() - it.at < CACHE_MS) return it.res }
+        }
+        return bacaKunci.withLock {
+            if (!fresh) {
+                cacheSaldo[uid]?.let { if (System.currentTimeMillis() - it.at < CACHE_MS) return@withLock it.res }
+            }
+            val r = call("get", uidJson(uid))
+            if (r.wallet != null) cacheSaldo[uid] = Entri(r, System.currentTimeMillis())
+            r
+        }
+    }
+
+    /** Buang cache setelah ada transaksi, supaya saldo di layar ikut berubah. */
+    fun lupakanSaldo(uid: String? = null) {
+        if (uid == null) cacheSaldo.clear() else cacheSaldo.remove(uid)
+    }
 
     /** Balasan mentah (tidak diubah jadi Wallet), untuk aksi yang bentuknya lain. */
     private suspend fun raw(action: String, params: org.json.JSONObject): org.json.JSONObject? =
