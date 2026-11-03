@@ -152,9 +152,69 @@ object GiftComboSend {
                 } catch (e: Exception) {
                     "Gagal memproses gift"
                 }
-                if (err != null) lastError = err
+                if (err != null) {
+                    lastError = err
+                } else if (g.cashback || g.cbRate > 0) {
+                    // Kombo juga wajib ikut undian cashback, kalau tidak pengali/JP
+                    // tidak pernah muncul walau gift sudah terkirim.
+                    undiCashbackKombo(cur.uid, s, g, s.count * n)
+                }
             }
         }
+    }
+
+    /** Undian cashback untuk kiriman kombo, lalu kirim datanya ke layar room. */
+    private suspend fun undiCashbackKombo(uid: String, s: GiftCombo.Sess, g: Gift, count: Int) {
+        val harga = if (g.cbPrice > 0L) g.cbPrice else g.price
+        var cbWin = 0L
+        var mult = 0
+        var jp = false
+        var parts = ""
+        var pecahan = 0L
+        try {
+            val cb = kotlinx.coroutines.withTimeoutOrNull(9000L) {
+                SupaRepo.giftCashback(uid, harga, count, s.targetUid)
+            }
+            if (cb != null && cb.error == null && cb.amount > 0) {
+                cbWin = cb.amount
+                mult = cb.mult
+                jp = cb.jp
+                pecahan = if (cb.parts.isNotEmpty()) cb.parts.first() else cb.pecahan
+                parts = cb.parts.joinToString(",")
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        if (cbWin <= 0L) return
+        val dari = try { UserCache.meLocal(uid)?.name ?: "" } catch (e: Exception) { "" }
+        s.all().forEach { t ->
+            try {
+                Rtdb.ref("giftFly/${s.roomId}").push().setValue(
+                    hashMapOf<String, Any?>(
+                        "from" to dari,
+                        "toName" to t.second,
+                        "toUid" to t.first,
+                        "seat" to t.third.toLong(),
+                        "gift" to g.name,
+                        "emoji" to g.emoji,
+                        "mediaUrl" to g.mediaUrl,
+                        "mediaType" to g.mediaType,
+                        "price" to g.price * count,
+                        "cb" to cbWin,
+                        "pecahan" to pecahan,
+                        "parts" to parts,
+                        "mult" to mult,
+                        "combo" to GiftCombo.combo.toLong(),
+                        "asset" to "",
+                        "jp" to jp,
+                        "ts" to System.currentTimeMillis(),
+                    ),
+                )
+            } catch (e: Exception) { }
+        }
+        try {
+            Rtdb.ref("cashback/$uid/total").setValue(com.google.firebase.database.ServerValue.increment(cbWin))
+        } catch (e: Exception) { }
     }
 
     fun enqueue(s: GiftCombo.Sess, uid: String, n: Int = 1) {

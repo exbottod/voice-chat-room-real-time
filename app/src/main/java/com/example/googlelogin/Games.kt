@@ -116,7 +116,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
             ) { onClose() }) {
                 Column(
-                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.90f)
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.94f)
                         .navigationBarsPadding()
                         .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                         .background(Brush.verticalGradient(listOf(Color(0xFF4A2F1B), Color(0xFF2B190E))))
@@ -212,7 +212,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                 }
                             }
                         }
-                        Spacer(Modifier.height(70.dp))
+                        Spacer(Modifier.height(120.dp))
                     }
                 }
 
