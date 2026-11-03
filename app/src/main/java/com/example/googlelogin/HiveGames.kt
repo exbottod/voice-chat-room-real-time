@@ -461,7 +461,6 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                     // lebar desktop (~980px) dan isi game melebar keluar layar.
                     settings.useWideViewPort = true
                     settings.loadWithOverviewMode = true
-                    settings.setInitialScale(0)
                     settings.setSupportZoom(false)
                     settings.builtInZoomControls = false
                     settings.displayZoomControls = false
