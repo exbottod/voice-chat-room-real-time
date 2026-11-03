@@ -823,7 +823,7 @@ async function panel(env, body) {
   if (!sesi) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
   const uid = sesi.uid;
   const p = body.p ?? {};
-  const aksi = String(p.a ?? p.op ?? "");
+  const aksi = String(body.a ?? p.a ?? p.op ?? "");
   const dev = sesi.email === ADMIN_EMAIL;
 
   if (aksi === "me") {
