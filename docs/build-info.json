@@ -1,72 +1,18 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.0.663",
-  "ukuran_mb": 106.7,
-  "sha256": "45270c6d7292da485d9410b24fb5a380854852f0f3337d10f4537aa917c969be",
-  "commit": "7d102bd",
-  "waktu": "2026-11-03T12:03:47Z",
-  "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 30,
-  "aset_total": 116,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
+  "status": "gagal",
+  "masalah": [
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/HiveGames.kt:426:9 Const 'val' has type 'kotlin.collections.List<kotlin.Float>",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/HiveGames.kt:459:68 Argument type mismatch: actual type is 'kotlin.Int', but '",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/HiveGames.kt:673:38 Argument type mismatch: actual type is 'kotlin.Int', but '",
+    "* What went wrong:"
   ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ]
+  "versi": "1.0.664",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "230d055",
+  "waktu": "2026-11-03T13:21:37Z",
+  "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
