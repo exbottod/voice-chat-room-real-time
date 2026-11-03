@@ -612,17 +612,44 @@ async function klaimRoket(env, uid, p) {
 // ---------- Cashback gift ----------
 const CB_LADDER = [10000, 9000, 8000, 6000, 4000, 3000, 2000, 1000, 888, 666, 500, 400, 300, 200, 100, 88, 66, 50, 30, 20, 10];
 
+/** Bulatkan ke 2 angka penting (mis. 200.000.000 tetap, 173.456 -> 170.000). */
+function bulat2(v) {
+  if (!(v > 0)) return 0;
+  const p = Math.pow(10, Math.max(0, Math.floor(Math.log10(v)) - 1));
+  return Math.round(v / p) * p;
+}
+
+/**
+ * Pecah total cashback menjadi beberapa angka yang JUMLAHNYA TEPAT sama dengan
+ * total (mis. 100.000 x 10.000 = 1.000.000.000). Maksimal 5 pecahan supaya
+ * animasinya ringan. Bagian terakhir menutup selisih pembulatan.
+ */
 function pecahCashback(total) {
-  if (!(total > 0) || total > 50000) return [];
+  const n = Math.floor(total);
+  if (!(n > 0)) return [];
+  if (n <= 50000) {
+    // Total kecil tetap memakai angka cantik yang tersedia di aplikasi.
+    const out = [];
+    let sisa = n, jaga = 0;
+    while (sisa >= 10 && out.length < 5 && jaga++ < 16) {
+      const v = CB_LADDER.find((x) => x <= sisa);
+      if (!v) break;
+      out.push(v);
+      sisa -= v;
+    }
+    if (sisa > 0 && out.length) out[out.length - 1] += sisa;
+    return out;
+  }
+  const jumlah = n >= 100000000 ? 3 : 5;
   const out = [];
-  let sisa = Math.floor(total), jaga = 0;
-  while (sisa >= 10 && out.length < 8 && jaga++ < 16) {
-    const v = CB_LADDER.find((x) => x <= sisa);
-    if (!v) break;
+  let sisa = n;
+  for (let i = 0; i < jumlah - 1; i++) {
+    const v = Math.max(10, bulat2(Math.floor(sisa / (jumlah - i))));
     out.push(v);
     sisa -= v;
   }
-  return out;
+  out.push(sisa);
+  return out.filter((v) => v > 0);
 }
 
 function undiBaris(rows) {
@@ -674,12 +701,12 @@ async function cashbackGift(env, uid, p) {
 
   const baris = undiBaris(barisTier(cfg, nilai));
   const mult = Math.max(0, Math.min(500, Math.floor(baris.v)));
-  // Batas 50.000 coin: pecahan yang tersedia hanya sampai 10.000, jadi total
-  // dipotong supaya selalu bisa dipecah dan angka di layar sama dengan coin
-  // yang benar-benar masuk dompet (mis. pecahan 500 = +500 coin).
-  const target = Math.min(nilai * mult, 50000);
+  // Total cashback = harga gift x pengali dari panel, TANPA dipotong.
+  // Pecahan hanya untuk animasi (aset angka maksimal 10.000), jadi isinya
+  // potongan dari total dan jumlah akhirnya tetap total penuh.
+  const target = Math.max(0, nilai * mult);
   const parts = pecahCashback(target);
-  const amount = parts.length ? parts.reduce((a, b) => a + b, 0) : 0;
+  const amount = target;
 
   const paid = await beriCoin(env, uid, amount, "cashback", null);
   const pct = Math.max(0, Math.min(100, Number(cfg.recvPct ?? 5)));
@@ -687,7 +714,7 @@ async function cashbackGift(env, uid, p) {
   const bonus = to ? Math.floor((nilai * pct) / 100) : 0;
   const recv = bonus > 0 && to !== uid ? await beriCoin(env, to, bonus, "cashback_recv", null) : 0;
   const jpMin = Math.max(0, Math.floor(Number(cfg.jpMin ?? 1000)));
-  return json({ ok: 1, amount: paid, mult, parts: parts.slice(0, 8), pecahan: parts[0] ?? baris.v,
+  return json({ ok: 1, amount: paid, mult, parts: parts.slice(0, 5), pecahan: parts[0] ?? baris.v,
     recv, jp: paid >= jpMin ? 1 : 0, asset: "" });
 }
 

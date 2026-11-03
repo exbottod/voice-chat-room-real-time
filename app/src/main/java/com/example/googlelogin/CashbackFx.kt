@@ -276,7 +276,26 @@ private fun PartPop(value: Long, index: Int, box: IntSize) {
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value },
         contentAlignment = Alignment.Center,
     ) {
-        GiftSvga("asset/cashback/wois_gift_number_" + value + ".svga", "🪙", Modifier.fillMaxSize(), onEnd = { })
+        // Angka pecahan = bagian dari total (harga gift x pengali), bukan 10.000 tetap.
+        // Aset SVGA hanya sampai 10.000, jadi nilai besar ditulis sebagai angka
+        // emas besar (tetap terbaca dan tidak ada berkas yang hilang).
+        val adaAset = value in 10L..10000L && (value % 10L == 0L)
+        if (adaAset) {
+            GiftSvga("asset/cashback/wois_gift_number_" + value + ".svga", "🪙", Modifier.fillMaxSize(), onEnd = { })
+        } else {
+            Text(
+                fmtCompact(value),
+                color = Color(0xFFFFD24D),
+                fontSize = 30.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Black,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0x77000000))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        }
     }
 }
 

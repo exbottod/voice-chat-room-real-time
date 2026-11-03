@@ -877,6 +877,7 @@ fun GiftVideo(
 
 /** Cache SVGA yang sudah diunduh supaya gift yang sama tidak diunduh berulang. */
 private val svgaCache = HashMap<String, ByteArray>()
+private val asetSvgaCache = HashMap<String, ByteArray>()
 
 /**
  * Pemutar SVGA gift, dibuat berlapis supaya animasi tetap jalan di HP yang
@@ -958,7 +959,10 @@ fun GiftSvga(
                     if (url.startsWith("asset/")) {
                         val path = url.removePrefix("asset/")
                         try {
-                            val b = c.assets.open(path).use { it.readBytes() }
+                            // Simpan byte aset sekali saja: memutar pecahan berulang
+                            // jadi tidak perlu baca dan decode berkas dari nol (penyebab lag).
+                            val b = asetSvgaCache[path] ?: c.assets.open(path).use { it.readBytes() }
+                                .also { asetSvgaCache[path] = it }
                             parser.decodeFromInputStream(
                                 java.io.ByteArrayInputStream(b), path, done, true,
                             )
