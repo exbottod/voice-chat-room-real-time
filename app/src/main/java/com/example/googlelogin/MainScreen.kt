@@ -618,6 +618,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 )
             }
             BanGate(uid = uid, onSignOut = onSignOutClick, onBanned = { if (activeRoom != null) exitRoom() })
+            UpdateGate()
         }
     }
 }
