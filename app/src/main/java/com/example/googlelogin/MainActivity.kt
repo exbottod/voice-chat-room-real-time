@@ -101,17 +101,7 @@ class MainActivity : ComponentActivity() {
      * Font juga dikunci ke skala 1.
      */
     override fun attachBaseContext(newBase: android.content.Context) {
-        val res = newBase.resources
-        val cfg = android.content.res.Configuration(res.configuration)
-        cfg.fontScale = 1.0f
-        val lebarPx = minOf(res.displayMetrics.widthPixels, res.displayMetrics.heightPixels)
-        if (lebarPx > 0) {
-            val acuanDp = 360f
-            // dpi = piksel per 160 / (dp). Skala supaya lebar layar selalu 360 dp.
-            val dpi = (lebarPx / acuanDp * 160f).toInt().coerceIn(120, 640)
-            cfg.densityDpi = dpi
-        }
-        super.attachBaseContext(newBase.createConfigurationContext(cfg))
+        super.attachBaseContext(LayoutLock.bungkus(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
