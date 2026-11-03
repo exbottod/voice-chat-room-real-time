@@ -435,7 +435,7 @@ private fun RkMine(col: String, e: RankEntry?, index: Int, modifier: Modifier, o
                 MysteryName(12.sp)
             } else {
                 Text(
-                    if (e != null) e.name else tr("Belum ada di ranking periode ini"),
+                    if (e != null) e.name else tr("Di luar 50 besar periode ini"),
                     color = Color(0xFFD9C7A8), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -443,6 +443,9 @@ private fun RkMine(col: String, e: RankEntry?, index: Int, modifier: Modifier, o
         if (e != null) RkCoin(e.total, 16.sp)
     }
 }
+
+/** Jumlah peringkat yang ditampilkan di papan: hanya TOP 1-50. */
+private const val RANK_TOP_N = 50
 
 @Composable
 private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (String) -> Unit) {
@@ -471,7 +474,8 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (Str
         error = null
         entries = emptyList()
         try {
-            entries = GiftRankRepo.top(col, periodKey, 100)
+            // Papan peringkat hanya menampilkan TOP 1-50.
+            entries = GiftRankRepo.top(col, periodKey, RANK_TOP_N).take(RANK_TOP_N)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
