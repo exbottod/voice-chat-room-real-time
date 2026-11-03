@@ -122,10 +122,17 @@ const uidDariToken = async (token) => (await sesiDariToken(token))?.uid ?? null;
 // ---------- Bentuk jawaban ----------
 const ok = (w) => json({ ok: 1, w: w ?? null });
 const gagal = (e) => json({ ok: 0, e });
+// Panel developer (exbottod.github.io) memanggil dari browser, jadi wajib ada header CORS.
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info, accept",
+  "Access-Control-Max-Age": "86400",
+};
 const json = (o, status = 200) =>
   new Response(JSON.stringify(o), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...CORS },
   });
 
 const KOLOM =
@@ -782,7 +789,7 @@ async function admin(env, body) {
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    if (req.method === "OPTIONS") return json({ ok: 1 });
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     if (url.pathname === "/admin") {
       const b = await req.json().catch(() => null);
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
