@@ -449,10 +449,21 @@ fun LevelBadge(level: Int, modifier: Modifier = Modifier, height: Dp = 18.dp) {
             contentScale = ContentScale.Fit,
         )
         // Hanya angka level saja (1, 50, 120), pas di tengah icon.
+        // Ukuran dihitung dari tinggi ikon dan tidak ikut skala font HP, jadi
+        // angka selalu terkunci di dalam ikon level. Angka tiga digit
+        // (100 ke atas) dikecilkan sedikit supaya tidak keluar dari ikon.
+        val digit = level.toString().length
+        val skala = when {
+            digit >= 3 -> 0.58f
+            digit == 2 -> 0.68f
+            else -> 0.78f
+        }
+        val kepadatan = androidx.compose.ui.platform.LocalDensity.current
+        val ukuranSp = with(kepadatan) { (height * skala).toSp() }
         Text(
             "$level",
             color = Color.White,
-            fontSize = (height.value * 0.8f).sp,
+            fontSize = ukuranSp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             softWrap = false,

@@ -815,7 +815,10 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
     var previewItem by remember { mutableStateOf<StoreItem?>(null) }
     val now = System.currentTimeMillis()
     LaunchedEffect(Unit) { StoreCatalog.start() }
-    val shopItems = StoreCatalog.bySlot(cat).map { it.toStoreItem() } + STORE_ITEMS.filter { it.slot == cat }
+    // Frame dan lencana bawaan tidak dijual lagi: store hanya menampilkan item
+    // yang diunggah sendiri lewat panel. Gelembung bawaan tetap tampil.
+    val shopItems = StoreCatalog.bySlot(cat).map { it.toStoreItem() } +
+        STORE_ITEMS.filter { it.slot == cat && it.slot != "frame" && it.slot != "badge" }
 
     Box(
         Modifier.fillMaxSize().blockTouches()

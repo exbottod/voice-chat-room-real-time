@@ -90,6 +90,22 @@ object RoomDeepLink {
 }
 
 class MainActivity : ComponentActivity() {
+    /**
+     * Kunci ukuran tampilan: font dan "ukuran tampilan" di pengaturan HP
+     * (diperbesar/diperkecil pengguna) tidak ikut mengubah tata letak app.
+     * Tampilan selalu sama di semua perangkat, dan angka level tetap terkunci
+     * di dalam ikon levelnya.
+     */
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val cfg = android.content.res.Configuration(newBase.resources.configuration)
+        cfg.fontScale = 1.0f
+        // Kepadatan baku Android = 160 dpi per "density 1.0". Memakai DENSITY_DEVICE_STABLE
+        // (nilai pabrik, tidak terpengaruh pengaturan "Ukuran tampilan").
+        val stabil = android.util.DisplayMetrics.DENSITY_DEVICE_STABLE
+        if (stabil > 0) cfg.densityDpi = stabil
+        super.attachBaseContext(newBase.createConfigurationContext(cfg))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         RoomDeepLink.parse(intent)
         enableEdgeToEdge(
@@ -105,6 +121,14 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(
                 LocalLayoutDirection provides if (AppLang.code == AppLang.AR) LayoutDirection.Rtl else LayoutDirection.Ltr
             ) {
+                // Kunci skala font di seluruh teks Compose.
+                val kepadatan = androidx.compose.ui.platform.LocalDensity.current
+                CompositionLocalProvider(
+                    androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(
+                        density = kepadatan.density,
+                        fontScale = 1f,
+                    ),
+                ) {
                 MaterialTheme(colorScheme = darkColorScheme()) {
                     Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
                         var crashText by remember { mutableStateOf(CrashGuard.take(this@MainActivity)) }
@@ -112,6 +136,7 @@ class MainActivity : ComponentActivity() {
                         AppRoot()
                         crashText?.let { CrashReportOverlay(it) { crashText = null } }
                     }
+                }
                 }
             }
         }
