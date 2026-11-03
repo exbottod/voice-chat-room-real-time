@@ -1,0 +1,26 @@
+import worker from "./src/index.js";
+import crypto from "node:crypto";
+const env={TURSO_URL:"https://rezo-voice-chat-officialex.aws-ap-southeast-1.turso.io",TURSO_TOKEN:process.env.TURSO_TOKEN};
+const KEY="eb09c56d97454d43ab2698ad548697ab", SALT="rezo-hive-2026", APP="100198";
+const md5=(s)=>crypto.createHash("md5").update(s).digest("hex");
+const nonce=()=>crypto.randomUUID().replace(/-/g,"");
+const call=async(ep,body)=>{const ts=Math.floor(Date.now()/1000);const nn=nonce();
+ const r=await worker.fetch(new Request("https://w/hive/"+ep,{method:"POST",body:JSON.stringify({...body,signature_nonce:nn,timestamp:ts,signature:md5(nn+KEY+ts),app_id:APP})}),env);
+ return {status:r.status,body:await r.json()};};
+const uid="uji9";
+// code seperti dibuat aplikasi: uid.exp.md5(uid.exp.salt)
+const exp=Math.floor(Date.now()/1000)+3600;
+const code=`${uid}.${exp}.${md5(`${uid}.${exp}.${SALT}`)}`;
+const a=await call("get_sstoken",{code});
+console.log("sstoken:",a.body.code,a.body.message);
+const token=a.body.data?.ss_token;
+const b=await call("get_user_info",{ss_token:token});
+console.log("userinfo:",b.body.code,JSON.stringify(b.body.data));
+const c=await call("change_balance",{ss_token:token,order_id:"T1",currency_diff:-500,game_id:"GreedyCatKing"});
+console.log("bet 500:",c.body.code,JSON.stringify(c.body.data));
+const d=await call("change_balance",{ss_token:token,order_id:"T2",currency_diff:900,game_id:"GreedyCatKing"});
+console.log("menang 900:",d.body.code,JSON.stringify(d.body.data),"(saldo awal 0, jadi bet ditolak)");
+const e=await call("change_balance",{ss_token:token,order_id:"T2",currency_diff:900});
+console.log("order sama diulang:",e.body.code,JSON.stringify(e.body.data));
+const f=await call("get_user_info",{ss_token:"salah.token"});
+console.log("token palsu:",f.body.code,f.body.message);

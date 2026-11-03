@@ -786,6 +786,204 @@ async function admin(env, body) {
   return gagal("Perintah panel tidak dikenal");
 }
 
+
+// ================= HIVE PLAY (game pihak ketiga) =================
+// Hive memanggil 3 alamat ini setiap pemain membuka game. Keaslian permintaan
+// dicek lewat signature md5(signature_nonce + app_key + timestamp), karena Hive
+// tidak membawa token login Firebase.
+//   /hive/get_sstoken     -> code     => ss_token
+//   /hive/get_user_info   -> ss_token => profil + saldo
+//   /hive/change_balance  -> taruhan/menang => saldo terbaru
+// Tanpa ini game Hive mentok di "error2" karena tidak bisa membaca saldo.
+const HIVE_APP_ID = "100198";
+const HIVE_KEY = "eb09c56d97454d43ab2698ad548697ab";
+const HIVE_CODE_SALT = "rezo-hive-2026";
+const HIVE_MAX_SKEW = 300;
+const HIVE_MAX_SAFE = 9007199254740991;
+
+function hiveSafe(n) {
+  const v = Number(n ?? 0);
+  if (!Number.isFinite(v) || v < 0) return 0;
+  return v > HIVE_MAX_SAFE ? HIVE_MAX_SAFE : Math.trunc(v);
+}
+
+function md5hex(s) {
+  const msg = new TextEncoder().encode(s);
+  const len = msg.length;
+  const words = [];
+  for (let i = 0; i < len; i++) words[i >> 2] = (words[i >> 2] ?? 0) | (msg[i] << ((i % 4) * 8));
+  words[len >> 2] = (words[len >> 2] ?? 0) | (0x80 << ((len % 4) * 8));
+  const total = (((len + 8) >> 6) + 1) * 16;
+  while (words.length < total) words.push(0);
+  const bits = len * 8;
+  words[total - 2] = bits & 0xffffffff;
+  words[total - 1] = Math.floor(bits / 4294967296);
+
+  const S = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+             5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+             4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+             6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
+  const K = [];
+  for (let i = 0; i < 64; i++) K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296) | 0;
+
+  let a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+  const rotl = (x, c) => ((x << c) | (x >>> (32 - c))) | 0;
+
+  for (let off = 0; off < total * 4; off += 64) {
+    const M = [];
+    for (let j = 0; j < 16; j++) M[j] = words[(off >> 2) + j] | 0;
+    let A = a0, B = b0, C = c0, D = d0;
+    for (let i = 0; i < 64; i++) {
+      let F = 0, g = 0;
+      if (i < 16) { F = (B & C) | (~B & D); g = i; }
+      else if (i < 32) { F = (D & B) | (~D & C); g = (5 * i + 1) % 16; }
+      else if (i < 48) { F = B ^ C ^ D; g = (3 * i + 5) % 16; }
+      else { F = C ^ (B | ~D); g = (7 * i) % 16; }
+      F = (F + A + K[i] + M[g]) | 0;
+      A = D;
+      D = C;
+      C = B;
+      B = (B + rotl(F, S[i])) | 0;
+    }
+    a0 = (a0 + A) | 0; b0 = (b0 + B) | 0; c0 = (c0 + C) | 0; d0 = (d0 + D) | 0;
+  }
+
+  const hex = (n) => {
+    let out = "";
+    for (let i = 0; i < 4; i++) out += ((n >>> (i * 8)) & 0xff).toString(16).padStart(2, "0");
+    return out;
+  };
+  return hex(a0) + hex(b0) + hex(c0) + hex(d0);
+}
+
+
+const hiveOk = (data) =>
+  json({ code: 0, message: "succeed", unique_id: "rezo_" + crypto.randomUUID(), data });
+const hiveFail = (message, code = 500, data = null) =>
+  json({ code, message, unique_id: "rezo_" + crypto.randomUUID(), data });
+
+const b64urlEnc = (s) => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+function hiveSsToken(uid) {
+  return `${b64urlEnc(uid)}.${md5hex(uid + HIVE_KEY)}`;
+}
+
+function hiveReadToken(token) {
+  const s = String(token ?? "");
+  const i = s.lastIndexOf(".");
+  if (i < 1) return null;
+  const b = s.slice(0, i);
+  const sig = s.slice(i + 1);
+  let uid = "";
+  try {
+    const pad = b.length % 4 ? "=".repeat(4 - (b.length % 4)) : "";
+    uid = atob(b.replace(/-/g, "+").replace(/_/g, "/") + pad);
+  } catch {
+    return null;
+  }
+  if (!uid) return null;
+  return md5hex(uid + HIVE_KEY) === sig ? uid : null;
+}
+
+function hiveReadCode(code) {
+  const s = String(code ?? "").trim();
+  if (!s) return null;
+  const parts = s.split(".");
+  if (parts.length === 1) return parts[0];
+  if (parts.length !== 3) return null;
+  const [uid, exp, sig] = parts;
+  if (!uid || !exp || !sig) return null;
+  if (md5hex(`${uid}.${exp}.${HIVE_CODE_SALT}`) !== sig) return null;
+  const expMs = Number(exp) * 1000;
+  if (Number.isFinite(expMs) && expMs > 0 && Date.now() > expMs) return null;
+  return uid;
+}
+
+async function hivePemain(env, uid) {
+  const r = await pipe(env, [
+    { sql: "select name, avatar from wave_players where uid = ?", args: [T(uid)] },
+  ]);
+  const row = r[0].rows[0] ?? {};
+  const w = await pastikan(env, uid);
+  return {
+    id: uid,
+    name: String(row.name ?? "").trim() || "Player",
+    avatar: String(row.avatar ?? ""),
+    balance: Number(w?.coins ?? 0),
+  };
+}
+
+async function hivePlay(req, env) {
+  const ep = new URL(req.url).pathname.toLowerCase();
+  if (ep.includes("version")) {
+    return json({ ok: 1, v: "hive-2026-11-03a", md5_abc: md5hex("abc") });
+  }
+  if (req.method !== "POST") return hiveFail("POST only", 405);
+  let body = {};
+  try { body = await req.json(); } catch { return hiveFail("body bukan JSON", 400); }
+
+  const nonce = String(body.signature_nonce ?? "");
+  const ts = Number(body.timestamp ?? 0);
+  const sig = String(body.signature ?? "");
+  if (!nonce || !ts || !sig) return hiveFail("signature tidak lengkap", 400);
+  if (Math.abs(Date.now() / 1000 - ts) > HIVE_MAX_SKEW) return hiveFail("timestamp kadaluarsa", 400);
+  if (md5hex(nonce + HIVE_KEY + ts) !== sig) return hiveFail("signature salah", 400);
+  if (String(body.app_id ?? "") !== HIVE_APP_ID) return hiveFail("app_id tidak dikenal", 400);
+
+  if (ep.includes("get_sstoken")) {
+    const uid = hiveReadCode(body.code);
+    if (!uid) return hiveFail("code tidak valid", 400);
+    await pastikan(env, uid);
+    return hiveOk({ ss_token: hiveSsToken(uid), expire_date: Date.now() + 365 * 24 * 3600 * 1000 });
+  }
+
+  if (ep.includes("get_user_info")) {
+    const uid = hiveReadToken(body.ss_token);
+    if (!uid) return hiveFail("ss_token tidak valid", 401);
+    if (String(body.user_id ?? "") && String(body.user_id) !== uid) {
+      return hiveFail("user_id tidak cocok", 401);
+    }
+    const pl = await hivePemain(env, uid);
+    return hiveOk({
+      user_id: uid,
+      user_name: pl.name,
+      user_avatar: pl.avatar,
+      balance: hiveSafe(pl.balance),
+      currency_balance: hiveSafe(pl.balance),
+    });
+  }
+
+  if (ep.includes("change_balance")) {
+    const uid = hiveReadToken(body.ss_token);
+    if (!uid) return hiveFail("ss_token tidak valid", 401);
+    const orderId = String(body.order_id ?? "");
+    if (!orderId) return hiveFail("order_id kosong", 400);
+    const diff = Math.trunc(Number(body.currency_diff ?? 0));
+    if (!Number.isFinite(diff)) return hiveFail("currency_diff tidak valid", 400);
+    if (diff === 0) {
+      const pl = await hivePemain(env, uid);
+      return hiveOk({ currency_balance: hiveSafe(pl.balance) });
+    }
+    const resp = await hiveUang(env, uid, {
+      kind: diff < 0 ? 1 : 2,
+      amount: Math.abs(diff),
+      orderId: `hive_${orderId}`,
+      roundId: String(body.game_round_id ?? body.room_id ?? ""),
+      game: `hive:${String(body.game_id ?? "")}`,
+    });
+    // hiveUang mengembalikan Response, jadi hasilnya dibaca sebagai JSON dulu.
+    const r = await resp.json().catch(() => null);
+    if (!r || r.ok !== 1) {
+      // Saldo kurang atau order bermasalah: laporkan angka saldo terbaru.
+      const pl = await hivePemain(env, uid);
+      return hiveFail(r?.e ?? "gagal memperbarui saldo", 500, { currency_balance: hiveSafe(pl.balance) });
+    }
+    return hiveOk({ currency_balance: hiveSafe(r.w?.coins ?? r.coins) });
+  }
+
+  return hiveFail("endpoint tidak dikenal", 404);
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -794,6 +992,9 @@ export default {
       const b = await req.json().catch(() => null);
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
       return await admin(env, b);
+    }
+    if (url.pathname.toLowerCase().startsWith("/hive/")) {
+      return await hivePlay(req, env);
     }
     if (url.pathname === "/health") {
       // Sekaligus buktikan sambungan ke Turso hidup.

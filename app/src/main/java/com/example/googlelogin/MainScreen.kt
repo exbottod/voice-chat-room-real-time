@@ -87,6 +87,35 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var chatWith by remember { mutableStateOf<PublicUser?>(null) }
     var commentMoment by remember { mutableStateOf<Moment?>(null) }
     var wallet by remember { mutableStateOf(Wallet()) }
+    // Tarik-ulang: dipakai tab Saya dan halaman Dompet. Semua data diambil
+    // ulang dari server, bukan dari cache, supaya angkanya benar-benar baru.
+    var refreshingTab by remember { mutableStateOf(false) }
+    val refreshScope = rememberCoroutineScope()
+    val muatUlang: () -> Unit = {
+        refreshScope.launch {
+            refreshingTab = true
+            try {
+                val w = kotlinx.coroutines.withTimeoutOrNull(15000L) { SupaRepo.get(uid).wallet }
+                if (w != null) {
+                    wallet = w
+                    WalletCache.save(uid, w)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(12000L) { LevelVip.push(uid) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(12000L) { PublicSync.push(uid) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+            refreshingTab = false
+        }
+    }
     // ---- cek in harian: muncul otomatis sekali sehari sesudah tanggal berganti
     var showSignin by remember { mutableStateOf(false) }
     var signinChecked by remember { mutableStateOf(false) }
@@ -352,7 +381,12 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                         }
                         2 -> KecilkanKonten(0.90f) { FamilyTabScreen(myUid = uid, myName = myName, myAvatar = profile.avatarB64, myId = userId) }
                         3 -> KecilkanKonten(0.92f) { ChatListTab(myUid = uid) }
-                        else -> ProfileTab(
+                        else -> androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                            isRefreshing = refreshingTab,
+                            onRefresh = muatUlang,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                        ProfileTab(
                             user = user,
                             profile = profile,
                             userId = userId,
@@ -374,6 +408,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             onFansClick = { followList = uid to FOLLOW_MODE_FANS },
                             onFollowingClick = { followList = uid to FOLLOW_MODE_FOLLOWING },
                         )
+                        }
                     }
                 }
             }
@@ -452,7 +487,14 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 )
             }
             // Dompet, Level Center, dan VIP Center diperkecil 86% supaya rapi di semua device.
-            if (showWallet) KecilkanKonten { WalletScreen(uid = uid, wallet = wallet, onBack = { showWallet = false }) }
+            if (showWallet) KecilkanKonten {
+                WalletScreen(
+                    uid = uid,
+                    wallet = wallet,
+                    onRefresh = muatUlang,
+                    onBack = { showWallet = false },
+                )
+            }
             if (showLevel) KecilkanKonten { LevelScreen(user = user, profile = profile, wallet = wallet, uid = uid, onBack = { showLevel = false }) }
             if (showVip) KecilkanKonten { VipScreen(uid = uid, wallet = wallet, onBack = { showVip = false }) }
             if (showGlory) GloryMedalScreen(uid = uid, wallet = wallet, onBack = { showGlory = false })

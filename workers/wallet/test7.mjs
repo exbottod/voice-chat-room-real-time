@@ -1,0 +1,16 @@
+import worker from "./src/index.js";
+import crypto from "node:crypto";
+const env={TURSO_URL:"https://rezo-voice-chat-officialex.aws-ap-southeast-1.turso.io",TURSO_TOKEN:process.env.TURSO_TOKEN};
+const KEY="eb09c56d97454d43ab2698ad548697ab", SALT="rezo-hive-2026", APP="100198";
+const md5=(s)=>crypto.createHash("md5").update(s).digest("hex");
+const call=async(ep,body)=>{const ts=Math.floor(Date.now()/1000);const nn=crypto.randomUUID().replace(/-/g,"");
+ const r=await worker.fetch(new Request("https://w/hive/"+ep,{method:"POST",body:JSON.stringify({...body,signature_nonce:nn,timestamp:ts,signature:md5(nn+KEY+ts),app_id:APP})}),env);
+ return (await r.json());};
+const uid="uji9", exp=Math.floor(Date.now()/1000)+3600;
+const code=`${uid}.${exp}.${md5(`${uid}.${exp}.${SALT}`)}`;
+const tok=(await call("get_sstoken",{code})).data.ss_token;
+console.log("userinfo:",JSON.stringify((await call("get_user_info",{ss_token:tok})).data));
+console.log("bet 2000:",JSON.stringify(await call("change_balance",{ss_token:tok,order_id:"N1",currency_diff:-2000,game_id:"GreedyCatKing"})));
+console.log("bet sama 2x:",JSON.stringify(await call("change_balance",{ss_token:tok,order_id:"N1",currency_diff:-2000,game_id:"GreedyCatKing"})));
+console.log("menang 5000:",JSON.stringify(await call("change_balance",{ss_token:tok,order_id:"N2",currency_diff:5000,game_id:"GreedyCatKing"})));
+console.log("signature salah:",JSON.stringify((await (async()=>{const r=await worker.fetch(new Request("https://w/hive/get_user_info",{method:"POST",body:JSON.stringify({ss_token:tok,signature_nonce:"a",timestamp:Math.floor(Date.now()/1000),signature:"palsu",app_id:APP})}),env);return r.json();})())));

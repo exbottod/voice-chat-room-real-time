@@ -378,6 +378,20 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
     var err by remember { mutableStateOf("") }
     var started by remember { mutableStateOf(false) }
     val url = remember(game.id, uid) { HiveGames.launchUrl(game, uid) }
+
+    // Nama dan foto pemain dikirim ke server sebelum game dibuka, supaya game
+    // Hive menampilkan nama asli dan bukan "Player" lagi. Server Hive membaca
+    // data ini saat meminta user_info ke dompet.
+    LaunchedEffect(uid) {
+        try {
+            val me = UserCache.meLocal(uid)
+            val nama = me?.name?.trim().orEmpty().ifBlank { "Player" }
+            val foto = me?.photoUrl?.takeIf { it.startsWith("http") }
+                ?: me?.avatarB64?.takeIf { it.isNotBlank() }?.let { "data:image/jpeg;base64,$it" }
+                ?: ""
+            SupaRepo.wavePrepare(nama, foto)
+        } catch (e: Exception) { }
+    }
     val act = ctx.activityOrNull()
     val view = LocalView.current
 

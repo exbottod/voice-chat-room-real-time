@@ -482,7 +482,7 @@ private fun PayDot(text: String, color: Color) {
 }
 
 @Composable
-fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
+fun WalletScreen(uid: String, wallet: Wallet, onRefresh: () -> Unit = {}, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var tab by remember { mutableStateOf(0) }
@@ -500,6 +500,21 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     BackHandler(onBack = { if (showPacks) showPacks = false else onBack() })
     val toast = { m: String -> Toast.makeText(context, m, Toast.LENGTH_SHORT).show() }
 
+    // Tarik ke bawah untuk mengambil ulang saldo, riwayat, dan data akun.
+    var tarik by remember { mutableStateOf(false) }
+    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        isRefreshing = tarik,
+        onRefresh = {
+            tarik = true
+            scope.launch {
+                try { onRefresh() } finally {
+                    kotlinx.coroutines.delay(500)
+                    tarik = false
+                }
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) {
     Box(
         Modifier.fillMaxSize()
             .background(Brush.verticalGradient(listOf(WalTealTop, WalTealMid, Color.White), endY = 900f)),
@@ -1005,6 +1020,7 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 },
             )
         }
+    }
     }
 }
 
