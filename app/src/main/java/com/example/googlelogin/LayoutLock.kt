@@ -12,7 +12,7 @@ import android.view.WindowManager
  * displayMetrics yang bisa berubah karena "ukuran tampilan"/mode hemat/split-screen.
  */
 object LayoutLock {
-    private const val ACUAN_DP = 360f
+    private const val ACUAN_DP = 400f
 
     /**
      * Sisi pendek RUANG LAYAR yang benar-benar dipakai app, dalam piksel.

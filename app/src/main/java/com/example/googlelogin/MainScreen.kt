@@ -179,7 +179,19 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             activeRoom = room
             minimized = false
             if (old != null) RoomRepo.leave(old.id, uid)
-            RoomRepo.join(room.id, myName, if (vipActive(wallet.vip, wallet.vipUntil)) wallet.vip else 0, activeEquip(wallet, "entry"), activeEquip(wallet, "banner"))
+            // Efek masuk dibaca dari dompet TERBARU. Kalau dompet belum termuat (baru
+            // buka app / jaringan lambat), item "entry" kosong dan efeknya tidak
+            // pernah dikirim ke room walau sudah dipasang.
+            var w = wallet
+            if (w.equip["entry"].isNullOrBlank() && w.equip["banner"].isNullOrBlank()) {
+                try {
+                    kotlinx.coroutines.withTimeoutOrNull(4000L) { SupaRepo.get(uid, fresh = true).wallet }
+                        ?.let { w = it; wallet = it }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) { }
+            }
+            RoomRepo.join(room.id, myName, if (vipActive(w.vip, w.vipUntil)) w.vip else 0, activeEquip(w, "entry"), activeEquip(w, "banner"))
         }
     }
 

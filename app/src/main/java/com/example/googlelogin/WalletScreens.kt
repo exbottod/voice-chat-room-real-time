@@ -1319,21 +1319,22 @@ fun GiftPanel(
 
             Spacer(Modifier.height(8.dp))
             Row(Modifier.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                CoinDot(20.dp)
-                Spacer(Modifier.width(6.dp))
+                CoinDot(18.dp)
+                Spacer(Modifier.width(5.dp))
+                // Saldo ditampilkan utuh (angka + satuan K/M/B/T) tanpa terpotong.
                 Text(
                     fmtCompact(wallet.coins),
                     color = Color.White,
-                    fontSize = 15.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    modifier = Modifier.weight(1f, fill = false),
+                    softWrap = false,
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     tr("Topup") + " ◆",
                     color = teal,
-                    fontSize = 15.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable {
                         onDismiss()
