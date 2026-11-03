@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -116,7 +117,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
             ) { onClose() }) {
                 Column(
-                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.94f)
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.90f)
                         .navigationBarsPadding()
                         .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                         .background(Brush.verticalGradient(listOf(Color(0xFF4A2F1B), Color(0xFF2B190E))))
@@ -212,7 +213,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                 }
                             }
                         }
-                        Spacer(Modifier.height(120.dp))
+                        Spacer(Modifier.height(70.dp))
                     }
                 }
 
