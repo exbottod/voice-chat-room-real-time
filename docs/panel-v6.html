@@ -1543,7 +1543,10 @@ $("delAllDo").onclick = async () => {
         for (const jalur of ["pub/" + u.uid, "ids/u/" + u.uid, "fxPrefs/" + u.uid]) {
           try { await rtdb.ref(jalur).remove(); } catch (e) { /* lanjut */ }
         }
-        if (u.id) { try { await rtdb.ref("ids/i/" + u.id).remove(); } catch (e) { /* lanjut */ } }
+        if (u.id) {
+          try { await rtdb.ref("ids/i/" + u.id).remove(); } catch (e) { /* lanjut */ }
+          if (/^\d+$/.test(String(u.id))) { try { await rtdb.ref("ids/free/" + u.id).set(true); } catch (e) { /* lanjut */ } }
+        }
         try { await withTimeout(db.collection("users").doc(u.uid).delete(), 8000, "profil"); } catch (e) { /* lanjut */ }
       }));
     }
@@ -1647,7 +1650,11 @@ async function hapusAkun(u){
   for (const jalur of ["pub/" + uid, "ids/u/" + uid, "fxPrefs/" + uid]) {
     try { await rtdb.ref(jalur).remove(); } catch (e) { /* lanjut */ }
   }
-  if (idUser) { try { await rtdb.ref("ids/i/" + idUser).remove(); } catch (e) { /* lanjut */ } }
+  if (idUser) {
+    try { await rtdb.ref("ids/i/" + idUser).remove(); } catch (e) { /* lanjut */ }
+    // Nomor dikembalikan ke daftar bebas supaya bisa dipakai lagi (ID tetap urut).
+    if (/^\d+$/.test(idUser)) { try { await rtdb.ref("ids/free/" + idUser).set(true); } catch (e) { /* lanjut */ } }
+  }
   try {
     await db.collection("users").doc(uid).delete();
     lapor.push("profil dihapus");
@@ -2289,8 +2296,37 @@ function goFind(tab, inputId, btnId, id){
   document.querySelector('.tab[data-t="' + tab + '"]').click();
   $(inputId).value = id; $(btnId).click();
 }
+/** Ambil nomor bekas akun yang dihapus (ids/free) agar nomor urut tidak bolong. */
+async function claimFreedId(){
+  let ambil = null;
+  try {
+    const res = await rtdb.ref("ids/free").transaction(cur => {
+      let best = null, bestN = Infinity;
+      cur.forEach(c => {
+        const n = Number(c.key);
+        if (Number.isFinite(n) && n >= 100000 && n < bestN) { best = c.key; bestN = n; }
+      });
+      if (!best) return; // batalkan transaksi
+      ambil = best;
+      cur.child(best).setValue(null);
+      return cur;
+    });
+    if (!res.committed || !ambil) return null;
+    const taken = await rtdb.ref("ids/i/" + ambil + "/uid").get();
+    if (taken.exists()) return null;
+    return ambil;
+  } catch (e) { return null; }
+}
 /** Beri ID baru di Realtime Database untuk akun yang belum punya. */
 async function allocId(uid, name, avatarB64){
+  // Nomor bekas akun yang dihapus dipakai lebih dulu supaya urut.
+  const bekas = await claimFreedId();
+  if (bekas) {
+    await rtdb.ref("ids/u/" + uid).set(bekas);
+    await rtdb.ref("ids/i/" + bekas).update({ uid: uid, name: name || ("Pengguna " + bekas), avatarB64: avatarB64 || null });
+    try { await rtdb.ref("pub/" + uid + "/id").set(bekas); } catch (e) { /* lanjut */ }
+    return bekas;
+  }
   const FIRST = 100001;
   const nextSnap = await rtdb.ref("ids/next").get();
   let n = Number(nextSnap.val() || FIRST);

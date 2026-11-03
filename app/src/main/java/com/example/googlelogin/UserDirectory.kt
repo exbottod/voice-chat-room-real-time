@@ -162,6 +162,48 @@ object UserDirectory {
     }
 
     /**
+     * Ambil nomor ID bekas akun yang dihapus (node ids/free) supaya nomor urut
+     * tidak bolong. Transaksi memilih nomor terkecil lalu menghapusnya.
+     */
+    private suspend fun rtdbClaimFreedId(): String? {
+        var diklaim: String? = null
+        return try {
+            val hasil: Boolean = suspendCancellableCoroutine { cont ->
+                Rtdb.ref("ids/free").runTransaction(object : com.google.firebase.database.Transaction.Handler {
+                    override fun doTransaction(cur: com.google.firebase.database.MutableData): com.google.firebase.database.Transaction.Result {
+                        var best: String? = null
+                        var bestN = Long.MAX_VALUE
+                        cur.children.forEach { c ->
+                            val k = c.key ?: return@forEach
+                            val n = k.toLongOrNull() ?: return@forEach
+                            if (n >= FIRST_USER_ID && n < bestN) { best = k; bestN = n }
+                        }
+                        val ambil = best
+                        if (ambil == null) return com.google.firebase.database.Transaction.abort()
+                        diklaim = ambil
+                        cur.child(ambil).value = null
+                        return com.google.firebase.database.Transaction.success(cur)
+                    }
+
+                    override fun onComplete(
+                        err: com.google.firebase.database.DatabaseError?,
+                        committed: Boolean,
+                        snap: com.google.firebase.database.DataSnapshot?,
+                    ) {
+                        if (!cont.isActive) return
+                        cont.resume(err == null && committed)
+                    }
+                })
+            }
+            if (hasil) diklaim else null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
      * Buat ID di Realtime Database. Transaksi HANYA di ids/next (izin tulis ada di
      * rules), lalu ids/u/{uid} + ids/i/{id} ditulis per-path. Tidak lagi memakai
      * transaksi di node induk "ids" yang ditolak rules (PERMISSION_DENIED).
@@ -169,6 +211,25 @@ object UserDirectory {
     private suspend fun rtdbEnsureId(uid: String): String {
         // Sudah punya ID? pakai itu.
         rtdbOfficialId(uid)?.let { return it }
+        // Pakai dulu nomor bekas akun yang dihapus, supaya ID tetap urut.
+        try {
+            val bekas = rtdbClaimFreedId()
+            if (bekas != null) {
+                val terpakai = Rtdb.ref("ids/i/$bekas/uid").get().await().value
+                if (terpakai == null) {
+                    Rtdb.root().updateChildren(
+                        hashMapOf<String, Any?>(
+                            "ids/u/$uid" to bekas,
+                            "ids/i/$bekas/uid" to uid,
+                            "pub/$uid/id" to bekas,
+                        ),
+                    ).await()
+                    return bekas
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
         val seed: Long = try {
             val c = kotlinx.coroutines.withTimeoutOrNull(2000L) {
                 db().collection("counters").document("userIds").get().await()

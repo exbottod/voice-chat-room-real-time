@@ -231,6 +231,9 @@
       },
       "next": {
         ".write": "auth != null"
+      },
+      "free": {
+        ".write": "auth != null"
       }
     },
     "follows": {
