@@ -1445,8 +1445,14 @@ async function hiveRank(uid: string, p: Record<string, unknown>): Promise<Respon
       limit: "4000",
     });
     if (gameQ) q.set("game_name", `eq.${gameQ}`);
-    const r = await sbRest(`wave_tx?${q.toString()}${extra}`);
-    if (!r.ok) return [];
+    let r = await sbRest(`wave_tx?${q.toString()}${extra}`);
+    if (!r.ok) {
+      // Kolom room_id/round_id belum ada (SQL hive-round.sql belum dijalankan):
+      // ulangi tanpa dua kolom itu supaya peringkat tetap jalan.
+      q.set("select", "uid,amount");
+      r = await sbRest(`wave_tx?${q.toString()}${extra}`);
+      if (!r.ok) return [];
+    }
     const rows = await r.json().catch(() => []);
     return Array.isArray(rows) ? rows : [];
   };
