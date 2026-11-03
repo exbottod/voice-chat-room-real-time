@@ -1148,7 +1148,10 @@ object PublicSync {
         try {
             val db = FirebaseFirestore.getInstance()
             // Dompet kini di Supabase (cache dulu, lalu server); Firestore tidak dibaca lagi.
-            val w0 = WalletCache.load(uid) ?: SupaRepo.get(uid).wallet
+            // Selalu ambil dari server (bukan cache lokal): exp/VIP/coin yang diubah lewat
+            // panel developer harus ikut ke profil publik, jadi cache lama tidak boleh dipakai.
+            val w0 = SupaRepo.get(uid, fresh = true).wallet?.also { WalletCache.save(uid, it) }
+                ?: WalletCache.load(uid)
             if (w0 == null) { pushFromCache(uid); return }
             // Medal SVIP ada di pub/{uid}/svipInv; gabungkan agar ikut terkirim ke publik.
             val w = SvipInv.apply(uid, w0)

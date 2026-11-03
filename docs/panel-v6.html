@@ -1971,6 +1971,7 @@ $("rsDo").onclick = async () => {
   $("rsInfo").textContent = "Sedang membersihkan...";
   try {
     const r = await walletAdmin(Object.assign({ op: "reset_user", uid: foundCoin.uid }, pilihan));
+    if (pilihan.level || pilihan.vip) await selaraskanPub(foundCoin.uid);
     // Bersihkan juga sisa SVIP di Realtime Database supaya tidak muncul lagi di app.
     try {
       await rtdb.ref("pub/" + foundCoin.uid + "/svip").remove();
@@ -2005,11 +2006,26 @@ $("gemResetAll").onclick = async () => {
   $("gemResetAll").disabled = false;
 };
 
+/* Profil publik (pub/{uid}) dipakai layar "profil orang lain", room dan ranking.
+   Isinya dulu hanya diisi app pemilik akun, jadi exp/VIP yang diubah lewat panel
+   tidak tampil sebelum user membuka app. Sekarang panel ikut menyalinnya. */
+async function selaraskanPub(uid){
+  try {
+    const r = await walletAdmin({ op: "get", uid: uid });
+    const w = r.w || {};
+    await rtdb.ref("pub/" + uid).update({
+      exp: Number(w.exp || 0),
+      vip: Number(w.vip || 0),
+      vipUntil: Number(w.vipUntil || w.vip_until || 0)
+    });
+    return true;
+  } catch (e) { toast("Profil publik belum ikut: " + e.message); return false; }
+}
 /* ---------- Kirim coin ---------- */
 async function showCoinUser(){
   const r = await walletAdmin({ op: "get", uid: foundCoin.uid });
   const w = r.w || {};
-  const c = w.coins || 0, dm = w.diamonds || 0, ex = w.exp || 0, vp = w.vip || 0, vu = w.vip_until || 0;
+  const c = w.coins || 0, dm = w.diamonds || 0, ex = w.exp || 0, vp = w.vip || 0, vu = w.vipUntil || w.vip_until || 0;
   const vipTxt = (vp > 0 && vu > Date.now()) ? ("VIP" + vp + " s/d " + new Date(vu).toLocaleString()) : "tanpa VIP";
   userCard($("coinUser"), foundCoin, "Saldo: " + c + " coin, " + dm + " diamond, exp " + ex + ", " + vipTxt);
 }
@@ -2052,6 +2068,7 @@ $("expSend").onclick = async () => {
   try {
     await walletAdmin({ op: "add", uid: foundCoin.uid, exp: n });
     logAction({ type: "exp", targetId: foundCoin.id, uid: foundCoin.uid, amount: n });
+    await selaraskanPub(foundCoin.uid);
     toast("Berhasil ✅ " + (n > 0 ? "+" : "") + n + " exp");
     $("expAmt").value = ""; await showCoinUser();
   } catch (e) { toast("Gagal: " + e.message); }
@@ -2067,6 +2084,7 @@ $("vipSet").onclick = async () => {
   try {
     await walletAdmin({ op: "vip", uid: foundCoin.uid, tier: t, until });
     logAction({ type: "vip", targetId: foundCoin.id, uid: foundCoin.uid, vip: t, days: d });
+    await selaraskanPub(foundCoin.uid);
     toast("Berhasil ✅ " + (t === 0 ? "VIP dicabut" : "VIP" + t + " aktif " + d + " hari"));
     await showCoinUser();
   } catch (e) { toast("Gagal: " + e.message); }
