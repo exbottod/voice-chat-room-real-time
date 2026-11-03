@@ -16,7 +16,7 @@ import java.net.URL
  */
 object SupaRepo {
     private const val BASE = "https://fdemjdqagxkhgqkmfvwk.supabase.co"
-    private const val FN = "$BASE/functions/v1/wallet-api"
+    private const val FN = "$BASE/functions/v1/smart-processor"
     // Kunci publishable: memang boleh ada di dalam aplikasi
     // (setara kunci anon, tanpa akses data karena RLS menutup semua tabel).
     private const val KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W"
