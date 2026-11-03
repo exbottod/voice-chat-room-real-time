@@ -415,6 +415,44 @@ label{font-size:12px;color:var(--mut)}
   </div>
 </div>
 
+<div id="tab-staff" class="hide">
+    <div class="card">
+      <h2>Kirim panel ke user</h2>
+      <p class="muted">Panel muncul di tab Profil user itu. Manager: coin, VIP, frame/efek, blokir user, reset nama. Admin: VIP, frame/efek, blokir user biasa.</p>
+      <label>ID user (angka)</label>
+      <input type="number" id="pstId" inputmode="numeric">
+      <label>Manager dari admin (khusus admin, isi ID manager)</label>
+      <input type="number" id="pstMgr" inputmode="numeric" placeholder="kosongkan untuk manager">
+      <div class="row">
+        <button class="btn" id="pstManager">Kirim panel manager</button>
+        <button class="btn out" id="pstAdmin">Kirim panel admin</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn bad" id="pstCabut">Cabut panel user ini</button>
+      </div>
+      <div id="pstStatus" class="muted"></div>
+    </div>
+    <div class="card">
+      <h2>Stok frame &amp; efek masuk</h2>
+      <p class="muted">Item di sini yang bisa dikirim manager/admin ke user lewat panel di aplikasi.</p>
+      <label>ID staf penerima stok (angka)</label>
+      <input type="number" id="pstStockId" inputmode="numeric">
+      <label>Pilih item</label>
+      <select id="pstItem" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"></select>
+      <label>Durasi untuk user (hari)</label>
+      <input type="number" id="pstDays" value="30" min="1">
+      <div class="row">
+        <button class="btn" id="pstAddStock">Tambah ke stok</button>
+        <button class="btn out" id="pstReloadStock">Muat stok staf ini</button>
+      </div>
+      <div id="pstStockList" class="muted"></div>
+    </div>
+    <div class="card">
+      <h2>Daftar staf</h2>
+      <div id="pstList" class="muted">Memuat...</div>
+    </div>
+  </div>
+
 <div id="tab-user" class="hide">
     <div class="card">
       <h2>Daftar user terdaftar</h2>
@@ -3140,6 +3178,7 @@ async function pstFillItems(sel){
 function pstSay(msg){ $("pstStatus").textContent = msg || ""; toast(msg || ""); }
 
 async function pstStart(){
+  if (!$("pstItem") || !$("pstList")) { alert("Tab Panel Staf belum termuat. Tutup panel lalu buka lagi."); return; }
   pstFillItems($("pstItem"));
   pstList();
 }
