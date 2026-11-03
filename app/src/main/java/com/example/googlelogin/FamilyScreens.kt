@@ -686,7 +686,7 @@ fun FamilyRankDialog(myUid: String, onDismiss: () -> Unit, onOpenFamily: (String
         val r = if (myUid.isNotEmpty()) FamilyRepo.observeMy(myUid) { f, _ -> myFamilyId = f?.id ?: "" } else null
         onDispose { r?.remove() }
     }
-    androidx.compose.ui.window.Dialog(
+    Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {

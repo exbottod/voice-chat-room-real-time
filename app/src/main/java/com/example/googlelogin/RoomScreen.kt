@@ -87,7 +87,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -670,7 +669,7 @@ fun RoomScreen(
 
         // Lihat gambar ukuran penuh
         lihatGambar?.let { url ->
-            androidx.compose.ui.window.Dialog(onDismissRequest = { lihatGambar = null }) {
+            Dialog(onDismissRequest = { lihatGambar = null }) {
                 Box(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFF101010)).clickable { lihatGambar = null },
                     contentAlignment = Alignment.Center,
