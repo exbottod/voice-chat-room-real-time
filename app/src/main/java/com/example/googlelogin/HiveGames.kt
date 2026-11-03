@@ -308,152 +308,143 @@ fun HiveHubScreen(uid: String, onClose: () -> Unit) {
     }
 }
 
-/** WebView game Hive + jembatan JsBirge. */
+/** WebView game Hive + jembatan JsBirge. Layar penuh supaya game tidak terpotong. */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
     val ctx = LocalContext.current
+    val cfg = androidx.compose.ui.platform.LocalConfiguration.current
     var web by remember { mutableStateOf<WebView?>(null) }
     var prog by remember { mutableStateOf(0) }
     var err by remember { mutableStateOf("") }
     var started by remember { mutableStateOf(false) }
     val url = remember(game.id, uid) { HiveGames.launchUrl(game, uid) }
-
     val act = ctx.activityOrNull()
+
+    // Game lanskap diputar otomatis; orientasi lama dikembalikan saat keluar.
     DisposableEffect(game.landscape, act) {
         val old = act?.requestedOrientation
-        if (game.landscape && act != null) {
-            act.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        if (act != null) {
+            act.requestedOrientation = if (game.landscape) {
+                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            } else {
+                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
         }
-        onDispose {
-            if (game.landscape && act != null && old != null) act.requestedOrientation = old
+        onDispose { if (act != null && old != null) act.requestedOrientation = old }
+    }
+
+    // Ukuran canvas game (px desain) dipetakan pas ke lebar layar sekarang.
+    val skala = { w: Int ->
+        val px = ctx.resources.displayMetrics.widthPixels
+        val desain = if (w > 0) w else 720
+        ((px.toFloat() * 100f) / desain).toInt().coerceIn(20, 400)
+    }
+    LaunchedEffect(cfg.screenWidthDp, cfg.orientation, web) {
+        web?.let {
+            val w = if (game.screenWidth > 0) game.screenWidth else 720
+            it.setInitialScale(skala(w))
+            it.requestLayout()
         }
     }
 
     BackHandler { onClose() }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFF0B0B0B))) {
-        Row(
-            Modifier.fillMaxWidth().background(Color(0xFF141414)).padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "‹ Kembali",
-                color = Gold,
-                fontSize = 15.sp,
-                modifier = Modifier.clickable { onClose() }.padding(6.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                game.name,
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                "Browser",
-                color = Color(0xFF7FD1C1),
-                fontSize = 13.sp,
-                modifier = Modifier.clickable {
-                    try {
-                        ctx.startActivity(
-                            android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
-                                android.net.Uri.parse(url),
-                            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
-                    } catch (e: Exception) {
-                    }
-                }.padding(6.dp),
-            )
-        }
-        if (prog in 1..99) {
-            Box(Modifier.fillMaxWidth().height(2.dp).background(Color(0xFF2A2A2A))) {
-                Box(Modifier.fillMaxWidth(prog / 100f).height(2.dp).background(Gold))
-            }
-        }
-        if (err.isNotBlank()) {
-            Text(err, color = Color(0xFFFF6B6B), fontSize = 13.sp, modifier = Modifier.padding(10.dp))
-        }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (!started) {
-            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Gold)
             }
         }
-        Box(Modifier.fillMaxWidth().weight(1f)) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { c ->
-                    WebView(c).apply {
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.databaseEnabled = true
-                        settings.mediaPlaybackRequiresUserGesture = false
-                        settings.loadWithOverviewMode = true
-                        settings.useWideViewPort = true
-                        settings.setSupportZoom(false)
-                        settings.allowFileAccess = true
-                        settings.allowContentAccess = true
-                        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                        settings.userAgentString =
-                            "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
-                                "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-                        android.webkit.WebView.setWebContentsDebuggingEnabled(true)
-                        // HP lama (vivo/Android 9) gagal menggambar canvas dengan layer hardware.
-                        setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
-                        setBackgroundColor(android.graphics.Color.parseColor("#0B0B0B"))
-                        android.webkit.CookieManager.getInstance().setAcceptCookie(true)
-                        android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                        addJavascriptInterface(
-                            HiveBridge(
-                                onOpen = { started = true },
-                                onClose = { onClose() },
-                                onRecharge = {
-                                    // Game minta top-up: tampilkan pesan, isi coin lewat menu Top Up.
-                                    err = "Isi coin lewat menu Top Up dulu, lalu buka game lagi"
-                                },
-                            ),
-                            "JsBirge",
-                        )
-                        webChromeClient = object : WebChromeClient() {
-                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                                prog = newProgress
-                                if (newProgress > 40) started = true
-                            }
+        if (err.isNotBlank()) {
+            Text(err, color = Color(0xFFFF6B6B), fontSize = 13.sp, modifier = Modifier.align(Alignment.TopCenter).padding(top = 60.dp, start = 16.dp, end = 16.dp))
+        }
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { c ->
+                WebView(c).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.databaseEnabled = true
+                    settings.mediaPlaybackRequiresUserGesture = false
+                    // Layout halaman dipaksa selebar canvas game, lalu diskalakan
+                    // pas ke layar HP (tidak ada bagian yang terpotong).
+                    settings.useWideViewPort = false
+                    settings.loadWithOverviewMode = false
+                    settings.setSupportZoom(false)
+                    settings.builtInZoomControls = false
+                    settings.displayZoomControls = false
+                    settings.allowFileAccess = true
+                    settings.allowContentAccess = true
+                    settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                    settings.userAgentString =
+                        "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
+                            "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                    // Layer software membuat canvas/WebGL game jadi hitam, jadi tetap hardware.
+                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                    android.webkit.CookieManager.getInstance().setAcceptCookie(true)
+                    android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                    setInitialScale(skala(if (game.screenWidth > 0) game.screenWidth else 720))
+                    addJavascriptInterface(
+                        HiveBridge(
+                            onOpen = { started = true },
+                            onClose = { onClose() },
+                            onRecharge = { err = "Isi coin lewat menu Top Up, lalu buka game lagi" },
+                        ),
+                        "JsBirge",
+                    )
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                            prog = newProgress
+                            if (newProgress > 40) started = true
                         }
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageStarted(v: WebView?, u: String?, f: android.graphics.Bitmap?) {
-                                prog = 0
-                            }
-                            override fun onPageFinished(v: WebView?, u: String?) {
-                                prog = 100
-                                started = true
-                            }
-                            override fun onReceivedError(
-                                v: WebView?,
-                                r: android.webkit.WebResourceRequest?,
-                                e: android.webkit.WebResourceError?,
-                            ) {
-                                if (r?.isForMainFrame == true) {
-                                    err = "Gagal memuat game: " + (e?.description ?: "koneksi ditolak")
-                                }
-                            }
-                            override fun onReceivedHttpError(
-                                v: WebView?,
-                                r: android.webkit.WebResourceRequest?,
-                                e: android.webkit.WebResourceResponse?,
-                            ) {
-                                if (r?.isForMainFrame == true) {
-                                    err = "Server game membalas " + (e?.statusCode ?: 0)
-                                }
-                            }
+
+                        override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
+                            request?.grant(request.resources)
                         }
-                        loadUrl(url)
-                        web = this
                     }
-                },
-            )
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(v: WebView?, u: String?) {
+                            prog = 100
+                            started = true
+                        }
+
+                        override fun onReceivedError(
+                            v: WebView?,
+                            r: android.webkit.WebResourceRequest?,
+                            e: android.webkit.WebResourceError?,
+                        ) {
+                            if (r?.isForMainFrame == true) {
+                                err = "Gagal memuat game: " + (e?.description ?: "koneksi ditolak")
+                            }
+                        }
+
+                        override fun onReceivedHttpError(
+                            v: WebView?,
+                            r: android.webkit.WebResourceRequest?,
+                            e: android.webkit.WebResourceResponse?,
+                        ) {
+                            if (r?.isForMainFrame == true) {
+                                err = "Server game membalas " + (e?.statusCode ?: 0)
+                            }
+                        }
+                    }
+                    loadUrl(url)
+                    web = this
+                }
+            },
+        )
+        // Tombol kembali melayang, tidak memakan ruang game.
+        Box(
+            Modifier.align(Alignment.TopStart).padding(10.dp).size(36.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(Color(0x66000000))
+                .clickable { onClose() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("‹", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
