@@ -814,6 +814,35 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
     return json({ ok: 1, auth, tabel_gagal: gagal });
   }
 
+  // ---- hapus akun BANYAK user sekaligus (panel developer) ----
+  // Panel mengirim daftar uid per batch kecil. Server tidak pernah menghapus
+  // akun admin yang sedang login, dan melewati uid yang masuk daftar "kecuali".
+  if (op === "delete_users") {
+    const bersih = (v: unknown) =>
+      Array.isArray(v)
+        ? (v as unknown[]).map((x) => String(x ?? "")).filter((x) => /^[A-Za-z0-9_-]{6,128}$/.test(x))
+        : [];
+    const daftar = bersih(p.uids).slice(0, 25);
+    const kecuali = new Set(bersih(p.kecuali));
+    kecuali.add(who.uid);
+    const tabel = [
+      "wallets", "money_tx", "exchange_req", "topup_orders",
+      "topup_manual", "wave_players", "wave_tx",
+    ];
+    let terhapus = 0, dilewati = 0, authGagal = 0;
+    for (const uid of daftar) {
+      if (kecuali.has(uid)) { dilewati++; continue; }
+      for (const t of tabel) {
+        await sbRest(`${t}?uid=eq.${encodeURIComponent(uid)}`, { method: "DELETE" });
+      }
+      const a = await firebaseDeleteUser(uid);
+      if (a !== "terhapus" && a !== "belum diatur") authGagal++;
+      terhapus++;
+    }
+    const authDiatur = (Deno.env.get("FIREBASE_SA_JSON") ?? "") !== "";
+    return json({ ok: 1, terhapus, dilewati, authGagal, authDiatur });
+  }
+
   // ---- reset aset SEMUA user (panel developer) ----
   // Membersihkan aset/VIP/level seluruh user sekaligus. Katalog store
   // (item unggahan) tidak disentuh.

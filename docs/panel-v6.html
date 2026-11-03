@@ -424,6 +424,16 @@ label{font-size:12px;color:var(--mut)}
       <div class="muted" id="userCount" style="margin-top:8px"></div>
       <div id="userList"></div>
     </div>
+    <div class="card">
+      <h2>Hapus akun SEMUA user</h2>
+      <p class="muted">Menghapus seluruh akun user sekaligus: profil, ID, wallet, riwayat, dan akun login.
+        Semua user harus daftar ulang. Akun official, akun kamu sendiri, dan akun yang ditandai official
+        TIDAK ikut terhapus. Tidak bisa dibatalkan.</p>
+      <button class="btn out" id="delAllPreview">1. Hitung dulu (tidak menghapus)</button>
+      <div class="muted" id="delAllInfo" style="margin-top:8px"></div>
+      <button class="btn bad" id="delAllDo" style="margin-top:8px" disabled>2. Hapus SEMUA user non-official</button>
+      <div class="muted" id="delAllProg" style="margin-top:8px"></div>
+    </div>
   </div>
 <div id="msg" class="hide"></div>
 
@@ -1455,6 +1465,83 @@ $("offUnmark").onclick = async () => {
   } catch (e) { toast("Gagal: " + e.message); }
 };
 
+/* ---------- Hapus akun SEMUA user (non-official) ---------- */
+let rencanaHapusSemua = null;
+async function kumpulkanSemuaUser(){
+  const peta = {};
+  const pub = await rtdb.ref("pub").get();
+  if (pub.exists()) pub.forEach(c => { peta[c.key] = { uid: c.key, id: String((c.val() || {}).id || ""), name: (c.val() || {}).name || "" }; });
+  const rev = await rtdb.ref("ids/u").get();
+  if (rev.exists()) rev.forEach(c => { if (!peta[c.key]) peta[c.key] = { uid: c.key, id: String(c.val() || ""), name: "" }; });
+  return Object.keys(peta).map(k => peta[k]);
+}
+$("delAllPreview").onclick = async () => {
+  $("delAllDo").disabled = true;
+  rencanaHapusSemua = null;
+  $("delAllInfo").textContent = "Mengumpulkan daftar user dan akun official...";
+  try {
+    const semua = await kumpulkanSemuaUser();
+    const official = new Set(await daftarOfficial());
+    const sasaran = [], lewati = [];
+    for (const u of semua) {
+      let alasan = official.has(u.uid) ? "official" : "";
+      if (!alasan && /official/i.test(u.name || "")) alasan = "nama mengandung OFFICIAL";
+      if (!alasan) {
+        try {
+          const sn = await withTimeout(rtdb.ref("pub/" + u.uid + "/official").get(), 8000, "official");
+          if (sn.exists() && sn.val() === true) alasan = "ditandai official";
+        } catch (e) { /* lanjut */ }
+      }
+      if (alasan) lewati.push(u); else sasaran.push(u);
+    }
+    rencanaHapusSemua = { sasaran, lewati, official: Array.from(official) };
+    $("delAllInfo").textContent = "Total " + semua.length + " akun. Akan dihapus: " + sasaran.length +
+      ". Dilindungi (dilewati): " + lewati.length +
+      (lewati.length ? " (" + lewati.slice(0, 8).map(u => u.name || u.id || u.uid.slice(0, 6)).join(", ") + (lewati.length > 8 ? ", ..." : "") + ")" : "") +
+      ". Periksa daftar dilindungi sebelum lanjut.";
+    $("delAllDo").disabled = sasaran.length === 0;
+  } catch (e) {
+    $("delAllInfo").textContent = "Gagal menghitung: " + e.message;
+  }
+};
+$("delAllDo").onclick = async () => {
+  const r = rencanaHapusSemua;
+  if (!r || !r.sasaran.length) { toast("Tekan Hitung dulu"); return; }
+  if (!confirm("HAPUS " + r.sasaran.length + " AKUN?\n\n" + r.lewati.length + " akun official dilewati.\nSemua user lain harus daftar ulang. Tidak bisa dibatalkan.")) return;
+  if (prompt("Ketik HAPUS SEMUA (huruf kapital) untuk konfirmasi:") !== "HAPUS SEMUA") return;
+  $("delAllDo").disabled = true;
+  $("delAllPreview").disabled = true;
+  let ok = 0, authGagal = 0, authDiatur = true;
+  const total = r.sasaran.length;
+  try {
+    for (let i = 0; i < total; i += 10) {
+      const batch = r.sasaran.slice(i, i + 10);
+      $("delAllProg").textContent = "Menghapus " + Math.min(i + 10, total) + "/" + total + "...";
+      const res = await walletAdmin({ op: "delete_users", uids: batch.map(u => u.uid), kecuali: r.official });
+      ok += res.terhapus || 0;
+      authGagal += res.authGagal || 0;
+      authDiatur = res.authDiatur !== false;
+      await Promise.all(batch.map(async (u) => {
+        for (const jalur of ["pub/" + u.uid, "ids/u/" + u.uid, "fxPrefs/" + u.uid]) {
+          try { await rtdb.ref(jalur).remove(); } catch (e) { /* lanjut */ }
+        }
+        if (u.id) { try { await rtdb.ref("ids/i/" + u.id).remove(); } catch (e) { /* lanjut */ } }
+        try { await withTimeout(db.collection("users").doc(u.uid).delete(), 8000, "profil"); } catch (e) { /* lanjut */ }
+      }));
+    }
+    logAction({ type: "deleteAllUsers", count: ok, dilewati: r.lewati.length, from: "panel" });
+    $("delAllProg").textContent = "Selesai: " + ok + " akun dihapus, " + r.lewati.length + " official dilewati" +
+      (authDiatur ? (authGagal ? (", " + authGagal + " akun login gagal dihapus") : ", akun login ikut terhapus")
+                  : ". Akun login Firebase BELUM terhapus (secret FIREBASE_SA_JSON belum dipasang)");
+    toast("Selesai ✅ " + ok + " akun dihapus");
+  } catch (e) {
+    $("delAllProg").textContent = "Berhenti di tengah jalan: " + e.message + " (sudah terhapus " + ok + "). Tekan Hitung lalu ulangi untuk melanjutkan.";
+    toast("Gagal: " + e.message);
+  }
+  rencanaHapusSemua = null;
+  $("delAllPreview").disabled = false;
+};
+
 /* ---------- Reset ASET semua user sekaligus ---------- */
 async function bersihkanSvipSemua(pesan){
   const u = auth.currentUser;
@@ -1583,6 +1670,7 @@ async function blokOfficial(uid){
   } catch (e) { /* Firestore bisa lambat, tidak wajib */ }
   if (["admin", "official", "owner", "dev"].includes(fsRole)) return "role akun official (profil)";
   if (fsOfficial) return "ditandai official (profil)";
+  if (/official/i.test(String(pub.name || ""))) return "nama akun mengandung OFFICIAL";
   const role = String(pub.role || "").toLowerCase();
   if (["admin", "official", "owner", "dev"].includes(role)) return "role akun official";
   if (pub.official === true) return "ditandai official";
