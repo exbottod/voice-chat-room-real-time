@@ -3,10 +3,10 @@ Daemon will be stopped at the end of the build
 > Task :app:preBuild UP-TO-DATE
 > Task :app:preReleaseBuild UP-TO-DATE
 > Task :app:mergeReleaseJniLibFolders
+> Task :app:checkReleaseDuplicateClasses
 > Task :app:buildKotlinToolingMetadata
 > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app:generateReleaseBuildConfig
-> Task :app:checkReleaseDuplicateClasses
 > Task :app:mergeReleaseNativeLibs
 > Task :app:generateReleaseResValues
 > Task :app:checkReleaseAarMetadata
@@ -36,13 +36,13 @@ Unable to strip the following libraries, packaging them as they are: libagora-fd
 
 > Task :app:processReleaseManifest
 > Task :app:processReleaseManifestForPackage
-> Task :app:desugarReleaseFileDependencies
 > Task :app:javaPreCompileRelease
+> Task :app:desugarReleaseFileDependencies
 > Task :app:mergeReleaseStartupProfile
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
-> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseAssets
 > Task :app:extractReleaseVersionControlInfo
 > Task :app:compressReleaseAssets
@@ -79,6 +79,3 @@ w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/
 > Task :app:mergeReleaseJavaResource
 > Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
-> Task :app:packageRelease
-> Task :app:createReleaseApkListingFileRedirect
-> Task :app:assembleRelease
