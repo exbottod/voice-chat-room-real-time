@@ -169,6 +169,19 @@ label{font-size:12px;color:var(--mut)}
       </div>
     </div>
     <div class="card">
+      <h2>Reset aset SEMUA user</h2>
+      <p class="muted">Membersihkan aset seluruh user sekaligus, bukan per ID. Item store hasil upload tidak terhapus.
+        Tidak bisa dibatalkan.</p>
+      <div class="row"><label><input type="checkbox" id="rsAllAssets" checked> Aset (frame, medal, efek masuk, bubble, lencana, gelar)</label></div>
+      <div class="row"><label><input type="checkbox" id="rsAllVip" checked> VIP / SVIP</label></div>
+      <div class="row"><label><input type="checkbox" id="rsAllLevel"> Level dan exp (kembali ke 1)</label></div>
+      <div class="row"><label><input type="checkbox" id="rsAllCoin"> Coin (jadi 0)</label></div>
+      <div class="row"><label><input type="checkbox" id="rsAllGem"> Diamond (jadi 0)</label></div>
+      <div class="row"><label><input type="checkbox" id="rsAllRtdb" checked> Bersihkan sisa SVIP di Realtime Database</label></div>
+      <button class="btn bad" id="rsAllDo">Reset aset SEMUA user</button>
+      <div id="rsAllInfo" class="muted"></div>
+    </div>
+    <div class="card">
       <h2>Reset coin semua user</h2>
       <p class="muted">Membuat saldo coin SEMUA user menjadi 0. Diamond dan exp tidak disentuh. Tidak bisa dibatalkan.</p>
       <div id="resetAllInfo" class="muted"></div>
@@ -1393,6 +1406,70 @@ $("gemReset").onclick = async () => {
     await showCoinUser();
   } catch (e) { toast("Gagal: " + e.message); }
   $("gemReset").disabled = false;
+};
+
+/* ---------- Reset ASET semua user sekaligus ---------- */
+async function bersihkanSvipSemua(pesan){
+  const u = auth.currentUser;
+  if (!u) return "belum login";
+  const token = await u.getIdToken();
+  const url = "https://arboreal-cat-511705-p6-default-rtdb.asia-southeast1.firebasedatabase.app/pub.json?shallow=true&auth=" + encodeURIComponent(token);
+  let keys = [];
+  try {
+    const res = await fetch(url);
+    const j = await res.json().catch(() => null);
+    if (j && typeof j === "object") keys = Object.keys(j);
+  } catch (e) {
+    return "gagal baca daftar user: " + e.message;
+  }
+  let ok = 0, gagal = 0;
+  for (let i = 0; i < keys.length; i += 10) {
+    const potong = keys.slice(i, i + 10);
+    pesan("Membersihkan SVIP " + Math.min(i + 10, keys.length) + "/" + keys.length + "...");
+    await Promise.all(potong.map(async (uid) => {
+      try {
+        await rtdb.ref("pub/" + uid + "/svip").remove();
+        await rtdb.ref("pub/" + uid + "/svipInv").remove();
+        ok++;
+      } catch (e) { gagal++; }
+    }));
+  }
+  return "SVIP dibersihkan: " + ok + (gagal ? (", gagal " + gagal) : "");
+}
+$("rsAllDo").onclick = async () => {
+  const pilihan = {
+    assets: $("rsAllAssets").checked,
+    vip: $("rsAllVip").checked,
+    level: $("rsAllLevel").checked,
+    coins: $("rsAllCoin").checked,
+    gems: $("rsAllGem").checked,
+  };
+  if (!Object.keys(pilihan).some(k => pilihan[k])) { toast("Pilih dulu apa yang mau dibersihkan"); return; }
+  const daftar = [];
+  if (pilihan.assets) daftar.push("aset (frame, medal, efek masuk, bubble, lencana, gelar)");
+  if (pilihan.vip) daftar.push("VIP/SVIP");
+  if (pilihan.level) daftar.push("level dan exp");
+  if (pilihan.coins) daftar.push("coin");
+  if (pilihan.gems) daftar.push("diamond");
+  if (!confirm("RESET SEMUA USER\n\nDihapus untuk SELURUH user: " + daftar.join(", ") + "\n\nLanjutkan?")) return;
+  if (prompt("Ketik RESET huruf kapital untuk konfirmasi:") !== "RESET") return;
+  $("rsAllDo").disabled = true;
+  $("rsAllInfo").textContent = "Sedang memproses...";
+  try {
+    const r = await walletAdmin(Object.assign({ op: "reset_all_assets" }, pilihan));
+    logAction({ type: "resetAllAssets", bagian: r.bagian || [], count: r.count || 0, from: "panel" });
+    let info = "Selesai: " + (r.count || 0) + " wallet dibersihkan (" + (r.bagian || []).join(", ") + ")";
+    if ($("rsAllRtdb").checked) {
+      const sisa = await bersihkanSvipSemua(t => { $("rsAllInfo").textContent = t; });
+      info += " | " + sisa;
+    }
+    $("rsAllInfo").textContent = info;
+    toast("Berhasil ✅ reset aset semua user");
+  } catch (e) {
+    $("rsAllInfo").textContent = "Gagal: " + e.message;
+    toast("Gagal: " + e.message);
+  }
+  $("rsAllDo").disabled = false;
 };
 
 /* ---------- Hapus AKUN user (harus daftar ulang) ---------- */

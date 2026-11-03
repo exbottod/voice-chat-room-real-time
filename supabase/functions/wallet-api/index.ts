@@ -814,6 +814,61 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
     return json({ ok: 1, auth, tabel_gagal: gagal });
   }
 
+  // ---- reset aset SEMUA user (panel developer) ----
+  // Membersihkan aset/VIP/level seluruh user sekaligus. Katalog store
+  // (item unggahan) tidak disentuh.
+  if (op === "reset_all_assets") {
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const bagian: string[] = [];
+    if (p.assets !== false) {
+      patch.inv = {};
+      patch.equip = {};
+      bagian.push("aset");
+    }
+    if (p.vip !== false) {
+      patch.vip = 0;
+      patch.vip_until = 0;
+      bagian.push("vip");
+    }
+    if (p.level === true) {
+      patch.exp = 0;
+      patch.lv_claimed = 0;
+      bagian.push("level");
+    }
+    if (p.coins === true) {
+      patch.coins = 0;
+      bagian.push("coin");
+    }
+    if (p.gems === true) {
+      patch.diamonds = 0;
+      bagian.push("diamond");
+    }
+    if (bagian.length === 0) return json({ ok: 0, e: "Tidak ada bagian yang dipilih" }, 400);
+    // Satu perintah untuk semua baris. Hanya uid yang dikembalikan supaya
+    // fungsi tidak kehabisan tenaga (HTTP 546) saat user sudah banyak.
+    const r = await sbRest("wallets?uid=not.is.null&select=uid", {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+    let jumlah = 0;
+    if (r.ok) {
+      const rows = await r.json().catch(() => []);
+      jumlah = Array.isArray(rows) ? rows.length : 0;
+    } else {
+      return json({ ok: 0, e: "Gagal reset semua aset" }, 200);
+    }
+    await sbRest("money_tx", {
+      method: "POST",
+      body: JSON.stringify({
+        uid: who.uid,
+        kind: "admin_reset_all_assets",
+        item_id: who.email,
+        amount: 0,
+      }),
+    });
+    return json({ ok: 1, count: jumlah, bagian });
+  }
+
   // ---- reset aset user (panel developer) ----
   // Menghapus yang DIMILIKI user: frame, medal, efek masuk, bubble, badge,
   // gelar, VIP/SVIP, level. Katalog store (item unggahan) tidak disentuh,
