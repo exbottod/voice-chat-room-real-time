@@ -114,6 +114,9 @@ class MainActivity : ComponentActivity() {
         CrashGuard.install(this)
         AppLang.load(this)
         WalletCache.init(this)
+        // Nilai taruhan game (betCfg) didengarkan sejak awal supaya perubahan
+        // dari panel developer langsung dipakai REZO tanpa buka ulang aplikasi.
+        try { BetCfg.startLive() } catch (e: Exception) { }
         setContent {
             // Bahasa Arab: layout kanan-ke-kiri (RTL).
             CompositionLocalProvider(

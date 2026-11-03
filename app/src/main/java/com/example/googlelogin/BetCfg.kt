@@ -1,5 +1,8 @@
 package com.example.googlelogin
 
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -10,11 +13,50 @@ import kotlinx.coroutines.tasks.await
 object BetCfg {
     private val memo = java.util.concurrent.ConcurrentHashMap<String, List<Long>>()
 
+    /** 2 = betCfg (lokasi utama), 1 = pub/_betCfg (cermin). Dipakai agar nilai utama menang. */
+    private val rank = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    @Volatile private var live = false 
+
     /** Nilai yang sudah terbaca sebelumnya (dipakai langsung supaya chip tidak berkedip). */
     fun cached(key: String, fallback: List<Long>): List<Long> = memo[key] ?: fallback
 
-    /** Ambil nilai chip dari server sekali per sesi, lalu simpan di memori. */
+    /**
+     * Dengarkan betCfg terus-menerus. Jadi begitu pemilik mengubah nilai taruhan
+     * di panel, REZO langsung memakai nilai baru tanpa perlu tutup aplikasi.
+     */
+    fun startLive() {
+        if (live) return
+        live = true
+        val paths = listOf("pub/_betCfg" to 1, "betCfg" to 2)
+        for ((path, r) in paths) {
+            try {
+                Rtdb.ref(path).addValueEventListener(object : ValueEventListener {
+                    override fun onDataChange(snap: DataSnapshot) {
+                        for (c in snap.children) {
+                            val key = c.key ?: continue
+                            val chips = c.child("chips").children.mapNotNull { ch ->
+                                ch.getValue(Long::class.java) ?: ch.getValue(Int::class.java)?.toLong()
+                            }.filter { it > 0L }.distinct().sorted()
+                            if (chips.isEmpty() || chips.size > 6) continue
+                            val lama = rank[key] ?: 0
+                            if (r >= lama) {
+                                memo[key] = chips
+                                rank[key] = r
+                            }
+                        }
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {}
+                })
+            } catch (e: Exception) {
+                // abaikan, game tetap memakai nilai bawaan
+            }
+        }
+    }
+
+    /** Ambil nilai chip terbaru. Kedengarannya live, jadi selalu ikut panel. */
     suspend fun load(key: String, fallback: List<Long>): List<Long> {
+        startLive()
         memo[key]?.let { return it }
         var out: List<Long> = fallback
         for (base in listOf("betCfg", "pub/_betCfg")) {
