@@ -346,6 +346,21 @@ async function hivePlayInner(req: Request): Promise<Response> {
     const rows = r.ok ? await r.json().catch(() => null) : null;
     const row = Array.isArray(rows) ? rows[0] : rows;
     if (!row) return hiveFail("gagal memperbarui saldo", 500);
+
+    // Room + ronde dipakai untuk menyusun peringkat per putaran, supaya
+    // pemain yang main bareng di meja yang sama bisa dilihat pemenangnya.
+    // Kalau kolomnya belum ada (SQL hive-round.sql belum dijalankan), abaikan.
+    const roomId = String(body.room_id ?? "").trim();
+    const roundId = String(body.game_round_id ?? body.gameRoundId ?? "").trim();
+    if (roomId || roundId) {
+      try {
+        await sbRest(`wave_tx?tx_id=eq.${encodeURIComponent(`hive_${orderId}`)}`, {
+          method: "PATCH",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify({ room_id: roomId || null, round_id: roundId || null }),
+        });
+      } catch { /* kolom belum ada, lanjut saja */ }
+    }
     return hiveOk({ currency_balance: hiveSafe(row.coins) });
   }
 
@@ -1407,25 +1422,68 @@ async function topupHistory(uid: string): Promise<Response> {
 }
 
 // ---------- Peringkat pemenang game Hive (Top 1-3) ----------
-// Game Hive menampilkan dialog sendiri yang isinya dari server Hive, jadi
-// pemenang antar pemain REZO dihitung di sini dari catatan menang (kind=2)
-// pada tabel wave_tx. Dipakai app untuk dialog Top 3 versi REZO.
+// Dua mode:
+//   mode "round" -> pemenang satu putaran (pakai room_id + game_round_id
+//                   yang dikirim Hive saat change_balance)
+//   mode "day"   -> total kemenangan 24 jam terakhir (cadangan)
+// Kalau putaran terakhir hanya berisi satu pemain, otomatis pakai mode 24 jam
+// supaya dialog tidak kosong.
 async function hiveRank(uid: string, p: Record<string, unknown>): Promise<Response> {
   const game = String(p.game ?? "").trim();
+  const wantRound = String(p.round ?? "").trim();
+  const wantRoom = String(p.room ?? "").trim();
   const hours = Math.min(Math.max(Number(p.hours ?? 24), 1), 24 * 14);
   const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-  const q = new URLSearchParams({
-    select: "uid,amount",
-    kind: "eq.2",
-    created_at: `gte.${since}`,
-    order: "created_at.desc",
-    limit: "4000",
-  });
-  if (game) q.set("game_name", `eq.hive:${game}`);
-  const r = await sbRest(`wave_tx?${q.toString()}`);
-  const rows = r.ok ? await r.json().catch(() => []) : [];
+  const gameQ = game ? `hive:${game}` : "";
+
+  const ambil = async (extra: string): Promise<Array<{ uid: string; amount: number; room_id?: string; round_id?: string }>> => {
+    const q = new URLSearchParams({
+      select: "uid,amount,room_id,round_id",
+      kind: "eq.2",
+      created_at: `gte.${since}`,
+      order: "created_at.desc",
+      limit: "4000",
+    });
+    if (gameQ) q.set("game_name", `eq.${gameQ}`);
+    const r = await sbRest(`wave_tx?${q.toString()}${extra}`);
+    if (!r.ok) return [];
+    const rows = await r.json().catch(() => []);
+    return Array.isArray(rows) ? rows : [];
+  };
+
+  let rows = await ambil("");
+  let mode = "day";
+  let roundId = "";
+  let roomId = wantRoom;
+
+  // Cari putaran terakhir yang ada pemenangnya.
+  if (wantRound) {
+    roundId = wantRound;
+  } else {
+    const kandidat = rows.find((x) => (x.round_id ?? "").trim() !== "");
+    roundId = kandidat ? String(kandidat.round_id).trim() : "";
+    if (kandidat && wantRoom) roomId = String(kandidat.room_id ?? "") || wantRoom;
+  }
+
+  if (roundId) {
+    const rowsRound = rows.filter((x) =>
+      String(x.round_id ?? "").trim() === roundId &&
+      (!roomId || String(x.room_id ?? "").trim() === roomId)
+    );
+    // Butuh minimal 2 pemain berbeda agar benar-benar "main bareng".
+    const pemain = new Set(rowsRound.map((x) => x.uid));
+    if (pemain.size >= 2) {
+      rows = rowsRound;
+      mode = "round";
+      const r0 = rowsRound.find((x) => (x.room_id ?? "").trim() !== "");
+      roomId = r0 ? String(r0.room_id ?? "").trim() : roomId;
+    } else {
+      roundId = "";
+    }
+  }
+
   const total = new Map<string, number>();
-  for (const row of (rows as Array<{ uid: string; amount: number }>)) {
+  for (const row of rows) {
     if (!row?.uid) continue;
     const amt = Number(row.amount ?? 0);
     if (!Number.isFinite(amt) || amt <= 0) continue;
@@ -1446,6 +1504,9 @@ async function hiveRank(uid: string, p: Record<string, unknown>): Promise<Respon
   return json({
     ok: 1,
     game,
+    mode,
+    round: roundId,
+    room: roomId,
     top: top.map((e, i) => ({
       rank: i + 1,
       uid: e[0],

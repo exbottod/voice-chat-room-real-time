@@ -354,6 +354,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
     // ditampilkan di lapisan app: tombol 🏆 kapan saja + otomatis saat menang.
     var top3 by remember { mutableStateOf<List<JsonTop>>(emptyList()) }
     var myWin by remember { mutableStateOf(0L) }
+    var rankMode by remember { mutableStateOf("day") }
     var showTop by remember { mutableStateOf(false) }
     var topLoading by remember { mutableStateOf(false) }
     val scope3 = rememberCoroutineScope()
@@ -379,6 +380,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                 }
                 top3 = list
                 myWin = o.optJSONObject("me")?.optLong("win") ?: 0L
+                rankMode = o.optString("mode", "day")
             }
             topLoading = false
             if (buka) showTop = true
@@ -532,6 +534,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                 TopThreeCard(
                     list = top3,
                     myWin = myWin,
+                    mode = rankMode,
                     loading = topLoading,
                     onClose = { showTop = false },
                 )
@@ -559,6 +562,7 @@ private fun fmtWin(n: Long): String {
 private fun TopThreeCard(
     list: List<JsonTop>,
     myWin: Long,
+    mode: String,
     loading: Boolean,
     onClose: () -> Unit,
 ) {
@@ -571,7 +575,11 @@ private fun TopThreeCard(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("Top 3 Pemenang", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        Text("24 jam terakhir · pemain REZO", color = Color(0xFF9A93A6), fontSize = 11.sp)
+        Text(
+            if (mode == "round") "Putaran ini · pemain REZO" else "24 jam terakhir · pemain REZO",
+            color = Color(0xFF9A93A6),
+            fontSize = 11.sp,
+        )
         Spacer(Modifier.height(10.dp))
         if (loading && list.isEmpty()) {
             CircularProgressIndicator(color = Gold, modifier = Modifier.size(22.dp))
