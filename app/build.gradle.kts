@@ -92,12 +92,8 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            // Lip sync dan spatial audio tidak dipakai obrolan suara; dua
-            // pustaka ini saja ~21 MB di dalam APK.
-            excludes += setOf(
-                "**/libagora_lip_sync_extension.so",
-                "**/libagora_spatial_audio_extension.so",
-            )
+            // Semua pustaka Agora dikembalikan: dua pustaka yang sempat dibuang
+            // (lip sync dan spatial audio) diduga membuat suara room senyap.
         }
     }
 
