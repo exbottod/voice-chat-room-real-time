@@ -352,19 +352,35 @@ fun HiveHubScreen(uid: String, onClose: () -> Unit) {
 private const val FIT_JS = """(function(){
   if (window.__rezoFitInit) { try{window.__rezoFit();}catch(e){} return; }
   window.__rezoFitInit = 1;
+  // Setiap kali dijalankan, skala dihitung ULANG dari nol (tidak menumpuk),
+  // supaya tampilan bisa kembali normal lagi setelah animasi/popup lewat.
+  // Batas terkecil 0,8 agar isi tidak pernah jadi kecil aneh.
   window.__rezoFit = function(){
     try {
       var h = document.documentElement, b = document.body;
       if (!h || !b) return;
       var vw = window.innerWidth, vh = window.innerHeight;
       if (vw < 50 || vh < 50) return;
-      var z = window.__rezoZ || 1;
-      for (var pass = 0; pass < 6; pass++) {
-        h.style.zoom = z < 0.995 ? String(z) : "";
+      var uz = window.__rezoUserZoom || 1;
+      var z = 1;
+      for (var pass = 0; pass < 4; pass++) {
+        var pakai = Math.max(0.8, z * uz);
+        h.style.zoom = pakai < 0.995 ? String(pakai) : "";
         var maxR = vw, maxB = vh;
         var els = b.getElementsByTagName("*");
         for (var i = 0; i < els.length; i++) {
-          var r = els[i].getBoundingClientRect();
+          var el = els[i];
+          var st = window.getComputedStyle(el);
+          if (st.visibility === "hidden" || st.display === "none") continue;
+          if (st.opacity === "0") continue;
+          var pos = st.position;
+          if (pos === "absolute" || pos === "fixed") {
+            // Elemen terbang/animasi (mis. efek koin) sering keluar layar
+            // sebentar; jangan sampai membuat halaman diperkecil.
+            var tf = st.transform;
+            if (tf && tf !== "none") continue;
+          }
+          var r = el.getBoundingClientRect();
           if (r.width < 24 || r.height < 24) continue;
           if (r.right > maxR) maxR = r.right;
           if (r.bottom > maxB) maxB = r.bottom;
@@ -372,23 +388,28 @@ private const val FIT_JS = """(function(){
         if (h.scrollWidth > maxR) maxR = h.scrollWidth;
         if (h.scrollHeight > maxB) maxB = h.scrollHeight;
         var perlu = Math.min(vw / maxR, vh / maxB);
-        if (perlu > 0.995) break;
-        var baru = Math.max(0.6, z * perlu);
-        if (baru >= z - 0.004) break;
+        if (perlu > 0.985) break;
+        var baru = Math.max(0.8, z * perlu);
+        if (baru >= z - 0.005) break;
         z = baru;
       }
+      var tot = Math.max(0.8, z * uz);
       window.__rezoZ = z;
-      h.style.zoom = z < 0.995 ? String(z) : "";
+      h.style.zoom = tot < 0.995 ? String(tot) : "";
     } catch(e) {}
   };
-  var jadwal = [400, 900, 1500, 2400, 3600, 5200, 7500, 10000, 14000, 19000];
+  window.__rezoSetUserZoom = function(v){
+    window.__rezoUserZoom = Number(v) > 0 ? Number(v) : 1;
+    try { window.__rezoFit(); } catch(e) {}
+  };
+  var jadwal = [400, 1200, 2500, 4500, 7000, 11000, 16000];
   for (var k = 0; k < jadwal.length; k++) setTimeout(window.__rezoFit, jadwal[k]);
   window.addEventListener("resize", function(){ setTimeout(window.__rezoFit, 300); });
   window.addEventListener("orientationchange", function(){ setTimeout(window.__rezoFit, 600); });
   try {
     var mo = new MutationObserver(function(){
       clearTimeout(window.__rezoFitT);
-      window.__rezoFitT = setTimeout(window.__rezoFit, 500);
+      window.__rezoFitT = setTimeout(window.__rezoFit, 900);
     });
     document.addEventListener("DOMContentLoaded", function(){
       try { mo.observe(document.body, {childList:true, subtree:true}); } catch(e){}
@@ -396,6 +417,23 @@ private const val FIT_JS = """(function(){
   } catch(e) {}
 })();"""
 
+
+
+/**
+ * Skala layar game disimpan per game di HP ini. Dipakai kalau auto-fit belum pas,
+ * pemilik bisa menekan tombol skala untuk mengecilkan sedikit demi sedikit.
+ */
+private const val SKALA_PILIHAN = listOf(1.0f, 0.95f, 0.9f, 0.85f, 0.8f, 0.75f, 0.7f, 0.65f)
+
+private fun bacaSkala(ctx: android.content.Context, gameId: String): Float {
+    val p = ctx.getSharedPreferences("rezo_game_skala", android.content.Context.MODE_PRIVATE)
+    return p.getFloat(gameId, 1.0f)
+}
+
+private fun simpanSkala(ctx: android.content.Context, gameId: String, v: Float) {
+    ctx.getSharedPreferences("rezo_game_skala", android.content.Context.MODE_PRIVATE)
+        .edit().putFloat(gameId, v).apply()
+}
 
 /** Window tempat layar game berada: bisa window dialog, bisa window activity. */
 private fun windowDari(v: android.view.View): android.view.Window? {
@@ -418,6 +456,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
     val url = remember(game.id, uid) { HiveGames.launchUrl(game, uid) }
     val act = ctx.activityOrNull()
     val view = LocalView.current
+    var skala by remember(game.id) { mutableStateOf(bacaSkala(ctx, game.id)) }
 
     // ==== Top 3 pemenang versi REZO ====
     // Dialog di dalam game Hive milik server Hive, jadi peringkat pemain REZO
@@ -577,6 +616,12 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                             prog = 100
                             started = true
                             v?.evaluateJavascript(FIT_JS, null)
+                            if (skala < 0.999f) {
+                                v?.evaluateJavascript(
+                                    "try{window.__rezoSetUserZoom(" + skala + ")}catch(e){}",
+                                    null,
+                                )
+                            }
                         }
 
                         override fun onReceivedError(
@@ -613,6 +658,28 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                 .clickable { muatTop3(buka = true) },
             contentAlignment = Alignment.Center,
         ) { Text("🏆", fontSize = 14.sp) }
+
+        // Tombol skala layar: menekan berulang mengecilkan isi game, karena
+        // sebagian game tetap melebar walau sudah diperkecil otomatis.
+        val persen = (skala * 100).toInt()
+        Box(
+            Modifier.align(Alignment.TopStart).padding(start = 42.dp, top = 6.dp).size(30.dp)
+                .clip(RoundedCornerShape(15.dp))
+                .background(Color(0x99000000))
+                .clickable {
+                    val i = SKALA_PILIHAN.indexOfFirst { kotlin.math.abs(it - skala) < 0.01f }
+                    val next = SKALA_PILIHAN[if (i < 0) 0 else (i + 1) % SKALA_PILIHAN.size]
+                    skala = next
+                    simpanSkala(ctx, game.id, next)
+                    web?.evaluateJavascript(
+                        "try{window.__rezoSetUserZoom(" + next + ")}catch(e){}",
+                        null,
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("$persen%", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        }
 
         if (showTop) {
             Box(Modifier.fillMaxSize().background(Color(0xCC000000)).clickable { showTop = false })
