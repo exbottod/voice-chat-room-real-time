@@ -1008,6 +1008,30 @@ fun WalletScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     }
 }
 
+/** Ikon koin digambar lewat kode, jadi selalu terlihat (emoji 🪙 hilang di banyak HP). */
+@Composable
+fun CoinDot(size: androidx.compose.ui.unit.Dp = 14.dp) {
+    Box(
+        Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color(0xFFFFE27A), Color(0xFFF5A623)),
+                ),
+            )
+            .border(1.dp, Color(0xFFB87408), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(size * 0.58f)
+                .clip(CircleShape)
+                .border(1.dp, Color(0xFFB87408), CircleShape),
+        )
+    }
+}
+
 @Composable
 private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(12.dp)
@@ -1017,7 +1041,7 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
             .clip(shape)
             .border(if (selected) 2.dp else 0.dp, if (selected) Color(0xFF2BD9C4) else Color.Transparent, shape)
             .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
@@ -1025,11 +1049,11 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
                 AsyncImage(
                     model = g.mediaUrl,
                     contentDescription = g.name,
-                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)),
+                    modifier = Modifier.size(38.dp).clip(RoundedCornerShape(9.dp)),
                     contentScale = ContentScale.Crop,
                 )
             } else {
-                Text(g.emoji, fontSize = 38.sp)
+                Text(g.emoji, fontSize = 32.sp)
             }
             if (g.special) {
                 // Bulatan khas di kanan atas: tanda gift kombo + bisa JP random.
@@ -1046,9 +1070,11 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
                 }
             }
         }
-        Text(g.name, color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(g.name, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${g.price} 🪙", color = Color(0xFF8FA3A0), fontSize = 12.sp, maxLines = 1)
+            Text("${g.price}", color = Color(0xFF8FA3A0), fontSize = 11.sp, maxLines = 1)
+            Spacer(Modifier.width(3.dp))
+            CoinDot(12.dp)
             if (g.cbRate > 0) {
                 Spacer(Modifier.width(4.dp))
                 Text(
@@ -1140,12 +1166,13 @@ fun GiftPanel(
                             .clip(RoundedCornerShape(50))
                             .background(if (tab == i) teal else Color(0xFF16302F))
                             .clickable { tab = i }
-                            .padding(horizontal = 18.dp, vertical = 8.dp),
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
                     ) {
                         Text(
                             label,
                             color = if (tab == i) Color.Black else Color(0xFF8FA3A0),
                             fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
                         )
                     }
                 }
@@ -1243,7 +1270,7 @@ fun GiftPanel(
                         )
                     }
                 } else {
-                    HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(240.dp)) { p ->
+                    HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(196.dp)) { p ->
                         Column(Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
                             pages[p].chunked(4).forEach { row ->
                                 Row(Modifier.fillMaxWidth().weight(1f)) {
@@ -1275,12 +1302,12 @@ fun GiftPanel(
 
             Spacer(Modifier.height(8.dp))
             Row(Modifier.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("🪙", fontSize = 22.sp)
+                CoinDot(20.dp)
                 Spacer(Modifier.width(6.dp))
                 Text(
                     fmtCompact(wallet.coins),
                     color = Color.White,
-                    fontSize = 17.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     modifier = Modifier.weight(1f, fill = false),
@@ -1289,7 +1316,7 @@ fun GiftPanel(
                 Text(
                     tr("Topup") + " ◆",
                     color = teal,
-                    fontSize = 17.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable {
                         onDismiss()
@@ -1304,11 +1331,11 @@ fun GiftPanel(
                 ) {
                     Box {
                         Row(
-                            Modifier.clickable { countMenu = true }.padding(horizontal = 16.dp, vertical = 10.dp),
+                            Modifier.clickable { countMenu = true }.padding(horizontal = 12.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("$count", color = Color.White, fontSize = 16.sp)
-                            Spacer(Modifier.width(8.dp))
+                            Text("$count", color = Color.White, fontSize = 14.sp)
+                            Spacer(Modifier.width(6.dp))
                             Text("▲", color = Color(0xFFBDBDBD), fontSize = 11.sp)
                         }
                         DropdownMenu(expanded = countMenu, onDismissRequest = { countMenu = false }) {
@@ -1449,9 +1476,9 @@ fun GiftPanel(
                                     sending = false
                                 }
                             }
-                            .padding(horizontal = 22.dp, vertical = 10.dp),
+                            .padding(horizontal = 16.dp, vertical = 7.dp),
                     ) {
-                        Text(tr("Berikan"), color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Berikan"), color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

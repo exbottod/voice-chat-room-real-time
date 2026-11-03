@@ -109,9 +109,13 @@ const CORS = {
   "Access-Control-Max-Age": "86400",
 };
 
+const DB_TIMEOUT_MS = 8000;
+
 async function rpc(fn: string, params: Record<string, unknown>): Promise<Response> {
   const url = `${Deno.env.get("SUPABASE_URL")}/rest/v1/rpc/${fn}`;
   const sr = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  // Batas waktu: kalau database macet, jangan menggantung sampai 150 detik
+  // (permintaan menumpuk dan semua ikut 504). Lebih baik gagal cepat lalu dicoba lagi.
   const r = await fetch(url, {
     method: "POST",
     headers: {
@@ -120,6 +124,7 @@ async function rpc(fn: string, params: Record<string, unknown>): Promise<Respons
       "Content-Type": "application/json",
     },
     body: JSON.stringify(params),
+    signal: AbortSignal.timeout(DB_TIMEOUT_MS),
   });
   return r;
 }
@@ -152,7 +157,7 @@ const HIVE_APP_ID = "100198";
 const HIVE_KEY = Deno.env.get("HIVE_APP_KEY") ?? "eb09c56d97454d43ab2698ad548697ab";
 const HIVE_CODE_SALT = Deno.env.get("HIVE_CODE_SALT") ?? "rezo-hive-2026";
 const HIVE_MAX_SKEW = 300; // detik
-const HIVE_VER = "2026-11-03d";
+const HIVE_VER = "2026-11-03e";
 // Game Hive berjalan di JavaScript: angka di atas 2^53-1 jadi NaN di layar.
 // Saldo yang DIKIRIM ke game dibatasi; saldo asli di wallet tetap utuh.
 const HIVE_MAX_SAFE = 9007199254740991;
@@ -799,6 +804,7 @@ async function giftCredit(targets: string[], each: number, itemId: string, roomI
 async function sbRest(path: string, init: RequestInit = {}): Promise<Response> {
   const sr = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   return await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/${path}`, {
+    signal: AbortSignal.timeout(DB_TIMEOUT_MS),
     ...init,
     headers: {
       apikey: sr,

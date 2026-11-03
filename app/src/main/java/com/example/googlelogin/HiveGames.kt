@@ -424,7 +424,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
     LaunchedEffect(uid, game.id) {
         var saldoLama: Long? = null
         while (true) {
-            delay(10_000)
+            delay(30_000)
             val w = SupaRepo.get(uid).wallet?.coins
             if (w != null) {
                 val lama = saldoLama
