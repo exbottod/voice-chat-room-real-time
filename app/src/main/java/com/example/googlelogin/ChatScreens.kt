@@ -33,6 +33,8 @@ data class ChatSummary(
     val otherId: String,
     val lastText: String,
     val lastAt: Long,
+    /** true kalau baris ini berasal dari Realtime Database (sumber utama). */
+    val isRt: Boolean = false,
 )
 
 data class ChatMsg(val id: String, val from: String, val text: String, val at: Long)
@@ -44,8 +46,18 @@ object ChatRepo {
 
     fun observeChats(myUid: String, onChange: (List<ChatSummary>) -> Unit): Reg {
         // UTAMA: Realtime Database chatsByUser/{uid} (hemat kuota Firestore).
-        val byId = HashMap<String, ChatSummary>()
-        fun emit() = onChange(byId.values.sortedByDescending { it.lastAt })
+        // Dua sumber (RTDB + riwayat Firestore) bisa memuat chat yang sama. Dulu
+        // hasilnya berisi dua baris ber-id sama, dan kunci LazyColumn jadi kembar
+        // sehingga seluruh aplikasi langsung tertutup saat tab Pesan dibuka.
+        // ConcurrentHashMap juga aman karena listener dan coroutine menulis bersamaan.
+        val byId = java.util.concurrent.ConcurrentHashMap<String, ChatSummary>()
+        fun emit() {
+            val unik = LinkedHashMap<String, ChatSummary>()
+            // RTDB diutamakan; riwayat Firestore hanya mengisi yang belum ada.
+            byId.values.sortedWith(compareByDescending<ChatSummary> { it.isRt }.thenByDescending { it.lastAt })
+                .forEach { c -> if (!unik.containsKey(c.id)) unik[c.id] = c }
+            onChange(unik.values.sortedByDescending { it.lastAt })
+        }
         val rt = Rtdb.listen(Rtdb.ref("chatsByUser/$myUid")) { s ->
             byId.keys.removeAll { it.startsWith("rt_") }
             s.children.forEach { c ->
@@ -58,6 +70,7 @@ object ChatRepo {
                     otherId = c.child("otherId").getValue(String::class.java) ?: "",
                     lastText = c.child("lastText").getValue(String::class.java) ?: "",
                     lastAt = c.child("lastAt").getValue(Long::class.java) ?: 0L,
+                    isRt = true,
                 )
             }
             emit()
