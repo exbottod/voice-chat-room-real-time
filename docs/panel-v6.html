@@ -38,7 +38,21 @@ label{font-size:12px;color:var(--mut)}
 .muted{color:var(--mut);font-size:13px}
 .hide{display:none!important}
 #msg{position:fixed;left:12px;right:12px;bottom:14px;background:#222;border:1px solid var(--gold);padding:10px 14px;border-radius:12px;text-align:center;font-size:14px}
-.u{display:flex;gap:10px;align-items:center;margin:10px 0}.u img,.u .ph{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#263238;flex:none;display:flex;align-items:center;justify-content:center;color:var(--gold2);font-weight:700}.u b{display:block}</style></head><body>
+.u{display:flex;gap:10px;align-items:center;margin:10px 0}.u img,.u .ph{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#263238;flex:none;display:flex;align-items:center;justify-content:center;color:var(--gold2);font-weight:700}.u b{display:block}/* ---------- Tampilan daftar panel (kartu) ---------- */
+.tabs{display:none!important}
+.homegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
+.hcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 11px;cursor:pointer;display:flex;flex-direction:column;gap:7px;transition:border-color .15s}
+.hcard:active{border-color:var(--gold)}
+.hcard.on{border-color:var(--gold);background:#1d1c16}
+.hrow{display:flex;align-items:center;gap:9px;min-width:0}
+.hico{width:32px;height:32px;border-radius:10px;background:#242018;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.htitle{font-size:13.5px;font-weight:700;color:#fff;line-height:1.15}
+.hsub{font-size:11px;color:var(--mut);line-height:1.35}
+#backbar{display:none;align-items:center;gap:7px;margin:0 0 12px;color:var(--gold2);font-size:14px;font-weight:700;cursor:pointer}
+#backbar.on{display:flex}
+#secttitle{display:none;color:var(--gold2);font-size:15px;font-weight:700;margin:0 0 10px}
+#secttitle.on{display:block}
+</style></head><body>
 <h1>⚙️ Panel Developer</h1>
 
 <div id="login" class="card hide">
@@ -58,7 +72,10 @@ label{font-size:12px;color:var(--mut)}
     <div class="muted" style="flex:1" id="who"></div>
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
-  <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
+  <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: buka kartu Banner lalu tekan Tes</div>
+  <div id="backbar">← Semua panel</div>
+  <div id="secttitle"></div>
+  <div id="home" class="homegrid"></div>
   <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div><div class="tab" data-t="staff">🛡️ Panel Staf</div></div>
   <div id="tab-banner">
 
@@ -527,6 +544,8 @@ auth.onAuthStateChanged(u => {
   const warn = $("loginWarn");
   if (warn) warn.classList.toggle("hide", prov === "google.com");
   show("panel");
+  buildHome();
+  pilihTab("");
   startBan();
   bgStart();
   banStart();
@@ -1031,19 +1050,68 @@ document.getElementById("betSave").onclick = async () => {
 
 let unsubBan = null, foundBan = null, foundCoin = null;
 
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
-  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
-  if (t.dataset.t === "vip") vipStart();
-  if (t.dataset.t === "store") storeStart();
-  if (t.dataset.t === "emote") emoteStart();
-  if (t.dataset.t === "signin") signinStart();
-  if (t.dataset.t === "bet") betStart();
-  if (t.dataset.t === "cb") cbStart();
-  if (t.dataset.t === "rocket") rocketStart();
-  if (t.dataset.t === "topup") { payLoad(); manualLoad(false); }
-  if (t.dataset.t === "staff") pstStart();
-});
+const TAB_KEYS = ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff"];
+const TAB_INFO = [
+  ["banner", "\uD83D\uDDBC\uFE0F", "Banner", "Pasang banner di aplikasi"],
+  ["ban", "\uD83D\uDEAB", "Ban / Unban", "Blokir user dari room"],
+  ["coin", "\uD83E\uDE99", "Kirim Coin", "Kirim coin ke satu user"],
+  ["user", "\uD83D\uDC65", "User", "Cari & kelola akun user"],
+  ["vip", "\uD83D\uDC51", "VIP", "Aktifkan VIP 1-9"],
+  ["store", "\uD83D\uDECD\uFE0F", "Store", "Bingkai & efek masuk"],
+  ["emote", "\uD83D\uDE04", "Emote", "Emote obrolan room"],
+  ["bg", "\uD83C\uDFA8", "Background", "Latar room"],
+  ["signin", "\uD83D\uDCC5", "Cek in", "Hadiah cek in harian"],
+  ["bet", "\uD83C\uDFB0", "Bet Game", "Chip taruhan game"],
+  ["topup", "\uD83D\uDCB8", "Topup Manual", "Setujui topup DANA"],
+  ["gift", "\uD83C\uDF81", "Gift", "Daftar gift room"],
+  ["cb", "\uD83D\uDCB5", "Gift CB", "Gift cashback"],
+  ["rocket", "\uD83D\uDE80", "Hadiah Roket", "Level & hadiah roket"],
+  ["staff", "\uD83D\uDEE1\uFE0F", "Panel Staf", "Manager & admin"],
+];
+
+function buildHome(){
+  const box = $("home"); if (!box) return;
+  box.innerHTML = "";
+  TAB_INFO.forEach(it => {
+    const [k, ico, title, sub] = it;
+    if (!$("tab-" + k)) return;
+    const c = document.createElement("div");
+    c.className = "hcard"; c.dataset.t = k;
+    c.innerHTML = '<div class="hrow"><div class="hico">' + ico + '</div><div class="htitle">' + title + '</div></div>' +
+      '<div class="hsub">' + sub + '</div>';
+    c.onclick = () => pilihTab(k);
+    box.appendChild(c);
+  });
+}
+
+function pilihTab(k){
+  const key = k || "";
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x.dataset.t === key));
+  TAB_KEYS.forEach(x => { const el = $("tab-" + x); if (el) el.classList.toggle("hide", x !== key); });
+  document.querySelectorAll(".hcard").forEach(c => c.classList.toggle("on", c.dataset.t === key));
+  const back = $("backbar"), home = $("home");
+  if (back) back.classList.toggle("on", !!key);
+  if (home) home.classList.toggle("hide", !!key);
+  const tt = $("secttitle");
+  if (tt) {
+    const info = TAB_INFO.find(x => x[0] === key);
+    tt.textContent = info ? info[2] : "";
+    tt.classList.toggle("on", !!key);
+  }
+  if (!key) return;
+  if (key === "vip") vipStart();
+  if (key === "store") storeStart();
+  if (key === "emote") emoteStart();
+  if (key === "signin") signinStart();
+  if (key === "bet") betStart();
+  if (key === "cb") cbStart();
+  if (key === "rocket") rocketStart();
+  if (key === "topup") { payLoad(); manualLoad(false); }
+  if (key === "staff") pstStart();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => pilihTab(t.dataset.t));
+
 
 /* ---------- Cashback gift: RTP, bobot pecahan, aset SVGA ---------- */
 const CB_VALS = [0,1,2,3,5,10,20,50,100,250];
@@ -1373,7 +1441,7 @@ function userCard(el, u, line2){
   row.append(av, box); el.appendChild(row);
 }
 
-const PANEL_BUILD = "2026-11-03d";
+const PANEL_BUILD = "2026-11-04a";
 (function stempelPanel(){
   const cek = () => {
     if (!document.body || document.getElementById("panelBuild")) return;
@@ -3262,6 +3330,7 @@ async function pstStockList(uid){
   } catch (e) { box.textContent = "Gagal memuat stok: " + e.message; }
 }
 
+if ($("backbar")) $("backbar").onclick = () => pilihTab("");
 $("pstManager").onclick = () => pstGrant("manager");
 $("pstAdmin").onclick = () => pstGrant("admin");
 $("pstCabut").onclick = () => { if (confirm("Cabut panel user ini?")) pstRevoke(); };
