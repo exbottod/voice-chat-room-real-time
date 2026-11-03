@@ -93,6 +93,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 
 private const val P_NONE = 0
 
@@ -1727,36 +1731,60 @@ private fun RmLock(r: RoomInfo, onClose: () -> Unit) {
 /** Bulatan kecil mengambang saat room diminimalkan. Bisa digeser, klik untuk masuk lagi. */
 @Composable
 fun FloatingRoomBubble(room: RoomInfo, onClick: () -> Unit) {
-    val density = LocalDensity.current
-    val cfg = LocalConfiguration.current
-    val sizePx = with(density) { 60.dp.toPx() }
-    val maxX = with(density) { cfg.screenWidthDp.dp.toPx() } - sizePx
-    val maxY = with(density) { cfg.screenHeightDp.dp.toPx() } - sizePx
-    var x by remember { mutableStateOf(maxX - 24f) }
-    var y by remember { mutableStateOf(maxY * 0.6f) }
-    val bmp = remember(room.photoB64) { ProfileRepo.decodeB64(room.photoB64) }
-    Box(Modifier.fillMaxSize()) {
+    // Batas geser dihitung dari UKURAN CONTAINER sebenarnya (BoxWithConstraints),
+    // bukan screenWidthDp dari Configuration yang bisa beda dengan ruang nyata.
+    // Ukuran ikon ikut mengecil di HP sempit dan selalu diberi jarak tepi,
+    // jadi tidak ada bagian yang terpotong di device mana pun.
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val layarSempit = maxWidth < 340.dp
+        val ukuran = if (layarSempit) 46.dp else 52.dp
+        val tepi = 10.dp
+
+        val ukuranPx = with(density) { ukuran.toPx() }
+        val tepiPx = with(density) { tepi.toPx() }
+        val lebarPx = with(density) { maxWidth.toPx() }
+        val tinggiPx = with(density) { maxHeight.toPx() }
+        val atasPx = WindowInsets.statusBars.getTop(density).toFloat()
+        val bawahPx = WindowInsets.navigationBars.getBottom(density).toFloat()
+
+        val batasKanan = (lebarPx - ukuranPx - tepiPx).coerceAtLeast(tepiPx)
+        val batasBawah = (tinggiPx - bawahPx - ukuranPx - tepiPx).coerceAtLeast(atasPx + tepiPx)
+        val batasAtas = atasPx + tepiPx
+
+        // null = belum digeser, jadi posisi awal selalu mengikuti layar terkini.
+        var geserX by remember { mutableStateOf<Float?>(null) }
+        var geserY by remember { mutableStateOf<Float?>(null) }
+        val x = (geserX ?: (batasKanan - tepiPx * 2f)).coerceIn(tepiPx, batasKanan)
+        val y = (geserY ?: (batasAtas + (batasBawah - batasAtas) * 0.55f)).coerceIn(batasAtas, batasBawah)
+
+        val bmp = remember(room.photoB64) { ProfileRepo.decodeB64(room.photoB64) }
         Box(
             Modifier
-            .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
-            .size(60.dp)
-            .clip(CircleShape)
-            .background(Color(0xFF1E1E1E))
-            .border(2.dp, Gold, CircleShape)
-            .pointerInput(Unit) {
-                detectDragGestures { change, drag ->
-                    change.consume()
-                    x = (x + drag.x).coerceIn(0f, maxX)
-                    y = (y + drag.y).coerceIn(0f, maxY)
+                .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
+                .size(ukuran)
+                .clip(CircleShape)
+                .background(Color(0xFF1E1E1E))
+                .border(2.dp, Gold, CircleShape)
+                .pointerInput(batasKanan, batasAtas, batasBawah) {
+                    detectDragGestures { change, drag ->
+                        change.consume()
+                        geserX = (x + drag.x).coerceIn(tepiPx, batasKanan)
+                        geserY = (y + drag.y).coerceIn(batasAtas, batasBawah)
+                    }
                 }
-            }
-            .clickable(onClick = onClick),
+                .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
             if (bmp != null) {
-                Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                Image(
+                    bitmap = bmp,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
             } else {
-                Text("🎙", fontSize = 26.sp)
+                Text("🎙", fontSize = if (layarSempit) 20.sp else 24.sp)
             }
         }
     }
