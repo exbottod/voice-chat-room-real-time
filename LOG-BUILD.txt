@@ -8,8 +8,8 @@ Daemon will be stopped at the end of the build
 > Task :app:checkReleaseDuplicateClasses
 > Task :app:generateReleaseBuildConfig
 > Task :app:mergeReleaseNativeLibs
-> Task :app:checkReleaseAarMetadata
 > Task :app:generateReleaseResValues
+> Task :app:checkReleaseAarMetadata
 > Task :app:processReleaseGoogleServices
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
@@ -36,11 +36,11 @@ Unable to strip the following libraries, packaging them as they are: libagora-fd
 
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease
-> Task :app:processReleaseManifestForPackage
 > Task :app:desugarReleaseFileDependencies
 > Task :app:mergeReleaseStartupProfile
-> Task :app:mergeReleaseShaders
+> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseArtProfile
+> Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
@@ -80,8 +80,3 @@ w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/
 > Task :app:mergeReleaseJavaResource
 > Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
-> Task :app:packageRelease
-> Task :app:createReleaseApkListingFileRedirect
-> Task :app:assembleRelease
-> Task :app:pushBuildLog
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793720656457.json
