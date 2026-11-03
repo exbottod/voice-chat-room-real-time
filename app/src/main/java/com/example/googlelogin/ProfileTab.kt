@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -212,17 +213,17 @@ fun ProfileTab(
                                 .then(if (vfAsset != null) Modifier else Modifier.border(3.dp, frameBrush(activeEquip(wallet, "frame")), CircleShape))
                                 .padding(3.dp),
                         ) {
-                            AvatarImage(user, profile, 92.dp)
+                            AvatarImage(user, profile, 72.dp)
                         }
-                        if (vfAsset != null) FrameOverlay(vfAsset, 128.dp)
+                        if (vfAsset != null) FrameOverlay(vfAsset, 100.dp)
                     }
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.clickable(onClick = onProfileClick)) {
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f).clickable(onClick = onProfileClick)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             VipNameText(
                                 nick, wallet.vip, wallet.vipUntil,
                                 color = ink,
-                                fontSize = 22.sp,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 modifier = Modifier.weight(1f, fill = false),
@@ -239,7 +240,7 @@ fun ProfileTab(
                                 },
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("UID:$userId", color = ink.copy(alpha = 0.75f), fontSize = 15.sp)
+                                Text("UID:$userId", color = ink.copy(alpha = 0.75f), fontSize = 13.sp)
                                 Spacer(Modifier.width(6.dp))
                                 Text("📋", fontSize = 14.sp)
                             }
@@ -250,10 +251,14 @@ fun ProfileTab(
                         // Medal di atas (rapi, rata kiri), lencana tepat di bawahnya.
                         val myMedals = activeMedalIds(wallet)
                         if (myMedals.isNotEmpty()) {
-                            UserMedals(myMedals.joinToString(","), 44.dp, Modifier.fillMaxWidth())
+                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                                UserMedals(myMedals.joinToString(","), 32.dp)
+                            }
                             Spacer(Modifier.height(4.dp))
                         }
-                        BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"))
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                            BadgeRow(wallet.vip, wallet.vipUntil, activeEquip(wallet, "badge"))
+                        }
                         FamTagByUid(FirebaseAuth.getInstance().currentUser?.uid)
                     }
                 }

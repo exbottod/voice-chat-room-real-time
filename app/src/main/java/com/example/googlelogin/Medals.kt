@@ -145,7 +145,12 @@ fun UserMedals(csv: String?, size: Dp = 44.dp, modifier: Modifier = Modifier) {
     val ids = medalIdList(csv).take(MAX_MEDALS).filter { it.startsWith("vipt_") || findItem(it) != null }
     if (ids.isEmpty()) return
     // Barisan medal rapi: rata kiri, jarak seragam, otomatis pindah baris kalau banyak.
-    androidx.compose.foundation.layout.FlowRow(
+    if (size <= 36.dp) {
+        // Mode ringkas (header profil): satu baris, tidak membungkus ke bawah.
+        Row(modifier, horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+            ids.forEach { Box(Modifier.height(size), contentAlignment = Alignment.CenterStart) { MedalIcon(it, size) } }
+        }
+    } else androidx.compose.foundation.layout.FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
