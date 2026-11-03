@@ -25,6 +25,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -333,7 +334,7 @@ fun Modifier.geserTutup(key: Any?, onDismiss: () -> Unit): Modifier {
             alpha = (1f + offsetY.value / (ambang * 4f)).coerceIn(0f, 1f)
         }
         .pointerInput(key) {
-            androidx.compose.foundation.gestures.detectVerticalDragGestures(
+            detectVerticalDragGestures(
                 onDragEnd = {
                     scope.launch {
                         if (offsetY.value < -ambang) {
@@ -345,7 +346,7 @@ fun Modifier.geserTutup(key: Any?, onDismiss: () -> Unit): Modifier {
                     }
                 },
                 onDragCancel = { scope.launch { offsetY.animateTo(0f) } },
-            ) { change, drag ->
+            ) { change: androidx.compose.ui.input.pointer.PointerInputChange, drag: Float ->
                 change.consume()
                 // Hanya boleh digeser ke atas.
                 scope.launch { offsetY.snapTo((offsetY.value + drag).coerceAtMost(0f)) }

@@ -122,6 +122,7 @@ private const val P_EFEK = 10
 
 private val Teal = Color(0xFF2BD9C4)
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun RoomScreen(
     roomId: String,
