@@ -324,12 +324,24 @@ private fun WalletBalanceCard(
                 Text(tr("Saldo") + ":", color = Color.White, fontSize = 17.sp)
             }
             Spacer(Modifier.height(8.dp))
+            // Ukuran font menyesuaikan panjang angka supaya selalu satu baris
+            // dan tidak terpotong, berapa pun besar saldonya.
+            val teksSaldo = fmtNum(balance)
+            val ukuranSaldo = when {
+                teksSaldo.length <= 9 -> 34
+                teksSaldo.length <= 11 -> 28
+                teksSaldo.length <= 14 -> 22
+                teksSaldo.length <= 17 -> 18
+                else -> 15
+            }
             Text(
-                fmtNum(balance),
+                teksSaldo,
                 color = Color.White,
-                fontSize = 40.sp,
+                fontSize = ukuranSaldo.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
             )
         }
         Box(
