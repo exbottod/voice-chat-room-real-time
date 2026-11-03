@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +51,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -337,6 +341,51 @@ fun HiveHubScreen(uid: String, onClose: () -> Unit) {
     }
 }
 
+/**
+ * Skrip penyesuai ukuran halaman game.
+ *
+ * Sebagian game memakai ukuran tetap sehingga di layar HP isinya melebar keluar
+ * layar dan terpotong. Skrip ini mengukur halaman; kalau isi lebih besar dari
+ * layar (lebih dari 3%), halaman diperkecil dengan `zoom` sampai muat.
+ * Halaman tidak pernah diperbesar, jadi game yang sudah pas tidak berubah.
+ */
+private const val FIT_JS = """(function(){
+  if (window.__rezoFitInit) { try { window.__rezoFit(); } catch(e){} return; }
+  window.__rezoFitInit = 1;
+  window.__rezoFit = function(){
+    try {
+      var h = document.documentElement, b = document.body;
+      if (!h) return;
+      h.style.zoom = "";
+      var vw = window.innerWidth, vh = window.innerHeight;
+      if (vw < 50 || vh < 50) return;
+      var w = Math.max(h.scrollWidth || 0, b ? (b.scrollWidth || 0) : 0);
+      var ht = Math.max(h.scrollHeight || 0, b ? (b.scrollHeight || 0) : 0);
+      var z = 1;
+      if (w > vw * 1.03) z = Math.min(z, vw / w);
+      if (ht > vh * 1.03) z = Math.min(z, vh / ht);
+      z = Math.max(0.5, Math.min(1, z));
+      if (z < 0.995) h.style.zoom = z;
+    } catch(e) {}
+  };
+  setTimeout(window.__rezoFit, 700);
+  setTimeout(window.__rezoFit, 1800);
+  setTimeout(window.__rezoFit, 3500);
+  setTimeout(window.__rezoFit, 6500);
+  window.addEventListener("resize", function(){ setTimeout(window.__rezoFit, 400); });
+  window.addEventListener("orientationchange", function(){ setTimeout(window.__rezoFit, 700); });
+})();"""
+
+
+/** Window tempat layar game berada: bisa window dialog, bisa window activity. */
+private fun windowDari(v: android.view.View): android.view.Window? {
+    var p: android.view.ViewParent? = v
+    while (p != null) {
+        if (p is androidx.compose.ui.window.DialogWindowProvider) return p.window
+        p = p.parent
+    }
+    return (v.context as? android.app.Activity)?.window
+}
 /** WebView game Hive + jembatan JsBirge. Layar penuh supaya game tidak terpotong. */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -348,6 +397,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
     var started by remember { mutableStateOf(false) }
     val url = remember(game.id, uid) { HiveGames.launchUrl(game, uid) }
     val act = ctx.activityOrNull()
+    val view = LocalView.current
 
     // ==== Top 3 pemenang versi REZO ====
     // Dialog di dalam game Hive milik server Hive, jadi peringkat pemain REZO
@@ -402,7 +452,9 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
     }
 
     // Game lanskap diputar otomatis; orientasi lama dikembalikan saat keluar.
-    DisposableEffect(game.landscape, act) {
+    // Status/navigation bar disembunyikan selama game dibuka, karena HUD bawah
+    // game tertutup tombol navigasi Android dan terlihat seperti terpotong.
+    DisposableEffect(game.landscape, act, view) {
         val old = act?.requestedOrientation
         if (act != null) {
             act.requestedOrientation = if (game.landscape) {
@@ -411,7 +463,13 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                 android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
         }
-        onDispose { if (act != null && old != null) act.requestedOrientation = old }
+        val ctrl = windowDari(view)?.let { WindowCompat.getInsetsController(it, it.decorView) }
+        ctrl?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        ctrl?.hide(WindowInsetsCompat.Type.systemBars())
+        onDispose {
+            if (act != null && old != null) act.requestedOrientation = old
+            ctrl?.show(WindowInsetsCompat.Type.systemBars())
+        }
     }
 
     BackHandler { onClose() }
@@ -477,6 +535,13 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                         ),
                         "JsBirge",
                     )
+                    post {
+                        addOnLayoutChangeListener { _, l, t, rr, bb, ol, ot, orr, obb ->
+                            if (rr - l != orr - ol || bb - t != obb - ot) {
+                                evaluateJavascript("try{window.__rezoFit&&window.__rezoFit()}catch(e){}", null)
+                            }
+                        }
+                    }
                     webChromeClient = object : WebChromeClient() {
                         override fun onProgressChanged(view: WebView?, newProgress: Int) {
                             prog = newProgress
@@ -491,6 +556,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                         override fun onPageFinished(v: WebView?, u: String?) {
                             prog = 100
                             started = true
+                            v?.evaluateJavascript(FIT_JS, null)
                         }
 
                         override fun onReceivedError(
