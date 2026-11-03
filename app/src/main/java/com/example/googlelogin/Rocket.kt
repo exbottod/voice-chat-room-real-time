@@ -1139,7 +1139,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                         // Untuk video bawaan, lanjut ke tahap berikutnya hanya lewat
                         // timer durasi video, supaya dialog hadiah tidak muncul
                         // mendahului roket yang meluncur.
-                        GiftVideo(e.url, Modifier.fillMaxSize()) { if (!bawaan) selesai() }
+                        GiftVideo(e.url, Modifier.fillMaxSize(), sound = true) { if (!bawaan) selesai() }
                         if (bawaan) RocketTopPhoto(RocketRepo.rankRows.firstOrNull()?.photo.orEmpty())
                     } else {
                         GiftSvga(e.url, "\uD83D\uDE80", Modifier.fillMaxSize(), onEnd = { selesai() })
@@ -1191,7 +1191,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
     if (e != null && step == 1 && burstUrl != null) {
         val bMs = RocketCfg.videoMs(burstUrl).coerceAtLeast(1_500L)
         Box(Modifier.fillMaxSize()) {
-            GiftVideo(burstUrl, Modifier.fillMaxSize()) { }
+            GiftVideo(burstUrl, Modifier.fillMaxSize(), sound = true) { }
         }
         LaunchedEffect(e.id, "burst") {
             // Efek pecah ditayangkan penuh dulu, baru dialog hadiah muncul.
@@ -1361,7 +1361,7 @@ fun RocketPrizeDialog(
         // Animasi keberuntungan roket (mp4 ikut di dalam APK) di belakang kartu hadiah.
         if (mode == "lucky") {
             key(lv) {
-                GiftVideo(RocketCfg.bundledLuck(lv), Modifier.fillMaxSize())
+                GiftVideo(RocketCfg.bundledLuck(lv), Modifier.fillMaxSize(), sound = true)
             }
         }
         Column(
