@@ -15,11 +15,11 @@ import java.net.URL
  * pernah bisa diubah langsung dari luar aplikasi.
  */
 object SupaRepo {
-    private const val BASE = "https://poeqhncfrxssilhjvibf.supabase.co"
-    private const val FN = "$BASE/functions/v1/wallet-api"
+    private const val BASE = "https://fdemjdqagxkhgqkmfvwk.supabase.co"
+    private const val FN = "$BASE/functions/v1/smart-processor"
     // Kunci publishable: memang boleh ada di dalam aplikasi
     // (setara kunci anon, tanpa akses data karena RLS menutup semua tabel).
-    private const val KEY = "sb_publishable_l6orVwlNXTICFL4Cc1QMOw_vobFaSfL"
+    private const val KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W"
 
     class Res(val wallet: Wallet?, val error: String?, val needMigrate: Boolean = false)
 

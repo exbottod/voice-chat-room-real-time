@@ -219,7 +219,7 @@ small{color:#757575}
 // WaveGames memanggil Base URL lalu meneruskan token pemain. Karena bentuk
 // kiriman mereka tidak selalu sama (header/query/body), proxy ini menerima
 // semuanya, mencatat permintaan terakhir, lalu meneruskan ke wallet-api.
-const WAVE_SUPA = 'https://poeqhncfrxssilhjvibf.supabase.co/functions/v1/wallet-api';
+const WAVE_SUPA = 'https://fdemjdqagxkhgqkmfvwk.supabase.co/functions/v1/smart-processor';
 
 function pickToken(req, bodyText) {
   const h = req.headers;
