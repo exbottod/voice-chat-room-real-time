@@ -51,6 +51,7 @@ data class PanelStok(val id: String, val kind: String, val name: String, val day
 data class PanelInfo(
     val role: String = "",          // manager | admin
     val manager: String = "",
+    val coins: Long = 0L,           // sisa stok coin dari developer
     val stok: List<PanelStok> = emptyList(),
 ) {
     val isManager: Boolean get() = role == "manager"
@@ -79,7 +80,19 @@ object PanelStaffRepo {
                 )
             }
         }
-        return PanelInfo(role = role, manager = o.optString("manager", ""), stok = stok)
+        return PanelInfo(
+            role = role,
+            manager = o.optString("manager", ""),
+            coins = o.optLong("coins", 0L),
+            stok = stok,
+        )
+    }
+
+    /** Sisa stok coin terbaru dari server. */
+    suspend fun sisaCoin(): Long = try { me()?.coins ?: 0L } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+       0L
     }
 
     /** Pesan hasil aksi, siap ditampilkan. */
@@ -228,6 +241,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
     var vipDays by remember { mutableStateOf("30") }
     var alasan by remember { mutableStateOf("") }
     var itemPilih by remember { mutableStateOf<PanelStok?>(null) }
+    var sisaCoin by remember { mutableStateOf(info.coins) }
 
     fun jalankan(action: String, params: org.json.JSONObject) {
         if (sibuk) return
@@ -281,13 +295,50 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
 
             if (info.isManager) {
                 PanelSection("Kirim coin") {
+                    Text(
+                        "Sisa stok coin Anda: ${fmtNum(sisaCoin)}",
+                        color = if (sisaCoin > 0L) PanelGold else Color(0xFFFF9E9E),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        "Coin diambil dari stok yang dikirim developer. Kalau habis, kirim coin terkunci.",
+                        color = PanelMuted,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+                    )
                     PanelField("Jumlah coin", coin, { v -> coin = v.filter { it.isDigit() } }, angka = true)
-                    PanelAction(if (sibuk) "Mengirim..." else "Kirim coin", enabled = !sibuk) {
-                        val n = coin.toLongOrNull() ?: 0L
+                    val n = coin.toLongOrNull() ?: 0L
+                    PanelAction(
+                        when {
+                            sisaCoin <= 0L -> "Stok coin habis"
+                            sibuk -> "Mengirim..."
+                            else -> "Kirim coin"
+                        },
+                        enabled = !sibuk && sisaCoin > 0L,
+                    ) {
                         if (idUser.isBlank() || n <= 0L) {
                             pesan = "Isi ID user dan jumlah coin"
+                        } else if (n > sisaCoin) {
+                            pesan = "Stok coin tidak cukup. Sisa ${fmtNum(sisaCoin)} coin."
                         } else {
-                            jalankan("send_coin", org.json.JSONObject().put("to", idUser).put("coins", n))
+                            sibuk = true
+                            pesan = "Memproses..."
+                            scope.launch {
+                                pesan = try {
+                                    val hasil = PanelStaffRepo.aksi(
+                                        "send_coin",
+                                        org.json.JSONObject().put("to", idUser).put("coins", n),
+                                    )
+                                    sisaCoin = PanelStaffRepo.sisaCoin()
+                                    hasil
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    e.message ?: "Gagal"
+                                }
+                                sibuk = false
+                            }
                         }
                     }
                 }

@@ -800,11 +800,16 @@ async function topupManualRiwayat(env, uid) {
 async function stafDari(env, uid) {
   if (!uid) return null;
   const r = await pipe(env, [
-    { sql: "select uid, role, manager, active from panel_staff where uid = ?", args: [T(uid)] },
+    { sql: "select uid, role, manager, active, coins from panel_staff where uid = ?", args: [T(uid)] },
   ]);
   const row = r[0].rows[0];
   if (!row || Number(row.active) !== 1) return null;
-  return { uid: String(row.uid), role: String(row.role), manager: String(row.manager ?? "") };
+  return {
+    uid: String(row.uid),
+    role: String(row.role),
+    manager: String(row.manager ?? ""),
+    coins: Math.max(0, Number(row.coins ?? 0)),
+  };
 }
 
 async function stokStaf(env, uid) {
@@ -829,7 +834,7 @@ async function panel(env, body) {
   if (aksi === "me") {
     const staf = await stafDari(env, uid);
     if (!staf) return json({ ok: 0, e: "Bukan staf", role: "" });
-    return json({ ok: 1, role: staf.role, manager: staf.manager, stok: await stokStaf(env, uid) });
+    return json({ ok: 1, role: staf.role, manager: staf.manager, coins: staf.coins, stok: await stokStaf(env, uid) });
   }
 
   if (aksi === "ban_check") {
@@ -855,6 +860,37 @@ async function panel(env, body) {
     if (salah) return gagal(salah);
     const coins = Math.trunc(Number(p.coins ?? 0));
     if (!(coins > 0) || coins > 100000000000) return gagal("Jumlah coin tidak valid");
+    // Manager hanya boleh mengirim dari stok coin yang dikirim developer.
+    if (peran === "manager") {
+      const sisa = staf.coins;
+      if (coins > sisa) {
+        return gagal(`Stok coin panel habis. Sisa ${sisa.toLocaleString("id-ID")} coin, minta tambah ke developer.`);
+      }
+      const potong = await pipe(env, [
+        { sql: "update panel_staff set coins = coins - ? where uid = ? and coins >= ?", args: [I(coins), T(uid), I(coins)] },
+        { sql: "select changes() as n" },
+      ]);
+      const terpotong = Number(potong[1].rows[0].n);
+      if (!terpotong) {
+        const s2 = await stafDari(env, uid);
+        return gagal(`Stok coin panel habis. Sisa ${Number(s2?.coins ?? 0).toLocaleString("id-ID")} coin.`);
+      }
+      try {
+        await beriCoin(env, target, coins, "panel_coin", null);
+      } catch (e) {
+        await pipe(env, [
+          { sql: "update panel_staff set coins = coins + ? where uid = ?", args: [I(coins), T(uid)] },
+        ]).catch(() => {});
+        throw e;
+      }
+      const w1 = await pastikan(env, target);
+      await pipe(env, [
+        { sql: "insert into panel_log (id, oleh, aksi, target, jumlah, at) values (?, ?, 'send_coin', ?, ?, ?)",
+          args: [T(`${uid}-${Date.now()}`), T(uid), T(target), I(coins), I(Date.now())] },
+      ]).catch(() => {});
+      const s3 = await stafDari(env, uid);
+      return json({ ok: 1, coins: w1.coins, sisaStok: Number(s3?.coins ?? 0) });
+    }
     await beriCoin(env, target, coins, "panel_coin", null);
     const w = await pastikan(env, target);
     await pipe(env, [
@@ -966,12 +1002,29 @@ async function admin(env, body) {
   if (op === "panel_list") {
     const r = await pipe(env, [
       {
-        sql: `select s.uid, s.role, s.manager, s.active, s.created_at,
+        sql: `select s.uid, s.role, s.manager, s.active, s.created_at, s.coins,
                      (select count(*) from panel_stock k where k.owner_uid = s.uid) as stok
               from panel_staff s order by s.created_at desc limit 200`,
       },
     ]);
     return json({ ok: 1, list: r[0].rows });
+  }
+  if (op === "panel_coin_add" || op === "panel_coin_set") {
+    const who = String(p.uid ?? "").trim();
+    if (!/^[A-Za-z0-9_-]{6,64}$/.test(who)) return gagal("UID tidak valid");
+    const n = Math.trunc(Number(p.coins ?? 0));
+    if (!Number.isFinite(n)) return gagal("Jumlah coin tidak valid");
+    if (op === "panel_coin_add") {
+      await pipe(env, [
+        { sql: "update panel_staff set coins = max(0, coins + ?) where uid = ?", args: [I(n), T(who)] },
+      ]);
+    } else {
+      await pipe(env, [
+        { sql: "update panel_staff set coins = ? where uid = ?", args: [I(Math.max(0, n)), T(who)] },
+      ]);
+    }
+    const r = await pipe(env, [{ sql: "select coins from panel_staff where uid = ?", args: [T(who)] }]);
+    return json({ ok: 1, uid: who, coins: Number(r[0].rows[0]?.coins ?? 0) });
   }
   if (op === "panel_stock_add") {
     const who = String(p.uid ?? "").trim();

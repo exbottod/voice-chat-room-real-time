@@ -465,6 +465,20 @@ label{font-size:12px;color:var(--mut)}
       <div id="pstStockList" class="muted"></div>
     </div>
     <div class="card">
+      <h2>Stok coin staf</h2>
+      <p class="muted">Manager hanya bisa kirim coin dari stok ini. Kalau habis, manager tidak bisa kirim lagi sampai Anda tambah.</p>
+      <label>ID staf (angka)</label>
+      <input type="number" id="pstCoinId" inputmode="numeric">
+      <label>Jumlah coin (boleh angka besar, contoh 5000000000)</label>
+      <input type="number" id="pstCoinN" value="1000000000" min="0">
+      <div class="row">
+        <button class="btn" id="pstCoinAdd">Tambah stok</button>
+        <button class="btn out" id="pstCoinSet">Set stok</button>
+        <button class="btn bad" id="pstCoinZero">Nolkan stok</button>
+      </div>
+      <div id="pstCoinStatus" class="muted"></div>
+    </div>
+    <div class="card">
       <h2>Daftar staf</h2>
       <div id="pstList" class="muted">Memuat...</div>
     </div>
@@ -3264,7 +3278,7 @@ async function pstList(){
       const t = document.createElement("b");
       t.textContent = (x.role === "manager" ? "🧑‍💼 Manager" : "🛡 Admin") + " · " + x.uid.slice(0, 10) + "…";
       const s = document.createElement("span"); s.className = "muted";
-      s.textContent = (x.active ? "aktif" : "dicabut") + " · " + (x.stok || 0) + " item stok" + (x.manager ? " · manager: " + x.manager.slice(0, 8) + "…" : "");
+      s.textContent = (x.active ? "aktif" : "dicabut") + " · " + (x.stok || 0) + " item · stok coin " + fmtKoin(x.coins || 0) + (x.manager ? " · manager: " + x.manager.slice(0, 8) + "…" : "");
       info.append(t, s);
       const use = document.createElement("button"); use.className = "btn out"; use.textContent = "Stok";
       use.onclick = () => { $("pstStockId").value = ""; $("pstStockId").dataset.uid = x.uid; pstStockList(x.uid); };
@@ -3331,6 +3345,30 @@ async function pstStockList(uid){
 }
 
 if ($("backbar")) $("backbar").onclick = () => pilihTab("");
+
+function fmtKoin(n){
+  const v = Number(n) || 0;
+  if (v >= 1e12) return (v / 1e12).toFixed(v % 1e12 ? 2 : 0) + " T";
+  if (v >= 1e9) return (v / 1e9).toFixed(v % 1e9 ? 2 : 0) + " M";
+  if (v >= 1e6) return (v / 1e6).toFixed(v % 1e6 ? 1 : 0) + " jt";
+  return v.toLocaleString("id-ID");
+}
+
+async function pstCoin(op, nol){
+  const st = $("pstCoinStatus");
+  try {
+    const u = await pstUid($("pstCoinId").value);
+    const coins = nol ? 0 : Math.trunc(Number($("pstCoinN").value || 0));
+    const r = await walletAdmin({ op: op, uid: u.uid, coins: coins });
+    st.textContent = "Stok coin ID " + u.id + " sekarang " + fmtKoin(r.coins) + " coin";
+    logAction({ type: "panelCoin", op: op, targetId: u.id, uid: u.uid, coins: coins });
+    pstList();
+  } catch (e) { st.textContent = "Gagal: " + e.message; }
+}
+$("pstCoinAdd").onclick = () => pstCoin("panel_coin_add", false);
+$("pstCoinSet").onclick = () => pstCoin("panel_coin_set", false);
+$("pstCoinZero").onclick = () => { if (confirm("Nolkan stok coin staf ini?")) pstCoin("panel_coin_set", true); };
+
 $("pstManager").onclick = () => pstGrant("manager");
 $("pstAdmin").onclick = () => pstGrant("admin");
 $("pstCabut").onclick = () => { if (confirm("Cabut panel user ini?")) pstRevoke(); };
