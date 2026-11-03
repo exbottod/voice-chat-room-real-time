@@ -152,6 +152,7 @@ const HIVE_APP_ID = "100198";
 const HIVE_KEY = Deno.env.get("HIVE_APP_KEY") ?? "eb09c56d97454d43ab2698ad548697ab";
 const HIVE_CODE_SALT = Deno.env.get("HIVE_CODE_SALT") ?? "rezo-hive-2026";
 const HIVE_MAX_SKEW = 300; // detik
+const HIVE_VER = "2026-11-03b";
 
 // WebCrypto tidak mendukung MD5, jadi implementasinya ditulis sendiri.
 // Dipakai untuk aturan signature Hive: md5(signature_nonce + app_key + timestamp).
@@ -255,6 +256,14 @@ async function hiveReadCode(code: unknown): Promise<string | null> {
 }
 
 async function hivePlay(req: Request): Promise<Response> {
+  try {
+    return await hivePlayInner(req);
+  } catch (e) {
+    return hiveFail("internal: " + (e instanceof Error ? e.message : String(e)), 500);
+  }
+}
+
+async function hivePlayInner(req: Request): Promise<Response> {
   if (req.method !== "POST") return hiveFail("POST only", 405);
   const ep = new URL(req.url).pathname.toLowerCase();
   let body: Record<string, unknown> = {};
@@ -271,6 +280,8 @@ async function hivePlay(req: Request): Promise<Response> {
   if (Math.abs(Date.now() / 1000 - ts) > HIVE_MAX_SKEW) return hiveFail("timestamp kadaluarsa", 400);
   if ((md5hex(nonce + HIVE_KEY + ts)) !== sig) return hiveFail("signature salah", 400);
   if (String(body.app_id ?? "") !== HIVE_APP_ID) return hiveFail("app_id tidak dikenal", 400);
+
+  if (ep.includes("version")) return hiveOk({ v: HIVE_VER, md5: md5hex("abc") });
 
   // 1) code -> ss_token
   if (ep.includes("get_sstoken")) {
