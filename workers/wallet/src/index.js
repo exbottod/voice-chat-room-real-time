@@ -683,19 +683,19 @@ async function infoBayar(env) {
   return { dana: d.dana ?? "", name: d.nama ?? "", gopay: d.gopay ?? "", qris: d.qris ?? "" };
 }
 
+// Harga ditentukan server dari paket, bukan dari app, supaya tidak bisa dimurahkan.
+const PAKET_TOPUP = { 1000000: 6000, 3000000: 18000, 10000000: 58000, 30000000: 170000 };
+
 async function topupManualBuat(env, uid, p) {
-  const id = String(p.id ?? `TM${Date.now()}`);
-  const coins = Math.trunc(Number(p.coins ?? 0));
-  const amount = Math.trunc(Number(p.amount ?? 0));
-  const payer = String(p.payer ?? "").trim();
+  const id = String(p.id ?? `TM${Date.now()}${Math.floor(Math.random() * 1000)}`);
+  const coins = Math.trunc(Number(String(p.coins ?? "").replace(/[^0-9]/g, "")));
+  const amount = PAKET_TOPUP[coins];
+  const payer = String(p.payer ?? "").trim().slice(0, 60);
   const method = String(p.method ?? "dana").trim() || "dana";
-  if (coins <= 0 || amount <= 0) return gagal("Nominal tidak valid");
+  if (!amount) return gagal("Paket coin tidak dikenal");
   if (payer.length < 3) return gagal("Nama pengirim terlalu pendek");
   const r = await pipe(env, [
-    {
-      sql: "select count(*) as n from topup_manual where uid = ? and status = 'pending'",
-      args: [T(uid)],
-    },
+    { sql: "select count(*) as n from topup_manual where uid = ? and status = 'pending'", args: [T(uid)] },
   ]);
   if (Number(r[0].rows[0]?.n ?? 0) >= 3) return gagal("Masih ada pengajuan yang menunggu persetujuan");
   await pipe(env, [

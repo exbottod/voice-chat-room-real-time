@@ -30,7 +30,18 @@ fun Dialog(
         density = if (sisiPendek > 0f) sisiPendek / 360f else LocalDensity.current.density,
         fontScale = 1f,
     )
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest, properties = properties) {
+    // Dialog layar penuh harus menghitung sendiri inset status/navigasi, kalau
+    // tidak bagian bawah tertutup tombol navigasi HP.
+    val props = if (!properties.usePlatformDefaultWidth && properties.decorFitsSystemWindows) {
+        DialogProperties(
+            dismissOnBackPress = properties.dismissOnBackPress,
+            dismissOnClickOutside = properties.dismissOnClickOutside,
+            securePolicy = properties.securePolicy,
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        )
+    } else properties
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismissRequest, properties = props) {
         CompositionLocalProvider(LocalDensity provides terkunci) { content() }
     }
 }
