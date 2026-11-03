@@ -169,12 +169,25 @@ object PanelStaffRepo {
             val ctx = com.google.firebase.FirebaseApp.getInstance().applicationContext
             val email = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: return
             val now = ProfileRepo.loadLocal(ctx, email)
-            val bawaan = "User " + (UserDirectory.cachedId(ctx, uid) ?: uid.takeLast(4))
-            val baru = now.copy(nickname = bawaan)
+            // Nama bawaan selalu "User <ID resmi>". Sebelumnya ID bisa tidak terbaca
+            // sehingga namanya berakhir kosong dan tampil sebagai "unknown".
+            val idResmi = UserDirectory.officialIdOf(uid)
+                ?: UserDirectory.cachedId(ctx, uid)
+                ?: uid.takeLast(4)
+            val bawaan = "User " + idResmi
+            // Foto ikut direset ke ikon bawaan sesuai jenis kelamin akun.
+            val ikon = ResetAvatar.b64(ctx, now.gender) ?: now.avatarB64
+            val baru = now.copy(nickname = bawaan, avatarB64 = ikon)
             ProfileRepo.saveLocal(ctx, email, baru)
             kotlinx.coroutines.withTimeoutOrNull(15000L) { ProfileRepo.saveRemote(baru) }
             try {
-                Rtdb.ref("pub/$uid/name").setValue(bawaan).await()
+                Rtdb.ref("pub/$uid").updateChildren(
+                    hashMapOf<String, Any?>(
+                        "name" to bawaan,
+                        "av" to (ikon ?: ""),
+                        "id" to idResmi,
+                    ),
+                ).await()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) { }
