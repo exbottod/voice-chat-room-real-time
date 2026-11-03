@@ -1123,13 +1123,15 @@ object PublicSync {
                     // FIX avatar: foto ikut ke RTDB pub supaya chat room tetap tampil saat kuota habis.
                     "av" to (me?.avatarB64 ?: ""),
                     // PROFIL UTAMA DI RTDB: data identitas ikut ke pub.
-                    "name" to (me?.name ?: ""),
                     "id" to officialId(uid, me?.userId),
                     "cc" to (me?.countryCode ?: "ID"),
-                    "bio" to (me?.bio ?: ""),
-                    "gender" to (me?.gender ?: ""),
-                    "photo" to (me?.photoUrl ?: ""),
-                ),
+                ).also { m ->
+                    // Nilai kosong tidak boleh menimpa nama/bio/foto yang sudah tersimpan.
+                    me?.name?.takeIf { it.isNotBlank() }?.let { m["name"] = it }
+                    me?.bio?.takeIf { it.isNotBlank() }?.let { m["bio"] = it }
+                    me?.gender?.takeIf { it.isNotBlank() }?.let { m["gender"] = it }
+                    me?.photoUrl?.takeIf { it.isNotBlank() }?.let { m["photo"] = it }
+                },
             ).await()
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
     }
@@ -1202,13 +1204,15 @@ object PublicSync {
                         "av" to (me?.avatarB64 ?: ""),
                         // PROFIL UTAMA DI RTDB: data identitas ikut ke pub
                         // supaya pembacaan profil tidak bergantung Firestore.
-                        "name" to (me?.name ?: ""),
                         "id" to officialId(uid, me?.userId),
                         "cc" to (me?.countryCode ?: "ID"),
-                        "bio" to (me?.bio ?: ""),
-                        "gender" to (me?.gender ?: ""),
-                        "photo" to (me?.photoUrl ?: ""),
-                    ),
+                    ).also { m ->
+                        // Nilai kosong tidak boleh menimpa nama/bio/foto yang sudah tersimpan.
+                        me?.name?.takeIf { it.isNotBlank() }?.let { m["name"] = it }
+                        me?.bio?.takeIf { it.isNotBlank() }?.let { m["bio"] = it }
+                        me?.gender?.takeIf { it.isNotBlank() }?.let { m["gender"] = it }
+                        me?.photoUrl?.takeIf { it.isNotBlank() }?.let { m["photo"] = it }
+                    },
                 ).await()
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
             var id = docIds[uid]
