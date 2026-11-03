@@ -1548,6 +1548,7 @@ $("delAllDo").onclick = async () => {
           if (/^\d+$/.test(String(u.id))) { try { await rtdb.ref("ids/free/" + u.id).set(true); } catch (e) { /* lanjut */ } }
         }
         try { await withTimeout(db.collection("users").doc(u.uid).delete(), 8000, "profil"); } catch (e) { /* lanjut */ }
+        try { await bersihkanJejakUser(u); } catch (e) { /* lanjut */ }
       }));
     }
     logAction({ type: "deleteAllUsers", count: ok, dilewati: r.lewati.length, from: "panel" });
@@ -1630,6 +1631,69 @@ $("rsAllDo").onclick = async () => {
   $("rsAllDo").disabled = false;
 };
 
+/* ---------- Bersihkan jejak user: room + peringkat ---------- */
+/* Ikut menghapus room milik user (Firestore + node Realtime Database)
+   dan catatan peringkatnya supaya tidak muncul sebagai akun hantu. */
+async function bersihkanJejakUser(u){
+  const uid = u.uid, lapor = [], roomIds = [];
+  // 1) Room milik user
+  try {
+    const q = await withTimeout(db.collection("rooms").where("ownerUid", "==", uid).get(), 20000, "rooms");
+    for (const d of q.docs) { roomIds.push(d.id); try { await d.ref.delete(); } catch (e) { /* lanjut */ } }
+    if (roomIds.length) lapor.push(roomIds.length + " room dihapus");
+  } catch (e) { lapor.push("room gagal: " + e.message); }
+
+  // 2) Node Realtime Database milik room tersebut
+  const perRoom = ["roomsPub", "seats", "members", "messages", "live", "locks", "micPoints",
+    "rocket", "rocketRank", "rocketFx", "rocketNow", "rocketLaunchMark", "rocketLucky"];
+  for (const rid of roomIds) {
+    await Promise.all(perRoom.map(n => rtdb.ref(n + "/" + rid).remove().catch(() => null)));
+  }
+
+  // 3) Peringkat atas nama user (rank_sawer, rank_charm) semua periode
+  for (const col of ["rank_sawer", "rank_charm"]) {
+    try {
+      const snap = await rtdb.ref("rank/" + col).get();
+      if (snap.exists()) {
+        const jobs = [];
+        snap.forEach(p => jobs.push(rtdb.ref("rank/" + col + "/" + p.key + "/" + uid).remove().catch(() => null)));
+        await Promise.all(jobs);
+      }
+    } catch (e) { /* lanjut */ }
+  }
+  // Peringkat room memakai roomId
+  if (roomIds.length) {
+    try {
+      const snap = await rtdb.ref("rank/rank_room").get();
+      if (snap.exists()) {
+        const jobs = [];
+        snap.forEach(p => roomIds.forEach(rid => jobs.push(rtdb.ref("rank/rank_room/" + p.key + "/" + rid).remove().catch(() => null))));
+        await Promise.all(jobs);
+      }
+    } catch (e) { /* lanjut */ }
+  }
+  // 4) Peringkat cadangan di Firestore
+  for (const col of ["rank_sawer", "rank_charm"]) {
+    try {
+      const s2 = await withTimeout(db.collection(col).where("subject", "==", uid).get(), 15000, col);
+      for (const d of s2.docs) { try { await d.ref.delete(); } catch (e) { /* lanjut */ } }
+    } catch (e) { /* lanjut */ }
+  }
+  for (const rid of roomIds) {
+    try {
+      const s3 = await withTimeout(db.collection("rank_room").where("subject", "==", rid).get(), 15000, "rank_room");
+      for (const d of s3.docs) { try { await d.ref.delete(); } catch (e) { /* lanjut */ } }
+    } catch (e) { /* lanjut */ }
+  }
+
+  // 5) Data pribadi lain di Realtime Database
+  for (const jalur of ["chatsByUser/" + uid, "follows/" + uid, "fmUser/" + uid, "blacklist/" + uid]) {
+    try { await rtdb.ref(jalur).remove(); } catch (e) { /* lanjut */ }
+  }
+  if (lapor.length) return lapor.join(" | ");
+  return "";
+}
+
 /* ---------- Hapus akun: fungsi bersama ---------- */
 /* u = { uid, id, name }. Mengembalikan laporan teks, atau null bila dibatalkan. */
 async function hapusAkun(u){
@@ -1660,6 +1724,12 @@ async function hapusAkun(u){
     lapor.push("profil dihapus");
   } catch (e) {
     lapor.push("profil gagal: " + e.message);
+  }
+  try {
+    const jejak = await bersihkanJejakUser({ uid, id: idUser });
+    if (jejak) lapor.push(jejak);
+  } catch (e) {
+    lapor.push("jejak gagal: " + e.message);
   }
   logAction({ type: "deleteUser", uid, targetId: idUser, from: "panel" });
   return lapor.join(" | ");
