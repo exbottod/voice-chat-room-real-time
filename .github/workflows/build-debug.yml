@@ -128,11 +128,22 @@ jobs:
           if [ -z "$(git status --porcelain docs/build-info.json)" ]; then echo "Tidak ada perubahan."; exit 0; fi
           git config user.name "rezo-bot"
           git config user.email "rezo-bot@users.noreply.github.com"
-          git add docs/build-info.json
-          git commit -m "Perbarui isi APK 1.0.${GITHUB_RUN_NUMBER} [skip ci]"
-          for i in 1 2 3 4; do
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
-            if git push; then exit 0; fi
-            sleep 10
+          # Tulis info build di atas commit terbaru remote. Cara lama memakai
+          # "git pull --rebase" dan gagal total saat ada commit bersamaan,
+          # sehingga versi baru tidak pernah terdeteksi aplikasi.
+          cp docs/build-info.json /tmp/build-info.json
+          for i in 1 2 3 4 5; do
+            git rebase --abort >/dev/null 2>&1 || true
+            git fetch -q origin "${GITHUB_REF_NAME}"
+            git reset -q --hard FETCH_HEAD
+            cp /tmp/build-info.json docs/build-info.json
+            git add docs/build-info.json
+            git commit -q -m "Perbarui isi APK 1.0.${GITHUB_RUN_NUMBER} [skip ci]" || true
+            if git push -q origin HEAD:"${GITHUB_REF_NAME}"; then
+              echo "Info build tersimpan."
+              exit 0
+            fi
+            sleep 8
           done
-          exit 1
+          echo "Gagal menyimpan info build, tapi APK sudah diunggah."
+          exit 0
