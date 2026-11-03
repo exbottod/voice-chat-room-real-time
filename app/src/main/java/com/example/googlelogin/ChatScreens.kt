@@ -235,14 +235,20 @@ object ChatRepo {
     /** Pesan chat: REALTIME DATABASE realtime (utama). Riwayat lama di Firestore
      *  dibaca SEKALI saja (tanpa listener) supaya kuota Firestore tidak terbakar. */
     fun observeMessagesMerged(chatId: String, onChange: (List<ChatMsg>) -> Unit): Reg {
-        val merged = HashMap<String, ChatMsg>()
-        fun emit() = onChange(merged.values.sortedBy { it.at })
+        val merged = java.util.concurrent.ConcurrentHashMap<String, ChatMsg>()
+        fun emit() {
+            // Id harus unik: kunci LazyColumn kembar membuat aplikasi tertutup.
+            val unik = LinkedHashMap<String, ChatMsg>()
+            merged.values.sortedBy { it.at }.forEach { if (!unik.containsKey(it.id)) unik[it.id] = it }
+            onChange(unik.values.sortedBy { it.at })
+        }
         val rt = Rtdb.listen(Rtdb.ref("chats/$chatId/messages")) { s ->
             merged.keys.removeAll { it.startsWith("rt_") }
             s.children.forEach { c ->
                 val from = c.child("from").getValue(String::class.java) ?: return@forEach
-                merged["rt_" + (c.key ?: c.key.hashCode().toString())] = ChatMsg(
-                    "rt_" + (c.key ?: ""), from,
+                val k = c.key ?: return@forEach
+                merged["rt_$k"] = ChatMsg(
+                    "rt_$k", from,
                     c.child("text").getValue(String::class.java) ?: "",
                     c.child("at").getValue(Long::class.java) ?: 0L,
                 )
