@@ -1,14 +1,18 @@
 {
   "status": "gagal",
   "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/CashbackFx.kt:294:22 Unresolved reference 'clip'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomExtras.kt:336:50 Unresolved reference 'detectVerticalDragGestures'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomExtras.kt:348:17 Cannot infer type for this parameter. Please specify it e",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomExtras.kt:348:25 Cannot infer type for this parameter. Please specify it e",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomExtras.kt:349:24 Unresolved reference 'consume'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomScreen.kt:1034:52 The API of this layout is experimental and is likely to ",
     "* What went wrong:"
   ],
-  "versi": "1.0.692",
+  "versi": "1.0.693",
   "ukuran_mb": 0,
   "sha256": "",
-  "commit": "59b6c1f",
-  "waktu": "2026-11-03T18:30:15Z",
+  "commit": "ec52279",
+  "waktu": "2026-11-03T18:37:58Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
   "aset_roket": 0,
   "aset_total": 0,
