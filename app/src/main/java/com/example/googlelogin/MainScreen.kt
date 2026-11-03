@@ -447,9 +447,10 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onBack = { chatWith = null },
                 )
             }
-            if (showWallet) WalletScreen(uid = uid, wallet = wallet, onBack = { showWallet = false })
-            if (showLevel) LevelScreen(user = user, profile = profile, wallet = wallet, uid = uid, onBack = { showLevel = false })
-            if (showVip) VipScreen(uid = uid, wallet = wallet, onBack = { showVip = false })
+            // Dompet, Level Center, dan VIP Center diperkecil 86% supaya rapi di semua device.
+            if (showWallet) KecilkanKonten { WalletScreen(uid = uid, wallet = wallet, onBack = { showWallet = false }) }
+            if (showLevel) KecilkanKonten { LevelScreen(user = user, profile = profile, wallet = wallet, uid = uid, onBack = { showLevel = false }) }
+            if (showVip) KecilkanKonten { VipScreen(uid = uid, wallet = wallet, onBack = { showVip = false }) }
             if (showGlory) GloryMedalScreen(uid = uid, wallet = wallet, onBack = { showGlory = false })
             if (showStore) {
                 StoreScreen(

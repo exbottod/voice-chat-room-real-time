@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,4 +53,20 @@ fun GoldTopBar(title: String, onBack: () -> Unit) {
         }
         Text(title, color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
+}
+
+/**
+ * Perkecil seluruh isi layar secara proporsional (teks, ikon, jarak, kartu).
+ * Dipakai untuk layar padat seperti Dompet, VIP Center, dan Level Center
+ * supaya muat rapi di semua device tanpa mengubah tiap angka satu per satu.
+ *
+ * [faktor] 0.85 = isi jadi 85% dari ukuran normal.
+ */
+@Composable
+fun KecilkanKonten(faktor: Float = 0.86f, content: @Composable () -> Unit) {
+    val d = androidx.compose.ui.platform.LocalDensity.current
+    CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalDensity provides
+            androidx.compose.ui.unit.Density(d.density * faktor, d.fontScale),
+    ) { content() }
 }
