@@ -652,8 +652,20 @@ function barisTier(cfg, value) {
 }
 
 /** Undian cashback: pengirim dapat pengali, penerima dapat persen bonus. */
+// Nilai cadangan kalau pengaturan panel tidak terbaca (mis. aturan database
+// menolak akses tanpa login). Tanpa ini pengali jadi 0 dan pecahan cashback
+// tidak pernah muncul di layar.
+const CB_DEFAULT = {
+  on: true,
+  t1: { min: 0, rows: [{ v: 1, w: 60 }, { v: 2, w: 25 }, { v: 3, w: 10 }, { v: 5, w: 5 }] },
+  recvPct: 5,
+  jpMin: 1000,
+};
+
 async function cashbackGift(env, uid, p) {
-  const cfg = await cfgRtdb("pub/_cashbackCfg");
+  let cfg = await cfgRtdb("pub/_cashbackCfg");
+  const adaTier = ["t1", "t2", "t3", "t4"].some((k) => cfg && typeof cfg[k] === "object" && cfg[k]);
+  if (!adaTier) cfg = CB_DEFAULT;
   if (cfg.on === false) return json({ ok: 1, amount: 0, off: 1 });
   const price = Math.max(0, Math.floor(Number(p.price ?? 0)));
   const count = Math.max(1, Math.min(999, Math.floor(Number(p.count ?? 1))));
