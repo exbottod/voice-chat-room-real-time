@@ -17,6 +17,9 @@ import java.net.URL
 object SupaRepo {
     private const val BASE = "https://fdemjdqagxkhgqkmfvwk.supabase.co"
     private const val FN = "$BASE/functions/v1/smart-processor"
+    // Dompet sekarang di Cloudflare Worker + Turso. Saldo, gift, topup, VIP,
+    // store, level, dan hadiah roket dilayani dari sini.
+    private const val WAL = "https://rezo-wallet.bangexx01.workers.dev"
     // Kunci publishable: memang boleh ada di dalam aplikasi
     // (setara kunci anon, tanpa akses data karena RLS menutup semua tabel).
     private const val KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W"
@@ -88,7 +91,7 @@ object SupaRepo {
     }
 
     private suspend fun postWallet(body: org.json.JSONObject): Pair<Int, String> {
-        val conn = (URL(FN).openConnection() as HttpURLConnection).apply {
+        val conn = (URL(WAL).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             // Edge function kadang perlu bangun dulu (cold start) sebelum
@@ -450,7 +453,7 @@ object SupaRepo {
             try {
                 val token = token() ?: return@withContext null
                 val body = org.json.JSONObject().put("a", action).put("t", token).put("p", params)
-                val conn = (URL(FN).openConnection() as HttpURLConnection).apply {
+                val conn = (URL(WAL).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
                     connectTimeout = 8000
                     readTimeout = 15000

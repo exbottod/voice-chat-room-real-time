@@ -94,3 +94,28 @@ create table if not exists wave_players (
   avatar     text not null default '',
   updated_at integer not null default (unixepoch() * 1000)
 );
+
+-- Info pembayaran DANA untuk topup manual.
+create table if not exists pay_info (
+  id         integer primary key check (id = 1),
+  dana       text not null default '',
+  nama       text not null default '',
+  gopay      text not null default '',
+  qris       text not null default '',
+  updated_at integer not null default (unixepoch() * 1000)
+);
+
+-- Pengajuan topup manual DANA (disetujui lewat panel).
+create table if not exists topup_manual (
+  id         text primary key,
+  uid        text not null,
+  coins      integer not null,
+  amount     integer not null,
+  payer      text not null default '',
+  method     text not null default 'dana',
+  status     text not null default 'pending',
+  created_at integer not null,
+  decided_at integer
+);
+create index if not exists topup_manual_uid on topup_manual (uid, status);
+create index if not exists topup_manual_status on topup_manual (status, created_at);

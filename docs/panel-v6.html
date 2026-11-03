@@ -1965,6 +1965,10 @@ const UPLOAD_URL = "https://rezo-agora-token.bangexx01.workers.dev/upload";
 /* Server database cadangan (KV) saat kuota Firestore habis. */
 const BACKUP_URL = "https://rezo-agora-token.bangexx01.workers.dev";
 const WALLET_API = "https://fdemjdqagxkhgqkmfvwk.supabase.co/functions/v1/smart-processor";
+/* Dompet pindah ke Cloudflare Worker + Turso. Perintah yang sudah pindah
+   dikirim ke sana, sisanya masih ke server lama. */
+const WALLET_NEW = "https://rezo-wallet.bangexx01.workers.dev/admin";
+const OPS_NEW = new Set(["pay_get","pay_set","manual_pending","manual_all","manual_decide","get","topup"]);
 const WALLET_KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W";
 /* Operasi massal tidak butuh uid. Versi server lama tetap menolak kalau uid
    kosong ("uid kosong"), jadi uid netral dikirim supaya tidak error. */
@@ -1975,7 +1979,7 @@ async function walletAdmin(p){
   if (!u) throw new Error("Belum login");
   if (OPS_TANPA_UID.has(p.op) && !p.uid) p = Object.assign({}, p, { uid: "-" });
   const idToken = await u.getIdToken(true);
-  const res = await fetch(WALLET_API, {
+  const res = await fetch(OPS_NEW.has(p.op) ? WALLET_NEW : WALLET_API, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: WALLET_KEY },
     body: JSON.stringify({ a: "admin", t: idToken, p })
