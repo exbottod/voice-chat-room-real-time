@@ -14,22 +14,17 @@ import android.view.WindowManager
 object LayoutLock {
     private const val ACUAN_DP = 360f
 
-    /** Sisi pendek layar fisik dalam piksel (0 kalau tidak diketahui). */
+    /**
+     * Sisi pendek RUANG LAYAR yang benar-benar dipakai app, dalam piksel.
+     * Sengaja memakai displayMetrics (ukuran jendela), bukan ukuran panel fisik:
+     * di sebagian HP ukuran panel terbaca lebih besar dan membuat semua isi membesar.
+     */
     private fun sisiPendekPx(ctx: Context): Int {
         return try {
-            val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-            if (Build.VERSION.SDK_INT >= 30) {
-                val b = wm.maximumWindowMetrics.bounds
-                minOf(b.width(), b.height())
-            } else {
-                val dm = DisplayMetrics()
-                @Suppress("DEPRECATION")
-                wm.defaultDisplay.getRealMetrics(dm)
-                minOf(dm.widthPixels, dm.heightPixels)
-            }
-        } catch (e: Exception) {
             val dm = ctx.resources.displayMetrics
             minOf(dm.widthPixels, dm.heightPixels)
+        } catch (e: Exception) {
+            0
         }
     }
 
