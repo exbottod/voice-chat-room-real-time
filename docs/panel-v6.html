@@ -1708,7 +1708,7 @@ async function bersihkanJejakUser(u){
   } catch (e) { /* lanjut */ }
 
   // 6) Data pribadi lain di Realtime Database
-  for (const jalur of ["chatsByUser/" + uid, "follows/" + uid, "fmUser/" + uid, "blacklist/" + uid, "live/" + uid, "status/" + uid]) {
+  for (const jalur of ["chatsByUser/" + uid, "follows/" + uid, "fmUser/" + uid, "blacklist/" + uid, "live/" + uid, "status/" + uid, "welcomed/" + uid]) {
     try { await rtdb.ref(jalur).remove(); } catch (e) { /* lanjut */ }
   }
   if (lapor.length) return lapor.join(" | ");

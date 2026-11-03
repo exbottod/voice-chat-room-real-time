@@ -92,6 +92,9 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var signinChecked by remember { mutableStateOf(false) }
     // Info kick saat user mencoba masuk room yang mem-blacklist dirinya.
     var kickNote by remember { mutableStateOf<RoomRepo.RoomBan?>(null) }
+    // Layar pendaftaran (avatar, alias, ulang tahun, jenis kelamin, negara) untuk akun baru.
+    var needWelcome by remember { mutableStateOf(false) }
+    var welcomeChecked by remember { mutableStateOf(false) }
     var following by remember { mutableStateOf(0L) }
     var fans by remember { mutableStateOf(0L) }
     var followTick by remember { mutableStateOf(0) }
@@ -223,6 +226,16 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             profile = it
             ProfileRepo.saveLocal(context, user.email, it)
         }
+        // Akun baru wajib mengisi profil dulu. Null (tidak pasti) = jangan ganggu.
+        try {
+            val lokalAda = profile.gender.isNotBlank()
+            val sudah = ProfileRepo.isWelcomed(uid, lokalAda)
+            if (sudah == false) needWelcome = true
+            else if (sudah == true && !lokalAda) { /* akun lama, biarkan */ }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        welcomeChecked = true
         // Daftar akun: ID dibuat lewat Realtime Database; coba sampai 3x.
         // userId awalnya "..." (placeholder), jadi dianggap BELUM ADA sampai angka asli terisi.
         fun idReady() = userId.isNotBlank() && userId != "..." && userId.all { it.isDigit() }
@@ -510,6 +523,18 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                         if (full != null && activeRoom?.id == full.id) activeRoom = full
                     }
                 }
+            }
+            // Pendaftaran akun baru: menutup seluruh layar sampai selesai diisi.
+            if (needWelcome) {
+                WelcomeProfileScreen(
+                    user = user,
+                    initial = profile,
+                    onDone = { done ->
+                        needWelcome = false
+                        updateProfile(done)
+                        scope.launch { ProfileRepo.markWelcomed(uid) }
+                    },
+                )
             }
             kickNote?.let { b ->
                 AlertDialog(

@@ -112,6 +112,44 @@ object ProfileRepo {
         }
     }
 
+    /**
+     * Apakah akun ini sudah menyelesaikan layar pendaftaran? Dicek di Realtime Database
+     * (pub/{uid}/welcomed). Akun lama yang sudah punya jenis kelamin / profil
+     * tersimpan dianggap sudah selesai, jadi tidak dipaksa mengulang.
+     * Return null kalau tidak bisa dipastikan (jaringan), supaya tidak salah menampilkan.
+     */
+    suspend fun isWelcomed(uid: String, localHasProfile: Boolean): Boolean? {
+        if (localHasProfile) return true
+        return try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                com.google.firebase.database.FirebaseDatabase.getInstance().reference
+                    .child("pub").child(uid).get().await()
+            } ?: return null
+            if (snap.child("welcomed").getValue(Boolean::class.java) == true) return true
+            val flag = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                com.google.firebase.database.FirebaseDatabase.getInstance().reference
+                    .child("welcomed").child(uid).get().await()
+            }
+            if (flag?.getValue(Boolean::class.java) == true) return true
+            // Akun lama: sudah punya ID/nama/jenis kelamin tersimpan sebelum fitur ini ada.
+            val g = snap.child("gender").getValue(String::class.java).orEmpty()
+            val n = snap.child("name").getValue(String::class.java).orEmpty()
+            if (g.isNotBlank() || n.isNotBlank()) return true
+            val remote = loadRemote()
+            remote != null && (remote.gender.isNotBlank() || remote.nickname.isNotBlank())
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun markWelcomed(uid: String) {
+        try {
+            val root = com.google.firebase.database.FirebaseDatabase.getInstance().reference
+            root.child("welcomed").child(uid).setValue(true).await()
+            try { root.child("pub").child(uid).child("welcomed").setValue(true).await() } catch (e: Exception) { }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+
     suspend fun saveRemote(d: ProfileData): Throwable? {
         val uid = FirebaseAuth.getInstance().currentUser?.uid
             ?: return IllegalStateException("Belum login")

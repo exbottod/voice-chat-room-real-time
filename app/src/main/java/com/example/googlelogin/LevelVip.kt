@@ -1189,7 +1189,7 @@ object PublicSync {
             val key = data.toString()
             if (lastKey[uid] == key) return
             try {
-                Rtdb.ref("pub/$uid").setValue(
+                Rtdb.ref("pub/$uid").updateChildren(
                     hashMapOf<String, Any?>(
                         "exp" to w.exp, "vip" to w.vip.toLong(), "vipUntil" to w.vipUntil,
                         "frame" to activeEquip(w, "frame"), "bubble" to activeEquip(w, "bubble"),
