@@ -455,10 +455,13 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
                     settings.mediaPlaybackRequiresUserGesture = false
-                    // Biarkan halaman game memakai ukuran viewport normal; game menghitung sendiri
-                    // skalanya dari innerWidth/innerHeight.
-                    settings.useWideViewPort = false
-                    settings.loadWithOverviewMode = false
+                    // HARUS sama seperti Chrome di HP: halaman game memakai
+                    // meta viewport width=device-width, jadi WebView juga harus
+                    // menghormati meta itu. Kalau dimatikan, WebView memakai
+                    // lebar desktop (~980px) dan isi game melebar keluar layar.
+                    settings.useWideViewPort = true
+                    settings.loadWithOverviewMode = true
+                    settings.setInitialScale(0)
                     settings.setSupportZoom(false)
                     settings.builtInZoomControls = false
                     settings.displayZoomControls = false
