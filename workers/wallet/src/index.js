@@ -674,9 +674,12 @@ async function cashbackGift(env, uid, p) {
 
   const baris = undiBaris(barisTier(cfg, nilai));
   const mult = Math.max(0, Math.min(500, Math.floor(baris.v)));
-  const target = nilai * mult;
+  // Batas 50.000 coin: pecahan yang tersedia hanya sampai 10.000, jadi total
+  // dipotong supaya selalu bisa dipecah dan angka di layar sama dengan coin
+  // yang benar-benar masuk dompet (mis. pecahan 500 = +500 coin).
+  const target = Math.min(nilai * mult, 50000);
   const parts = pecahCashback(target);
-  const amount = parts.length ? parts.reduce((a, b) => a + b, 0) : target;
+  const amount = parts.length ? parts.reduce((a, b) => a + b, 0) : 0;
 
   const paid = await beriCoin(env, uid, amount, "cashback", null);
   const pct = Math.max(0, Math.min(100, Number(cfg.recvPct ?? 5)));
