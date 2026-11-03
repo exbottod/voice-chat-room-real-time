@@ -246,6 +246,37 @@ async function topup(env, uid, p) {
   return r[1].affected > 0 ? ok(rapikan(r[4].rows[0])) : ok(rapikan(r[4].rows[0]));
 }
 
+/** Hadiah cek in harian: sekali per tanggal, tidak bisa dobel. */
+async function klaimSignin(env, uid, p) {
+  const coins = Math.trunc(Number(p.coins ?? 0));
+  const date = String(p.date ?? "").slice(0, 10);
+  if (!(coins > 0) || coins > 500000000) return gagal("Jumlah hadiah cek in tidak valid");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return gagal("Tanggal cek in tidak valid");
+  await pastikan(env, uid);
+  const req = `signin-${uid}-${date}`;
+  const now = Date.now();
+  const r = await pipe(env, [
+    { sql: "begin immediate" },
+    {
+      sql: `update wallets set coins = coins + ?, updated_at = ?
+            where uid = ? and not exists (select 1 from topup_req where req_id = ?)`,
+      args: [I(coins), I(now), T(uid), T(req)],
+    },
+    {
+      sql: "insert into topup_req (req_id, uid, at) select ?, ?, ? where changes() > 0",
+      args: [T(req), T(uid), I(now)],
+    },
+    {
+      sql: `insert into money_tx (uid, kind, amount, created_at)
+            select ?, 'signin', ?, ? where changes() > 0`,
+      args: [T(uid), I(coins), I(now)],
+    },
+    { sql: `select ${KOLOM} from wallets where uid = ?`, args: [T(uid)] },
+    { sql: "commit" },
+  ]);
+  return ok(rapikan(r[4].rows[0]));
+}
+
 async function tukar(env, uid, p) {
   await pastikan(env, uid);
   const d = Math.trunc(Number(p.diamonds ?? 0));
@@ -1148,6 +1179,8 @@ export default {
           return await kirimGift(env, uid, p);
         case "topup":
           return await topup(env, uid, p);
+        case "signin_claim":
+          return await klaimSignin(env, uid, p);
         case "exchange":
           return await tukar(env, uid, p);
         case "buy_vip":

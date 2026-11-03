@@ -351,6 +351,14 @@ object SupaRepo {
 
     suspend fun topUp(uid: String, coins: Long) = call("topup", uidJson(uid).put("coins", coins))
 
+    /**
+     * Hadiah cek in harian masuk ke dompet Turso. Sebelumnya coin cek in masih
+     * dikirim ke server game yang lama, jadi tidak pernah menambah saldo.
+     * Server menolak klaim kedua pada tanggal yang sama.
+     */
+    suspend fun signinClaim(uid: String, coins: Long, date: String): Res =
+        call("signin_claim", uidJson(uid).put("coins", coins).put("date", date))
+
     suspend fun sendGift(
         uid: String,
         price: Long,

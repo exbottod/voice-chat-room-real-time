@@ -178,14 +178,26 @@ object SigninRepo {
         fun catat(pesan: String) { if (gagal == null) gagal = pesan }
 
         if (p.coins > 0L) {
-            val ok = try {
-                kotlinx.coroutines.withTimeoutOrNull(20_000L) {
-                    SupaRepo.waveFlow(p.coins, 2, txFor(uid, p.date, "coin"), "Sign-in")
+            // Jalur utama: dompet Turso (sumber saldo yang dipakai aplikasi).
+            val utama = try {
+                kotlinx.coroutines.withTimeoutOrNull(25_000L) {
+                    SupaRepo.signinClaim(uid, p.coins, p.date)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) { null }
-            if (ok == null) catat("Coin belum masuk, akan dicoba otomatis")
+            if (utama?.wallet == null) {
+                // Cadangan: alur server game lama, untuk akun lama yang belum
+                // punya dompet Turso.
+                val ok = try {
+                    kotlinx.coroutines.withTimeoutOrNull(20_000L) {
+                        SupaRepo.waveFlow(p.coins, 2, txFor(uid, p.date, "coin"), "Sign-in")
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) { null }
+                if (ok == null) catat("Coin belum masuk, akan dicoba otomatis")
+            }
         }
         if (p.itemId.isNotBlank()) {
             try {
