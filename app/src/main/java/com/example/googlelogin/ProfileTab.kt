@@ -86,8 +86,8 @@ private fun StatItem(
 ) {
     val m = if (onClick != null) modifier.clickable(onClick = onClick) else modifier
     Column(m, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = ink, fontSize = 26.sp, fontWeight = FontWeight.Medium)
-        Text(label, color = ink.copy(alpha = 0.7f), fontSize = 14.sp)
+        Text(value, color = ink, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = ink.copy(alpha = 0.7f), fontSize = 12.sp)
     }
 }
 
@@ -266,12 +266,12 @@ fun ProfileTab(
                     Spacer(Modifier.height(10.dp))
                     Text(profile.bio, color = ink.copy(alpha = 0.85f), fontSize = 14.sp, maxLines = 3)
                 }
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     StatItem(fmtNum(following), "Mengikuti", ink, Modifier.weight(1f), onFollowingClick)
-                    Box(Modifier.width(1.dp).height(36.dp).background(ink.copy(alpha = 0.25f)))
+                    Box(Modifier.width(1.dp).height(28.dp).background(ink.copy(alpha = 0.25f)))
                     StatItem(fmtNum(fans), "Fans", ink, Modifier.weight(1f), onFansClick)
-                    Box(Modifier.width(1.dp).height(36.dp).background(ink.copy(alpha = 0.25f)))
+                    Box(Modifier.width(1.dp).height(28.dp).background(ink.copy(alpha = 0.25f)))
                     StatItem("0", "Pesona", ink, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(12.dp))
@@ -283,25 +283,25 @@ fun ProfileTab(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(104.dp)
+                    .height(72.dp)
                     .clip(goldShape)
                     .background(Brush.horizontalGradient(listOf(Color(0xFFE8A91C), Color(0xFFF7DA5A), Color(0xFFE8A91C))))
                     .border(2.dp, Color(0xFFB8860B), goldShape)
                     .clickable { onWalletClick() },
             ) {
-                Text("💰", fontSize = 58.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp))
+                Text("💰", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                 Column(
-                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 28.dp),
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 18.dp),
                     horizontalAlignment = Alignment.End,
                 ) {
                     Text(
                         "Dompet",
                         color = Color(0xFF7A4A00),
-                        fontSize = 38.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
                         fontStyle = FontStyle.Italic,
                     )
-                    Text("${fmtCompact(coins)} koin", color = Color(0xFF7A4A00), fontSize = 14.sp)
+                    Text("${fmtCompact(coins)} koin", color = Color(0xFF7A4A00), fontSize = 13.sp)
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -310,34 +310,34 @@ fun ProfileTab(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(84.dp)
+                        .height(66.dp)
                         .clip(cardShape)
                         .background(Brush.horizontalGradient(listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0))))
                         .border(1.5.dp, Color(0xFFE8B923), cardShape)
                         .clickable { onVipClick() }
-                        .padding(14.dp),
+                        .padding(12.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
-                        Text("VIP", color = Color(0xFFFFD54F), fontSize = 16.sp)
-                        Text(if (vipOn) "VIP${wallet.vip}" else "VIP", color = Color(0xFFFFD54F), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
+                        Text("VIP", color = Color(0xFFFFD54F), fontSize = 13.sp)
+                        Text(if (vipOn) "VIP${wallet.vip}" else "VIP", color = Color(0xFFFFD54F), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text("👑", fontSize = 40.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text("👑", fontSize = 26.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(84.dp)
+                        .height(66.dp)
                         .clip(cardShape)
                         .background(Brush.horizontalGradient(listOf(Color(0xFF1FA89A), Color(0xFF0E7C86))))
                         .border(1.5.dp, Color(0xFF7FE3D6), cardShape)
                         .clickable { onLevelClick() }
-                        .padding(14.dp),
+                        .padding(12.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
-                        Text(tr("Level user"), color = Color(0xFFB8F5EC), fontSize = 16.sp)
-                        Text("LV.$level", color = Color(0xFFFFE082), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
+                        Text(tr("Level user"), color = Color(0xFFB8F5EC), fontSize = 13.sp)
+                        Text("LV.$level", color = Color(0xFFFFE082), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text("🛡", fontSize = 40.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text("🛡", fontSize = 26.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
             }
             // ---------- Menu ----------
