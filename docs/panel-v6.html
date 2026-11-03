@@ -159,6 +159,11 @@ label{font-size:12px;color:var(--mut)}
           <label><input type="checkbox" id="rsGem"> Diamond (jadi 0)</label>
         </div>
         <button class="btn bad" id="rsDo">Reset user ini</button>
+        <div class="muted">Akun official tidak bisa direset. Tandai dulu akun yang harus dilindungi:</div>
+        <div class="row">
+          <button class="btn out" id="offMark">Tandai akun official</button>
+          <button class="btn out" id="offUnmark">Lepas tanda official</button>
+        </div>
         <div id="rsInfo" class="muted"></div>
         <hr>
         <label>Hapus akun user ini (harus daftar ulang)</label>
@@ -1408,6 +1413,48 @@ $("gemReset").onclick = async () => {
   $("gemReset").disabled = false;
 };
 
+/* ---------- Daftar akun official yang dilindungi ---------- */
+function withTimeout(p, ms, label){
+  return Promise.race([
+    p,
+    new Promise((_, rej) => setTimeout(() => rej(new Error("timeout " + label)), ms)),
+  ]);
+}
+async function daftarOfficial(){
+  const set = new Set(OFFICIAL_UIDS);
+  const me = auth.currentUser;
+  if (me && me.uid) set.add(me.uid);
+  const cari = async (field, nilai) => {
+    try {
+      const snap = await withTimeout(db.collection("users").where(field, "==", nilai).get(), 12000, field);
+      snap.forEach(d => set.add(d.id));
+    } catch (e) { /* Firestore lambat / kuota, lanjut */ }
+  };
+  await cari("official", true);
+  await cari("role", "admin");
+  await cari("role", "official");
+  await cari("role", "owner");
+  return Array.from(set);
+}
+$("offMark").onclick = async () => {
+  if (!foundCoin) { toast("Cari user dulu di kolom ID user"); return; }
+  if (!confirm("Tandai " + foundCoin.name + " (ID " + foundCoin.id + ") sebagai akun official? Akun ini tidak akan ikut tereset.")) return;
+  try {
+    await db.collection("users").doc(foundCoin.uid).set({ official: true }, { merge: true });
+    try { await rtdb.ref("pub/" + foundCoin.uid + "/official").set(true); } catch (e) { /* lanjut */ }
+    toast("Ditandai official ✅");
+  } catch (e) { toast("Gagal: " + e.message); }
+};
+$("offUnmark").onclick = async () => {
+  if (!foundCoin) { toast("Cari user dulu di kolom ID user"); return; }
+  if (!confirm("Lepas tanda official dari " + foundCoin.name + " (ID " + foundCoin.id + ")?")) return;
+  try {
+    await db.collection("users").doc(foundCoin.uid).set({ official: false }, { merge: true });
+    try { await rtdb.ref("pub/" + foundCoin.uid + "/official").remove(); } catch (e) { /* lanjut */ }
+    toast("Tanda official dilepas");
+  } catch (e) { toast("Gagal: " + e.message); }
+};
+
 /* ---------- Reset ASET semua user sekaligus ---------- */
 async function bersihkanSvipSemua(pesan){
   const u = auth.currentUser;
@@ -1454,11 +1501,14 @@ $("rsAllDo").onclick = async () => {
   if (!confirm("RESET SEMUA USER\n\nDihapus untuk SELURUH user: " + daftar.join(", ") + "\n\nLanjutkan?")) return;
   if (prompt("Ketik RESET huruf kapital untuk konfirmasi:") !== "RESET") return;
   $("rsAllDo").disabled = true;
-  $("rsAllInfo").textContent = "Sedang memproses...";
+  $("rsAllInfo").textContent = "Mengumpulkan daftar akun official...";
   try {
-    const r = await walletAdmin(Object.assign({ op: "reset_all_assets" }, pilihan));
+    const official = await daftarOfficial();
+    $("rsAllInfo").textContent = "Memproses " + Object.keys(pilihan).filter(k => pilihan[k]).join(", ") + "...";
+    const r = await walletAdmin(Object.assign({ op: "reset_all_assets", kecuali: official }, pilihan));
     logAction({ type: "resetAllAssets", bagian: r.bagian || [], count: r.count || 0, from: "panel" });
-    let info = "Selesai: " + (r.count || 0) + " wallet dibersihkan (" + (r.bagian || []).join(", ") + ")";
+    let info = "Selesai: " + (r.count || 0) + " wallet dibersihkan (" + (r.bagian || []).join(", ") + ")"
+      + " | dilewati " + official.length + " akun official";
     if ($("rsAllRtdb").checked) {
       const sisa = await bersihkanSvipSemua(t => { $("rsAllInfo").textContent = t; });
       info += " | " + sisa;
@@ -1505,7 +1555,6 @@ async function blokOfficial(uid){
   const role = String(pub.role || "").toLowerCase();
   if (["admin", "official", "owner", "dev"].includes(role)) return "role akun official";
   if (pub.official === true) return "ditandai official";
-  if (pub.vip === 9) return "akun VIP9 dianggap official (hubungi dev bila mau dihapus)";
   return "";
 }
 $("delDo").onclick = async () => {
@@ -1552,6 +1601,12 @@ $("delDo").onclick = async () => {
 /* ---------- Reset ASET user (frame, medal, efek masuk, VIP, dll) ---------- */
 $("rsDo").onclick = async () => {
   if (!foundCoin) { toast("Cari user dulu di kolom ID user"); return; }
+  const blokReset = await blokOfficial(foundCoin.uid);
+  if (blokReset) {
+    $("rsInfo").textContent = "Ditolak: " + blokReset;
+    toast("Akun official tidak bisa direset (" + blokReset + ")");
+    return;
+  }
   const pilihan = {
     assets: $("rsAssets").checked,
     vip: $("rsVip").checked,

@@ -844,9 +844,17 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
       bagian.push("diamond");
     }
     if (bagian.length === 0) return json({ ok: 0, e: "Tidak ada bagian yang dipilih" }, 400);
+    // Akun official yang harus dilewati (dikirim panel).
+    const kecuali = Array.isArray(p.kecuali)
+      ? (p.kecuali as unknown[]).map((x) => String(x ?? "")).filter((x) => /^[A-Za-z0-9]+$/.test(x))
+      : [];
+    let saring = "uid=not.is.null";
+    if (kecuali.length > 0) {
+      saring += `&uid=not.in.(${kecuali.join(",")})`;
+    }
     // Satu perintah untuk semua baris. Hanya uid yang dikembalikan supaya
     // fungsi tidak kehabisan tenaga (HTTP 546) saat user sudah banyak.
-    const r = await sbRest("wallets?uid=not.is.null&select=uid", {
+    const r = await sbRest(`wallets?${saring}&select=uid`, {
       method: "PATCH",
       body: JSON.stringify(patch),
     });
@@ -866,7 +874,7 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
         amount: 0,
       }),
     });
-    return json({ ok: 1, count: jumlah, bagian });
+    return json({ ok: 1, count: jumlah, bagian, dilewati: kecuali.length });
   }
 
   // ---- reset aset user (panel developer) ----
