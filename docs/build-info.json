@@ -1,14 +1,14 @@
 {
   "status": "ok",
   "masalah": [],
-  "versi": "1.0.703",
+  "versi": "1.0.704",
   "ukuran_mb": 106.8,
-  "sha256": "186cbe5d7c33c0452c42aa22aeff5005c883778655b6c654aa2c98cf68c4dab9",
-  "commit": "ceb0879",
-  "waktu": "2026-11-03T20:13:24Z",
+  "sha256": "2270ff16dee705418391dcf49fe80eda9cc9191870a4f4a1b3aacdd116257d5c",
+  "commit": "b6e727a",
+  "waktu": "2026-11-03T20:22:10Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
   "aset_roket": 30,
-  "aset_total": 116,
+  "aset_total": 117,
   "fitur": [
     {
       "nama": "Banner cashback terpisah",
