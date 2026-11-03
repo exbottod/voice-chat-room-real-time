@@ -156,6 +156,7 @@ fun RoomScreen(
     var micPoints by remember { mutableStateOf<Map<Int, Long>>(emptyMap()) }
     var followed by remember { mutableStateOf(false) }
     var showRank by remember { mutableStateOf(false) }
+    var showMembers by remember { mutableStateOf(false) }
     val seats = rawSeats.filterValues { it.uid in members }
     // Posisi avatar tiap kursi (untuk animasi gift terbang ke penerima).
     val seatPoints = remember { mutableStateMapOf<Int, Offset>() }
@@ -212,6 +213,7 @@ fun RoomScreen(
         seatSheet = null
         seatInvite = null
         profileUid = null
+        showMembers = false
         panel = P_NONE
     }
 
@@ -275,6 +277,7 @@ fun RoomScreen(
             emoteOpen -> emoteOpen = false
             seatInvite != null -> seatInvite = null
             seatSheet != null -> seatSheet = null
+            showMembers -> showMembers = false
             panel != P_NONE -> panel = P_NONE
             else -> onMinimize()
         }
@@ -439,7 +442,7 @@ fun RoomScreen(
                     "👤 ${r.online}",
                     color = Color.White,
                     fontSize = 13.sp,
-                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x66000000)).padding(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x66000000)).clickable { showMembers = true }.padding(horizontal = 12.dp, vertical = 6.dp),
                 )
                 Spacer(Modifier.width(8.dp))
                 // Bagikan room: link membuka app langsung ke room ini.
@@ -809,6 +812,17 @@ fun RoomScreen(
                         toast(RoomRepo.inviteSeat(r.id, idx, u.uid, u.name, u.avatarB64) ?: "${u.name} naik ke mic")
                     }
                 },
+            )
+        }
+
+        if (showMembers) {
+            RoomMembersSheet(
+                members = members,
+                seats = seats.values.sortedBy { it.index },
+                ownerUid = r.ownerUid,
+                myUid = myUid,
+                onDismiss = { showMembers = false },
+                onOpenProfile = { uid -> showMembers = false; profileUid = uid },
             )
         }
 
