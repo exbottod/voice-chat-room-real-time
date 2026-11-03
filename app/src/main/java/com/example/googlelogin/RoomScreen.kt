@@ -138,6 +138,7 @@ fun RoomScreen(
     }
     val scope = rememberCoroutineScope()
 
+    var room by remember { mutableStateOf<RoomInfo?>(null) }
     // --- Owner bisa mengeluarkan user: kalau keanggotaan kita hilang, keluar dari room.
     var joinedOnce by remember { mutableStateOf(false) }
     var kickedOut by remember { mutableStateOf(false) }
@@ -146,9 +147,17 @@ fun RoomScreen(
             if (snap.exists()) {
                 joinedOnce = true
             } else if (joinedOnce && !kickedOut) {
-                // Status dikeluarkan ditangani lewat daftar hitam supaya muncul dialog
-                // "Anda telah di kick dari room", bukan langsung dilempar keluar.
-                kickedOut = true
+                // Keanggotaan bisa hilang sendiri (jaringan putus-nyambung, login di dua
+                // HP). Itu BUKAN kick. Kick hanya sah kalau kita benar-benar ada di daftar
+                // hitam; kalau tidak, cukup tulis ulang keanggotaan kita.
+                scope.launch {
+                    val ban = try { RoomRepo.banOf(roomId, myUid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
+                    if (ban != null && room?.ownerUid != myUid) {
+                        kickedOut = true
+                    } else {
+                        try { Rtdb.ref("members/" + roomId + "/" + myUid).setValue(true) } catch (e: Exception) { }
+                    }
+                }
             }
         }
         kotlinx.coroutines.delay(600000)
@@ -157,7 +166,6 @@ fun RoomScreen(
 
     val appActions = LocalActions.current
 
-    var room by remember { mutableStateOf<RoomInfo?>(null) }
     var members by remember { mutableStateOf<Set<String>>(emptySet()) }
     var locks by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var rawSeats by remember { mutableStateOf<Map<Int, Seat>>(emptyMap()) }
@@ -259,7 +267,8 @@ fun RoomScreen(
         val e2 = RoomRepo.observeLocks(roomId) { locks = it }
         val f = RoomRepo.observeBans(roomId) { list ->
             bans = list
-            if (list.any { it.uid == myUid } && !kickedOut) kickedOut = true
+            // Owner tidak pernah bisa ter-kick dari room miliknya sendiri.
+            if (list.any { it.uid == myUid } && !kickedOut && room?.ownerUid != myUid) kickedOut = true
         }
         onDispose {
             resetDrafts()
@@ -1022,7 +1031,11 @@ fun RoomScreen(
                     RmTool(tr("Blok Efek"), onClick = { panel = P_EFEK }) { Text("\u2728", fontSize = 24.sp) }
                 }
                 Spacer(Modifier.height(14.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                androidx.compose.foundation.layout.FlowRow(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     if (isOwner) {
                         RmTool(
                             "Clear poin mic",

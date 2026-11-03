@@ -25,6 +25,8 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.delay
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 data class SeatEmote(val emoji: String, val at: Long)
@@ -289,7 +291,8 @@ fun CashbackBanner(roomId: String) {
     }
     val d = data ?: return
     Box(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(top = 70.dp, start = 16.dp, end = 16.dp),
+        Modifier.fillMaxWidth().statusBarsPadding().padding(top = 70.dp, start = 16.dp, end = 16.dp)
+            .geserTutup(d) { data = null },
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -312,6 +315,42 @@ fun CashbackBanner(roomId: String) {
             }
         }
     }
+}
+
+/**
+ * Banner di atas layar bisa ditutup dengan menggesernya ke atas. Dipakai bersama
+ * oleh banner gift, banner cashback JP, dan banner efek masuk.
+ * [onDismiss] dipanggil setelah banner digeser cukup jauh ke atas.
+ */
+@Composable
+fun Modifier.geserTutup(key: Any?, onDismiss: () -> Unit): Modifier {
+    val offsetY = remember(key) { androidx.compose.animation.core.Animatable(0f) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val ambang = with(androidx.compose.ui.platform.LocalDensity.current) { 36.dp.toPx() }
+    return this
+        .graphicsLayer {
+            translationY = offsetY.value
+            alpha = (1f + offsetY.value / (ambang * 4f)).coerceIn(0f, 1f)
+        }
+        .pointerInput(key) {
+            androidx.compose.foundation.gestures.detectVerticalDragGestures(
+                onDragEnd = {
+                    scope.launch {
+                        if (offsetY.value < -ambang) {
+                            offsetY.animateTo(-ambang * 6f, androidx.compose.animation.core.tween(160))
+                            onDismiss()
+                        } else {
+                            offsetY.animateTo(0f, androidx.compose.animation.core.tween(140))
+                        }
+                    }
+                },
+                onDragCancel = { scope.launch { offsetY.animateTo(0f) } },
+            ) { change, drag ->
+                change.consume()
+                // Hanya boleh digeser ke atas.
+                scope.launch { offsetY.snapTo((offsetY.value + drag).coerceAtMost(0f)) }
+            }
+        }
 }
 
 /** Banner singkat saat ada yang mengirim gift di room. */
@@ -345,7 +384,11 @@ fun GiftBanner(roomId: String) {
     }
     val t = text
     if (t != null && !hideBanner) {
-        Box(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 70.dp, start = 16.dp, end = 16.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.fillMaxWidth().statusBarsPadding().padding(top = 70.dp, start = 16.dp, end = 16.dp)
+                .geserTutup(t) { text = null },
+            contentAlignment = Alignment.Center,
+        ) {
             Box(
                 Modifier
                     .clip(RoundedCornerShape(50))

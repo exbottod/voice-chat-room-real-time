@@ -590,7 +590,14 @@ fun VipEntryEffect(roomId: String) {
                 }
                 BoxWithConstraints(
                     Modifier.align(Alignment.TopCenter).fillMaxWidth()
-                        .statusBarsPadding().padding(top = 4.dp),
+                        .statusBarsPadding().padding(top = 4.dp)
+                        // Geser ke atas untuk menutup banner sebelum selesai terbang.
+                        .geserTutup(b ?: br) {
+                            banner = null
+                            bannerRes = null
+                            bannerName = null
+                            bannerUid = null
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(Modifier.size(bSize).offset(x = maxWidth * slide.value)) {
