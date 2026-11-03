@@ -178,24 +178,32 @@ fun RoomScreen(
 
     // Saklar efek (Kotak 4): matikan efek masuk room dan efek gift kalau ramai.
     // Disimpan per akun di Realtime Database supaya tetap sama saat buka room lain.
-    var fxEntryOn by remember { mutableStateOf(true) }
-    var fxGiftOn by remember { mutableStateOf(true) }
-    // Banner efek gift di atas layar: bisa dimatikan dari room.
-    var fxBannerOn by remember { mutableStateOf(true) }
-    // Efek roket (peluncuran + ikon di sisi room) dan efek game (banner menang).
-    var fxRocketOn by remember { mutableStateOf(true) }
-    var fxGameOn by remember { mutableStateOf(true) }
     val fxUid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
+    // Pilihan dibaca dulu dari penyimpanan HP (langsung, tanpa menunggu jaringan),
+    // lalu disamakan dengan Realtime Database. Jadi setelan yang dimatikan tidak
+    // kembali menyala saat keluar room atau keluar aplikasi.
+    val fxLocal = remember {
+        context.getSharedPreferences("fx_prefs_" + fxUid, android.content.Context.MODE_PRIVATE)
+    }
+    var fxEntryOn by remember { mutableStateOf(fxLocal.getBoolean("entry", true)) }
+    var fxGiftOn by remember { mutableStateOf(fxLocal.getBoolean("gift", true)) }
+    // Banner efek gift di atas layar: bisa dimatikan dari room.
+    var fxBannerOn by remember { mutableStateOf(fxLocal.getBoolean("banner", true)) }
+    // Efek roket (peluncuran + ikon di sisi room) dan efek game (banner menang).
+    var fxRocketOn by remember { mutableStateOf(fxLocal.getBoolean("rocket", true)) }
+    var fxGameOn by remember { mutableStateOf(fxLocal.getBoolean("game", true)) }
     DisposableEffect(fxUid) {
         if (fxUid.isBlank()) {
             onDispose { }
         } else {
             val reg = Rtdb.listen(Rtdb.ref("fxPrefs/$fxUid")) { snap ->
-                fxEntryOn = snap.child("entry").getValue(Boolean::class.java) ?: true
-                fxGiftOn = snap.child("gift").getValue(Boolean::class.java) ?: true
-                fxBannerOn = snap.child("banner").getValue(Boolean::class.java) ?: true
-                fxRocketOn = snap.child("rocket").getValue(Boolean::class.java) ?: true
-                fxGameOn = snap.child("game").getValue(Boolean::class.java) ?: true
+                // Hanya timpa kalau server memang punya nilainya; kalau belum ada,
+                // pakai pilihan terakhir di HP (jangan balik ke "nyala").
+                if (snap.hasChild("entry")) snap.child("entry").getValue(Boolean::class.java)?.let { fxEntryOn = it; fxLocal.edit().putBoolean("entry", it).apply() }
+                if (snap.hasChild("gift")) snap.child("gift").getValue(Boolean::class.java)?.let { fxGiftOn = it; fxLocal.edit().putBoolean("gift", it).apply() }
+                if (snap.hasChild("banner")) snap.child("banner").getValue(Boolean::class.java)?.let { fxBannerOn = it; fxLocal.edit().putBoolean("banner", it).apply() }
+                if (snap.hasChild("rocket")) snap.child("rocket").getValue(Boolean::class.java)?.let { fxRocketOn = it; fxLocal.edit().putBoolean("rocket", it).apply() }
+                if (snap.hasChild("game")) snap.child("game").getValue(Boolean::class.java)?.let { fxGameOn = it; fxLocal.edit().putBoolean("game", it).apply() }
             }
             onDispose { reg.remove() }
         }
@@ -1175,6 +1183,7 @@ fun RoomScreen(
                         "rocket" -> fxRocketOn = nilai
                         "game" -> fxGameOn = nilai
                     }
+                    fxLocal.edit().putBoolean(kunci, nilai).apply()
                     if (fxUid.isNotBlank()) Rtdb.ref("fxPrefs/$fxUid/$kunci").setValue(nilai)
                 },
             )

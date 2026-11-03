@@ -334,6 +334,12 @@
       "$uid": {
         ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
       }
+    },
+    "fxPrefs": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
     }
   }
 }
