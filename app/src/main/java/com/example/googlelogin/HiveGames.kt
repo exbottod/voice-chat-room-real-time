@@ -121,6 +121,25 @@ object HiveGames {
             "&exparams=" + extra
     }
 
+    // Daftar terakhir dari server. Dipakai Game Center supaya game yang baru
+    // ditambahkan di console Hive langsung muncul tanpa update APK.
+    @Volatile private var cache: List<Game>? = null
+    @Volatile private var cacheAt: Long = 0L
+
+    /** Daftar game terbaru (cache 2 menit, lalu ambil ulang dari Hive). */
+    suspend fun list(): List<Game> {
+        val c = cache
+        if (c != null && System.currentTimeMillis() - cacheAt < 2 * 60_000L) return c
+        val fresh = catalog()
+        cache = fresh
+        cacheAt = System.currentTimeMillis()
+        return fresh
+    }
+
+    /** Cari game menurut id, dari daftar terbaru maupun daftar cadangan. */
+    fun find(id: Int): Game? =
+        (cache ?: emptyList()).firstOrNull { it.id == id } ?: fallback.firstOrNull { it.id == id }
+
     /** Daftar game dari Hive. Kalau jaringan gagal, pakai daftar bawaan. */
     suspend fun catalog(): List<Game> = withContext(Dispatchers.IO) {
         try {
@@ -163,7 +182,7 @@ object HiveGames {
                     ),
                 )
             }
-            out.ifEmpty { fallback }
+            if (out.isEmpty()) fallback else out.also { cache = it; cacheAt = System.currentTimeMillis() }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {

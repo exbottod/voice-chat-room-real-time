@@ -72,6 +72,12 @@ private fun fmtG(n: Long): String {
 fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: String = "", onClose: () -> Unit) {
     var open by remember { mutableStateOf("") }
     var balance by remember { mutableStateOf(0L) }
+    // Daftar game Hive diambil dari server, jadi game baru dari console ikut tampil.
+    var hiveGames by remember { mutableStateOf(HiveGames.fallback) }
+
+    LaunchedEffect(Unit) {
+        hiveGames = try { HiveGames.list() } catch (e: Exception) { HiveGames.fallback }
+    }
 
     LaunchedEffect(Unit) {
         // Nama + foto asli akun REZO supaya ranking game menampilkan pemain yang benar.
@@ -81,7 +87,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
 
     val hiveOpen: HiveGames.Game? = if (open.startsWith("hive:")) {
         val gid = open.removePrefix("hive:").toIntOrNull()
-        HiveGames.fallback.firstOrNull { it.id == gid }
+        HiveGames.find(gid ?: -1)
     } else null
 
     if (hiveOpen != null) {
@@ -180,7 +186,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                         // ---- Game Hive Play (ikon asli dari katalog Hive)
                         GcSection("Game Hive Play") {
                             GcRows(
-                                HiveGames.fallback.map { g ->
+                                hiveGames.map { g ->
                                     GcItem(g.name, 0, "hive:" + g.id, g.icon)
                                 },
                             ) { open = it }
