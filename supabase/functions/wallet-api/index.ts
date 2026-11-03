@@ -614,6 +614,68 @@ async function adminWallet(uid: string): Promise<Record<string, unknown> | null>
   return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
+// ---------- Hapus akun login Firebase (butuh service account) ----------
+// Service account disimpan sebagai secret function FIREBASE_SA_JSON
+// (isi file JSON dari Firebase Console > Project settings > Service accounts).
+// Tanpa secret ini data user tetap bisa dihapus, tapi akun loginnya tetap ada.
+async function firebaseDeleteUser(uid: string): Promise<string> {
+  const raw = Deno.env.get("FIREBASE_SA_JSON") ?? "";
+  if (!raw) return "belum diatur";
+  let sa: { project_id?: string; client_email?: string; private_key?: string };
+  try {
+    sa = JSON.parse(raw);
+  } catch {
+    return "format secret salah";
+  }
+  if (!sa.project_id || !sa.client_email || !sa.private_key) return "secret tidak lengkap";
+  try {
+    const b64u = (b: ArrayBuffer) =>
+      btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const b64uStr = (t: string) => b64u(new TextEncoder().encode(t).buffer as ArrayBuffer);
+    const now = Math.floor(Date.now() / 1000);
+    const kepala = b64uStr(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+    const badan = b64uStr(JSON.stringify({
+      iss: sa.client_email,
+      scope: "https://www.googleapis.com/auth/identitytoolkit",
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600,
+    }));
+    const inti = `${kepala}.${badan}`;
+    const pem = sa.private_key.replace(/-----[A-Z ]+-----/g, "").replace(/\s+/g, "");
+    const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
+    const kunci = await crypto.subtle.importKey(
+      "pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"],
+    );
+    const ttd = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", kunci, new TextEncoder().encode(inti));
+    const jwt = `${inti}.${b64u(ttd)}`;
+    const tr = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion: jwt,
+      }).toString(),
+    });
+    const tj = await tr.json().catch(() => ({})) as { access_token?: string };
+    if (!tj.access_token) return "gagal ambil token Google";
+    const del = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/projects/${sa.project_id}/accounts:delete`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tj.access_token}` },
+        body: JSON.stringify({ localId: uid }),
+      },
+    );
+    if (del.ok) return "terhapus";
+    const txt = await del.text().catch(() => "");
+    if (txt.includes("USER_NOT_FOUND")) return "terhapus";
+    return "gagal: " + txt.slice(0, 100);
+  } catch (e) {
+    return "gagal: " + (e instanceof Error ? e.message : "tidak diketahui");
+  }
+}
+
 async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): Promise<Response> {
   let who: { uid: string; email: string };
   try {
@@ -731,6 +793,25 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
     });
     if (!r.ok) return json({ ok: 0, e: "Gagal menyimpan VIP" }, 200);
     return json({ ok: 1, w: (await adminWallet(target)) });
+  }
+
+  // ---- hapus akun user (panel developer) ----
+  // Menghapus semua data milik user: wallet, riwayat transaksi, permintaan tukar,
+  // topup, dan data permainan. Setelah itu akun login Firebase ikut dihapus
+  // (kalau secret FIREBASE_SA_JSON tersedia) sehingga user harus daftar ulang.
+  if (op === "delete_user") {
+    if (target === who.uid) return json({ ok: 0, e: "Tidak bisa menghapus akun sendiri" }, 400);
+    const tabel = [
+      "wallets", "money_tx", "exchange_req", "topup_orders",
+      "topup_manual", "wave_players", "wave_tx",
+    ];
+    const gagal: string[] = [];
+    for (const t of tabel) {
+      const r = await sbRest(`${t}?uid=eq.${encodeURIComponent(target)}`, { method: "DELETE" });
+      if (!r.ok) gagal.push(t);
+    }
+    const auth = await firebaseDeleteUser(target);
+    return json({ ok: 1, auth, tabel_gagal: gagal });
   }
 
   // ---- reset aset user (panel developer) ----

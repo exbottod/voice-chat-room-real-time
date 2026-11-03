@@ -160,6 +160,12 @@ label{font-size:12px;color:var(--mut)}
         </div>
         <button class="btn bad" id="rsDo">Reset user ini</button>
         <div id="rsInfo" class="muted"></div>
+        <hr>
+        <label>Hapus akun user ini (harus daftar ulang)</label>
+        <p class="muted">Menghapus SEMUA data user ini: profil, aset, wallet, riwayat, topup, dan akun loginnya.
+          Setelah dihapus, user itu harus daftar akun lagi. Akun official dilindungi dan akan ditolak.</p>
+        <button class="btn bad" id="delDo">Hapus akun user ini</button>
+        <div id="delInfo" class="muted"></div>
       </div>
     </div>
     <div class="card">
@@ -1387,6 +1393,83 @@ $("gemReset").onclick = async () => {
     await showCoinUser();
   } catch (e) { toast("Gagal: " + e.message); }
   $("gemReset").disabled = false;
+};
+
+/* ---------- Hapus AKUN user (harus daftar ulang) ---------- */
+/* Akun official yang tidak boleh dihapus. Tambahkan UID di sini bila perlu,
+   atau tandai true di Realtime Database pada officialUids/<uid>. */
+const OFFICIAL_UIDS = [];
+const OFFICIAL_EMAILS = ["developerex100@gmail.com"];
+async function blokOfficial(uid){
+  const me = auth.currentUser;
+  if (me && me.uid === uid) return "ini akun kamu sendiri";
+  if (me && OFFICIAL_EMAILS.includes((me.email || "").toLowerCase()) && me.uid === uid) return "akun official";
+  if (OFFICIAL_UIDS.includes(uid)) return "UID ada di daftar akun official";
+  try {
+    const s = await rtdb.ref("officialUids/" + uid).get();
+    if (s.exists() && s.val() === true) return "ditandai official";
+  } catch (e) { /* lanjut */ }
+  let pub = {};
+  try {
+    const s = await rtdb.ref("pub/" + uid).get();
+    pub = s.val() || {};
+  } catch (e) { /* lanjut */ }
+  let fsRole = "", fsOfficial = false;
+  try {
+    const d = await db.collection("users").doc(uid).get();
+    if (d.exists) {
+      const v = d.data() || {};
+      fsRole = String(v.role || "").toLowerCase();
+      fsOfficial = v.official === true;
+    }
+  } catch (e) { /* Firestore bisa lambat, tidak wajib */ }
+  if (["admin", "official", "owner", "dev"].includes(fsRole)) return "role akun official (profil)";
+  if (fsOfficial) return "ditandai official (profil)";
+  const role = String(pub.role || "").toLowerCase();
+  if (["admin", "official", "owner", "dev"].includes(role)) return "role akun official";
+  if (pub.official === true) return "ditandai official";
+  if (pub.vip === 9) return "akun VIP9 dianggap official (hubungi dev bila mau dihapus)";
+  return "";
+}
+$("delDo").onclick = async () => {
+  if (!foundCoin) { toast("Cari user dulu di kolom ID user"); return; }
+  const uid = foundCoin.uid, idUser = foundCoin.id;
+  $("delInfo").textContent = "";
+  const blok = await blokOfficial(uid);
+  if (blok) {
+    $("delInfo").textContent = "Ditolak: " + blok;
+    toast("Tidak bisa dihapus: " + blok);
+    return;
+  }
+  if (!confirm("HAPUS AKUN " + foundCoin.name + " (ID " + idUser + ")?\n\nSemua data dihapus dan user harus daftar ulang. Tidak bisa dibatalkan.")) return;
+  if (prompt("Ketik HAPUS huruf kapital untuk konfirmasi:") !== "HAPUS") return;
+  $("delDo").disabled = true;
+  $("delInfo").textContent = "Sedang menghapus...";
+  const lapor = [];
+  try {
+    const r = await walletAdmin({ op: "delete_user", uid });
+    lapor.push("wallet & riwayat dihapus");
+    lapor.push("akun login: " + (r.auth || "?"));
+  } catch (e) {
+    lapor.push("wallet gagal: " + e.message);
+  }
+  for (const jalur of ["pub/" + uid, "ids/u/" + uid, "fxPrefs/" + uid]) {
+    try { await rtdb.ref(jalur).remove(); } catch (e) { /* lanjut */ }
+  }
+  if (idUser) { try { await rtdb.ref("ids/i/" + idUser).remove(); } catch (e) { /* lanjut */ } }
+  try {
+    await db.collection("users").doc(uid).delete();
+    lapor.push("profil dihapus");
+  } catch (e) {
+    lapor.push("profil gagal: " + e.message);
+  }
+  logAction({ type: "deleteUser", uid, targetId: idUser, from: "panel" });
+  $("delInfo").textContent = lapor.join(" | ");
+  toast("Selesai ✅ " + lapor.join(", "));
+  foundCoin = null;
+  $("coinForm").style.display = "none";
+  $("coinUser").textContent = "";
+  $("delDo").disabled = false;
 };
 
 /* ---------- Reset ASET user (frame, medal, efek masuk, VIP, dll) ---------- */
