@@ -157,7 +157,7 @@ const HIVE_APP_ID = "100198";
 const HIVE_KEY = Deno.env.get("HIVE_APP_KEY") ?? "eb09c56d97454d43ab2698ad548697ab";
 const HIVE_CODE_SALT = Deno.env.get("HIVE_CODE_SALT") ?? "rezo-hive-2026";
 const HIVE_MAX_SKEW = 300; // detik
-const HIVE_VER = "2026-11-03e";
+const HIVE_VER = "2026-11-03f";
 // Game Hive berjalan di JavaScript: angka di atas 2^53-1 jadi NaN di layar.
 // Saldo yang DIKIRIM ke game dibatasi; saldo asli di wallet tetap utuh.
 const HIVE_MAX_SAFE = 9007199254740991;
@@ -268,6 +268,85 @@ async function hiveReadCode(code: unknown): Promise<string | null> {
   return uid;
 }
 
+// ---------------------------------------------------------------
+// Sinyal kemenangan ke aplikasi lewat Firebase Realtime Database.
+// Aplikasi berlangganan node hiveWin/<uid>, jadi dialog menang muncul
+// seketika tanpa polling (polling boros kuota Supabase).
+const RTDB_URL = Deno.env.get("FIREBASE_RTDB_URL") ??
+  "https://arboreal-cat-511705-p6-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+let gToken: { token: string; exp: number } | null = null;
+
+function b64url(bytes: Uint8Array): string {
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** Token akses Google dari service account (FIREBASE_SA_JSON). */
+async function googleToken(): Promise<string | null> {
+  const raw = Deno.env.get("FIREBASE_SA_JSON");
+  if (!raw) return null;
+  const now = Math.floor(Date.now() / 1000);
+  if (gToken && gToken.exp - 60 > now) return gToken.token;
+  try {
+    const sa = JSON.parse(raw);
+    const pem = String(sa.private_key ?? "")
+      .replace(/-----BEGIN PRIVATE KEY-----/, "")
+      .replace(/-----END PRIVATE KEY-----/, "")
+      .replace(/\s+/g, "");
+    const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey(
+      "pkcs8",
+      der,
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const header = b64url(new TextEncoder().encode(JSON.stringify({ alg: "RS256", typ: "JWT" })));
+    const claims = b64url(new TextEncoder().encode(JSON.stringify({
+      iss: sa.client_email,
+      scope: "https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email",
+      aud: "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600,
+    })));
+    const data = new TextEncoder().encode(header + "." + claims);
+    const sig = new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, data));
+    const assertion = header + "." + claims + "." + b64url(sig);
+    const r = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion,
+      }),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!r.ok) return null;
+    const j = await r.json().catch(() => null);
+    if (!j?.access_token) return null;
+    gToken = { token: String(j.access_token), exp: now + Number(j.expires_in ?? 3600) };
+    return gToken.token;
+  } catch {
+    return null;
+  }
+}
+
+/** Tulis penanda menang; gagal pun tidak mengganggu transaksi. */
+async function hiveWinSignal(uid: string, amount: number, game: string, round: string) {
+  const tok = await googleToken();
+  if (!tok) return;
+  try {
+    await fetch(`${RTDB_URL}/hiveWin/${encodeURIComponent(uid)}.json?access_token=${tok}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ts: Date.now(), amount, game, round }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch { /* realtime opsional */ }
+}
+
 async function hivePlay(req: Request): Promise<Response> {
   // Penanda versi: bisa dibuka langsung dari browser (GET) untuk memastikan
   // kode terbaru benar-benar sudah ter-deploy.
@@ -366,6 +445,12 @@ async function hivePlayInner(req: Request): Promise<Response> {
         });
       } catch { /* kolom belum ada, lanjut saja */ }
     }
+    // Menang (saldo bertambah): kabari aplikasi supaya dialog menang
+    // langsung tampil tanpa polling.
+    if (diff > 0) {
+      await hiveWinSignal(uid, diff, String(body.game_id ?? ""), roundId);
+    }
+
     return hiveOk({ currency_balance: hiveSafe(row.coins) });
   }
 

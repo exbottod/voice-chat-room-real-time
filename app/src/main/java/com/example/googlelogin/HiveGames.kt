@@ -420,11 +420,34 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
         }
     }
 
-    // Saldo naik = baru menang: dialog Top 3 muncul sendiri.
+    // Kemenangan dikirim server lewat Firebase Realtime (node hiveWin/<uid>),
+    // jadi dialog Top 3 muncul seketika tanpa perlu polling ke Supabase.
+    DisposableEffect(uid, game.id) {
+        val ref = Rtdb.ref("hiveWin/" + uid)
+        var tsLama = 0L
+        val l = object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                val ts = snapshot.child("ts").getValue(Long::class.java) ?: 0L
+                if (ts <= 0L || ts == tsLama) return
+                val pertama = tsLama == 0L
+                tsLama = ts
+                // Baca pertama hanya menyimpan penanda, bukan kemenangan baru.
+                if (!pertama) muatTop3(buka = true)
+            }
+
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) { }
+        }
+        ref.addValueEventListener(l)
+        onDispose { ref.removeEventListener(l) }
+    }
+
+    // Cadangan kalau sinyal realtime belum aktif: cek jauh lebih jarang
+    // supaya kuota Supabase tidak tersedot.
     LaunchedEffect(uid, game.id) {
         var saldoLama: Long? = null
         while (true) {
-            delay(30_000)
+            delay(60_000)
+            if (!AppAktif.ya) continue
             val w = SupaRepo.get(uid).wallet?.coins
             if (w != null) {
                 val lama = saldoLama
