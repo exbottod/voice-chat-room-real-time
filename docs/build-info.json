@@ -1,20 +1,72 @@
 {
-  "status": "gagal",
-  "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomExtras.kt:336:50 Unresolved reference 'detectVerticalDragGestures'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomExtras.kt:348:17 Cannot infer type for this parameter. Please specify it e",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomExtras.kt:348:25 Cannot infer type for this parameter. Please specify it e",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomExtras.kt:349:24 Unresolved reference 'consume'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomScreen.kt:1034:52 The API of this layout is experimental and is likely to ",
-    "* What went wrong:"
-  ],
-  "versi": "1.0.693",
-  "ukuran_mb": 0,
-  "sha256": "",
-  "commit": "ec52279",
-  "waktu": "2026-11-03T18:37:58Z",
+  "status": "ok",
+  "masalah": [],
+  "versi": "1.0.694",
+  "ukuran_mb": 106.8,
+  "sha256": "24ec0c23cef4939970ff9df2727e6b82ba8ed8927380819eb7de143c4c775e8d",
+  "commit": "8a4a9f8",
+  "waktu": "2026-11-03T18:45:58Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 0,
-  "aset_total": 0,
-  "fitur": []
+  "aset_roket": 30,
+  "aset_total": 116,
+  "fitur": [
+    {
+      "nama": "Banner cashback terpisah",
+      "ada": true
+    },
+    {
+      "nama": "Banner gift biasa",
+      "ada": true
+    },
+    {
+      "nama": "Animasi cashback di avatar",
+      "ada": true
+    },
+    {
+      "nama": "Tombol kombo cashback",
+      "ada": true
+    },
+    {
+      "nama": "Roket level 1-5 di room",
+      "ada": true
+    },
+    {
+      "nama": "Peluncuran roket cadangan",
+      "ada": true
+    },
+    {
+      "nama": "Sambung ulang suara otomatis",
+      "ada": true
+    },
+    {
+      "nama": "Tukar diamond nominal sendiri",
+      "ada": true
+    },
+    {
+      "nama": "Papan peringkat roket",
+      "ada": true
+    }
+  ],
+  "roket_level": [
+    {
+      "level": 1,
+      "ada": true
+    },
+    {
+      "level": 2,
+      "ada": true
+    },
+    {
+      "level": 3,
+      "ada": true
+    },
+    {
+      "level": 4,
+      "ada": true
+    },
+    {
+      "level": 5,
+      "ada": true
+    }
+  ]
 }
