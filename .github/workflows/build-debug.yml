@@ -72,11 +72,12 @@ jobs:
           set -e
           D=app/build/outputs/apk/release
           ls -la "$D"
-          cp "$D/app-universal-release.apk" REZO-CHAT-VOICE.apk
+          cp "$D/app-arm64-v8a-release.apk" REZO-CHAT-VOICE.apk
           cp "$D/app-arm64-v8a-release.apk" REZO-CHAT-VOICE-arm64.apk
           cp "$D/app-armeabi-v7a-release.apk" REZO-CHAT-VOICE-armv7.apk
-          NOTES="Build otomatis dari commit ${GITHUB_SHA::7}. Pakai arm64 untuk HP baru, armv7 untuk HP lama, universal kalau ragu."
-          BERKAS="REZO-CHAT-VOICE.apk REZO-CHAT-VOICE-arm64.apk REZO-CHAT-VOICE-armv7.apk"
+          cp "$D/app-universal-release.apk" REZO-CHAT-VOICE-universal.apk
+          NOTES="Build otomatis dari commit ${GITHUB_SHA::7}. Link utama REZO-CHAT-VOICE.apk = arm64 (HP baru). Untuk HP lama 32-bit pakai armv7, universal kalau ragu."
+          BERKAS="REZO-CHAT-VOICE.apk REZO-CHAT-VOICE-arm64.apk REZO-CHAT-VOICE-armv7.apk REZO-CHAT-VOICE-universal.apk"
           if gh release view terbaru >/dev/null 2>&1; then
             gh release upload terbaru $BERKAS --clobber
             gh release edit terbaru --notes "$NOTES" --latest
