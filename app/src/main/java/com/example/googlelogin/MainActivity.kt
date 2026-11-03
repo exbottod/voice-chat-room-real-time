@@ -91,18 +91,26 @@ object RoomDeepLink {
 
 class MainActivity : ComponentActivity() {
     /**
-     * Kunci ukuran tampilan: font dan "ukuran tampilan" di pengaturan HP
-     * (diperbesar/diperkecil pengguna) tidak ikut mengubah tata letak app.
-     * Tampilan selalu sama di semua perangkat, dan angka level tetap terkunci
-     * di dalam ikon levelnya.
+     * Kunci tata letak: tampilan app dibuat SAMA di semua HP.
+     *
+     * Semua ukuran di app memakai dp. Kalau HP punya layar padat, atau pengguna
+     * memperbesar "ukuran tampilan"/font di pengaturan, semuanya ikut
+     * membesar (medali jadi raksasa, angka level menonjol dari ikon).
+     * Karena itu lebar layar dipatok ke 360 dp (lebar standar HP Android):
+     * kepadatan dihitung dari lebar layar fisik, tidak dari pengaturan HP.
+     * Font juga dikunci ke skala 1.
      */
     override fun attachBaseContext(newBase: android.content.Context) {
-        val cfg = android.content.res.Configuration(newBase.resources.configuration)
+        val res = newBase.resources
+        val cfg = android.content.res.Configuration(res.configuration)
         cfg.fontScale = 1.0f
-        // Kepadatan baku Android = 160 dpi per "density 1.0". Memakai DENSITY_DEVICE_STABLE
-        // (nilai pabrik, tidak terpengaruh pengaturan "Ukuran tampilan").
-        val stabil = android.util.DisplayMetrics.DENSITY_DEVICE_STABLE
-        if (stabil > 0) cfg.densityDpi = stabil
+        val lebarPx = minOf(res.displayMetrics.widthPixels, res.displayMetrics.heightPixels)
+        if (lebarPx > 0) {
+            val acuanDp = 360f
+            // dpi = piksel per 160 / (dp). Skala supaya lebar layar selalu 360 dp.
+            val dpi = (lebarPx / acuanDp * 160f).toInt().coerceIn(120, 640)
+            cfg.densityDpi = dpi
+        }
         super.attachBaseContext(newBase.createConfigurationContext(cfg))
     }
 
