@@ -335,12 +335,14 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 }
                 Box(Modifier.fillMaxSize().padding(contentPadding)) {
                     when (selected) {
-                        0 -> PartyTab(
-                            myUid = uid,
-                            myName = myName,
-                            onSearch = { overlay = OV_SEARCH },
-                            onEnterRoom = ::enterRoom,
-                        )
+                        0 -> KecilkanKonten(0.88f) {
+                            PartyTab(
+                                myUid = uid,
+                                myName = myName,
+                                onSearch = { overlay = OV_SEARCH },
+                                onEnterRoom = ::enterRoom,
+                            )
+                        }
                         1 -> MomentTab(
                             myUid = uid,
                             onPost = { overlay = OV_POST },

@@ -533,20 +533,20 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
             Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp)) {
                 for (n in 1..9) {
                     Column(
-                        Modifier.clickable { sel = n }.padding(horizontal = 14.dp),
+                        Modifier.clickable { sel = n }.padding(horizontal = 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text("VIP$n", color = if (n == sel) Color(0xFFFFEB3B) else Color(0x99FFFFFF), fontSize = if (n == sel) 30.sp else 24.sp, fontWeight = if (n == sel) FontWeight.Bold else FontWeight.Normal)
+                        Text("VIP$n", color = if (n == sel) Color(0xFFFFEB3B) else Color(0x99FFFFFF), fontSize = if (n == sel) 22.sp else 17.sp, fontWeight = if (n == sel) FontWeight.Bold else FontWeight.Normal)
                         Box(Modifier.padding(top = 2.dp).width(34.dp).height(4.dp).clip(RoundedCornerShape(50)).background(if (n == sel) Color(0xFFFFEB3B) else Color.Transparent))
                     }
                 }
             }
             // ---- hero ----
-            Box(Modifier.fillMaxWidth().height(260.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(280.dp).background(Brush.radialGradient(listOf(c.copy(alpha = 0.55f), Color.Transparent))))
+            Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(220.dp).background(Brush.radialGradient(listOf(c.copy(alpha = 0.55f), Color.Transparent))))
                 Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(horizontal = 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("🏮", fontSize = 40.sp)
-                    Text("🏮", fontSize = 40.sp)
+                    Text("🏮", fontSize = 28.sp)
+                    Text("🏮", fontSize = 28.sp)
                 }
                 // MEDAL VIP: aset terpisah (slot "medal", kotak 1:1) tampil di posisi
                 // mahkota. Gelar VIP (slot "title") tetap dipakai seperti dulu (VipTag).

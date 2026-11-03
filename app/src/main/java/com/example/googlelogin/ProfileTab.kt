@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -97,13 +98,13 @@ private fun MenuItem(emoji: String, label: String, trailing: String? = null, ico
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .size(32.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(Brush.verticalGradient(listOf(Color(0xFFFFE082), Color(0xFFFFB300)))),
             contentAlignment = Alignment.Center,
         ) {
@@ -113,16 +114,16 @@ private fun MenuItem(emoji: String, label: String, trailing: String? = null, ico
                     Modifier.fillMaxSize().padding(3.dp), contentScale = ContentScale.Fit,
                 )
             } else {
-                Text(emoji, fontSize = 20.sp)
+                Text(emoji, fontSize = 16.sp)
             }
         }
-        Spacer(Modifier.width(14.dp))
-        Text(label, color = Navy, fontSize = 17.sp, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(12.dp))
+        Text(label, color = Navy, fontSize = 14.sp, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         if (trailing != null) {
-            Text(trailing, color = Color(0xFF8A93A6), fontSize = 13.sp)
+            Text(trailing, color = Color(0xFF8A93A6), fontSize = 11.sp, maxLines = 1)
             Spacer(Modifier.width(8.dp))
         }
-        Text("›", color = Color(0xFFB0B7C6), fontSize = 22.sp)
+        Text("›", color = Color(0xFFB0B7C6), fontSize = 20.sp)
     }
 }
 
@@ -310,34 +311,34 @@ fun ProfileTab(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(66.dp)
+                        .heightIn(min = 62.dp)
                         .clip(cardShape)
                         .background(Brush.horizontalGradient(listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0))))
                         .border(1.5.dp, Color(0xFFE8B923), cardShape)
                         .clickable { onVipClick() }
-                        .padding(12.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
-                        Text("VIP", color = Color(0xFFFFD54F), fontSize = 13.sp)
-                        Text(if (vipOn) "VIP${wallet.vip}" else "VIP", color = Color(0xFFFFD54F), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
+                        Text("VIP", color = Color(0xFFFFD54F), fontSize = 11.sp, maxLines = 1)
+                        Text(if (vipOn) "VIP${wallet.vip}" else "VIP", color = Color(0xFFFFD54F), fontSize = 17.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text("👑", fontSize = 26.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text("👑", fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(66.dp)
+                        .heightIn(min = 62.dp)
                         .clip(cardShape)
                         .background(Brush.horizontalGradient(listOf(Color(0xFF1FA89A), Color(0xFF0E7C86))))
                         .border(1.5.dp, Color(0xFF7FE3D6), cardShape)
                         .clickable { onLevelClick() }
-                        .padding(12.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
-                        Text(tr("Level user"), color = Color(0xFFB8F5EC), fontSize = 13.sp)
-                        Text("LV.$level", color = Color(0xFFFFE082), fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
+                        Text(tr("Level user"), color = Color(0xFFB8F5EC), fontSize = 11.sp, maxLines = 1)
+                        Text("LV.$level", color = Color(0xFFFFE082), fontSize = 17.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text("🛡", fontSize = 26.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text("🛡", fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
             }
             // ---------- Menu ----------
