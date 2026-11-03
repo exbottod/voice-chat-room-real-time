@@ -213,7 +213,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                 }
                             }
                         }
-                        Spacer(Modifier.height(70.dp))
+                        Spacer(Modifier.height(96.dp))
                     }
                 }
 
