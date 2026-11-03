@@ -1686,8 +1686,29 @@ async function bersihkanJejakUser(u){
     } catch (e) { /* lanjut */ }
   }
 
-  // 5) Data pribadi lain di Realtime Database
-  for (const jalur of ["chatsByUser/" + uid, "follows/" + uid, "fmUser/" + uid, "blacklist/" + uid]) {
+  // 5) Keluarkan dari SEMUA room (member, kursi mic, penanda ruangan)
+  try {
+    const m = await rtdb.ref("members").get();
+    if (m.exists()) {
+      const jobs = [];
+      m.forEach(room => { if (room.child(uid).exists()) jobs.push(rtdb.ref("members/" + room.key + "/" + uid).remove().catch(() => null)); });
+      await Promise.all(jobs);
+    }
+  } catch (e) { /* lanjut */ }
+  try {
+    const st = await rtdb.ref("seats").get();
+    if (st.exists()) {
+      const jobs = [];
+      st.forEach(room => room.forEach(seat => {
+        const v = seat.val() || {};
+        if (String(v.uid || "") === uid) jobs.push(rtdb.ref("seats/" + room.key + "/" + seat.key).remove().catch(() => null));
+      }));
+      await Promise.all(jobs);
+    }
+  } catch (e) { /* lanjut */ }
+
+  // 6) Data pribadi lain di Realtime Database
+  for (const jalur of ["chatsByUser/" + uid, "follows/" + uid, "fmUser/" + uid, "blacklist/" + uid, "live/" + uid, "status/" + uid]) {
     try { await rtdb.ref(jalur).remove(); } catch (e) { /* lanjut */ }
   }
   if (lapor.length) return lapor.join(" | ");
