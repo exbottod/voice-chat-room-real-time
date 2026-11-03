@@ -1,18 +1,72 @@
 {
-  "status": "gagal",
-  "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/HiveGames.kt:426:9 Const 'val' has type 'kotlin.collections.List<kotlin.Float>",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/HiveGames.kt:459:68 Argument type mismatch: actual type is 'kotlin.Int', but '",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/HiveGames.kt:673:38 Argument type mismatch: actual type is 'kotlin.Int', but '",
-    "* What went wrong:"
-  ],
-  "versi": "1.0.664",
-  "ukuran_mb": 0,
-  "sha256": "",
-  "commit": "230d055",
-  "waktu": "2026-11-03T13:21:37Z",
+  "status": "ok",
+  "masalah": [],
+  "versi": "1.0.665",
+  "ukuran_mb": 106.7,
+  "sha256": "ba40cab6360117a3689239fadd8a9b7f673a5e7e46a6eee1cf88be319fa10b99",
+  "commit": "d4bfa15",
+  "waktu": "2026-11-03T13:27:48Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 0,
-  "aset_total": 0,
-  "fitur": []
+  "aset_roket": 30,
+  "aset_total": 116,
+  "fitur": [
+    {
+      "nama": "Banner cashback terpisah",
+      "ada": true
+    },
+    {
+      "nama": "Banner gift biasa",
+      "ada": true
+    },
+    {
+      "nama": "Animasi cashback di avatar",
+      "ada": true
+    },
+    {
+      "nama": "Tombol kombo cashback",
+      "ada": true
+    },
+    {
+      "nama": "Roket level 1-5 di room",
+      "ada": true
+    },
+    {
+      "nama": "Peluncuran roket cadangan",
+      "ada": true
+    },
+    {
+      "nama": "Sambung ulang suara otomatis",
+      "ada": true
+    },
+    {
+      "nama": "Tukar diamond nominal sendiri",
+      "ada": true
+    },
+    {
+      "nama": "Papan peringkat roket",
+      "ada": true
+    }
+  ],
+  "roket_level": [
+    {
+      "level": 1,
+      "ada": true
+    },
+    {
+      "level": 2,
+      "ada": true
+    },
+    {
+      "level": 3,
+      "ada": true
+    },
+    {
+      "level": 4,
+      "ada": true
+    },
+    {
+      "level": 5,
+      "ada": true
+    }
+  ]
 }
