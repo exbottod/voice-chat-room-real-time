@@ -149,7 +149,7 @@ object HiveGames {
                         name = g.optString("gameName"),
                         icon = g.optString("gameIcon"),
                         startUrl = start,
-                        landscape = g.optString("screen").contains("横"),
+                        landscape = g.optString("screen").contains("\u6a2a"),
                         screenWidth = g.optString("screenWidth").toIntOrNull() ?: 720,
                         safeHeight = g.optString("safeHeight").toIntOrNull() ?: 900,
                     ),
@@ -164,14 +164,25 @@ object HiveGames {
     }
 
     // Cadangan kalau katalog tidak bisa dihubungi.
-    private val fallback = listOf(
-        Game(10000, 11923, "KingOfOlympus", "", "https://www.duolefast.com/common-web/full/game1000/1.1.3/web-mobile/index.html", true, 720, 780),
-        Game(10001, 11926, "MahjongWays", "", "https://www.duolefast.com/common-web/full/game1008/1.1.3/web-mobile/index.html", true, 720, 880),
-        Game(10002, 11927, "SweetBonanza", "", "https://www.duolefast.com/common-web/full/game1011/1.1.3/web-mobile/index.html", true, 720, 780),
-        Game(10003, 11931, "GreedyKing", "", "https://www.duolefast.com/common-web/full/game845/1.1.3/web-mobile/index.html", false, 720, 920),
-        Game(10004, 11932, "FruitParty", "", "https://www.duolefast.com/common-web/vert/game848/1.1.3/web-mobile/index.html", false, 720, 920),
-        Game(10005, 11933, "DragonTiger", "", "https://www.duolefast.com/common-web/full/game841/1.1.3/web-mobile/index.html", false, 720, 1100),
-        Game(10006, 11940, "Teenpatti", "", "https://www.duolefast.com/common-web/full/game864/1.1.3/web-mobile/index.html", false, 720, 900),
+    val fallback = listOf(
+        Game(1000, 11923, "KingOfOlympus", "https://d2bd0pfu4eztx8.cloudfront.net/20250820/17556825806565671233b0c.png", "https://www.duolefast.com/common-web/full/game1000/1.1.3/web-mobile/index.html", true, 720, 780),
+        Game(1005, 11924, "GatesOfGatotkaca", "https://d2bd0pfu4eztx8.cloudfront.net/20250820/1755682689838e629d93ef5.png", "https://www.duolefast.com/common-web/full/game1005/1.1.3/web-mobile/index.html", true, 720, 780),
+        Game(1006, 11925, "Aztec", "https://d2bd0pfu4eztx8.cloudfront.net/20251226/1766743520441442b525a6d.png", "https://www.duolefast.com/common-web/full/game1006/1.1.3/web-mobile/index.html", true, 720, 780),
+        Game(1008, 11926, "MahjongWays", "https://d2bd0pfu4eztx8.cloudfront.net/20260330/1774861065266e9b2f828e0.png", "https://www.duolefast.com/common-web/full/game1008/1.1.3/web-mobile/index.html", true, 720, 880),
+        Game(1011, 11927, "SweetBonanza", "https://d2bd0pfu4eztx8.cloudfront.net/20260403/177520651058399d652539f.png", "https://www.duolefast.com/common-web/full/game1011/1.1.3/web-mobile/index.html", true, 720, 780),
+        Game(1013, 11928, "SugarRush", "https://d2bd0pfu4eztx8.cloudfront.net/20251031/1761906655522eac63b2f5a.png", "https://www.duolefast.com/common-web/full/game1013/1.1.3/web-mobile/index.html", true, 720, 780),
+        Game(1014, 11929, "MonkeyKing", "https://d2bd0pfu4eztx8.cloudfront.net/20250820/17556827536300835603814.png", "https://www.duolefast.com/common-web/full/game1014/1.1.3/web-mobile/index.html", true, 720, 880),
+        Game(1017, 11930, "LuckyPig", "https://d2bd0pfu4eztx8.cloudfront.net/20250820/1755682609843e661837b7b.png", "https://www.duolefast.com/common-web/full/game1017/1.1.3/web-mobile/index.html", true, 720, 720),
+        Game(845, 11931, "GreedyKing", "https://d2bd0pfu4eztx8.cloudfront.net/20260420/1776668984853cb231a85b1.png", "https://www.duolefast.com/common-web/full/game845/1.1.3/web-mobile/index.html", false, 720, 920),
+        Game(848, 11932, "FruitParty", "https://d2bd0pfu4eztx8.cloudfront.net/20260423/1776915806327bab501454b.png", "https://www.duolefast.com/common-web/vert/game848/1.1.3/web-mobile/index.html", false, 720, 920),
+        Game(841, 11933, "DragonTiger", "https://d2bd0pfu4eztx8.cloudfront.net/20260625/178236620946457f4a36f02.png", "https://www.duolefast.com/common-web/full/game841/1.1.3/web-mobile/index.html", false, 720, 1100),
+        Game(1031, 11934, "ScratchCard", "https://d2bd0pfu4eztx8.cloudfront.net/20260706/1783333030006e505b47744.png", "https://www.duolefast.com/common-web/full/game1031/1.1.3/web-mobile/index.html", false, 720, 900),
+        Game(851, 11935, "GreedyBanker", "https://d2bd0pfu4eztx8.cloudfront.net/20260703/1783068147269705130bd1d.png", "https://www.duolefast.com/common-web/full/game851/1.1.3/web-mobile/index.html", false, 720, 920),
+        Game(853, 11936, "GreedyLion", "https://d2bd0pfu4eztx8.cloudfront.net/20260708/1783492250184e6d20b7761.png", "https://www.duolefast.com/common-web/full/game853/1.1.3/web-mobile/index.html", false, 720, 1040),
+        Game(842, 11937, "Crash", "https://d2bd0pfu4eztx8.cloudfront.net/20260825/178763822478197206cd72e.png", "https://www.duolefast.com/common-web/full/game842/1.1.3/web-mobile/index.html", true, 720, 950),
+        Game(857, 11938, "GreedyCatKing", "https://d1rbs2pv9iwt9o.cloudfront.net/20260928/179055866379578c68379d6.png", "https://www.duolefast.com/common-web/full/game857/1.1.3/web-mobile/index.html", false, 720, 1040),
+        Game(865, 11939, "Roulette", "https://d1rbs2pv9iwt9o.cloudfront.net/20261015/179202841149390c31925a7.png", "https://www.duolefast.com/common-web/full/game865/1.1.3/web-mobile/index.html", false, 720, 1000),
+        Game(864, 11940, "Teenpatti", "https://d1rbs2pv9iwt9o.cloudfront.net/20261023/17927337478481a291ef72f.png", "https://www.duolefast.com/common-web/full/game864/1.1.3/web-mobile/index.html", false, 720, 900),
     )
 }
 
@@ -313,7 +324,6 @@ fun HiveHubScreen(uid: String, onClose: () -> Unit) {
 @Composable
 fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
     val ctx = LocalContext.current
-    val cfg = androidx.compose.ui.platform.LocalConfiguration.current
     var web by remember { mutableStateOf<WebView?>(null) }
     var prog by remember { mutableStateOf(0) }
     var err by remember { mutableStateOf("") }
@@ -332,20 +342,6 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
             }
         }
         onDispose { if (act != null && old != null) act.requestedOrientation = old }
-    }
-
-    // Ukuran canvas game (px desain) dipetakan pas ke lebar layar sekarang.
-    val skala = { w: Int ->
-        val px = ctx.resources.displayMetrics.widthPixels
-        val desain = if (w > 0) w else 720
-        ((px.toFloat() * 100f) / desain).toInt().coerceIn(20, 400)
-    }
-    LaunchedEffect(cfg.screenWidthDp, cfg.orientation, web) {
-        web?.let {
-            val w = if (game.screenWidth > 0) game.screenWidth else 720
-            it.setInitialScale(skala(w))
-            it.requestLayout()
-        }
     }
 
     BackHandler { onClose() }
@@ -367,10 +363,10 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
                     settings.mediaPlaybackRequiresUserGesture = false
-                    // Layout halaman dipaksa selebar canvas game, lalu diskalakan
-                    // pas ke layar HP (tidak ada bagian yang terpotong).
-                    settings.useWideViewPort = false
-                    settings.loadWithOverviewMode = false
+                    // Biarkan halaman game memakai ukuran viewport normal; game menghitung sendiri
+                    // skalanya dari innerWidth/innerHeight.
+                    settings.useWideViewPort = true
+                    settings.loadWithOverviewMode = true
                     settings.setSupportZoom(false)
                     settings.builtInZoomControls = false
                     settings.displayZoomControls = false
@@ -386,7 +382,6 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                     setBackgroundColor(android.graphics.Color.BLACK)
                     android.webkit.CookieManager.getInstance().setAcceptCookie(true)
                     android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                    setInitialScale(skala(if (game.screenWidth > 0) game.screenWidth else 720))
                     addJavascriptInterface(
                         HiveBridge(
                             onOpen = { started = true },

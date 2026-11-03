@@ -78,6 +78,21 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
         balance = SupaRepo.get(myUid).wallet?.coins ?: 0L
     }
 
+    val hiveOpen: HiveGames.Game? = if (open.startsWith("hive:")) {
+        val gid = open.removePrefix("hive:").toIntOrNull()
+        HiveGames.fallback.firstOrNull { it.id == gid }
+    } else null
+
+    if (hiveOpen != null) {
+        Dialog(
+            onDismissRequest = { open = "" },
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            HivePlayScreen(uid = myUid, game = hiveOpen, onClose = { open = "" })
+        }
+        return
+    }
+
     when (open) {
         "slot777" -> Slot777HtmlScreen(myUid = myUid, myName = myName, onClose = { open = "" })
         "greedybaby" -> GreedyBabyHtmlScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
@@ -148,7 +163,6 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                                     GcItem("DragonTigerPk", R.drawable.ic_game_dvt, "dvt"),
                                     GcItem("3CardPoker", R.drawable.ic_game_poker, "poker"),
                                     GcItem("Lucky77", R.drawable.ic_game_lucky, "lucky77"),
-                                    GcItem("Hive", R.drawable.ic_game_slot, "hive"),
                                 ),
                             ) { open = it }
                             Spacer(Modifier.height(8.dp))
@@ -159,6 +173,15 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                                     GcItem("GreedyBaby", R.drawable.ic_game_baby, "greedybaby"),
                                     GcItem("FruitsParty", R.drawable.ic_game_fruits, "fruitsparty"),
                                 ),
+                            ) { open = it }
+                        }
+
+                        // ---- Game Hive Play (ikon asli dari katalog Hive)
+                        GcSection("Game Hive Play") {
+                            GcRows(
+                                HiveGames.fallback.map { g ->
+                                    GcItem(g.name, 0, "hive:" + g.id, g.icon)
+                                },
                             ) { open = it }
                         }
 
@@ -218,7 +241,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
     }
 }
 
-private data class GcItem(val name: String, val icon: Int, val key: String)
+private data class GcItem(val name: String, val icon: Int, val key: String, val iconUrl: String = "")
 
 @Composable
 private fun GcSection(title: String, content: @Composable () -> Unit) {
@@ -262,10 +285,17 @@ private fun _GcTile(g: GcItem, tile: Dp, onPick: (String) -> Unit) {
             Modifier.size(tile).clip(RoundedCornerShape(16.dp))
                 .border(2.dp, Color(0xFFE0B54A), RoundedCornerShape(16.dp)),
         ) {
-            Image(
-                painterResource(g.icon), contentDescription = g.name,
-                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
-            )
+            if (g.iconUrl.isNotBlank()) {
+                coil.compose.AsyncImage(
+                    model = g.iconUrl, contentDescription = g.name,
+                    contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Image(
+                    painterResource(g.icon), contentDescription = g.name,
+                    contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
         Spacer(Modifier.height(4.dp))
         Text(
