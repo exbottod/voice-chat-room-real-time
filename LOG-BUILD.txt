@@ -3,22 +3,22 @@ Daemon will be stopped at the end of the build
 > Task :app:preBuild UP-TO-DATE
 > Task :app:preReleaseBuild UP-TO-DATE
 > Task :app:mergeReleaseJniLibFolders
-> Task :app:mergeReleaseNativeLibs
-> Task :app:checkReleaseDuplicateClasses
 > Task :app:buildKotlinToolingMetadata
 > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:checkReleaseDuplicateClasses
 > Task :app:generateReleaseBuildConfig
+> Task :app:mergeReleaseNativeLibs
+> Task :app:generateReleaseResValues
+> Task :app:processReleaseGoogleServices
+> Task :app:checkReleaseAarMetadata
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libagora-fdkaac.so, libagora-ffmpeg.so, libagora-rtc-sdk.so, libagora-soundtouch.so, libagora_ai_echo_cancellation_extension.so, libagora_ai_echo_cancellation_ll_extension.so, libagora_ai_noise_suppression_extension.so, libagora_ai_noise_suppression_ll_extension.so, libagora_audio_beauty_extension.so, libandroidx.graphics.path.so, libaosl.so.
 
-> Task :app:checkReleaseAarMetadata
-> Task :app:generateReleaseResValues
-> Task :app:extractReleaseNativeSymbolTables
-> Task :app:processReleaseGoogleServices
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:packageReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
@@ -35,11 +35,11 @@ Unable to strip the following libraries, packaging them as they are: libagora-fd
 	application@android:supportsRtl was tagged at AndroidManifest.xml:25 to replace other declarations but no other declaration present
 
 > Task :app:processReleaseManifest
-> Task :app:desugarReleaseFileDependencies
 > Task :app:javaPreCompileRelease
+> Task :app:processReleaseManifestForPackage
+> Task :app:desugarReleaseFileDependencies
 > Task :app:mergeReleaseStartupProfile
 > Task :app:mergeReleaseArtProfile
-> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
@@ -82,5 +82,3 @@ w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/
 > Task :app:packageRelease
 > Task :app:createReleaseApkListingFileRedirect
 > Task :app:assembleRelease
-> Task :app:pushBuildLog
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793657468734.json
