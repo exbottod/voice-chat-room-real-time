@@ -46,16 +46,47 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
+
+/**
+ * Daftar room disimpan di satu tempat yang hidup selama aplikasi berjalan.
+ * Tujuannya: pindah tab (Moment -> Party, dsb) tidak memuat ulang daftar room,
+ * jadi tidak ada kedipan dan tidak ada permintaan server berulang. Data baru
+ * hanya diambil saat pengguna menarik sendiri (refreshKey naik).
+ */
+object RoomFeed {
+    var rooms by mutableStateOf(emptyList<RoomInfo>())
+        private set
+    var online by mutableStateOf(emptyMap<String, Int>())
+        private set
+    private var regs: List<Reg> = emptyList()
+
+    fun start() {
+        if (regs.isNotEmpty()) return
+        regs = listOf(
+            RoomRepo.observeRoomsMerged { rooms = it.sortedByDescending { r -> r.pinnedAt } },
+            RoomRepo.observeAllOnline { online = it },
+        )
+    }
+
+    /** Tarik-ulang manual: lepas sambungan lama lalu sambung lagi (baca ulang dari server). */
+    fun restart() {
+        stop()
+        start()
+    }
+
+    fun stop() {
+        regs.forEach { it.remove() }
+        regs = emptyList()
+    }
+}
 
 @Composable
 fun rememberRooms(refreshKey: Int = 0): List<RoomInfo> {
-    var rooms by remember { mutableStateOf(emptyList<RoomInfo>()) }
-    var online by remember { mutableStateOf(emptyMap<String, Int>()) }
-    DisposableEffect(refreshKey) {
-        val reg = RoomRepo.observeRoomsMerged { rooms = it.sortedByDescending { r -> r.pinnedAt } }
-        val reg2 = RoomRepo.observeAllOnline { online = it }
-        onDispose { reg.remove(); reg2.remove() }
-    }
+    LaunchedEffect(Unit) { RoomFeed.start() }
+    LaunchedEffect(refreshKey) { if (refreshKey > 0) RoomFeed.restart() }
+    val rooms = RoomFeed.rooms
+    val online = RoomFeed.online
     return remember(rooms, online) { rooms.map { it.copy(online = online[it.id] ?: 0) } }
 }
 

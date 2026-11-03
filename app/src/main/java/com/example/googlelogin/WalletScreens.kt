@@ -482,6 +482,7 @@ private fun PayDot(text: String, color: Color) {
 }
 
 @Composable
+@androidx.compose.material3.ExperimentalMaterial3Api
 fun WalletScreen(uid: String, wallet: Wallet, onRefresh: () -> Unit = {}, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

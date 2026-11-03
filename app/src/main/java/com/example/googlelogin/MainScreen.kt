@@ -57,6 +57,7 @@ private const val OV_INVITE = 3
 private const val OV_SEARCH = 4
 private const val OV_POST = 5
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     val context = LocalContext.current
@@ -95,16 +96,11 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         refreshScope.launch {
             refreshingTab = true
             try {
-                val w = kotlinx.coroutines.withTimeoutOrNull(15000L) { SupaRepo.get(uid).wallet }
+                val w = kotlinx.coroutines.withTimeoutOrNull(15000L) { SupaRepo.get(uid, fresh = true).wallet }
                 if (w != null) {
                     wallet = w
                     WalletCache.save(uid, w)
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) { }
-            try {
-                kotlinx.coroutines.withTimeoutOrNull(12000L) { LevelVip.push(uid) }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) { }
