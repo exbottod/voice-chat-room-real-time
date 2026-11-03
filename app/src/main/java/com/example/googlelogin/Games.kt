@@ -14,11 +14,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -37,6 +40,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -91,7 +95,8 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
             ) { onClose() }) {
                 Column(
-                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxSize(0.62f)
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.90f)
+                        .navigationBarsPadding()
                         .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                         .background(Brush.verticalGradient(listOf(Color(0xFF4A2F1B), Color(0xFF2B190E))))
                         .border(1.dp, Color(0xFF8A5A2B), RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
@@ -123,7 +128,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                     ) {
                         // ---- Dimainkan terkini
                         GcSection("Dimainkan terkini") {
-                            GcRow(
+                            GcRows(
                                 listOf(
                                     GcItem("DragonTiger", R.drawable.ic_game_dvt, "dvt"),
                                     GcItem("TeenPatti", R.drawable.ic_game_poker, "teenpatti"),
@@ -138,7 +143,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
 
                         // ---- Rekomendasi game
                         GcSection("Rekomendasi game") {
-                            GcRow(
+                            GcRows(
                                 listOf(
                                     GcItem("DragonTigerPk", R.drawable.ic_game_dvt, "dvt"),
                                     GcItem("3CardPoker", R.drawable.ic_game_poker, "poker"),
@@ -147,7 +152,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                                 ),
                             ) { open = it }
                             Spacer(Modifier.height(8.dp))
-                            GcRow(
+                            GcRows(
                                 listOf(
                                     GcItem("TeenPatti", R.drawable.ic_game_poker, "teenpatti"),
                                     GcItem("GreedyCat", R.drawable.ic_game_cat, "greedy"),
@@ -228,28 +233,46 @@ private fun GcSection(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun GcRow(items: List<GcItem>, onPick: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        items.forEach { g ->
-            Column(
-                Modifier.weight(1f).clickable { onPick(g.key) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(
-                    Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp))
-                        .border(2.dp, Color(0xFFE0B54A), RoundedCornerShape(16.dp)),
-                ) {
-                    Image(
-                        painterResource(g.icon), contentDescription = g.name,
-                        contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
-                    )
+private fun GcRows(items: List<GcItem>, onPick: (String) -> Unit) {
+    // Ukuran ikon dihitung dari lebar layar: baris tidak pernah meluap dan ikon
+    // tidak ikut membesar di tablet (maksimal 74dp).
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val cols = if (maxWidth >= 480.dp) 5 else 4
+        val gap = 10.dp
+        val tile = (((maxWidth - gap * (cols - 1)) / cols).coerceAtMost(74.dp))
+            .coerceAtLeast(48.dp)
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items.chunked(cols).forEach { chunk ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    chunk.forEach { g -> _GcTile(g, tile, onPick) }
+                    repeat(cols - chunk.size) { Spacer(Modifier.width(tile)) }
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(g.name, color = Color(0xFFF0DDBF), fontSize = 11.sp, maxLines = 1)
             }
         }
-        // isi sisa kolom supaya ukuran ikon sama
-        repeat(4 - items.size) { Spacer(Modifier.weight(1f)) }
+    }
+}
+
+@Composable
+private fun _GcTile(g: GcItem, tile: Dp, onPick: (String) -> Unit) {
+    Column(
+        Modifier.width(tile).clickable { onPick(g.key) },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.size(tile).clip(RoundedCornerShape(16.dp))
+                .border(2.dp, Color(0xFFE0B54A), RoundedCornerShape(16.dp)),
+        ) {
+            Image(
+                painterResource(g.icon), contentDescription = g.name,
+                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            g.name, color = Color(0xFFF0DDBF), fontSize = 11.sp, maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
