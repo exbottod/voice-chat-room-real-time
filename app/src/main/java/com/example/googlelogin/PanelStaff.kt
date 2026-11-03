@@ -59,44 +59,66 @@ data class PanelInfo(
 }
 
 object PanelStaffRepo {
-    /** Hak staf akun ini. Kosong = tidak punya panel. */
-    suspend fun me(): PanelInfo? {
-        val o = SupaRepo.panelCall("me")
-        if (o.optInt("ok") != 1) return null
-        val role = o.optString("role", "")
-        if (role.isBlank()) return null
-        val arr = o.optJSONArray("stok")
-        val stok = ArrayList<PanelStok>()
-        if (arr != null) {
-            for (i in 0 until arr.length()) {
-                val it = arr.optJSONObject(i) ?: continue
-                stok.add(
-                    PanelStok(
-                        id = it.optString("id", ""),
-                        kind = it.optString("kind", ""),
-                        name = it.optString("name", ""),
-                        days = it.optLong("days", 7L),
-                    ),
-                )
-            }
-        }
+    private fun bacaPanel(o: org.json.JSONObject, stok: List<PanelStok>): PanelInfo {
         return PanelInfo(
-            role = role,
+            role = o.optString("role", ""),
             manager = o.optString("manager", ""),
             coins = o.optLong("coins", 0L),
             stok = stok,
         )
     }
 
-    /** Sisa stok coin terbaru dari server. */
-    suspend fun sisaCoin(): Long = try { me()?.coins ?: 0L } catch (e: kotlinx.coroutines.CancellationException) {
+    private fun bacaStok(o: org.json.JSONObject): List<PanelStok> {
+        val arr = o.optJSONArray("stok") ?: return emptyList()
+        val out = ArrayList<PanelStok>()
+        for (i in 0 until arr.length()) {
+            val it = arr.optJSONObject(i) ?: continue
+            out.add(
+                PanelStok(
+                    id = it.optString("id", ""),
+                    kind = it.optString("kind", ""),
+                    name = it.optString("name", ""),
+                    days = it.optLong("days", 7L),
+                ),
+            )
+        }
+        return out
+    }
+
+    /** Semua panel milik akun ini. Satu akun bisa punya manager dan admin sekaligus. */
+    suspend fun panels(): List<PanelInfo> {
+        val o = SupaRepo.panelCall("me")
+        if (o.optInt("ok") != 1) return emptyList()
+        val stok = bacaStok(o)
+        val arr = o.optJSONArray("panels")
+        if (arr != null && arr.length() > 0) {
+            val out = ArrayList<PanelInfo>()
+            for (i in 0 until arr.length()) {
+                val it = arr.optJSONObject(i) ?: continue
+                if (it.optString("role", "").isBlank()) continue
+                out.add(bacaPanel(it, bacaStok(it).ifEmpty { stok }))
+            }
+            if (out.isNotEmpty()) return out
+        }
+        if (o.optString("role", "").isBlank()) return emptyList()
+        return listOf(bacaPanel(o, stok))
+    }
+
+    /** Panel pertama (manager didahulukan server). */
+    suspend fun me(): PanelInfo? = panels().firstOrNull()
+
+    /** Sisa stok coin untuk panel manager. */
+    suspend fun sisaCoin(role: String = "manager"): Long = try {
+        panels().firstOrNull { it.role == role }?.coins ?: 0L
+    } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
-       0L
+        0L
     }
 
     /** Pesan hasil aksi, siap ditampilkan. */
-    suspend fun aksi(action: String, params: org.json.JSONObject): String {
+    suspend fun aksi(action: String, params: org.json.JSONObject, sebagai: String = ""): String {
+        if (sebagai.isNotBlank()) params.put("sebagai", sebagai)
         val o = SupaRepo.panelCall(action, params)
         return if (o.optInt("ok") == 1) {
             when (action) {
@@ -249,7 +271,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
         pesan = "Memproses..."
         scope.launch {
             pesan = try {
-                PanelStaffRepo.aksi(action, params)
+                PanelStaffRepo.aksi(action, params, info.role)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -329,8 +351,9 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                                     val hasil = PanelStaffRepo.aksi(
                                         "send_coin",
                                         org.json.JSONObject().put("to", idUser).put("coins", n),
+                                        info.role,
                                     )
-                                    sisaCoin = PanelStaffRepo.sisaCoin()
+                                    sisaCoin = PanelStaffRepo.sisaCoin(info.role)
                                     hasil
                                 } catch (e: kotlinx.coroutines.CancellationException) {
                                     throw e

@@ -797,19 +797,28 @@ async function topupManualRiwayat(env, uid) {
 // Hak staf disimpan di Turso supaya bisa dicabut kapan saja dari panel
 // developer, dan semua aksi saldo tetap dihitung server.
 
-async function stafDari(env, uid) {
-  if (!uid) return null;
+async function peranStaf(env, uid) {
+  if (!uid) return [];
   const r = await pipe(env, [
-    { sql: "select uid, role, manager, active, coins from panel_staff where uid = ?", args: [T(uid)] },
+    { sql: "select uid, role, manager, active, coins from panel_staf where uid = ? order by role desc", args: [T(uid)] },
   ]);
-  const row = r[0].rows[0];
-  if (!row || Number(row.active) !== 1) return null;
-  return {
-    uid: String(row.uid),
-    role: String(row.role),
-    manager: String(row.manager ?? ""),
-    coins: Math.max(0, Number(row.coins ?? 0)),
-  };
+  return r[0].rows
+    .filter((x) => Number(x.active) === 1)
+    .map((x) => ({
+      uid: String(x.uid),
+      role: String(x.role),
+      manager: String(x.manager ?? ""),
+      coins: Math.max(0, Number(x.coins ?? 0)),
+    }));
+}
+
+// Satu akun bisa punya dua panel sekaligus (manager dan admin).
+// Kalau peran tidak disebut, pakai manager lebih dulu, lalu admin.
+async function stafDari(env, uid, peran) {
+  const semua = await peranStaf(env, uid);
+  if (!semua.length) return null;
+  if (peran) return semua.find((x) => x.role === peran) ?? null;
+  return semua.find((x) => x.role === "manager") ?? semua.find((x) => x.role === "admin") ?? null;
 }
 
 async function stokStaf(env, uid) {
@@ -832,9 +841,18 @@ async function panel(env, body) {
   const dev = sesi.email === ADMIN_EMAIL;
 
   if (aksi === "me") {
-    const staf = await stafDari(env, uid);
-    if (!staf) return json({ ok: 0, e: "Bukan staf", role: "" });
-    return json({ ok: 1, role: staf.role, manager: staf.manager, coins: staf.coins, stok: await stokStaf(env, uid) });
+    const semua = await peranStaf(env, uid);
+    if (!semua.length) return json({ ok: 0, e: "Bukan staf", role: "" });
+    const stok = await stokStaf(env, uid);
+    const panels = semua.map((x) => ({
+      role: x.role,
+      manager: x.manager,
+      coins: x.coins,
+      stok,
+    }));
+    const utama = panels.find((x) => x.role === "manager") ?? panels[0];
+    // role/coins di level atas dipertahankan untuk APK lama.
+    return json({ ok: 1, role: utama.role, manager: utama.manager, coins: utama.coins, stok, panels });
   }
 
   if (aksi === "ban_check") {
@@ -845,7 +863,11 @@ async function panel(env, body) {
     return json({ ok: 1, banned: !!row, reason: row ? String(row.reason ?? "") : "" });
   }
 
-  const staf = await stafDari(env, uid);
+  const semuaPeran = await peranStaf(env, uid);
+  const diminta = String(p.sebagai ?? "").trim();
+  const staf = diminta
+    ? semuaPeran.find((x) => x.role === diminta) ?? null
+    : semuaPeran.find((x) => x.role === "manager") ?? semuaPeran[0] ?? null;
   if (!staf && !dev) return json({ ok: 0, e: "Hanya manager atau admin" }, 403);
   const peran = dev ? "dev" : staf.role;
   const target = String(p.to ?? p.uid ?? "").trim();
@@ -867,7 +889,7 @@ async function panel(env, body) {
         return gagal(`Stok coin panel habis. Sisa ${sisa.toLocaleString("id-ID")} coin, minta tambah ke developer.`);
       }
       const potong = await pipe(env, [
-        { sql: "update panel_staff set coins = coins - ? where uid = ? and coins >= ?", args: [I(coins), T(uid), I(coins)] },
+        { sql: "update panel_staf set coins = coins - ? where uid = ? and role = 'manager' and coins >= ?", args: [I(coins), T(uid), I(coins)] },
         { sql: "select changes() as n" },
       ]);
       const terpotong = Number(potong[1].rows[0].n);
@@ -879,7 +901,7 @@ async function panel(env, body) {
         await beriCoin(env, target, coins, "panel_coin", null);
       } catch (e) {
         await pipe(env, [
-          { sql: "update panel_staff set coins = coins + ? where uid = ?", args: [I(coins), T(uid)] },
+          { sql: "update panel_staf set coins = coins + ? where uid = ? and role = 'manager'", args: [I(coins), T(uid)] },
         ]).catch(() => {});
         throw e;
       }
@@ -934,7 +956,8 @@ async function panel(env, body) {
     const salah = butuhTarget();
     if (salah) return gagal(salah);
     if (target === uid) return gagal("Tidak bisa banned diri sendiri");
-    const korban = await stafDari(env, target);
+    const korbanList = await peranStaf(env, target);
+    const korban = korbanList.find((x) => x.role === "manager") ?? korbanList[0] ?? null;
     if (peran === "admin") {
       // Admin hanya boleh mengurus user biasa di bawah manajernya.
       if (!staf.manager) return gagal("Admin ini belum punya manager");
@@ -986,8 +1009,8 @@ async function admin(env, body) {
     const manager = role === "admin" ? String(p.manager ?? "").trim() : "";
     await pipe(env, [
       {
-        sql: `insert into panel_staff (uid, role, manager, active, created_at) values (?, ?, ?, 1, ?)
-              on conflict (uid) do update set role = excluded.role, manager = excluded.manager, active = 1`,
+        sql: `insert into panel_staf (uid, role, manager, active, created_at) values (?, ?, ?, 1, ?)
+              on conflict (uid, role) do update set manager = excluded.manager, active = 1`,
         args: [T(who), T(role), T(manager), I(Date.now())],
       },
     ]);
@@ -996,15 +1019,22 @@ async function admin(env, body) {
   if (op === "panel_revoke") {
     const who = String(p.uid ?? "").trim();
     if (!who) return gagal("UID kosong");
-    await pipe(env, [{ sql: "update panel_staff set active = 0 where uid = ?", args: [T(who)] }]);
-    return json({ ok: 1, uid: who });
+    const role = String(p.role ?? "").trim();
+    if (role === "manager" || role === "admin") {
+      await pipe(env, [
+        { sql: "update panel_staf set active = 0 where uid = ? and role = ?", args: [T(who), T(role)] },
+      ]);
+      return json({ ok: 1, uid: who, role });
+    }
+    await pipe(env, [{ sql: "update panel_staf set active = 0 where uid = ?", args: [T(who)] }]);
+    return json({ ok: 1, uid: who, role: "" });
   }
   if (op === "panel_list") {
     const r = await pipe(env, [
       {
         sql: `select s.uid, s.role, s.manager, s.active, s.created_at, s.coins,
                      (select count(*) from panel_stock k where k.owner_uid = s.uid) as stok
-              from panel_staff s order by s.created_at desc limit 200`,
+              from panel_staf s order by s.created_at desc limit 300`,
       },
     ]);
     return json({ ok: 1, list: r[0].rows });
@@ -1014,17 +1044,20 @@ async function admin(env, body) {
     if (!/^[A-Za-z0-9_-]{6,64}$/.test(who)) return gagal("UID tidak valid");
     const n = Math.trunc(Number(p.coins ?? 0));
     if (!Number.isFinite(n)) return gagal("Jumlah coin tidak valid");
+    const role = String(p.role ?? "manager").trim() === "admin" ? "admin" : "manager";
     if (op === "panel_coin_add") {
       await pipe(env, [
-        { sql: "update panel_staff set coins = max(0, coins + ?) where uid = ?", args: [I(n), T(who)] },
+        { sql: "update panel_staf set coins = max(0, coins + ?) where uid = ? and role = ?", args: [I(n), T(who), T(role)] },
       ]);
     } else {
       await pipe(env, [
-        { sql: "update panel_staff set coins = ? where uid = ?", args: [I(Math.max(0, n)), T(who)] },
+        { sql: "update panel_staf set coins = ? where uid = ? and role = ?", args: [I(Math.max(0, n)), T(who), T(role)] },
       ]);
     }
-    const r = await pipe(env, [{ sql: "select coins from panel_staff where uid = ?", args: [T(who)] }]);
-    return json({ ok: 1, uid: who, coins: Number(r[0].rows[0]?.coins ?? 0) });
+    const r = await pipe(env, [
+      { sql: "select coins from panel_staf where uid = ? and role = ?", args: [T(who), T(role)] },
+    ]);
+    return json({ ok: 1, uid: who, role, coins: Number(r[0].rows[0]?.coins ?? 0) });
   }
   if (op === "panel_stock_add") {
     const who = String(p.uid ?? "").trim();

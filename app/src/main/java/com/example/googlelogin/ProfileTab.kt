@@ -167,15 +167,15 @@ fun ProfileTab(
 
     // Panel manager/admin: hanya muncul kalau akun ini memang diberi hak
     // lewat panel developer. Hak dicek ke server, bukan disimpan di HP.
-    var panelInfo by remember { mutableStateOf<PanelInfo?>(null) }
-    var panelOpen by remember { mutableStateOf(false) }
+    var panelList by remember { mutableStateOf<List<PanelInfo>>(emptyList()) }
+    var panelAktif by remember { mutableStateOf<PanelInfo?>(null) }
     LaunchedEffect(userId) {
-        panelInfo = try {
-            if (userId.isBlank()) null else PanelStaffRepo.me()
+        panelList = try {
+            if (userId.isBlank()) emptyList() else PanelStaffRepo.panels()
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            null
+            emptyList()
         }
     }
 
@@ -375,11 +375,11 @@ fun ProfileTab(
                 MenuItem("🧰", tr("Alat peraga")) { soon(tr("Alat peraga")) }
                 MenuItem("🏰", tr("Family"), trailing = tr("Liga Peringkat Fam"), icon = R.drawable.ic_family_saya) { onFamilyClick() }
                 MenuItem("🏠", tr("CP house")) { soon(tr("CP house")) }
-                panelInfo?.let { pi ->
+                panelList.forEach { pi ->
                     MenuItem(
                         if (pi.isManager) "\uD83E\uDDD1\u200D\uD83D\uDCBC" else "\uD83D\uDEE1",
                         if (pi.isManager) "Panel Manager" else "Panel Admin",
-                    ) { panelOpen = true }
+                    ) { panelAktif = pi }
                 }
                 MenuItem("⚙", tr("Pengaturan"), icon = R.drawable.ic_settings) { onSettingsClick() }
                 MenuItem("❓", tr("Bantuan")) { soon(tr("Bantuan")) }
@@ -387,8 +387,7 @@ fun ProfileTab(
             Spacer(Modifier.height(24.dp))
         }
     }
-    val pi = panelInfo
-    if (panelOpen && pi != null) {
-        PanelStafDialog(pi) { panelOpen = false }
+    panelAktif?.let { pi ->
+        PanelStafDialog(pi) { panelAktif = null }
     }
 }

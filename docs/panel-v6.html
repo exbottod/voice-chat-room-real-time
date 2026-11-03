@@ -469,6 +469,11 @@ label{font-size:12px;color:var(--mut)}
       <p class="muted">Manager hanya bisa kirim coin dari stok ini. Kalau habis, manager tidak bisa kirim lagi sampai Anda tambah.</p>
       <label>ID staf (angka)</label>
       <input type="number" id="pstCoinId" inputmode="numeric">
+      <label>Peran</label>
+      <select id="pstCoinRole" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px">
+        <option value="manager">Manager (bisa kirim coin)</option>
+        <option value="admin">Admin (tanpa coin)</option>
+      </select>
       <label>Jumlah coin (boleh angka besar, contoh 5000000000)</label>
       <input type="number" id="pstCoinN" value="1000000000" min="0">
       <div class="row">
@@ -3282,7 +3287,16 @@ async function pstList(){
       info.append(t, s);
       const use = document.createElement("button"); use.className = "btn out"; use.textContent = "Stok";
       use.onclick = () => { $("pstStockId").value = ""; $("pstStockId").dataset.uid = x.uid; pstStockList(x.uid); };
-      row.append(info, use); box.appendChild(row);
+      const off = document.createElement("button"); off.className = "btn bad"; off.textContent = "Cabut";
+      off.onclick = async () => {
+        if (!confirm("Cabut panel " + x.role + " user ini?")) return;
+        try {
+          await walletAdmin({ op: "panel_revoke", uid: x.uid, role: x.role });
+          toast("Panel " + x.role + " dicabut ✅");
+          pstList();
+        } catch (e) { toast("Gagal: " + e.message); }
+      };
+      row.append(info, use, off); box.appendChild(row);
     });
   } catch (e) { box.textContent = "Gagal memuat staf: " + e.message; }
 }
@@ -3359,7 +3373,8 @@ async function pstCoin(op, nol){
   try {
     const u = await pstUid($("pstCoinId").value);
     const coins = nol ? 0 : Math.trunc(Number($("pstCoinN").value || 0));
-    const r = await walletAdmin({ op: op, uid: u.uid, coins: coins });
+    const role = $("pstCoinRole").value;
+    const r = await walletAdmin({ op: op, uid: u.uid, coins: coins, role: role });
     st.textContent = "Stok coin ID " + u.id + " sekarang " + fmtKoin(r.coins) + " coin";
     logAction({ type: "panelCoin", op: op, targetId: u.id, uid: u.uid, coins: coins });
     pstList();
