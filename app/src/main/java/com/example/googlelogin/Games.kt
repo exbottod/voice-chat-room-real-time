@@ -83,6 +83,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
         "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
         "greedy" -> GreedyCatScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
         "teenpatti" -> TeenPattiScreen(myUid = myUid, onClose = { open = "" })
+        "hive" -> HiveHubScreen(uid = myUid, onClose = { open = "" })
         else -> Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             // Bottom sheet "Game Center": area atas tembus pandang, sheet coklat di bawah.
             Box(Modifier.fillMaxSize().clickable(
@@ -142,6 +143,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> 
                                     GcItem("DragonTigerPk", R.drawable.ic_game_dvt, "dvt"),
                                     GcItem("3CardPoker", R.drawable.ic_game_poker, "poker"),
                                     GcItem("Lucky77", R.drawable.ic_game_lucky, "lucky77"),
+                                    GcItem("Hive", R.drawable.ic_game_slot, "hive"),
                                 ),
                             ) { open = it }
                             Spacer(Modifier.height(8.dp))
