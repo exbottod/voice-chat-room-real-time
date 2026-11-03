@@ -58,13 +58,15 @@ object GiftCatalog {
     private val legacyMap = HashMap<String, Gift>()  // gift lama di Firestore
     private fun apply() {
         custom = rtdbMap.values + legacyMap.values
-        list = GIFTS + custom
+        // Hanya gift yang diunggah sendiri lewat panel. Gift bawaan (GIFTS)
+        // sengaja tidak ditampilkan lagi di tab Hadiah.
+        list = custom
     }
 
     fun start() {
         if (started) return
         started = true
-        if (list.isEmpty()) list = GIFTS
+        if (list.isEmpty()) list = emptyList()
         // REALTIME DATABASE (utama): node giftCfg/{id} - tidak kena kuota Firestore.
         Rtdb.listen(Rtdb.ref("giftCfg")) { snap ->
             rtdbMap.clear()
