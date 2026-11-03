@@ -1311,12 +1311,17 @@ async function lookup(raw){
     } catch (e) { /* abaikan, Firestore sudah tidak dipakai */ }
   }
   if (!x) throw new Error("ID " + id + " tidak ditemukan");
-  if (!x.uid) throw new Error("Data user tidak lengkap");
+  if (typeof x === "string") x = { uid: x };
+  if (typeof x !== "object") x = null;
+  if (!x) throw new Error("Data ID " + id + " rusak di database, coba cari ulang");
+  if (!x.uid) throw new Error("Data user tidak lengkap (uid kosong untuk ID " + id + ")");
   return { id, uid: x.uid, name: x.name || ("Pengguna " + id), avatarB64: x.avatarB64 || null };
 }
 
 function userCard(el, u, line2){
   el.textContent = "";
+  if (!el) return;
+  u = u || { id: "-", name: "Tidak diketahui", avatarB64: null };
   const row = document.createElement("div"); row.className = "u";
   let av;
   if (u.avatarB64) { av = document.createElement("img"); av.src = "data:image/jpeg;base64," + u.avatarB64; }
@@ -1328,6 +1333,19 @@ function userCard(el, u, line2){
   if (line2) { const l = document.createElement("div"); l.className = "muted"; l.textContent = line2; box.appendChild(l); }
   row.append(av, box); el.appendChild(row);
 }
+
+const PANEL_BUILD = "2026-11-03d";
+(function stempelPanel(){
+  const cek = () => {
+    if (!document.body || document.getElementById("panelBuild")) return;
+    const d = document.createElement("div");
+    d.id = "panelBuild"; d.className = "muted";
+    d.style.cssText = "padding:10px 14px;font-size:11px;text-align:center";
+    d.textContent = "Kode panel: " + PANEL_BUILD;
+    document.body.appendChild(d);
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cek); else cek();
+})();
 
 function logAction(obj){
   return db.collection("adminLogs").add(Object.assign({ by: auth.currentUser.email, at: Date.now() }, obj)).catch(() => {});
@@ -2308,7 +2326,7 @@ $("userLoad").onclick = async () => {
 
     const list = [];
     Object.keys(byUid).forEach(uid => {
-      const p = byUid[uid];
+      const p = byUid[uid] || {};
       const id = String(p.id || (String((byId[String(p.id)] || {}).uid || "") === uid ? p.id : ""));
       list.push({ uid, id: id, name: p.name || "(belum ada nama)", avatarB64: p.av || p.avatarB64 || null });
     });
