@@ -153,9 +153,55 @@ const HIVE_KEY = Deno.env.get("HIVE_APP_KEY") ?? "eb09c56d97454d43ab2698ad548697
 const HIVE_CODE_SALT = Deno.env.get("HIVE_CODE_SALT") ?? "rezo-hive-2026";
 const HIVE_MAX_SKEW = 300; // detik
 
-async function md5hex(s: string): Promise<string> {
-  const buf = await crypto.subtle.digest("MD5", new TextEncoder().encode(s));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+// WebCrypto tidak mendukung MD5, jadi implementasinya ditulis sendiri.
+// Dipakai untuk aturan signature Hive: md5(signature_nonce + app_key + timestamp).
+function md5hex(s: string): string {
+  const msg = new TextEncoder().encode(s);
+  const len = msg.length;
+  const words: number[] = [];
+  for (let i = 0; i < len; i++) words[i >> 2] = (words[i >> 2] ?? 0) | (msg[i] << ((i % 4) * 8));
+  words[len >> 2] = (words[len >> 2] ?? 0) | (0x80 << ((len % 4) * 8));
+  const total = (((len + 8) >> 6) + 1) * 16;
+  while (words.length < total) words.push(0);
+  const bits = len * 8;
+  words[total - 2] = bits & 0xffffffff;
+  words[total - 1] = Math.floor(bits / 4294967296);
+
+  const S = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+             5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+             4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+             6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
+  const K: number[] = [];
+  for (let i = 0; i < 64; i++) K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296) | 0;
+
+  let a0 = 0x67452301, b0 = 0xefcdab89, c0 = 0x98badcfe, d0 = 0x10325476;
+  const rotl = (x: number, c: number) => ((x << c) | (x >>> (32 - c))) | 0;
+
+  for (let off = 0; off < total * 4; off += 64) {
+    const M: number[] = [];
+    for (let j = 0; j < 16; j++) M[j] = words[(off >> 2) + j] | 0;
+    let A = a0, B = b0, C = c0, D = d0;
+    for (let i = 0; i < 64; i++) {
+      let F = 0, g = 0;
+      if (i < 16) { F = (B & C) | (~B & D); g = i; }
+      else if (i < 32) { F = (D & B) | (~D & C); g = (5 * i + 1) % 16; }
+      else if (i < 48) { F = B ^ C ^ D; g = (3 * i + 5) % 16; }
+      else { F = C ^ (B | ~D); g = (7 * i) % 16; }
+      F = (F + A + K[i] + M[g]) | 0;
+      A = D;
+      D = C;
+      C = B;
+      B = (B + rotl(F, S[i])) | 0;
+    }
+    a0 = (a0 + A) | 0; b0 = (b0 + B) | 0; c0 = (c0 + C) | 0; d0 = (d0 + D) | 0;
+  }
+
+  const hex = (n: number) => {
+    let out = "";
+    for (let i = 0; i < 4; i++) out += ((n >>> (i * 8)) & 0xff).toString(16).padStart(2, "0");
+    return out;
+  };
+  return hex(a0) + hex(b0) + hex(c0) + hex(d0);
 }
 
 function hiveOk(data: unknown): Response {
@@ -173,7 +219,7 @@ function hiveFail(message: string, code = 500): Response {
 
 async function hiveSsToken(uid: string): Promise<string> {
   const b = btoa(uid).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  return `${b}.${await md5hex(uid + HIVE_KEY)}`;
+  return `${b}.${md5hex(uid + HIVE_KEY)}`;
 }
 
 async function hiveReadToken(token: unknown): Promise<string | null> {
@@ -190,7 +236,7 @@ async function hiveReadToken(token: unknown): Promise<string | null> {
     return null;
   }
   if (!uid) return null;
-  return (await md5hex(uid + HIVE_KEY)) === sig ? uid : null;
+  return (md5hex(uid + HIVE_KEY)) === sig ? uid : null;
 }
 
 // code dari app: "<uid>" polos, atau "<uid>.<expDetik>.<md5(uid.exp.salt)>"
@@ -202,7 +248,7 @@ async function hiveReadCode(code: unknown): Promise<string | null> {
   if (parts.length !== 3) return null;
   const [uid, exp, sig] = parts;
   if (!uid || !exp || !sig) return null;
-  if ((await md5hex(`${uid}.${exp}.${HIVE_CODE_SALT}`)) !== sig) return null;
+  if ((md5hex(`${uid}.${exp}.${HIVE_CODE_SALT}`)) !== sig) return null;
   const expMs = Number(exp) * 1000;
   if (Number.isFinite(expMs) && expMs > 0 && Date.now() > expMs) return null;
   return uid;
@@ -223,7 +269,7 @@ async function hivePlay(req: Request): Promise<Response> {
   const sig = String(body.signature ?? "");
   if (!nonce || !ts || !sig) return hiveFail("signature tidak lengkap", 400);
   if (Math.abs(Date.now() / 1000 - ts) > HIVE_MAX_SKEW) return hiveFail("timestamp kadaluarsa", 400);
-  if ((await md5hex(nonce + HIVE_KEY + ts)) !== sig) return hiveFail("signature salah", 400);
+  if ((md5hex(nonce + HIVE_KEY + ts)) !== sig) return hiveFail("signature salah", 400);
   if (String(body.app_id ?? "") !== HIVE_APP_ID) return hiveFail("app_id tidak dikenal", 400);
 
   // 1) code -> ss_token
