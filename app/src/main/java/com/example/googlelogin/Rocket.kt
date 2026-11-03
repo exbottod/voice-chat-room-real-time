@@ -429,7 +429,12 @@ object RocketRepo {
                     need = RocketCfg.exp.getOrElse(st - 1) { Long.MAX_VALUE }.coerceAtLeast(1L)
                     guard++
                 }
-                d.child("exp").value = left
+                // Roket 5 adalah roket terakhir. Setelah roket itu pecah, energi
+                // kembali ke syarat 2B (bukan menumpuk jadi 9476B). Sisa di atas
+                // 2B dipakai lagi dari awal, jadi bar mulai dari 0% dan naik
+                // sampai roket 5 pecah lagi.
+                val akhir = if (st >= 5) left % need else left
+                d.child("exp").value = akhir
                 d.child("stage").value = st
                 d.child("seq").value = seq
                 d.child("lastBy").value = name
@@ -534,6 +539,13 @@ object RocketRepo {
 data class RocketRankRow(val uid: String, val name: String, val coins: Long, val photo: String = "")
 
 /** Angka ringkas gaya panel: 374.6K, 20.2M. */
+/**
+ * Energi yang ditampilkan. Di roket 5, energi di atas syarat 2B dihitung
+ * sebagai putaran baru, jadi tidak pernah tampil 9476B / 2B.
+ */
+private fun energiTampil(total: Long, need: Long, lv: Int): Long =
+    if (lv >= 5 && need > 0L) total % need else total
+
 private fun ringkas(n: Long): String = when {
     n >= 1_000_000_000L -> String.format("%.1fB", n / 1_000_000_000.0)
     n >= 1_000_000L -> String.format("%.1fM", n / 1_000_000.0)
@@ -599,7 +611,7 @@ fun RocketRail(roomId: String, onOpen: () -> Unit, modifier: Modifier = Modifier
     // Bar di sisi room mengikuti energi roket yang sedang diisi.
     val lv = RocketRepo.stage.coerceIn(1, 5)
     val need = exp.getOrElse(lv - 1) { Long.MAX_VALUE }.coerceAtLeast(1L)
-    val frac = (total.toFloat() / need.toFloat()).coerceIn(0f, 1f)
+    val frac = (energiTampil(total, need, lv).toFloat() / need.toFloat()).coerceIn(0f, 1f)
     val pct = (frac * 100).toInt()
 
     Column(
@@ -663,7 +675,7 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
 
     // Energi roket tahap ini dibandingkan dengan syarat levelnya.
     val need = expList.getOrElse(lv - 1) { Long.MAX_VALUE }.coerceAtLeast(1L)
-    val frac = (total.toFloat() / need.toFloat()).coerceIn(0f, 1f)
+    val frac = (energiTampil(total, need, lv).toFloat() / need.toFloat()).coerceIn(0f, 1f)
 
     val gold = Color(0xFFD4AF37)
     Box(Modifier.fillMaxSize()) {
@@ -766,7 +778,7 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
                 Spacer(Modifier.weight(1f))
                 // Angka energi supaya kelihatan gift benar-benar menambah energi.
                 Text(
-                    ringkas(total) + " / " + ringkas(need),
+                    ringkas(energiTampil(total, need, lv)) + " / " + ringkas(need),
                     color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold,
                 )
                 Spacer(Modifier.weight(1f))
