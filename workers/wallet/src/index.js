@@ -1175,6 +1175,39 @@ async function admin(env, body) {
     return ok(await pastikan(env, target));
   }
 
+  // Panel: reset aset/level/VIP/coin satu user atau semua user (kecuali akun resmi).
+  if (op === "reset_user" || op === "reset_all_assets") {
+    const bagian = [];
+    if (p.assets) bagian.push("aset");
+    if (p.vip) bagian.push("vip");
+    if (p.level) bagian.push("level");
+    if (p.coins) bagian.push("coin");
+    if (p.gems) bagian.push("diamond");
+    if (!bagian.length) return gagal("Pilih dulu apa yang mau dibersihkan");
+    const set = [];
+    const args = [];
+    if (p.coins) { set.push("coins = 0"); }
+    if (p.gems) { set.push("diamonds = 0"); }
+    if (p.vip) { set.push("vip = 0", "vip_until = 0"); }
+    if (p.level) { set.push("exp = 0", "lv_claimed = 0"); }
+    if (p.assets) { set.push("inv = '{}'", "equip = '{}'"); }
+    set.push("updated_at = ?");
+    const waktu = Date.now();
+    if (op === "reset_user") {
+      if (!target) return gagal("uid kosong");
+      await pipe(env, [{ sql: `update wallets set ${set.join(", ")} where uid = ?`, args: [I(waktu), T(target)] }]);
+      return json({ ok: 1, uid: target, bagian });
+    }
+    const lindungi = [];
+    if (Array.isArray(p.kecuali)) p.kecuali.forEach((x) => { const t = String(x || "").trim(); if (t) lindungi.push(t); });
+    const tanda = lindungi.map(() => "?").join(",");
+    const sql = lindungi.length
+      ? `update wallets set ${set.join(", ")} where uid not in (${tanda})`
+      : `update wallets set ${set.join(", ")}`;
+    await pipe(env, [{ sql, args: lindungi.length ? [I(waktu), ...lindungi.map(T)] : [I(waktu)] }]);
+    return json({ ok: 1, bagian, kecuali: lindungi });
+  }
+
   // Panel: hapus akun. Akun resmi/admin/owner tidak boleh ikut terhapus.
   if (op === "delete_user" || op === "delete_users") {
     const daftar = op === "delete_user" ? [target] : (Array.isArray(p.uids) ? p.uids.map(String) : []);

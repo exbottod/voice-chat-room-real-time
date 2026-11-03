@@ -2097,7 +2097,7 @@ const WALLET_NEW = "https://rezo-wallet.bangexx01.workers.dev/admin";
 /* Semua operasi admin sudah dilayani worker dompet. Daftar ini dulu memaksa
    "add" dan "vip" ke Supabase lama yang sudah mati, jadi tombol kirim coin
    tidak pernah memberi jawaban. */
-const OPS_NEW = new Set(["pay_get","pay_set","manual_pending","manual_all","manual_decide","get","topup","add","vip","reset_all","reset_gem_all","panel_grant","panel_revoke","panel_list","panel_stock_add","panel_stock_del","panel_stock_list"]);
+const OPS_NEW = new Set(["pay_get","pay_set","manual_pending","manual_all","manual_decide","get","topup","add","vip","reset_all","reset_gem_all","panel_grant","panel_revoke","panel_list","panel_stock_add","panel_stock_del","panel_stock_list","panel_coin_add","panel_coin_set","reset","reset_gem","delete_user","delete_users","reset_user","reset_all_assets"]);
 const WALLET_KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W";
 /* Operasi massal tidak butuh uid. Versi server lama tetap menolak kalau uid
    kosong ("uid kosong"), jadi uid netral dikirim supaya tidak error. */
