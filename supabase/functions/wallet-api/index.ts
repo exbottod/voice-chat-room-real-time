@@ -733,6 +733,58 @@ async function handleAdmin(body: { t?: string; p?: Record<string, unknown> }): P
     return json({ ok: 1, w: (await adminWallet(target)) });
   }
 
+  // ---- reset aset user (panel developer) ----
+  // Menghapus yang DIMILIKI user: frame, medal, efek masuk, bubble, badge,
+  // gelar, VIP/SVIP, level. Katalog store (item unggahan) tidak disentuh,
+  // jadi item tetap tampil di store dan bisa dibeli lagi.
+  if (op === "reset_user") {
+    const ada = await adminWallet(target);
+    if (!ada) return json({ ok: 0, e: "User ini belum punya dompet" }, 200);
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const bagian: string[] = [];
+    // Default: aset + VIP. Coin, diamond, dan level hanya jika diminta.
+    if (p.assets !== false) {
+      patch.inv = {};
+      patch.equip = {};
+      bagian.push("aset");
+    }
+    if (p.vip !== false) {
+      patch.vip = 0;
+      patch.vip_until = 0;
+      bagian.push("vip");
+    }
+    if (p.level === true) {
+      patch.exp = 0;
+      patch.lv_claimed = 0;
+      bagian.push("level");
+    }
+    if (p.coins === true) {
+      patch.coins = 0;
+      bagian.push("coin");
+    }
+    if (p.gems === true) {
+      patch.diamonds = 0;
+      bagian.push("diamond");
+    }
+    if (bagian.length === 0) return json({ ok: 0, e: "Tidak ada bagian yang dipilih" }, 400);
+    const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(target)}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) return json({ ok: 0, e: "Gagal reset aset" }, 200);
+    // Jejak audit supaya jelas siapa yang membersihkan aset user ini.
+    await sbRest("money_tx", {
+      method: "POST",
+      body: JSON.stringify({
+        uid: target,
+        kind: "admin_reset_user",
+        item_id: who.email,
+        amount: 0,
+      }),
+    });
+    return json({ ok: 1, bagian, w: (await adminWallet(target)) });
+  }
+
   if (op === "reset") {
     const r = await sbRest(`wallets?uid=eq.${encodeURIComponent(target)}`, {
       method: "PATCH",

@@ -138,6 +138,28 @@ label{font-size:12px;color:var(--mut)}
         <label>Durasi VIP (hari)</label>
         <input type="number" id="vipDays" inputmode="numeric" value="30">
         <button class="btn" id="vipSet">Set VIP</button>
+        <hr>
+        <label>Bersihkan aset user ini (reset total)</label>
+        <p class="muted">Menghapus yang dimiliki user: frame, medal, efek masuk, bubble, lencana, gelar, VIP/SVIP.
+          Item store hasil upload TIDAK terhapus dan tetap tampil di store.
+          Pilih dulu apa saja yang mau dibersihkan.</p>
+        <div class="row">
+          <label><input type="checkbox" id="rsAssets" checked> Aset (frame, medal, efek masuk, bubble, lencana, gelar)</label>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="rsVip" checked> VIP / SVIP</label>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="rsLevel"> Level dan exp (kembali ke 1)</label>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="rsCoin"> Coin (jadi 0)</label>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="rsGem"> Diamond (jadi 0)</label>
+        </div>
+        <button class="btn bad" id="rsDo">Reset user ini</button>
+        <div id="rsInfo" class="muted"></div>
       </div>
     </div>
     <div class="card">
@@ -1365,6 +1387,47 @@ $("gemReset").onclick = async () => {
     await showCoinUser();
   } catch (e) { toast("Gagal: " + e.message); }
   $("gemReset").disabled = false;
+};
+
+/* ---------- Reset ASET user (frame, medal, efek masuk, VIP, dll) ---------- */
+$("rsDo").onclick = async () => {
+  if (!foundCoin) { toast("Cari user dulu di kolom ID user"); return; }
+  const pilihan = {
+    assets: $("rsAssets").checked,
+    vip: $("rsVip").checked,
+    level: $("rsLevel").checked,
+    coins: $("rsCoin").checked,
+    gems: $("rsGem").checked,
+  };
+  const ada = Object.keys(pilihan).some(k => pilihan[k]);
+  if (!ada) { toast("Pilih dulu apa yang mau dibersihkan"); return; }
+  const daftar = [];
+  if (pilihan.assets) daftar.push("semua aset (frame, medal, efek masuk, bubble, lencana, gelar)");
+  if (pilihan.vip) daftar.push("VIP/SVIP");
+  if (pilihan.level) daftar.push("level dan exp");
+  if (pilihan.coins) daftar.push("coin");
+  if (pilihan.gems) daftar.push("diamond");
+  if (!confirm("RESET " + foundCoin.name + " (ID " + foundCoin.id + ")\n\nDihapus: " + daftar.join(", ") +
+    "\n\nItem store hasil upload tidak terhapus. Lanjutkan?")) return;
+  if (prompt("Ketik RESET huruf kapital untuk konfirmasi:") !== "RESET") return;
+  $("rsDo").disabled = true;
+  $("rsInfo").textContent = "Sedang membersihkan...";
+  try {
+    const r = await walletAdmin(Object.assign({ op: "reset_user", uid: foundCoin.uid }, pilihan));
+    // Bersihkan juga sisa SVIP di Realtime Database supaya tidak muncul lagi di app.
+    try {
+      await rtdb.ref("pub/" + foundCoin.uid + "/svip").remove();
+      await rtdb.ref("pub/" + foundCoin.uid + "/svipInv").remove();
+    } catch (e) { /* bukan hal fatal */ }
+    logAction({ type: "resetUser", targetId: foundCoin.id, uid: foundCoin.uid, bagian: r.bagian || [], from: "panel" });
+    $("rsInfo").textContent = "Selesai. Dibersihkan: " + (r.bagian || []).join(", ");
+    toast("Berhasil ✅ aset user ini dibersihkan");
+    await showCoinUser();
+  } catch (e) {
+    $("rsInfo").textContent = "Gagal: " + e.message;
+    toast("Gagal: " + e.message);
+  }
+  $("rsDo").disabled = false;
 };
 
 $("gemResetAll").onclick = async () => {
