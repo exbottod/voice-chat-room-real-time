@@ -59,7 +59,7 @@ label{font-size:12px;color:var(--mut)}
     <button class="btn out" id="btnOut2">Keluar</button>
   </div>
   <div id="verstamp" style="font-size:11px;color:#9a9a9a;margin:0 0 8px">Panel banner v5 · cek: tekan tombol Tes di tab Banner</div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div><div class="tab" data-t="staff">🛡️ Panel Staf</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -995,7 +995,7 @@ let unsubBan = null, foundBan = null, foundCoin = null;
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
-  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
+  ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff"].forEach(k => { const el = $("tab-" + k); if (el) el.classList.toggle("hide", k !== t.dataset.t); });
   if (t.dataset.t === "vip") vipStart();
   if (t.dataset.t === "store") storeStart();
   if (t.dataset.t === "emote") emoteStart();
@@ -1004,6 +1004,7 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   if (t.dataset.t === "cb") cbStart();
   if (t.dataset.t === "rocket") rocketStart();
   if (t.dataset.t === "topup") { payLoad(); manualLoad(false); }
+  if (t.dataset.t === "staff") pstStart();
 });
 
 /* ---------- Cashback gift: RTP, bobot pecahan, aset SVGA ---------- */
@@ -1971,7 +1972,7 @@ const WALLET_NEW = "https://rezo-wallet.bangexx01.workers.dev/admin";
 /* Semua operasi admin sudah dilayani worker dompet. Daftar ini dulu memaksa
    "add" dan "vip" ke Supabase lama yang sudah mati, jadi tombol kirim coin
    tidak pernah memberi jawaban. */
-const OPS_NEW = new Set(["pay_get","pay_set","manual_pending","manual_all","manual_decide","get","topup","add","vip","reset_all","reset_gem_all"]);
+const OPS_NEW = new Set(["pay_get","pay_set","manual_pending","manual_all","manual_decide","get","topup","add","vip","reset_all","reset_gem_all","panel_grant","panel_revoke","panel_list","panel_stock_add","panel_stock_del","panel_stock_list"]);
 const WALLET_KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W";
 /* Operasi massal tidak butuh uid. Versi server lama tetap menolak kalau uid
    kosong ("uid kosong"), jadi uid netral dikirim supaya tidak error. */
@@ -3098,5 +3099,157 @@ document.getElementById("manualAll").onclick = () => manualLoad(true);
   window.__giftList = list;
   setTimeout(list, 1200);
 })();
+
+/* ---------- Panel staf (manager & admin) ---------- */
+let pstItems = null, pstStaff = [];
+
+async function pstUid(dariId){
+  const id = String(dariId || "").trim();
+  if (!id) throw new Error("Isi ID user dulu");
+  const u = await lookup(id);
+  if (!u || !u.uid) throw new Error("User ID " + id + " tidak ditemukan");
+  return u;
+}
+
+async function pstLoadItems(){
+  if (pstItems) return pstItems;
+  const snap = await rtdb.ref("vipCfg").get();
+  const out = [];
+  if (snap.exists()) {
+    snap.forEach(c => {
+      const v = c.val() || {};
+      if (v.store !== true) return;
+      if (v.slot !== "frame" && v.slot !== "entry") return;
+      out.push({ id: "sx_" + (v.id || String(c.key).replace("store_", "")), kind: v.slot, name: v.name || "", days: v.days || 7 });
+    });
+  }
+  out.sort((a, b) => (a.kind === b.kind ? String(a.name).localeCompare(String(b.name)) : (a.kind === "frame" ? -1 : 1)));
+  pstItems = out;
+  return out;
+}
+
+async function pstFillItems(sel){
+  try {
+    const items = await pstLoadItems();
+    sel.innerHTML = items.length
+      ? items.map(x => '<option value="' + x.id + '">' + (x.kind === "frame" ? "⭕ " : "✨ ") + (x.name || x.id) + '</option>').join("")
+      : '<option value="">Belum ada item frame/efek</option>';
+  } catch (e) { sel.innerHTML = '<option value="">Gagal memuat item</option>'; }
+}
+
+function pstSay(msg){ $("pstStatus").textContent = msg || ""; toast(msg || ""); }
+
+async function pstStart(){
+  pstFillItems($("pstItem"));
+  pstList();
+}
+
+async function pstList(){
+  const box = $("pstList");
+  try {
+    const r = await walletAdmin({ op: "panel_list" });
+    pstStaff = r.list || [];
+    if (!pstStaff.length) { box.textContent = "Belum ada staf. Kirim panel ke user di atas."; return; }
+    box.innerHTML = "";
+    pstStaff.forEach(x => {
+      const row = document.createElement("div"); row.className = "item";
+      const info = document.createElement("div"); info.className = "info";
+      const t = document.createElement("b");
+      t.textContent = (x.role === "manager" ? "🧑‍💼 Manager" : "🛡 Admin") + " · " + x.uid.slice(0, 10) + "…";
+      const s = document.createElement("span"); s.className = "muted";
+      s.textContent = (x.active ? "aktif" : "dicabut") + " · " + (x.stok || 0) + " item stok" + (x.manager ? " · manager: " + x.manager.slice(0, 8) + "…" : "");
+      info.append(t, s);
+      const use = document.createElement("button"); use.className = "btn out"; use.textContent = "Stok";
+      use.onclick = () => { $("pstStockId").value = ""; $("pstStockId").dataset.uid = x.uid; pstStockList(x.uid); };
+      row.append(info, use); box.appendChild(row);
+    });
+  } catch (e) { box.textContent = "Gagal memuat staf: " + e.message; }
+}
+
+async function pstGrant(role){
+  const btn = role === "manager" ? $("pstManager") : $("pstAdmin");
+  btn.disabled = true; pstSay("Memproses...");
+  try {
+    const u = await pstUid($("pstId").value);
+    let manager = "";
+    if (role === "admin" && String($("pstMgr").value || "").trim()) {
+      const m = await pstUid($("pstMgr").value);
+      manager = m.uid;
+    }
+    await walletAdmin({ op: "panel_grant", uid: u.uid, role: role, manager: manager });
+    logAction({ type: "panelGrant", role: role, targetId: u.id, uid: u.uid });
+    pstSay("Panel " + role + " dikirim ke ID " + u.id + " ✅");
+    pstList();
+  } catch (e) { pstSay("Gagal: " + e.message); }
+  btn.disabled = false;
+}
+
+async function pstRevoke(){
+  const btn = $("pstCabut");
+  btn.disabled = true;
+  try {
+    const u = await pstUid($("pstId").value);
+    await walletAdmin({ op: "panel_revoke", uid: u.uid });
+    logAction({ type: "panelRevoke", targetId: u.id, uid: u.uid });
+    pstSay("Panel ID " + u.id + " dicabut ✅");
+    pstList();
+  } catch (e) { pstSay("Gagal: " + e.message); }
+  btn.disabled = false;
+}
+
+async function pstStockList(uid){
+  const box = $("pstStockList");
+  box.textContent = "Memuat stok...";
+  try {
+    const r = await walletAdmin({ op: "panel_stock_list", uid: uid });
+    const list = r.list || [];
+    if (!list.length) { box.textContent = "Stok staf ini masih kosong."; return; }
+    box.innerHTML = "";
+    list.forEach(x => {
+      const row = document.createElement("div"); row.className = "item";
+      const info = document.createElement("div"); info.className = "info";
+      const t = document.createElement("b"); t.textContent = (x.kind === "frame" ? "⭕ " : "✨ ") + (x.name || x.item_id);
+      const s = document.createElement("span"); s.className = "muted"; s.textContent = x.item_id + " · " + x.days + " hari";
+      info.append(t, s);
+      const del = document.createElement("button"); del.className = "btn bad"; del.textContent = "Hapus";
+      del.onclick = async () => {
+        try {
+          await walletAdmin({ op: "panel_stock_del", uid: uid, itemId: x.item_id });
+          pstStockList(uid);
+        } catch (e) { toast("Gagal: " + e.message); }
+      };
+      row.append(info, del); box.appendChild(row);
+    });
+  } catch (e) { box.textContent = "Gagal memuat stok: " + e.message; }
+}
+
+$("pstManager").onclick = () => pstGrant("manager");
+$("pstAdmin").onclick = () => pstGrant("admin");
+$("pstCabut").onclick = () => { if (confirm("Cabut panel user ini?")) pstRevoke(); };
+$("pstAddStock").onclick = async () => {
+  const btn = $("pstAddStock");
+  btn.disabled = true;
+  try {
+    const u = await pstUid($("pstStockId").value);
+    const id = $("pstItem").value;
+    if (!id) throw new Error("Pilih item dulu");
+    const items = await pstLoadItems();
+    const it = items.find(x => x.id === id) || { kind: "", name: id, days: 30 };
+    const days = parseInt($("pstDays").value, 10) || it.days;
+    await walletAdmin({ op: "panel_stock_add", uid: u.uid, itemId: id, kind: it.kind, name: it.name, days: days });
+    logAction({ type: "panelStock", targetId: u.id, uid: u.uid, itemId: id });
+    pstSay("Item masuk ke stok ID " + u.id + " ✅");
+    pstStockList(u.uid);
+    pstList();
+  } catch (e) { pstSay("Gagal: " + e.message); }
+  btn.disabled = false;
+};
+$("pstReloadStock").onclick = async () => {
+  try {
+    const u = await pstUid($("pstStockId").value);
+    pstStockList(u.uid);
+  } catch (e) { toast(e.message); }
+};
+
 </script>
 </body></html>

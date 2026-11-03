@@ -236,6 +236,8 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     LaunchedEffect(uid) {
         if (uid.isBlank()) return@LaunchedEffect
         try { SigninRepo.retryPending(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        // Permintaan reset nama dari panel manager diterapkan di sini.
+        try { PanelStaffRepo.applyPendingNameReset(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
     }
 
     // Cek in harian: kalau hari ini belum klaim, tampilkan dialog otomatis.

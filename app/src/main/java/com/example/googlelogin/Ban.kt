@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,20 @@ fun BanGate(uid: String, onSignOut: () -> Unit, onBanned: () -> Unit) {
                 if (b) onBanned()
             }
         onDispose { reg.remove() }
+    }
+    // Blokir dari panel manager/admin tersimpan di server dompet, bukan Firestore.
+    LaunchedEffect(uid) {
+        if (uid.isEmpty()) return@LaunchedEffect
+        try {
+            val o = SupaRepo.panelCall("ban_check")
+            if (o.optInt("ok") == 1 && o.optBoolean("banned")) {
+                reason = o.optString("reason", "")
+                banned = true
+                onBanned()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
     }
     if (banned) {
         BackHandler { }

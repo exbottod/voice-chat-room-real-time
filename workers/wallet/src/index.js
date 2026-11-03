@@ -793,6 +793,146 @@ async function topupManualRiwayat(env, uid) {
 }
 
 // ---------- Panel admin ----------
+// ================= PANEL MANAGER & ADMIN =================
+// Hak staf disimpan di Turso supaya bisa dicabut kapan saja dari panel
+// developer, dan semua aksi saldo tetap dihitung server.
+
+async function stafDari(env, uid) {
+  if (!uid) return null;
+  const r = await pipe(env, [
+    { sql: "select uid, role, manager, active from panel_staff where uid = ?", args: [T(uid)] },
+  ]);
+  const row = r[0].rows[0];
+  if (!row || Number(row.active) !== 1) return null;
+  return { uid: String(row.uid), role: String(row.role), manager: String(row.manager ?? "") };
+}
+
+async function stokStaf(env, uid) {
+  const r = await pipe(env, [
+    {
+      sql: `select item_id as id, kind, name, days from panel_stock
+            where owner_uid = ? order by created_at desc limit 300`,
+      args: [T(uid)],
+    },
+  ]);
+  return r[0].rows.map((x) => ({ id: String(x.id), kind: String(x.kind ?? ""), name: String(x.name ?? ""), days: Number(x.days ?? 7) }));
+}
+
+async function panel(env, body) {
+  const sesi = await sesiDariToken(body.t ?? "");
+  if (!sesi) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+  const uid = sesi.uid;
+  const p = body.p ?? {};
+  const aksi = String(p.a ?? p.op ?? "");
+  const dev = sesi.email === ADMIN_EMAIL;
+
+  if (aksi === "me") {
+    const staf = await stafDari(env, uid);
+    if (!staf) return json({ ok: 0, e: "Bukan staf", role: "" });
+    return json({ ok: 1, role: staf.role, manager: staf.manager, stok: await stokStaf(env, uid) });
+  }
+
+  if (aksi === "ban_check") {
+    const r = await pipe(env, [
+      { sql: "select reason, oleh from panel_ban where uid = ?", args: [T(uid)] },
+    ]);
+    const row = r[0].rows[0];
+    return json({ ok: 1, banned: !!row, reason: row ? String(row.reason ?? "") : "" });
+  }
+
+  const staf = await stafDari(env, uid);
+  if (!staf && !dev) return json({ ok: 0, e: "Hanya manager atau admin" }, 403);
+  const peran = dev ? "dev" : staf.role;
+  const target = String(p.to ?? p.uid ?? "").trim();
+  const butuhTarget = () => {
+    if (!/^[A-Za-z0-9_-]{6,64}$/.test(target)) return "ID user tidak valid";
+    return "";
+  };
+
+  if (aksi === "send_coin") {
+    if (peran !== "manager" && peran !== "dev") return json({ ok: 0, e: "Hanya manager" }, 403);
+    const salah = butuhTarget();
+    if (salah) return gagal(salah);
+    const coins = Math.trunc(Number(p.coins ?? 0));
+    if (!(coins > 0) || coins > 100000000000) return gagal("Jumlah coin tidak valid");
+    await beriCoin(env, target, coins, "panel_coin", null);
+    const w = await pastikan(env, target);
+    await pipe(env, [
+      { sql: "insert into panel_log (id, oleh, aksi, target, jumlah, at) values (?, ?, 'send_coin', ?, ?, ?)",
+        args: [T(`${uid}-${Date.now()}`), T(uid), T(target), I(coins), I(Date.now())] },
+    ]).catch(() => {});
+    return json({ ok: 1, coins: w.coins });
+  }
+
+  if (aksi === "send_vip") {
+    const tier = Math.trunc(Number(p.tier ?? 0));
+    const days = Math.trunc(Number(p.days ?? 30));
+    if (!(tier >= 1 && tier <= 9)) return gagal("VIP harus 1 sampai 9");
+    if (!(days > 0) || days > 3650) return gagal("Durasi VIP tidak valid");
+    const salah = butuhTarget();
+    if (salah) return gagal(salah);
+    await beriVip(env, target, tier, days);
+    return json({ ok: 1, vip: tier, days });
+  }
+
+  if (aksi === "send_item") {
+    const itemId = String(p.itemId ?? "").trim();
+    const salah = butuhTarget();
+    if (salah) return gagal(salah);
+    const stok = await stokStaf(env, uid);
+    const ada = stok.find((x) => x.id === itemId);
+    if (!ada && !dev) return gagal("Item ini tidak ada di stok panel Anda");
+    const hari = Math.trunc(Number(p.days ?? ada?.days ?? 7));
+    if (!(hari > 0) || hari > 3650) return gagal("Durasi item tidak valid");
+    const w0 = await pastikan(env, target);
+    const lama = Number(w0.inv?.[itemId] ?? 0);
+    const akhir = Math.max(Date.now(), lama) + hari * 86400000;
+    const inv = { ...w0.inv, [itemId]: akhir };
+    await pipe(env, [
+      { sql: "update wallets set inv = ?, updated_at = ? where uid = ?", args: [T(JSON.stringify(inv)), I(Date.now()), T(target)] },
+    ]);
+    return json({ ok: 1, itemId, days: hari });
+  }
+
+  if (aksi === "ban") {
+    const salah = butuhTarget();
+    if (salah) return gagal(salah);
+    if (target === uid) return gagal("Tidak bisa banned diri sendiri");
+    const korban = await stafDari(env, target);
+    if (peran === "admin") {
+      // Admin hanya boleh mengurus user biasa di bawah manajernya.
+      if (!staf.manager) return gagal("Admin ini belum punya manager");
+      if (korban) return gagal("Admin tidak bisa banned sesama staf atau manager");
+    }
+    if (korban && korban.role === "manager" && peran !== "dev") return gagal("Hanya developer yang bisa banned manager");
+    await pipe(env, [
+      {
+        sql: `insert into panel_ban (uid, oleh, manager, reason, at) values (?, ?, ?, ?, ?)
+              on conflict (uid) do update set oleh = excluded.oleh, manager = excluded.manager,
+                reason = excluded.reason, at = excluded.at`,
+        args: [T(target), T(uid), T(staf?.manager ?? ""), T(String(p.reason ?? "").slice(0, 140)), I(Date.now())],
+      },
+    ]);
+    return json({ ok: 1, banned: target });
+  }
+
+  if (aksi === "unban") {
+    const salah = butuhTarget();
+    if (salah) return gagal(salah);
+    await pipe(env, [{ sql: "delete from panel_ban where uid = ?", args: [T(target)] }]);
+    return json({ ok: 1, unbanned: target });
+  }
+
+  if (aksi === "bans") {
+    const r = await pipe(env, [
+      { sql: "select uid, oleh, reason, at from panel_ban order by at desc limit 100" },
+    ]);
+    return json({ ok: 1, list: r[0].rows });
+  }
+
+  return json({ ok: 0, e: "Aksi panel tidak dikenal: " + aksi });
+}
+
 async function admin(env, body) {
   const sesi = await sesiDariToken(body.t ?? "");
   if (!sesi) return json({ ok: 0, e: "Token tidak valid" }, 401);
@@ -801,6 +941,64 @@ async function admin(env, body) {
   const op = String(p.op ?? "");
   const target = String(p.uid ?? "");
 
+  // ---- Panel developer: atur panel manager/admin ----
+  if (op === "panel_grant") {
+    const who = String(p.uid ?? "").trim();
+    const role = String(p.role ?? "").trim();
+    if (!/^[A-Za-z0-9_-]{6,64}$/.test(who)) return gagal("UID tidak valid");
+    if (role !== "manager" && role !== "admin") return gagal("Peran harus manager atau admin");
+    const manager = role === "admin" ? String(p.manager ?? "").trim() : "";
+    await pipe(env, [
+      {
+        sql: `insert into panel_staff (uid, role, manager, active, created_at) values (?, ?, ?, 1, ?)
+              on conflict (uid) do update set role = excluded.role, manager = excluded.manager, active = 1`,
+        args: [T(who), T(role), T(manager), I(Date.now())],
+      },
+    ]);
+    return json({ ok: 1, uid: who, role, manager });
+  }
+  if (op === "panel_revoke") {
+    const who = String(p.uid ?? "").trim();
+    if (!who) return gagal("UID kosong");
+    await pipe(env, [{ sql: "update panel_staff set active = 0 where uid = ?", args: [T(who)] }]);
+    return json({ ok: 1, uid: who });
+  }
+  if (op === "panel_list") {
+    const r = await pipe(env, [
+      {
+        sql: `select s.uid, s.role, s.manager, s.active, s.created_at,
+                     (select count(*) from panel_stock k where k.owner_uid = s.uid) as stok
+              from panel_staff s order by s.created_at desc limit 200`,
+      },
+    ]);
+    return json({ ok: 1, list: r[0].rows });
+  }
+  if (op === "panel_stock_add") {
+    const who = String(p.uid ?? "").trim();
+    const itemId = String(p.itemId ?? p.item_id ?? "").trim();
+    if (!who || !itemId) return gagal("UID dan item wajib diisi");
+    await pipe(env, [
+      {
+        sql: `insert into panel_stock (owner_uid, item_id, kind, name, days, created_at) values (?, ?, ?, ?, ?, ?)
+              on conflict (owner_uid, item_id) do update set kind = excluded.kind,
+                name = excluded.name, days = excluded.days`,
+        args: [T(who), T(itemId), T(String(p.kind ?? "")), T(String(p.name ?? "")), I(Math.trunc(Number(p.days ?? 7))), I(Date.now())],
+      },
+    ]);
+    return json({ ok: 1, uid: who, itemId });
+  }
+  if (op === "panel_stock_del") {
+    await pipe(env, [
+      { sql: "delete from panel_stock where owner_uid = ? and item_id = ?", args: [T(String(p.uid ?? "")), T(String(p.itemId ?? ""))] },
+    ]);
+    return json({ ok: 1 });
+  }
+  if (op === "panel_stock_list") {
+    const r = await pipe(env, [
+      { sql: "select owner_uid, item_id, kind, name, days from panel_stock where owner_uid = ? order by created_at desc", args: [T(String(p.uid ?? ""))] },
+    ]);
+    return json({ ok: 1, list: r[0].rows });
+  }
   if (op === "pay_get") return json({ ok: 1, pay: await infoBayar(env) });
   if (op === "pay_set") {
     await pipe(env, [
@@ -1133,6 +1331,11 @@ export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+    if (url.pathname === "/panel") {
+      const b = await req.json().catch(() => null);
+      if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
+      return await panel(env, b);
+    }
     if (url.pathname === "/admin") {
       const b = await req.json().catch(() => null);
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);

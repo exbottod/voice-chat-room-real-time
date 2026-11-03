@@ -32,7 +32,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -160,6 +164,20 @@ fun ProfileTab(
 
     fun soon(label: String) =
         Toast.makeText(context, "$label segera hadir", Toast.LENGTH_SHORT).show()
+
+    // Panel manager/admin: hanya muncul kalau akun ini memang diberi hak
+    // lewat panel developer. Hak dicek ke server, bukan disimpan di HP.
+    var panelInfo by remember { mutableStateOf<PanelInfo?>(null) }
+    var panelOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(userId) {
+        panelInfo = try {
+            if (userId.isBlank()) null else PanelStaffRepo.me()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -357,10 +375,20 @@ fun ProfileTab(
                 MenuItem("🧰", tr("Alat peraga")) { soon(tr("Alat peraga")) }
                 MenuItem("🏰", tr("Family"), trailing = tr("Liga Peringkat Fam"), icon = R.drawable.ic_family_saya) { onFamilyClick() }
                 MenuItem("🏠", tr("CP house")) { soon(tr("CP house")) }
+                panelInfo?.let { pi ->
+                    MenuItem(
+                        if (pi.isManager) "\uD83E\uDDD1\u200D\uD83D\uDCBC" else "\uD83D\uDEE1",
+                        if (pi.isManager) "Panel Manager" else "Panel Admin",
+                    ) { panelOpen = true }
+                }
                 MenuItem("⚙", tr("Pengaturan"), icon = R.drawable.ic_settings) { onSettingsClick() }
                 MenuItem("❓", tr("Bantuan")) { soon(tr("Bantuan")) }
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+    val pi = panelInfo
+    if (panelOpen && pi != null) {
+        PanelStafDialog(pi) { panelOpen = false }
     }
 }

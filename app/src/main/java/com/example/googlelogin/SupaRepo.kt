@@ -356,6 +356,41 @@ object SupaRepo {
      * dikirim ke server game yang lama, jadi tidak pernah menambah saldo.
      * Server menolak klaim kedua pada tanggal yang sama.
      */
+    /**
+     * Panggilan panel staf (manager / admin). Balasan JSON apa adanya supaya
+     * layar panel bisa menampilkan pesan server dengan tepat.
+     */
+    suspend fun panelCall(action: String, params: org.json.JSONObject = org.json.JSONObject()): org.json.JSONObject =
+        withContext(Dispatchers.IO) {
+            val kosong = org.json.JSONObject().put("ok", 0).put("e", "Tidak bisa menghubungi server")
+            try {
+                val token = token() ?: org.json.JSONObject().put("ok", 0).put("e", "Belum login")
+                val body = org.json.JSONObject()
+                    .put("a", action)
+                    .put("t", token)
+                    .put("p", params)
+                val conn = (URL("$WAL/panel").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15_000
+                    readTimeout = 40_000
+                    doOutput = true
+                    setRequestProperty("apikey", KEY)
+                    setRequestProperty("Content-Type", "application/json")
+                }
+                conn.outputStream.use { it.write(body.toString().toByteArray()) }
+                val code = conn.responseCode
+                val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                try { org.json.JSONObject(txt) } catch (e: Exception) {
+                    kosong.put("e", "Server panel error $code")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                kosong.put("e", "Server panel lambat, coba lagi")
+            }
+        }
+
     suspend fun signinClaim(uid: String, coins: Long, date: String): Res =
         call("signin_claim", uidJson(uid).put("coins", coins).put("date", date))
 
