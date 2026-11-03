@@ -271,7 +271,7 @@ fun TopRankDialog(onDismiss: () -> Unit, initialTab: Int = 1, onOpenRoom: (Strin
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        TopRankContent(onDismiss, initialTab, onOpenRoom)
+        KecilkanKonten(0.80f) { TopRankContent(onDismiss, initialTab, onOpenRoom) }
     }
 }
 
@@ -339,19 +339,19 @@ private fun RkTopOne(col: String, e: RankEntry, onOpenRoom: (String) -> Unit = {
             .clickable { if (col == GiftRankRepo.COL_ROOM) onOpenRoom(e.id) else actions.openFullProfile(e.id) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("👑", fontSize = 44.sp)
-        RkAvatar(col, e, 104.dp, Gold, 1)
+        Text("👑", fontSize = 32.sp)
+        RkAvatar(col, e, 84.dp, Gold, 1)
         Spacer(Modifier.height(10.dp))
         Column(
             Modifier
                 .clip(plate)
                 .background(Brush.verticalGradient(listOf(Color(0xFF8E1B1B), Color(0xFF4A0D0D))))
                 .border(1.dp, Gold.copy(alpha = 0.6f), plate)
-                .padding(horizontal = 28.dp, vertical = 10.dp),
+                .padding(horizontal = 22.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (e.hidden) MysteryName(20.sp) else Text(e.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            RkCoin(e.total, 26.sp)
+            if (e.hidden) MysteryName(17.sp) else Text(e.name, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            RkCoin(e.total, 20.sp)
         }
     }
 }
@@ -365,20 +365,20 @@ private fun RkShield(col: String, e: RankEntry, rank: Int, c1: Color, c2: Color,
             .clip(shape)
             .background(Brush.verticalGradient(listOf(c1, c2)))
             .border(2.dp, GoldDark, shape)
-            .padding(vertical = 14.dp, horizontal = 8.dp),
+            .padding(vertical = 10.dp, horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
-            RkAvatar(col, e, 72.dp, GoldLight, rank)
+            RkAvatar(col, e, 60.dp, GoldLight, rank)
             Box(
                 Modifier.align(Alignment.BottomEnd).size(24.dp).clip(CircleShape).background(GoldBrush),
                 contentAlignment = Alignment.Center,
             ) { Text("$rank", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
         }
         Spacer(Modifier.height(8.dp))
-        if (e.hidden) MysteryName(15.sp) else Text(e.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(4.dp))
-        RkCoin(e.total, 18.sp)
+        if (e.hidden) MysteryName(15.sp) else Text(e.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(3.dp))
+        RkCoin(e.total, 14.sp)
     }
 }
 
@@ -394,14 +394,14 @@ private fun RkRow(col: String, e: RankEntry, rank: Int, onOpenRoom: (String) -> 
             .clickable { if (col == GiftRankRepo.COL_ROOM) onOpenRoom(e.id) else actions.openFullProfile(e.id) }
             .background(Color(0xCC2A0A0A))
             .border(1.dp, Gold.copy(alpha = 0.35f), shape)
-            .padding(12.dp),
+            .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("$rank", color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
-        RkAvatar(col, e, 52.dp, GoldDark, rank)
+        RkAvatar(col, e, 44.dp, GoldDark, rank)
         Spacer(Modifier.width(12.dp))
-        if (e.hidden) { MysteryName(16.sp); Spacer(Modifier.weight(1f)) } else Text(e.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-        RkCoin(e.total, 16.sp)
+        if (e.hidden) { MysteryName(16.sp); Spacer(Modifier.weight(1f)) } else Text(e.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        RkCoin(e.total, 13.sp)
     }
 }
 
@@ -422,25 +422,25 @@ private fun RkMine(col: String, e: RankEntry?, index: Int, modifier: Modifier, o
     ) {
         Text(
             if (index >= 0) "#${index + 1}" else "-",
-            color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center, modifier = Modifier.width(64.dp),
+            color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center, modifier = Modifier.width(48.dp),
         )
         if (e != null) {
-            RkAvatar(col, e, 44.dp, Gold)
-            Spacer(Modifier.width(10.dp))
+            RkAvatar(col, e, 38.dp, Gold)
+            Spacer(Modifier.width(8.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(tr("Peringkat kamu"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(tr("Peringkat kamu"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
             if (e != null && e.hidden) {
                 MysteryName(12.sp)
             } else {
                 Text(
                     if (e != null) e.name else tr("Di luar 50 besar periode ini"),
-                    color = Color(0xFFD9C7A8), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    color = Color(0xFFD9C7A8), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
         }
-        if (e != null) RkCoin(e.total, 16.sp)
+        if (e != null) RkCoin(e.total, 13.sp)
     }
 }
 
@@ -499,7 +499,7 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (Str
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             // tab atas: Kamar | Sawer | Pesona
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("‹", color = Color.White, fontSize = 36.sp, modifier = Modifier.clickable(onClick = onBack).padding(horizontal = 14.dp))
+                Text("‹", color = Color.White, fontSize = 32.sp, modifier = Modifier.width(48.dp).clickable(onClick = onBack).padding(horizontal = 14.dp))
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                     listOf("Kamar", "Sawer", "Pesona").forEachIndexed { i, label ->
                         val on = tab == i
@@ -507,7 +507,7 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (Str
                             Text(
                                 tr(label),
                                 color = if (on) Color.White else Color(0xFFB8A58A),
-                                fontSize = if (on) 22.sp else 18.sp,
+                                fontSize = if (on) 19.sp else 16.sp,
                                 fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
                             )
                             Spacer(Modifier.height(3.dp))
@@ -515,13 +515,13 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (Str
                         }
                     }
                 }
-                Spacer(Modifier.width(50.dp))
+                Spacer(Modifier.width(48.dp))
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
             // periode
             val pill = RoundedCornerShape(50)
             Row(
-                Modifier.padding(horizontal = 20.dp).fillMaxWidth().clip(pill).border(2.dp, Gold, pill).background(Color(0x66000000)),
+                Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(pill).border(2.dp, Gold, pill).background(Color(0x66000000)),
             ) {
                 listOf("Harian", "Mingguan", "Bulanan").forEachIndexed { i, label ->
                     val on = period == i
@@ -531,17 +531,17 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (Str
                             .clip(pill)
                             .background(if (on) GoldBrush else Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent)))
                             .clickable { period = i }
-                            .padding(vertical = 10.dp),
+                            .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(tr(label), color = if (on) Color.Black else GoldLight, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                        Text(tr(label), color = if (on) Color.Black else GoldLight, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, softWrap = false)
                     }
                 }
             }
             Spacer(Modifier.height(10.dp))
             Text(
                 "${tr("Hitung mundur")}(UTC+7): $countdown",
-                color = GoldLight, fontSize = 15.sp, textAlign = TextAlign.Center,
+                color = GoldLight, fontSize = 13.sp, textAlign = TextAlign.Center, maxLines = 1,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(6.dp))

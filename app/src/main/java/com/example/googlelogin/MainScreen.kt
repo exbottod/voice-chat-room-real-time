@@ -343,13 +343,15 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                                 onEnterRoom = ::enterRoom,
                             )
                         }
-                        1 -> MomentTab(
-                            myUid = uid,
-                            onPost = { overlay = OV_POST },
-                            onComments = { commentMoment = it },
-                        )
-                        2 -> FamilyTabScreen(myUid = uid, myName = myName, myAvatar = profile.avatarB64, myId = userId)
-                        3 -> ChatListTab(myUid = uid)
+                        1 -> KecilkanKonten(0.92f) {
+                            MomentTab(
+                                myUid = uid,
+                                onPost = { overlay = OV_POST },
+                                onComments = { commentMoment = it },
+                            )
+                        }
+                        2 -> KecilkanKonten(0.90f) { FamilyTabScreen(myUid = uid, myName = myName, myAvatar = profile.avatarB64, myId = userId) }
+                        3 -> KecilkanKonten(0.92f) { ChatListTab(myUid = uid) }
                         else -> ProfileTab(
                             user = user,
                             profile = profile,

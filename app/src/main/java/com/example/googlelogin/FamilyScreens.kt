@@ -690,7 +690,7 @@ fun FamilyRankDialog(myUid: String, onDismiss: () -> Unit, onOpenFamily: (String
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        FamilyRankScreen(myFamilyId = myFamilyId, onBack = onDismiss, onOpenFamily = onOpenFamily)
+        KecilkanKonten(0.84f) { FamilyRankScreen(myFamilyId = myFamilyId, onBack = onDismiss, onOpenFamily = onOpenFamily) }
     }
 }
 
@@ -792,14 +792,14 @@ private fun FamilyRankScreen(myFamilyId: String, onBack: () -> Unit, onOpenFamil
                         .clickable { onOpenFamily(f.id) }.padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(when (i) { 0 -> "🥇"; 1 -> "🥈"; 2 -> "🥉"; else -> "${i + 1}" }, color = Color.White, fontSize = 20.sp, modifier = Modifier.width(40.dp), textAlign = TextAlign.Center)
-                    FamilyLogo(f.logoB64, 46.dp)
+                    Text(when (i) { 0 -> "🥇"; 1 -> "🥈"; 2 -> "🥉"; else -> "${i + 1}" }, color = Color.White, fontSize = 17.sp, modifier = Modifier.width(34.dp), textAlign = TextAlign.Center)
+                    FamilyLogo(f.logoB64, 40.dp)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(f.name, color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("ID:${f.numId} · ${f.memberCount} anggota", color = Color(0xFF9AB5B0), fontSize = 12.sp)
+                        Text(f.name, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("ID:${f.numId} · ${f.memberCount} anggota", color = Color(0xFF9AB5B0), fontSize = 11.sp, maxLines = 1)
                     }
-                    Text("${fmtNum(f.exp)} EXP", color = Color(0xFFFFD54F), fontSize = 13.sp)
+                    Text("${fmtNum(f.exp)} EXP", color = Color(0xFFFFD54F), fontSize = 11.sp, maxLines = 1)
                 }
             }
         }
