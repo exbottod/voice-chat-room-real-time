@@ -78,3 +78,19 @@ create table if not exists store_item (
   active   integer not null default 1
 );
 create index if not exists store_item_kind_idx on store_item (kind, active);
+
+-- Antrean permintaan VIP, supaya pembelian yang terkirim dua kali
+-- tidak memotong coin dua kali.
+create table if not exists vip_req (
+  req_id text primary key,
+  uid    text not null,
+  at     integer not null default (unixepoch() * 1000)
+);
+
+-- Profil pemain untuk WaveGames/Hive (dulu tabel wave_players di Supabase).
+create table if not exists wave_players (
+  uid        text primary key,
+  name       text not null default 'Player',
+  avatar     text not null default '',
+  updated_at integer not null default (unixepoch() * 1000)
+);
