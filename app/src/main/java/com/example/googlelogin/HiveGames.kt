@@ -100,11 +100,12 @@ object HiveGames {
 
     /** URI game lengkap dengan code pemain. */
     fun launchUrl(g: Game, uid: String): String {
-        val sep = if (g.startUrl.contains("?")) "&" else "?"
+        val base = if (g.landscape) g.startUrl else g.startUrl.replace("/common-web/full/", "/common-web/vert/")
+        val sep = if (base.contains("?")) "&" else "?"
         val code = URLEncoder.encode(code(uid), "UTF-8")
         val u = URLEncoder.encode(uid, "UTF-8")
         val extra = URLEncoder.encode("{\"uid\":\"$uid\"}", "UTF-8")
-        return g.startUrl + sep +
+        return base + sep +
             "gameid=" + g.thirdPartyId +
             "&code=" + code +
             "&uid=" + u +
@@ -201,6 +202,7 @@ private class HiveBridge(
     private val onOpen: () -> Unit,
     private val onClose: () -> Unit,
     private val onRecharge: (String) -> Unit,
+    private val onConfig: (String) -> Unit = {},
 ) {
     @JavascriptInterface
     fun open() = onOpen()
@@ -210,6 +212,19 @@ private class HiveBridge(
 
     @JavascriptInterface
     fun gameRecharge(param: String) = onRecharge(param)
+
+    @JavascriptInterface
+    fun gameRecharge() = onRecharge("")
+
+    /** Game meminta data pemain: {"jsCallback":"onNativeGetInfo"}. */
+    @JavascriptInterface
+    fun getConfig(json: String) = onConfig(json)
+
+    @JavascriptInterface
+    fun gameInitialized() = onOpen()
+
+    @JavascriptInterface
+    fun gameLoaded() = onOpen()
 }
 
 /** Daftar game Hive. */
@@ -387,6 +402,23 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                             onOpen = { started = true },
                             onClose = { onClose() },
                             onRecharge = { err = "Isi coin lewat menu Top Up, lalu buka game lagi" },
+                            onConfig = { req ->
+                                val cb = try {
+                                    JSONObject(req).optString("jsCallback", "onNativeGetInfo")
+                                } catch (e: Exception) { "onNativeGetInfo" }
+                                val cfg = JSONObject()
+                                    .put("bizAppId", HiveGames.APP_ID)
+                                    .put("uid", uid)
+                                    .put("new_uid", "0")
+                                    .put("code", HiveGames.code(uid))
+                                    .put("gameid", game.thirdPartyId)
+                                    .put("exparams", "{}")
+                                    .put("language", 3)
+                                    .put("platform", "android")
+                                val js = "javascript:(function(){try{window." + cb + "(" +
+                                    JSONObject.quote(cfg.toString()) + ")}catch(e){}})()"
+                                web?.post { web?.evaluateJavascript(js, null) }
+                            },
                         ),
                         "JsBirge",
                     )
@@ -426,20 +458,10 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                             }
                         }
                     }
-                    loadUrl(url)
                     web = this
+                    loadUrl(url)
                 }
             },
         )
-        // Tombol kembali melayang, tidak memakan ruang game.
-        Box(
-            Modifier.align(Alignment.TopStart).padding(10.dp).size(36.dp)
-                .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(Color(0x66000000))
-                .clickable { onClose() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("‹", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        }
     }
 }

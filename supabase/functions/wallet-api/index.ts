@@ -152,7 +152,15 @@ const HIVE_APP_ID = "100198";
 const HIVE_KEY = Deno.env.get("HIVE_APP_KEY") ?? "eb09c56d97454d43ab2698ad548697ab";
 const HIVE_CODE_SALT = Deno.env.get("HIVE_CODE_SALT") ?? "rezo-hive-2026";
 const HIVE_MAX_SKEW = 300; // detik
-const HIVE_VER = "2026-11-03c";
+const HIVE_VER = "2026-11-03d";
+// Game Hive berjalan di JavaScript: angka di atas 2^53-1 jadi NaN di layar.
+// Saldo yang DIKIRIM ke game dibatasi; saldo asli di wallet tetap utuh.
+const HIVE_MAX_SAFE = 9007199254740991;
+function hiveSafe(n: unknown): number {
+  const v = Number(n ?? 0);
+  if (!Number.isFinite(v) || v < 0) return 0;
+  return v > HIVE_MAX_SAFE ? HIVE_MAX_SAFE : Math.trunc(v);
+}
 
 // WebCrypto tidak mendukung MD5, jadi implementasinya ditulis sendiri.
 // Dipakai untuk aturan signature Hive: md5(signature_nonce + app_key + timestamp).
@@ -306,9 +314,10 @@ async function hivePlayInner(req: Request): Promise<Response> {
     const pl = await wavePlayer(uid);
     return hiveOk({
       user_id: uid,
-      user_name: pl?.name ?? "Player",
+      user_name: (pl?.name && pl.name.trim()) ? pl.name : "Player",
       user_avatar: pl?.profilePicture ?? "",
-      balance: Number(pl?.balance ?? 0),
+      balance: hiveSafe(pl?.balance),
+      currency_balance: hiveSafe(pl?.balance),
     });
   }
 
@@ -324,7 +333,7 @@ async function hivePlayInner(req: Request): Promise<Response> {
 
     if (diff === 0) {
       const pl = await wavePlayer(uid);
-      return hiveOk({ currency_balance: Number(pl?.balance ?? 0) });
+      return hiveOk({ currency_balance: hiveSafe(pl?.balance) });
     }
 
     const r = await rpc("w_wave_flow", {
@@ -337,7 +346,7 @@ async function hivePlayInner(req: Request): Promise<Response> {
     const rows = r.ok ? await r.json().catch(() => null) : null;
     const row = Array.isArray(rows) ? rows[0] : rows;
     if (!row) return hiveFail("gagal memperbarui saldo", 500);
-    return hiveOk({ currency_balance: Number(row.coins ?? 0) });
+    return hiveOk({ currency_balance: hiveSafe(row.coins) });
   }
 
   return hiveFail("endpoint tidak dikenal", 404);

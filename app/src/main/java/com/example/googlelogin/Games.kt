@@ -69,12 +69,13 @@ private fun fmtG(n: Long): String {
 
 /** Halaman daftar game. */
 @Composable
-fun GamesHub(myUid: String, roomId: String, myName: String = "", onClose: () -> Unit) {
+fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: String = "", onClose: () -> Unit) {
     var open by remember { mutableStateOf("") }
     var balance by remember { mutableStateOf(0L) }
 
     LaunchedEffect(Unit) {
-        SupaRepo.wavePrepare("Player", "")
+        // Nama + foto asli akun REZO supaya ranking game menampilkan pemain yang benar.
+        SupaRepo.wavePrepare(myName.ifBlank { "Player" }.take(30), myAvatarB64)
         balance = SupaRepo.get(myUid).wallet?.coins ?: 0L
     }
 

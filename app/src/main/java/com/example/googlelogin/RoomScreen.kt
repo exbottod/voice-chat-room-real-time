@@ -687,7 +687,7 @@ fun RoomScreen(
 
         // Game milik sendiri (digambar di dalam app, aman untuk Android 8+)
         if (waveOpen) {
-            GamesHub(myUid = myUid, roomId = roomId, myName = myName, onClose = { waveOpen = false })
+            GamesHub(myUid = myUid, roomId = roomId, myName = myName, myAvatarB64 = myAvatarB64 ?: "", onClose = { waveOpen = false })
         }
 
         // Dialog seat mic
