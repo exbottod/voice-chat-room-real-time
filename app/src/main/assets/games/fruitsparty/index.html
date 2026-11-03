@@ -7,7 +7,32 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Orbitron:wght@900&display=swap" />
     <link rel="stylesheet" href="./assets/fruitsparty-classic.css" />
     <style>html,body{margin:0;background:#220b3d;color:#fff;height:100%}#root{min-height:100vh}</style>
-  </head>
+  <script>
+/* Tampilan game menyesuaikan layar: kanvas desain 440 px diperkecil agar pas
+   di semua HP, dan isi yang melebar dipaksa masuk lebar layar. */
+(function () {
+  var CANVAS = 440;
+  function fit() {
+    var de = document.documentElement;
+    de.style.zoom = "1";
+    var w = de.clientWidth || window.innerWidth || 0;
+    if (!w) return;
+    var z = CANVAS > 0 ? Math.min(1, w / CANVAS) : 1;
+    var over = Math.max(de.scrollWidth || 0, document.body ? (document.body.scrollWidth || 0) : 0);
+    if (over > w + 1) z = Math.min(z, w / over);
+    if (z > 1) z = 1;
+    if (z < 0.7) z = 0.7;
+    de.style.zoom = z;
+  }
+  document.addEventListener("DOMContentLoaded", fit);
+  window.addEventListener("resize", fit);
+  window.addEventListener("orientationchange", fit);
+  setTimeout(fit, 400);
+  setTimeout(fit, 1500);
+  fit();
+})();
+</script>
+</head>
   <body>
     <div id="root"></div>
     <script src="./guard.js"></script>
