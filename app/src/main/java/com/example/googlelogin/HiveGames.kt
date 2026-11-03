@@ -379,7 +379,7 @@ private const val FIT_JS = """(function(){
 
 /** Window tempat layar game berada: bisa window dialog, bisa window activity. */
 private fun windowDari(v: android.view.View): android.view.Window? {
-    var p: android.view.ViewParent? = v
+    var p: android.view.ViewParent? = v.parent
     while (p != null) {
         if (p is androidx.compose.ui.window.DialogWindowProvider) return p.window
         p = p.parent
