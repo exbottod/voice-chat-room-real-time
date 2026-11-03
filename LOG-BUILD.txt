@@ -8,18 +8,18 @@ Daemon will be stopped at the end of the build
 > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app:generateReleaseBuildConfig
 > Task :app:mergeReleaseNativeLibs
-> Task :app:checkReleaseAarMetadata
 > Task :app:generateReleaseResValues
+> Task :app:checkReleaseAarMetadata
 > Task :app:processReleaseGoogleServices
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:generateReleaseResources
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libagora-fdkaac.so, libagora-ffmpeg.so, libagora-rtc-sdk.so, libagora-soundtouch.so, libagora_ai_echo_cancellation_extension.so, libagora_ai_echo_cancellation_ll_extension.so, libagora_ai_noise_suppression_extension.so, libagora_ai_noise_suppression_ll_extension.so, libagora_audio_beauty_extension.so, libagora_lip_sync_extension.so, libagora_spatial_audio_extension.so, libandroidx.graphics.path.so, libaosl.so.
 
-> Task :app:mapReleaseSourceSetPaths
-> Task :app:generateReleaseResources
+> Task :app:packageReleaseResources
 > Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:packageReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
@@ -37,10 +37,10 @@ Unable to strip the following libraries, packaging them as they are: libagora-fd
 > Task :app:processReleaseManifest
 > Task :app:desugarReleaseFileDependencies
 > Task :app:javaPreCompileRelease
-> Task :app:mergeReleaseStartupProfile
 > Task :app:processReleaseManifestForPackage
-> Task :app:mergeReleaseShaders
+> Task :app:mergeReleaseStartupProfile
 > Task :app:mergeReleaseArtProfile
+> Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
@@ -55,32 +55,9 @@ Unable to strip the following libraries, packaging them as they are: libagora-fd
 > Task :app:processReleaseResources
 > Task :app:optimizeReleaseResources
 > Task :app:mergeExtDexRelease
-> Task :app:compileReleaseKotlin
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ChatScreens.kt:67:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/ChatScreens.kt:239:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/FruitsPartyHtml.kt:83:34 'var allowFileAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/FruitsPartyHtml.kt:84:34 'var allowUniversalAccessFromFileURLs: Boolean' is deprecated. Deprecated in Java.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:95:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:695:44 Condition is always 'false'.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/GiftFx.kt:937:21 'var clearsAfterStop: Boolean' is deprecated. It is recommended to use clearAfterDetached, or manually call to SVGAVideoEntity#clear.If you just consider cleaning up the canvas after playing, you can use FillMode#Clear.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/HiveGames.kt:527:30 'var databaseEnabled: Boolean' is deprecated. Deprecated in Java.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomScreen.kt:1296:21 Condition is always 'true'.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SigninDialog.kt:269:47 Condition is always 'true'.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/SigninDialog.kt:276:44 Condition is always 'false'.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/StoreCatalog.kt:131:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/VipAssets.kt:115:28 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/VipAssets.kt:338:17 'var clearsAfterStop: Boolean' is deprecated. It is recommended to use clearAfterDetached, or manually call to SVGAVideoEntity#clear.If you just consider cleaning up the canvas after playing, you can use FillMode#Clear.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:181:38 This is a delicate API and its use requires care. Make sure you fully read and understand documentation of the declaration that is marked as a delicate API.
-w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WaveGames.kt:350:30 'var databaseEnabled: Boolean' is deprecated. Deprecated in Java.
 
-> Task :app:compileReleaseJavaWithJavac
-> Task :app:dexBuilderRelease
-> Task :app:mergeReleaseGlobalSynthetics
-> Task :app:processReleaseJavaRes
-> Task :app:mergeReleaseJavaResource
-> Task :app:mergeDexRelease
-> Task :app:compileReleaseArtProfile
-> Task :app:packageRelease
-> Task :app:createReleaseApkListingFileRedirect
-> Task :app:assembleRelease
-> Task :app:pushBuildLog
+> Task :app:compileReleaseKotlin FAILED
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/MainScreen.kt:107:64 Unresolved reference 'LevelVip'.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/MainScreen.kt:384:74 This material API is experimental and is likely to change or to be removed in the future.
+e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/WalletScreens.kt:505:46 This material API is experimental and is likely to change or to be removed in the future.
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793725246028.json
