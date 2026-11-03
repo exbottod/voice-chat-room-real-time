@@ -4,9 +4,9 @@ Daemon will be stopped at the end of the build
 > Task :app:preReleaseBuild UP-TO-DATE
 > Task :app:mergeReleaseJniLibFolders
 > Task :app:buildKotlinToolingMetadata
+> Task :app:checkReleaseDuplicateClasses
 > Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
 > Task :app:generateReleaseBuildConfig
-> Task :app:checkReleaseDuplicateClasses
 > Task :app:mergeReleaseNativeLibs
 > Task :app:generateReleaseResValues
 > Task :app:checkReleaseAarMetadata
@@ -35,10 +35,10 @@ Unable to strip the following libraries, packaging them as they are: libagora-fd
 	application@android:supportsRtl was tagged at AndroidManifest.xml:25 to replace other declarations but no other declaration present
 
 > Task :app:processReleaseManifest
+> Task :app:processReleaseManifestForPackage
 > Task :app:javaPreCompileRelease
 > Task :app:desugarReleaseFileDependencies
 > Task :app:mergeReleaseStartupProfile
-> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
@@ -79,6 +79,3 @@ w: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/
 > Task :app:mergeReleaseJavaResource
 > Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
-> Task :app:packageRelease
-> Task :app:createReleaseApkListingFileRedirect
-> Task :app:assembleRelease
