@@ -1968,7 +1968,10 @@ const WALLET_API = "https://fdemjdqagxkhgqkmfvwk.supabase.co/functions/v1/smart-
 /* Dompet pindah ke Cloudflare Worker + Turso. Perintah yang sudah pindah
    dikirim ke sana, sisanya masih ke server lama. */
 const WALLET_NEW = "https://rezo-wallet.bangexx01.workers.dev/admin";
-const OPS_NEW = new Set(["pay_get","pay_set","manual_pending","manual_all","manual_decide","get","topup"]);
+/* Semua operasi admin sudah dilayani worker dompet. Daftar ini dulu memaksa
+   "add" dan "vip" ke Supabase lama yang sudah mati, jadi tombol kirim coin
+   tidak pernah memberi jawaban. */
+const OPS_NEW = new Set(["pay_get","pay_set","manual_pending","manual_all","manual_decide","get","topup","add","vip","reset_all","reset_gem_all"]);
 const WALLET_KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W";
 /* Operasi massal tidak butuh uid. Versi server lama tetap menolak kalau uid
    kosong ("uid kosong"), jadi uid netral dikirim supaya tidak error. */

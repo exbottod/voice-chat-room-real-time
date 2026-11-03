@@ -872,6 +872,20 @@ fun RoomScreen(
         if (fxBannerOn) GiftBanner(r.id)
         // Banner cashback terpisah: hanya saat JP 10.000 ke atas.
         if (fxBannerOn) CashbackBanner(r.id)
+        // Penanda status suara: kalau suara gagal, alasannya tampil di sini
+        // (bukan hanya toast yang cepat hilang), jadi mudah dilaporkan.
+        run {
+            val st = AgoraVoice.lastStatus
+            if (st.isNotBlank() && !st.startsWith("OK")) {
+                Box(
+                    Modifier.align(Alignment.TopStart).padding(top = 64.dp, start = 8.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xCC000000)).padding(horizontal = 6.dp, vertical = 3.dp),
+                ) {
+                    Text(st, color = Color(0xFFFFD24D), fontSize = 9.sp, maxLines = 2)
+                }
+            }
+        }
         if (fxEntryOn) VipEntryEffect(r.id)
         if (fxGiftOn) GiftFxOverlay(r.id)
         // Gift terbang ke avatar penerima lalu pecahan cashback muncul di titik itu.

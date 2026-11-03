@@ -798,6 +798,78 @@ async function admin(env, body) {
     await beriCoin(env, target, coins, "topup", null);
     return ok(await pastikan(env, target));
   }
+  // Panel: kirim coin / exp, boleh minus untuk mengurangi.
+  if (op === "add") {
+    if (!target) return gagal("uid kosong");
+    const coins = Math.trunc(Number(p.coins ?? 0));
+    const exp = Math.trunc(Number(p.exp ?? 0));
+    if (!coins && !exp) return gagal("Jumlah kosong");
+    await pastikan(env, target);
+    await pipe(env, [
+      { sql: "begin immediate" },
+      {
+        sql: "update wallets set coins = max(0, coins + ?), exp = max(0, exp + ?), updated_at = ? where uid = ?",
+        args: [I(coins), I(exp), I(Date.now()), T(target)],
+      },
+      { sql: "commit" },
+    ]);
+    return ok(await pastikan(env, target));
+  }
+  // Panel: reset coin (dan diamond kalau gem) untuk satu user / semua user.
+  if (op === "reset" || op === "reset_all" || op === "reset_gem" || op === "reset_gem_all") {
+    const gem = op.includes("gem");
+    const semua = op.endsWith("_all");
+    if (!semua && !target) return gagal("uid kosong");
+    const kolom = gem ? "diamonds" : "coins";
+    await pipe(env, [
+      {
+        sql: semua
+          ? `update wallets set ${kolom} = 0, updated_at = ?`
+          : `update wallets set ${kolom} = 0, updated_at = ? where uid = ?`,
+        args: semua ? [I(Date.now())] : [I(Date.now()), T(target)],
+      },
+    ]);
+    if (semua) return json({ ok: 1 });
+    return ok(await pastikan(env, target));
+  }
+
+  // Panel: hapus akun. Akun resmi/admin/owner tidak boleh ikut terhapus.
+  if (op === "delete_user" || op === "delete_users") {
+    const daftar = op === "delete_user" ? [target] : (Array.isArray(p.uids) ? p.uids.map(String) : []);
+    const lindungi = new Set([String(ADMIN_EMAIL).toLowerCase()]);
+    if (Array.isArray(p.kecuali)) p.kecuali.forEach((x) => lindungi.add(String(x)));
+    const hasil = [];
+    for (const u of daftar) {
+      if (!u) continue;
+      if (lindungi.has(u.toLowerCase())) { hasil.push({ uid: u, lewat: 1 }); continue; }
+      await pipe(env, [
+        { sql: "delete from money_tx where uid = ?", args: [T(u)] },
+        { sql: "delete from topup_manual where uid = ?", args: [T(u)] },
+        { sql: "delete from hive_order where uid = ?", args: [T(u)] },
+        { sql: "delete from wallets where uid = ?", args: [T(u)] },
+      ]);
+      hasil.push({ uid: u, hapus: 1 });
+    }
+    return json({ ok: 1, hasil });
+  }
+
+  // Panel: atur VIP (tier 0 = cabut).
+  if (op === "vip") {
+    if (!target) return gagal("uid kosong");
+    const tier = Math.trunc(Number(p.tier ?? 0));
+    const until = Math.trunc(Number(p.until ?? 0));
+    if (!(tier >= 0 && tier <= 9)) return gagal("VIP harus 0 sampai 9");
+    await pastikan(env, target);
+    await pipe(env, [
+      { sql: "begin immediate" },
+      {
+        sql: "update wallets set vip = ?, vip_until = ?, updated_at = ? where uid = ?",
+        args: [I(tier), I(tier === 0 ? 0 : until), I(Date.now()), T(target)],
+      },
+      { sql: "commit" },
+    ]);
+    return ok(await pastikan(env, target));
+  }
   return gagal("Perintah panel tidak dikenal");
 }
 

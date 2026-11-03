@@ -56,7 +56,8 @@ object AgoraVoice {
     private var joinJob: Job? = null
 
     /** Status terakhir untuk diagnosa (ditampilkan sebagai toast bila gagal). */
-    @Volatile var lastStatus: String = ""
+    // Dibaca layar room supaya kalau suara gagal, alasannya kelihatan langsung.
+    var lastStatus by androidx.compose.runtime.mutableStateOf("")
         private set
     @Volatile var onProblem: ((String) -> Unit)? = null
     private fun problem(msg: String) {
@@ -130,6 +131,7 @@ object AgoraVoice {
             }
         } catch (e: Exception) {
             Log.e(TAG, "init gagal", e)
+            problem("Suara mati: SDK gagal dimuat (" + (e.message ?: "tak diketahui") + ")")
             null
         }
     }
@@ -202,6 +204,7 @@ object AgoraVoice {
                 // Coba minta token; kalau worker gagal, tetap coba masuk tanpa token
                 // (berhasil bila project Agora tidak memakai sertifikat).
                 val t = fetchToken(id)
+                if (t == null) problem("Suara: token tidak didapat, coba masuk tanpa token")
                 if (roomId != id) return@withLock
                 val useAppId = t?.appId?.takeIf { it.isNotBlank() } ?: BuildConfig.AGORA_APP_ID
                 val e = ensure(app, useAppId) ?: return@withLock
