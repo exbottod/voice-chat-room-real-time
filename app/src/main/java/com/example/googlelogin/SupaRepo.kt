@@ -27,7 +27,7 @@ object SupaRepo {
     // HARUS token baca-saja (read only), karena ikut tertanam di dalam APK.
     // Kalau kosong, app kembali memakai jalur worker seperti biasa.
     private const val TURSO_RO_URL = "https://rezo-voice-chat-officialex.aws-ap-southeast-1.turso.io"
-    private const val TURSO_RO_TOKEN = ""
+    private const val TURSO_RO_TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicm8iLCJpYXQiOjE3OTM3NjQ5NDksImlkIjoiMDFhMWEyMTYtOWIwMS03NjZiLWI4YWYtODdjZGNlMzZhMDVlIiwia2lkIjoiYVFzcmdzZFE2UGx6UVI5T3dvOUgwMWFoWWRVSGRRUnQweFJZNlBka0RFZyIsInJpZCI6IjcxOTI1OGUxLWJlOWQtNGJhNi05NGU0LTM4MDVhYWM5ZWUyOSJ9.bKRSrMwIj6SD4eglay0AQHhAI3ql2aR4svfnVkNK-DR85Dsv4UGvA9tAp6EEBiRt3hSqznKlR0uQ1bB_I_8tAQ"
     @Volatile private var pakaiCadangan = false
     // Kunci publishable: memang boleh ada di dalam aplikasi
     // (setara kunci anon, tanpa akses data karena RLS menutup semua tabel).
