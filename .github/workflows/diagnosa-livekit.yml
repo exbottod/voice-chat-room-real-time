@@ -1,5 +1,8 @@
 name: Diagnosa LiveKit
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/diagnosa-livekit.yml"]
 permissions:
   contents: write
 jobs:
