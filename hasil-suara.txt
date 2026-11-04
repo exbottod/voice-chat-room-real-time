@@ -1,7 +1,10 @@
 Warning: Permanently added '43.156.99.4' (ED25519) to the list of known hosts.
+panjang sekarang: 64
+layanan: active
+panjang baru: 32 | cocok: YA
 == status layanan: active
 == jumlah baris Environment: 7
 AGORA_APP_ID = a64c0421b7814ded8f0b2806f00e1a90 (panjang 32)
-AGORA_APP_CERTIFICATE panjang=64 sidik=602166976bfbe6cdbf8e9f480ebbc3497afe9c1fb7daed29f2d41a291dedb9d2
+AGORA_APP_CERTIFICATE panjang=32 sidik=37ff6a4be3ebee00831a8c7fe37c80edfffc9829f4744644c920ec90e7249328
 AGORA_APP_CERTIFICATE awal-akhir=6e…dd
 == sidik yang diharapkan (sertifikat dari owner): 37ff6a4be3ebee00831a8c7fe37c80edfffc9829f4744644c920ec90e7249328
