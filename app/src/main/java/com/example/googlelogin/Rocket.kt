@@ -526,9 +526,11 @@ object RocketRepo {
         } catch (e: Exception) {
         }
         try {
-            // Kunci tetap per nomor urut: kalau transaksi diulang, tulisan yang
-            // sama menimpa dirinya sendiri, bukan membuat peluncuran baru.
-            val id = "rk" + seq
+            // Kunci unik tiap peluncuran. Dulu memakai "rk"+nomor urut, sehingga
+            // setelah nomor urut mulai lagi dari 1 (room direset) tulisan menimpa
+            // kejadian lama yang sudah pernah dilihat aplikasi, dan animasinya
+            // tidak pernah diputar lagi.
+            val id = Rtdb.ref("rocketFx/$roomId").push().key ?: ("rk" + seq)
             Rtdb.ref("rocketFx/$roomId/$id").setValue(
                 hashMapOf<String, Any?>(
                     "uid" to u,
