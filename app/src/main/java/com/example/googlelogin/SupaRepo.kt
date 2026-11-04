@@ -87,6 +87,25 @@ object SupaRepo {
                 callInner(action, params)
             } ?: hasil
         }
+        // Sesi ditolak bisa karena UID yang tersimpan di app sudah tidak sama
+        // dengan akun yang benar-benar login. Coba sekali pakai UID akun aktif,
+        // supaya dompet tidak terus tampil kosong.
+        if (hasil.error != null && hasil.error.contains("Sesi tidak sah", true)) {
+            val aktif = try {
+                com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            } catch (e: Exception) { null }
+            val dipakai = params.optString("uid", "")
+            if (!aktif.isNullOrBlank() && aktif != dipakai) {
+                val ulangParams = org.json.JSONObject(params.toString()).put("uid", aktif)
+                val ulang = kotlinx.coroutines.withTimeoutOrNull(40_000L) {
+                    callInner(action, ulangParams)
+                }
+                if (ulang != null && ulang.error == null) {
+                    if (action == "get") cacheSaldo[aktif] = Entri(ulang, System.currentTimeMillis())
+                    return ulang
+                }
+            }
+        }
         return hasil
     }
 

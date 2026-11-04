@@ -16,6 +16,18 @@ const PROJ = "arboreal-cat-511705-p6"; // project Firebase (aud token)
 const T = (v) => ({ type: "text", value: String(v) });
 const I = (v) => ({ type: "integer", value: String(Math.trunc(Number(v) || 0)) });
 
+let siapLog = false;
+async function logGalat(env, uid, aksi, pesan) {
+  try {
+    if (!siapLog) {
+      await pipe(env, [{ sql: "create table if not exists wallet_galat (uid text, aksi text, pesan text, at integer)" }]);
+      siapLog = true;
+    }
+    await pipe(env, [{ sql: "insert into wallet_galat (uid, aksi, pesan, at) values (?,?,?,?)",
+      args: [T(String(uid || "")), T(String(aksi || "")), T(String(pesan || "").slice(0, 200)), T(Date.now())] }]);
+  } catch { /* logging tidak boleh mengganggu transaksi */ }
+}
+
 async function pipe(env, stmts) {
   const body = {
     requests: [
@@ -82,6 +94,15 @@ function b64d(s) {
 }
 
 /** Kembalikan {uid, email} kalau token sah, null kalau tidak. */
+function klaimUid(token) {
+  try {
+    const c = String(token || "").split(".")[1];
+    if (!c) return "";
+    const body = JSON.parse(new TextDecoder().decode(b64d(c)));
+    return String(body.sub ?? body.user_id ?? "");
+  } catch { return ""; }
+}
+
 async function sesiDariToken(token) {
   try {
     const [h, c, s] = token.split(".");
@@ -840,6 +861,12 @@ async function panel(env, body) {
   const aksi = String(body.a ?? p.a ?? p.op ?? "");
   const dev = sesi.email === ADMIN_EMAIL;
 
+  if (aksi === "cek_galat") {
+    if (!dev) return json({ ok: 0, e: "Hanya admin" }, 403);
+    const r = await pipe(env, [{ sql: "select uid, aksi, pesan, at from wallet_galat order by at desc limit 30" }]);
+    return json({ ok: 1, baris: r[0].rows });
+  }
+
   if (aksi === "me") {
     const semua = await peranStaf(env, uid);
     if (!semua.length) return json({ ok: 0, e: "Bukan staf", role: "" });
@@ -1490,16 +1517,28 @@ export default {
 
     // Pemanggilan dari app wajib membawa token login Firebase.
     const uidToken = await uidDariToken(String(b.t ?? ""));
-    if (!uidToken) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+    if (!uidToken) {
+      await logGalat(env, klaimUid(String(b.t ?? "")), aksi, "token ditolak");
+      return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+    }
 
     // uid hanya boleh dirinya sendiri, kecuali deep link lama yang kosong.
     const uid = String(p.uid ?? uidToken);
-    if (uid !== uidToken) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+    if (uid !== uidToken) {
+      await logGalat(env, uid, aksi, "uid app beda dengan token: " + uidToken);
+      return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+    }
 
     try {
       switch (aksi) {
-        case "get":
-          return ok(await pastikan(env, uid));
+        case "get": {
+          try {
+            return ok(await pastikan(env, uid));
+          } catch (e) {
+            await logGalat(env, uid, "get", String(e?.message ?? e));
+            throw e;
+          }
+        }
         case "migrate":
           return ok(await pastikan(env, uid));
         case "send_gift":
