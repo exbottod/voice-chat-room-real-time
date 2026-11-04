@@ -429,11 +429,13 @@ object RocketRepo {
                     need = RocketCfg.exp.getOrElse(st - 1) { Long.MAX_VALUE }.coerceAtLeast(1L)
                     guard++
                 }
+                // Kalau batas 5 peluncuran tercapai dalam satu transaksi, sisa energi
+                // harus disimpan utuh (dulu dipotong modulo sehingga gift besar
+                // seperti 400B hilang dan roket tidak pernah meluncur).
+                val kenaBatas = guard >= 5 && left >= need
                 // Roket 5 adalah roket terakhir. Setelah roket itu pecah, energi
-                // kembali ke syarat 2B (bukan menumpuk jadi 9476B). Sisa di atas
-                // 2B dipakai lagi dari awal, jadi bar mulai dari 0% dan naik
-                // sampai roket 5 pecah lagi.
-                val akhir = if (st >= 5) left % need else left
+                // kembali ke syaratnya (bukan menumpuk terus).
+                val akhir = if (kenaBatas) left else if (st >= 5) left % need else left
                 d.child("exp").value = akhir
                 d.child("stage").value = st
                 d.child("seq").value = seq
@@ -794,6 +796,36 @@ fun RocketScreen(
             tesPesan?.let {
                 Text(it, color = Color(0xFFFFE082), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
             }
+            // Uji penulisan energi: memastikan database menerima, bukan hanya tampilan.
+            Text(
+                "Tes energi roket",
+                color = Color(0xFF80D8FF), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0x3300B0FF))
+                    .clickable {
+                        kotlinx.coroutines.MainScope().launch {
+                            try {
+                                RocketRepo.addExp(roomId, "Tes", 1_000_000L)
+                                val snap = Rtdb.ref("rocket/$roomId").get().await()
+                                val e = snap.child("exp").getValue(Long::class.java) ?: 0L
+                                val st = snap.child("stage").getValue(Int::class.java) ?: 1
+                                val err = RocketRepo.lastError
+                                val pesan = if (err != null) {
+                                    "DITOLAK: " + err
+                                } else {
+                                    "Tersimpan: stage $st, energi " + ringkas(e)
+                                }
+                                tesPesan = pesan
+                                android.widget.Toast.makeText(ctxTes, pesan, android.widget.Toast.LENGTH_LONG).show()
+                            } catch (ex: Exception) {
+                                tesPesan = "Gagal: " + (ex.message ?: "").take(80)
+                                android.widget.Toast.makeText(ctxTes, tesPesan ?: "", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
             }
             // Alasan paling sering animasi tidak muncul padahal database lancar:
             // efek roket dimatikan di menu Blok Efek milik akun ini.
