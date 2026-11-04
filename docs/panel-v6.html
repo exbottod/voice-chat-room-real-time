@@ -406,6 +406,15 @@ label{font-size:12px;color:var(--mut)}
 
 <div id="tab-bet" class="hide">
   <div class="card">
+    <h2>Game REZO (global)</h2>
+    <p class="muted">Kalau dimatikan, Game Center hanya menampilkan game Hive Play. Game buatan REZO (Dragon Tiger, Teen Patti, Lucky 77, slot, dan lainnya) disembunyikan untuk semua pengguna.</p>
+    <div id="gcNow" class="muted" style="margin:6px 0">Memuat...</div>
+    <div style="display:flex;gap:8px">
+      <button id="gcOn" class="btn">Tampilkan game REZO</button>
+      <button id="gcOff" class="btn">Sembunyikan game REZO</button>
+    </div>
+  </div>
+  <div class="card">
     <h2>Nilai taruhan game</h2>
     <p class="muted">Atur nominal chip taruhan tiap game. Isi dengan angka dipisah koma, urut dari kecil ke besar,
       maksimal 6 chip. Contoh: 1000, 10000, 100000, 1000000. Perubahan langsung dipakai game saat dibuka berikutnya.</p>
@@ -1035,6 +1044,28 @@ const BET_GAMES = [
   { k: "greedy", n: "Greedy Cat", d: [100, 1000, 10000, 100000, 1000000] }
 ];
 
+let gcCfg = {};
+function gcRender(){
+  const el = $("gcNow"); if (!el) return;
+  el.textContent = gcCfg.ownOff ? "Sekarang: MATI (hanya Hive Play)" : "Sekarang: AKTIF (game REZO tampil)";
+}
+async function gcSet(off){
+  try {
+    await rtSet("gameCfg/ownOff", !!off);
+    gcCfg.ownOff = !!off;
+    gcRender();
+    toast(off ? "Game REZO disembunyikan" : "Game REZO ditampilkan lagi");
+  } catch (e) { toast("Gagal: " + (e.message || e)); }
+}
+if ($("gcOn")) $("gcOn").onclick = () => gcSet(false);
+if ($("gcOff")) $("gcOff").onclick = () => gcSet(true);
+function gcStart(){
+  try {
+    const ref = rtdb.ref("gameCfg");
+    ref.on("value", snap => { gcCfg = snap.val() || {}; gcRender(); });
+  } catch (e) {}
+}
+
 function betRender(cfg) {
   const box = document.getElementById("betGames");
   box.innerHTML = "";
@@ -1352,6 +1383,7 @@ function pilihTab(k){
   if (key === "bet") betStart();
   if (key === "cb") cbStart();
   if (key === "rocket") rocketStart();
+  if (key === "bet") gcStart();
   if (key === "topup") { payLoad(); manualLoad(false); }
   if (key === "staff") pstStart();
   try { const fx = $("pstFixIds"); if (fx && !fx.onclick) fx.onclick = perbaikiSemuaId; const so = $("pstSetOwner"); if (so && !so.onclick) so.onclick = jadikanPemilik; } catch (e) {}

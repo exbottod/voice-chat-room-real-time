@@ -55,6 +55,27 @@ import kotlin.random.Random
  * Coin dipotong/dibayar lewat wallet-api Supabase (SupaRepo.waveFlow).
  */
 
+/**
+ * Saklar global untuk game buatan REZO (Dragon Tiger, Teen Patti, Lucky 77, slot,
+ * dan sejenisnya). Kalau dimatikan dari panel dev, Game Center hanya menampilkan
+ * game Hive Play. Disimpan di Realtime Database: gameCfg/ownOff.
+ */
+object GameCfg {
+    var ownOff by mutableStateOf(false)
+        private set
+    private var mulai = false
+
+    fun start() {
+        if (mulai) return
+        mulai = true
+        try {
+            Rtdb.listen(Rtdb.ref("gameCfg")) { s ->
+                ownOff = s.child("ownOff").getValue(Boolean::class.java) ?: false
+            }
+        } catch (e: Exception) { }
+    }
+}
+
 private val GoldG = Color(0xFFF5C542)
 
 private fun fmtG(n: Long): String {
@@ -87,6 +108,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
     }
 
     LaunchedEffect(Unit) {
+        GameCfg.start()
         // Nama + foto asli akun REZO supaya ranking game menampilkan pemain yang benar.
         SupaRepo.wavePrepare(myName.ifBlank { "Player" }.take(30), myAvatarB64)
         balance = SupaRepo.get(myUid).wallet?.coins ?: 0L
@@ -169,8 +191,9 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                             .padding(horizontal = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        // ---- Dimainkan terkini
-                        GcSection("Dimainkan terkini") {
+                        // ---- Dimainkan terkini (game REZO, bisa dimatikan dari panel)
+                        val gameRezoTampil = !GameCfg.ownOff
+                        if (gameRezoTampil) GcSection("Dimainkan terkini") {
                             GcRows(
                                 listOf(
                                     GcItem("DragonTiger", R.drawable.ic_game_dvt, "dvt"),
@@ -185,7 +208,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                         }
 
                         // ---- Rekomendasi game
-                        GcSection("Rekomendasi game") {
+                        if (gameRezoTampil) GcSection("Rekomendasi game") {
                             GcRows(
                                 listOf(
                                     GcItem("DragonTigerPk", R.drawable.ic_game_dvt, "dvt"),

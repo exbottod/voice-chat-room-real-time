@@ -376,6 +376,10 @@
         ".write": "auth != null",
         ".validate": "newData.hasChildren(['at', 'by'])"
       }
+    },
+    "gameCfg": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
     }
   }
 }
