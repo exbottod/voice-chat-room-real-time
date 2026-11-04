@@ -39,14 +39,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -515,42 +512,45 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
         if (err.isNotBlank()) {
             Text(err, color = Color(0xFFFF6B6B), fontSize = 13.sp, modifier = Modifier.align(Alignment.TopCenter).padding(top = 60.dp, start = 16.dp, end = 16.dp))
         }
-        val cfg = LocalConfiguration.current
-        // Sebagian HP menolak berputar sendiri (mode putar terkunci, layar
-        // terbagi, atau pengaturan aksesibilitas). Kalau layar tetap tegak
-        // padahal game-nya lanskap, isi game diputar sendiri supaya penuh dan
-        // tidak terpotong.
-        val perluPutar = game.landscape && cfg.screenWidthDp <= cfg.screenHeightDp
         AndroidView(
-            modifier = Modifier.putarLanskap(perluPutar),
+            modifier = Modifier.fillMaxSize(),
             factory = { c ->
-                // Halaman game dilukis pada lebar desain aslinya (720 px) lalu
-                // diperkecil/diperbesar pas ke layar. Dengan cara ini tata letak
-                // game sama seperti aslinya dan tidak ada bagian yang terpotong.
                 val wv = WebView(c)
                 val density = c.resources.displayMetrics.density
-                val designWpx = (720f * density).toInt()
+                // Halaman game dilukis pada lebar desain 720 (CSS px) dan
+                // TINGGINYA mengikuti bentuk asli halaman. Seluruh halaman lalu
+                // diperkecil supaya utuh masuk layar dan ditaruh pas di tengah,
+                // jadi bagian bawah (tombol taruhan/spin) tidak terpotong.
+                val desainCss = 720f
+                var aspek = if (game.landscape) 16f / 9f else 9f / 16f // lebar / tinggi
+                var atur: (() -> Unit)? = null
                 val fit = android.widget.FrameLayout(c).apply {
                     setBackgroundColor(android.graphics.Color.BLACK)
                     addView(
                         wv,
                         android.widget.FrameLayout.LayoutParams(
-                            designWpx, designWpx, android.view.Gravity.CENTER,
+                            (desainCss * density).toInt(),
+                            (desainCss / aspek * density).toInt(),
+                            android.view.Gravity.CENTER,
                         ),
                     )
                     fun applyFit() {
                         if (width <= 0 || height <= 0) return
-                        val hPx = (designWpx.toFloat() * height / width).toInt().coerceAtLeast(1)
                         val lp = wv.layoutParams as android.widget.FrameLayout.LayoutParams
-                        if (lp.width != designWpx || lp.height != hPx) {
-                            lp.width = designWpx
+                        val wPx = (desainCss * density).toInt().coerceAtLeast(1)
+                        val hPx = (desainCss / aspek * density).toInt().coerceAtLeast(1)
+                        if (lp.width != wPx || lp.height != hPx) {
+                            lp.width = wPx
                             lp.height = hPx
+                            lp.gravity = android.view.Gravity.CENTER
                             wv.layoutParams = lp
                         }
-                        val sc = width.toFloat() / designWpx
+                        // min(...) = utuh semuanya; tidak ada sisi yang terpotong.
+                        val sc = minOf(width.toFloat() / wPx, height.toFloat() / hPx)
                         wv.scaleX = sc
                         wv.scaleY = sc
                     }
+                    atur = { applyFit() }
                     addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyFit() }
                     post { applyFit() }
                 }
@@ -619,6 +619,42 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                         override fun onPageFinished(v: WebView?, u: String?) {
                             prog = 100
                             started = true
+                            // Baca bentuk asli halaman game, lalu pas-kan ulang.
+                            for (jeda in longArrayOf(250L, 1200L, 2500L)) {
+                                v?.postDelayed({
+                                    v.evaluateJavascript(
+                                        "(function(){try{var e=document.querySelector('canvas')||document.body;" +
+                                            "var r=e.getBoundingClientRect();var w=Math.round(r.width),h=Math.round(r.height);" +
+                                            "if(w<50||h<50){w=window.innerWidth;h=window.innerHeight;}" +
+                                            "return JSON.stringify({w:w,h:h});}catch(e){return ''}})()",
+                                    ) { hasil ->
+                                        // Hasil evaluateJavascript berupa string JSON
+                                        // ter-escape, jadi didekode lewat JSONArray.
+                                        val t = try {
+                                            org.json.JSONArray("[" + hasil + "]").optString(0, "")
+                                        } catch (e: Exception) {
+                                            ""
+                                        }
+                                        if (t.startsWith("{")) {
+                                            try {
+                                                val o = JSONObject(t)
+                                                val lw = o.optInt("w")
+                                                val lh = o.optInt("h")
+                                                if (lw > 50 && lh > 50) {
+                                                    val ras = lw.toFloat() / lh.toFloat()
+                                                    // Batas wajar supaya halaman error
+                                                    // tidak merusak ukuran.
+                                                    if (ras > 0.3f && ras < 3.5f) {
+                                                        aspek = ras
+                                                        atur?.invoke()
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                            }
+                                        }
+                                    }
+                                }, jeda)
+                            }
                         }
 
                         override fun onReceivedError(
@@ -644,7 +680,45 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                     web = this
                     loadUrl(url)
                 }
-                fit
+                // Kalau HP menolak berputar (mode putar terkunci, layar terbagi,
+                // atau pengaturan aksesibilitas) padahal game-nya lanskap, isi
+                // game diputar sendiri 90 derajat dengan ukuran lanskap penuh.
+                // Diputar lewat View (bukan efek gambar) supaya sentuhan tombol
+                // tetap jatuh di posisi yang benar.
+                val akar = android.widget.FrameLayout(c).apply {
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                }
+                val dalam = android.widget.FrameLayout(c).apply {
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                    addView(
+                        fit,
+                        android.widget.FrameLayout.LayoutParams(
+                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        ),
+                    )
+                }
+                akar.addView(dalam, android.widget.FrameLayout.LayoutParams(1, 1))
+                fun rapikan() {
+                    val W = akar.width
+                    val H = akar.height
+                    if (W <= 0 || H <= 0) return
+                    val putar = game.landscape && W < H
+                    val lp = dalam.layoutParams as android.widget.FrameLayout.LayoutParams
+                    val wBaru = if (putar) H else W
+                    val hBaru = if (putar) W else H
+                    if (lp.width != wBaru || lp.height != hBaru) {
+                        lp.width = wBaru
+                        lp.height = hBaru
+                        dalam.layoutParams = lp
+                    }
+                    dalam.rotation = if (putar) 90f else 0f
+                    dalam.x = (W - wBaru) / 2f
+                    dalam.y = (H - hBaru) / 2f
+                }
+                akar.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> rapikan() }
+                akar.post { rapikan() }
+                akar
             },
         )
 
@@ -760,26 +834,3 @@ private fun TopThreeCard(
         ) { Text("Tutup", color = Color(0xFF1A1206), fontSize = 13.sp, fontWeight = FontWeight.Bold) }
     }
 }
-
-/**
- * Isi layar lebar di dalam layar tegak: anak diukur dengan ukuran lanskap
- * (lebar = tinggi layar) lalu diputar 90 derajat, jadi tata letak game tetap
- * utuh dan hanya tampil menyamping.
- */
-private fun Modifier.putarLanskap(aktif: Boolean): Modifier =
-    if (!aktif) {
-        this.fillMaxSize()
-    } else {
-        this.layout { measurable, constraints ->
-            val w = constraints.maxWidth
-            val h = constraints.maxHeight
-            if (w <= 0 || h <= 0) {
-                layout(w.coerceAtLeast(1), h.coerceAtLeast(1)) { }
-            } else {
-                val anak = measurable.measure(Constraints.fixed(h, w))
-                layout(w, h) {
-                    anak.placeWithLayer(x = (w - h) / 2, y = (h - w) / 2) { rotationZ = 90f }
-                }
-            }
-        }
-    }
