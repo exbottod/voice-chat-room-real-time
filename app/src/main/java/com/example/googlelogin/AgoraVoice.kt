@@ -1,7 +1,10 @@
 package com.example.googlelogin
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
+import android.media.AudioManager
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.util.Log
@@ -59,6 +62,71 @@ object AgoraVoice {
     var lastStatus by androidx.compose.runtime.mutableStateOf("")
         private set
     @Volatile var onProblem: ((String) -> Unit)? = null
+
+    // ===== Volume & rute suara =====
+    // Sebelumnya app tidak pernah memberi tahu Android stream mana yang dipakai,
+    // jadi tombol volume malah mengatur "Nada dering" dan suara room tetap pelan.
+    // Sekarang selama di room, tombol volume mengatur volume panggilan (suara room).
+    private var audioMgr: AudioManager? = null
+    private var prevVolumeStream: Int? = null
+    private var prevSpeaker: Boolean? = null
+    private var prevMode: Int? = null
+    @Volatile private var routed = false
+
+    private fun findActivity(c: Context?): Activity? {
+        var x: Context? = c
+        while (x is ContextWrapper) {
+            if (x is Activity) return x
+            x = x.baseContext
+        }
+        return x as? Activity
+    }
+
+    /** Arahkan tombol volume ke suara room dan pastikan keluar dari speaker. */
+    fun tuneAudioRoute(ctx: Context) {
+        try {
+            val mgr = (ctx.applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager) ?: return
+            if (!routed) {
+                audioMgr = mgr
+                prevMode = try { mgr.mode } catch (e: Exception) { null }
+                prevSpeaker = try { mgr.isSpeakerphoneOn } catch (e: Exception) { null }
+                findActivity(ctx)?.let { act ->
+                    prevVolumeStream = act.volumeControlStream
+                    act.volumeControlStream = AudioManager.STREAM_VOICE_CALL
+                }
+                val max = try { mgr.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL) } catch (e: Exception) { 0 }
+                val cur = try { mgr.getStreamVolume(AudioManager.STREAM_VOICE_CALL) } catch (e: Exception) { 0 }
+                // Suara room tidak boleh mulai dari keadaan nyaris bisu.
+                if (max > 0 && cur < (max * 0.7f).toInt()) {
+                    try { mgr.setStreamVolume(AudioManager.STREAM_VOICE_CALL, (max * 0.8f).toInt(), 0) } catch (e: Exception) { }
+                }
+                routed = true
+            }
+            try { mgr.mode = AudioManager.MODE_IN_COMMUNICATION } catch (e: Exception) { }
+            try { mgr.isSpeakerphoneOn = true } catch (e: Exception) { }
+        } catch (e: Exception) {
+            Log.e(TAG, "tuneAudioRoute: ${e.message}")
+        }
+    }
+
+    fun restoreAudioRoute() {
+        if (!routed) return
+        routed = false
+        try {
+            val mgr = audioMgr
+            if (mgr != null) {
+                prevSpeaker?.let { try { mgr.isSpeakerphoneOn = it } catch (e: Exception) { } }
+                prevMode?.let { m -> try { mgr.mode = m } catch (e: Exception) { } }
+            }
+            appCtx?.let { c -> findActivity(c)?.let { act -> prevVolumeStream?.let { act.volumeControlStream = it } } }
+        } catch (e: Exception) {
+            Log.e(TAG, "restoreAudioRoute: ${e.message}")
+        } finally {
+            prevVolumeStream = null
+            prevSpeaker = null
+            prevMode = null
+        }
+    }
 
     private fun problem(msg: String) {
         lastStatus = msg
@@ -121,9 +189,17 @@ object AgoraVoice {
                     eventJob = mainScope.launch {
                         r.events.events.collect { ev ->
                             when (ev) {
-                                is RoomEvent.Connected -> { joined = true; lastStatus = "OK tersambung" }
+                                is RoomEvent.Connected -> {
+                                    joined = true
+                                    lastStatus = "OK tersambung"
+                                    appCtx?.let { c -> mainScope.launch { tuneAudioRoute(c) } }
+                                }
                                 is RoomEvent.Reconnecting -> { lastStatus = "Suara: menyambung ulang…" }
-                                is RoomEvent.Reconnected -> { joined = true; lastStatus = "OK tersambung" }
+                                is RoomEvent.Reconnected -> {
+                                    joined = true
+                                    lastStatus = "OK tersambung"
+                                    appCtx?.let { c -> mainScope.launch { tuneAudioRoute(c) } }
+                                }
                                 is RoomEvent.Disconnected -> {
                                     joined = false
                                     if (roomId == id) problem("Suara terputus: ${ev.error?.message ?: "tanpa sebab"}")
@@ -136,6 +212,7 @@ object AgoraVoice {
                     }
                     r.connect(t.url, t.token)
                     joined = true
+                    try { tuneAudioRoute(app) } catch (e: Exception) { }
                     lastStatus = "OK tersambung"
                     applyMute()
                     applyRole()
@@ -193,6 +270,7 @@ object AgoraVoice {
     }
 
     fun leave() {
+        try { restoreAudioRoute() } catch (e: Exception) { }
         joinJob?.cancel()
         joined = false
         roomId = null
