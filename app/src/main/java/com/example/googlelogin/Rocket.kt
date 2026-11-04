@@ -474,6 +474,35 @@ object RocketRepo {
     }
 
     /**
+     * Uji tampilan: mencatat satu peluncuran roket tanpa menunggu energi penuh.
+     * Dipakai untuk memastikan video roket benar-benar bisa diputar di room.
+     */
+    suspend fun testLaunch(roomId: String, name: String, lv: Int = 1): String? {
+        if (roomId.isBlank()) return "Room kosong"
+        return try {
+            val now = System.currentTimeMillis()
+            val dur = RocketCfg.flyDurMs
+            Rtdb.ref("rocketFx/$roomId").push().setValue(
+                hashMapOf<String, Any?>(
+                    "uid" to uid(),
+                    "name" to name.ifBlank { "Tes" },
+                    "lv" to lv.coerceIn(1, 5),
+                    "url" to RocketCfg.flyFor(lv.coerceIn(1, 5)),
+                    "ts" to now,
+                    "dur" to dur,
+                    "room" to roomId,
+                    "test" to true,
+                ),
+            ).await()
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.message ?: "Gagal menulis ke database"
+        }
+    }
+
+    /**
      * Catat satu peluncuran roket ke room. Semua orang membaca node ini lalu
      * memutar animasi roket sesuai levelnya, satu per satu.
      */
@@ -721,6 +750,25 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
                 RocketRoundBtn("\uD83C\uDFC6") { showRank = true }
                 Spacer(Modifier.width(8.dp))
                 RocketRoundBtn("\uD83C\uDF81") { showPrizes = true }
+            }
+            // Uji cepat: putar video roket sekarang juga, tanpa menunggu energi.
+            var tesPesan by remember { mutableStateOf<String?>(null) }
+            Text(
+                "Tes luncur roket",
+                color = Color(0xFFFFD86B), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 6.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0x33FFC107))
+                    .clickable {
+                        kotlinx.coroutines.MainScope().launch {
+                            val e = RocketRepo.testLaunch(roomId, "Tes")
+                            tesPesan = e ?: "Dikirim, lihat layar room"
+                        }
+                    }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+            tesPesan?.let {
+                Text(it, color = Color(0xFFFFE082), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
             }
 
             Spacer(Modifier.height(14.dp))
