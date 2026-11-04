@@ -22,13 +22,25 @@ async function _deflate(bytes) {
 /** Token RTC (role publisher, uid 0 = bebas). Sama persis dengan paket agora-token. */
 async function buildRtcToken(appId, appCert, channel, uid, expireSec) {
   const issueTs = Math.floor(Date.now() / 1000);
-  const expire = issueTs + expireSec;
+  const ttl = Math.max(60, Math.floor(expireSec));
+  const expire = issueTs + ttl;
   const salt = Math.floor(Math.random() * 99999999) + 1;
   let signing = await _hmac(_u32(issueTs), _enc.encode(appCert));
   signing = await _hmac(_u32(salt), signing);
-  const privs = _cat([_u16(2), _u16(1), _u32(expire), _u16(2), _u32(expire)]);
+  // Empat izin seperti pustaka resmi agora-token: gabung(1), audio(2),
+  // video(3), data(4). Kalau izin 3 & 4 tidak ada, SDK menganggapnya
+  // kedaluwarsa dan muncul "error 110" walau tokennya sah.
+  const privs = _cat([
+    _u16(4),
+    _u16(1), _u32(expire),
+    _u16(2), _u32(expire),
+    _u16(3), _u32(expire),
+    _u16(4), _u32(expire),
+  ]);
   const svc = _cat([_u16(1), privs, _str(channel), _str(uid === 0 ? '' : String(uid))]);
-  const info = _cat([_str(appId), _u32(issueTs), _u32(expire), _u32(salt), _u16(1), svc]);
+  // Field expire di tingkat atas berisi DURASI (bukan waktu absolut),
+  // sama seperti pustaka resmi.
+  const info = _cat([_str(appId), _u32(issueTs), _u32(ttl), _u32(salt), _u16(1), svc]);
   const sig = await _hmac(signing, info);
   const withSig = _cat([_u16(sig.length), sig, info]);
   return '007' + _b64(await _deflate(withSig));

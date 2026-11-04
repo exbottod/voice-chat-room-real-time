@@ -235,6 +235,9 @@ object AgoraVoice {
         // Server Base44 dan worker Cloudflare lama tidak dipakai lagi.
         val kandidat = arrayListOf(
             "https://43-156-99-4.sslip.io/agora",
+            // Cadangan: layanan token di VPS baru menghasilkan token yang benar
+            // setelah skrip pembaruannya dijalankan ulang oleh owner.
+            "https://superagent-6187eafe.base44.app/functions/agoraToken2",
         )
         // Worker Cloudflare lama sudah kena batas kuota (429) dan hanya
         // memperlambat: jangan pernah dipakai lagi sebagai sumber token.
