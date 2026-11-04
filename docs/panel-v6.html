@@ -2347,6 +2347,38 @@ async function walletAdmin(p){
   if (!out.ok) throw new Error(out.e || (res.status === 546 ? "Server kehabisan tenaga (546), coba lagi" : ("HTTP " + res.status)));
   return out;
 }
+/* ---------- Unggah aset langsung ke GitHub (tanpa server perantara) ---------- */
+/* Token disimpan hanya di HP ini (localStorage), tidak dikirim ke mana pun
+   selain api.github.com. Folder docs/aset tidak memicu build APK. */
+const GH_REPO = "exbottod/voice-chat-room-real-time";
+const GH_BRANCH = "main";
+function ghToken(paksa){
+  let t = localStorage.getItem("ghToken") || "";
+  if (!t || paksa) {
+    t = (prompt("Tempel token GitHub (cukup sekali, disimpan di HP ini):") || "").trim();
+    if (!t) return "";
+    localStorage.setItem("ghToken", t);
+  }
+  return t;
+}
+async function ghUpload(file, name){
+  const tok = ghToken();
+  if (!tok) throw new Error("Token GitHub belum diisi");
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const path = "docs/aset/" + name + "_" + Date.now().toString(36) + "." + ext;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  const res = await fetch("https://api.github.com/repos/" + GH_REPO + "/contents/" + path, {
+    method: "PUT",
+    headers: { Authorization: "Bearer " + tok, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+    body: JSON.stringify({ message: "aset: " + name, content: btoa(bin), branch: GH_BRANCH }),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (res.status === 401 || res.status === 403) { localStorage.removeItem("ghToken"); }
+  if (!res.ok) throw new Error("GitHub: " + ((out && out.message) || res.status));
+  return "https://cdn.jsdelivr.net/gh/" + GH_REPO + "@" + GH_BRANCH + "/" + path;
+}
 async function cldUpload(file, name){
   const u = auth.currentUser;
   if (!u) throw new Error("Belum login");
@@ -2355,12 +2387,18 @@ async function cldUpload(file, name){
   fd.append("file", file, file.name);
   fd.append("name", name);
   toast("Mengunggah " + file.name + " (" + Math.round(file.size / 1024) + " KB)...");
-  let res;
-  try { res = await fetch(UPLOAD_URL, { method: "POST", headers: { Authorization: "Bearer " + idToken }, body: fd }); }
-  catch (e) { throw new Error("Tidak bisa menghubungi server upload"); }
-  const out = await res.json().catch(() => ({}));
-  if (!res.ok || !out.url) throw new Error(out.error || ("Upload gagal (" + res.status + ")"));
-  return out.url;
+  // GitHub lebih dulu: gratis, tanpa kuota kredit. Kalau token belum ada atau
+  // ditolak, baru pakai server upload (Cloudinary) seperti sebelumnya.
+  try { return await ghUpload(file, name); }
+  catch (e) {
+    const galatGh = String((e && e.message) || e);
+    let res;
+    try { res = await fetch(UPLOAD_URL, { method: "POST", headers: { Authorization: "Bearer " + idToken }, body: fd }); }
+    catch (e2) { throw new Error(galatGh + " | server upload juga tak terjangkau"); }
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out.url) throw new Error(galatGh + " | " + (out.error || ("upload gagal (" + res.status + ")")));
+    return out.url;
+  }
   }
 /* Pesan bantuan kalau database menolak (aturan belum diperbarui). */
 function dbHelp(e){
