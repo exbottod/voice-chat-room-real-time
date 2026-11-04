@@ -1,0 +1,23 @@
+Warning: Permanently added '43.156.99.4' (ED25519) to the list of known hosts.
+== Caddyfile
+43-156-99-4.sslip.io {
+	encode gzip
+	handle /agora* {
+		reverse_proxy 127.0.0.1:8090
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8080
+	}
+}
+== rute server.mjs (baris berisi app./get/post/path)
+31:    const alamat = `http://${req.headers.host || HOST + ":" + PORT}${req.url}`;
+36:    console.log(`${req.method} ${req.url} ${jawaban.status} ${Date.now() - mulai}ms`);
+38:    console.error(`${req.method} ${req.url} gagal: ${e?.message ?? e}`);
+43:server.listen(PORT, HOST, () => console.log(`layanan REZO jalan di http://${HOST}:${PORT}`));
+== port mendengarkan
+udp   UNCONN 0      0                    *:443             *:*    users:(("caddy",pid=64929,fd=8))                      
+tcp   LISTEN 0      4096         127.0.0.1:2019      0.0.0.0:*    users:(("caddy",pid=64929,fd=3))                      
+tcp   LISTEN 0      511          127.0.0.1:8090      0.0.0.0:*    users:(("node",pid=102658,fd=21))                     
+tcp   LISTEN 0      511          127.0.0.1:8080      0.0.0.0:*    users:(("node",pid=52691,fd=21))                      
+tcp   LISTEN 0      4096                 *:80              *:*    users:(("caddy",pid=64929,fd=9))                      
+tcp   LISTEN 0      4096                 *:443             *:*    users:(("caddy",pid=64929,fd=7))                      
