@@ -172,7 +172,7 @@ object UserDirectory {
                 var hit: String? = null
                 snap.children.forEach { c ->
                     val v = c.value
-                    if (v is Map<*, *> && String.valueOf(v["id"] ?: "") == n) hit = c.key
+                    if (v is Map<*, *> && ((v["id"]?.toString()) ?: "") == n) hit = c.key
                 }
                 if (hit != null) return hit
             }
