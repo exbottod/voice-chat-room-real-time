@@ -1393,7 +1393,7 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
     }
 }
 
-/** Tekan lama pada teks chat room: salin isi pesan ke papan klip. */
+/** Tekan lama pada teks chat room: salin isi pesan ke papan klip (v1.0.808). */
 @Composable
 private fun IngatSalin(text: String): () -> Unit {
     val ctx = androidx.compose.ui.platform.LocalContext.current
