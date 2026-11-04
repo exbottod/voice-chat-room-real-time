@@ -5,6 +5,8 @@ set -euo pipefail
 DOMAIN="${DOMAIN:-43-156-99-4.sslip.io}"
 CERT="${CERT:-}"
 APPID="${APPID:-a64c0421b7814ded8f0b2806f00e1a90}"
+CLD_CLOUD="${CLD_CLOUD:-}"; CLD_KEY="${CLD_KEY:-}"; CLD_SECRET="${CLD_SECRET:-}"
+ADMIN_EMAIL_IN="${ADMIN_EMAIL:-}"
 if [ -z "$CERT" ]; then echo "CERT (App Certificate Agora) belum diisi"; exit 1; fi
 
 echo "== Menyiapkan folder"
@@ -23,10 +25,13 @@ const env = {
   AGORA_APP_ID: process.env.AGORA_APP_ID || "",
   AGORA_APP_CERTIFICATE: process.env.AGORA_APP_CERTIFICATE || "",
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || "",
+  CLOUDINARY_CLOUD: process.env.CLOUDINARY_CLOUD || "",
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
 };
 const PORT = Number(process.env.PORT || 8090);
 const HOST = process.env.HOST || "127.0.0.1";
-const BATAS = 1024 * 1024;
+const BATAS = 30 * 1024 * 1024;
 function baca(req) {
   return new Promise((ok, gagal) => {
     const potongan = []; let total = 0;
@@ -65,6 +70,10 @@ WorkingDirectory=/opt/rezo-agora
 Environment=FIREBASE_PROJECT_ID=arboreal-cat-511705-p6
 Environment=AGORA_APP_ID=$APPID
 Environment=AGORA_APP_CERTIFICATE=$CERT
+Environment=ADMIN_EMAIL=$ADMIN_EMAIL_IN
+Environment=CLOUDINARY_CLOUD=$CLD_CLOUD
+Environment=CLOUDINARY_API_KEY=$CLD_KEY
+Environment=CLOUDINARY_API_SECRET=$CLD_SECRET
 ExecStart=/usr/bin/node /opt/rezo-agora/server.mjs
 Restart=always
 RestartSec=3

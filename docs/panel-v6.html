@@ -2304,7 +2304,7 @@ function vipExtOk(slot, name){ const e = vipExt(name); return e === "" || slot.a
 function readAsDataURL(f){ return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
 
 /* ---------- Upload media ke Cloudinary lewat backend (Cloudflare Worker) ---------- */
-const UPLOAD_URL = "https://rezo-agora-token.bangexx01.workers.dev/upload";
+const UPLOAD_URL = "https://43-156-99-4.sslip.io/agora/upload";
 /* Server database cadangan (KV) saat kuota Firestore habis. */
 const BACKUP_URL = "https://rezo-agora-token.bangexx01.workers.dev";
 const WALLET_API = "https://fdemjdqagxkhgqkmfvwk.supabase.co/functions/v1/smart-processor";
