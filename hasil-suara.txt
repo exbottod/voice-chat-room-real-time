@@ -1,31 +1,7 @@
 Warning: Permanently added '43.156.99.4' (ED25519) to the list of known hosts.
-== isi /opt/rezo-agora
-total 36
-drwxr-xr-x 2 root root  4096 Nov  4 16:47 .
-drwxr-xr-x 5 root root  4096 Nov  4 16:47 ..
--rw-r--r-- 1 root root    18 Nov  4 18:35 package.json
--rw-r--r-- 1 root root  2165 Nov  4 18:35 server.mjs
--rw-r--r-- 1 root root 20371 Nov  4 18:35 worker.js
-== layanan
-  caddy.service                            loaded active running Caddy
-  rezo-agora.service                       loaded active running REZO token suara (Agora)
-  rezo-api.service                         loaded active running API Dompet REZO
-== cari nama variabel di berkas
-/opt/rezo-agora/server.mjs
-/opt/rezo-agora/worker.js
-/etc/systemd/system/rezo-agora.service
-/home/ubuntu/.bash_history
-== nilai (disamarkan)
-berkas: /opt/rezo-agora/server.mjs
-  AGORA_APP_ID: process.env.AGORA_APP_ID || "", = AGORA_APP_ID:process.env.AGORA_APP_ID||,
-  AGORA_APP_CERTIFICATE: process.env.AGORA_APP_CERTIFICATE || "", panjang=58 sidik=5d3c6f65aec04081c013c451819c96a37c5ff828c3a2b717d5f4cd1e742c2d36
-berkas: /opt/rezo-agora/worker.js
-  if (!env.AGORA_APP_ID || !env.AGORA_APP_CERTIFICATE) return json({ error: 'secret Agora belum diisi' }, 500); = if(!env.AGORA_APP_ID||!env.AGORA_APP_CERTIFICATE)returnjson({error:secretAgorabelumdiisi},500);
-  const token  panjang=77 sidik=21d9d0192cbad90a7adb5f5b772441c79c901fb94286c6aab7091a2a34ed9607
-  return json({ token, appId: env.AGORA_APP_ID, expiresIn: TTL }); = returnjson({token,appId:env.AGORA_APP_ID,expiresIn:TTL});
-berkas: /etc/systemd/system/rezo-agora.service
-  Environment panjang=45 sidik=e0d713b512a63554903661f5cbb43dd67d887362072b97416c945505c8c1fe08
-  Environment panjang=86 sidik=e42425f55c5f92c556b9d599ec4def489c6c2f49e1f4b41a8d87e8624f15b589
-berkas: /home/ubuntu/.bash_history
-== tes layanan lokal
-port 8090: 401
+== status layanan: active
+== jumlah baris Environment: 7
+AGORA_APP_ID = a64c0421b7814ded8f0b2806f00e1a90 (panjang 32)
+AGORA_APP_CERTIFICATE panjang=64 sidik=602166976bfbe6cdbf8e9f480ebbc3497afe9c1fb7daed29f2d41a291dedb9d2
+AGORA_APP_CERTIFICATE awal-akhir=6e…dd
+== sidik yang diharapkan (sertifikat dari owner): 37ff6a4be3ebee00831a8c7fe37c80edfffc9829f4744644c920ec90e7249328
