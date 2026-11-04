@@ -83,6 +83,9 @@ object HiveGames {
 
     /** Cermin katalog: dipakai kalau domain Hive tidak bisa dihubungi dari HP. */
     private val CERMIN = listOf(
+        // Server Base44 ditanya lebih dulu: github.io dan domain Hive sering
+        // diblokir operator, sedangkan alamat ini selalu bisa dihubungi.
+        "https://superagent-6187eafe.base44.app/functions/hiveCatalog",
         "https://exbottod.github.io/voice-chat-room-real-time/hivegames.json",
         "https://rezo-wallet.bangexx01.workers.dev/hivecatalog",
         "https://rezo-wallet.pages.dev/hivecatalog",
