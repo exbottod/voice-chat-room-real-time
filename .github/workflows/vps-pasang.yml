@@ -12,8 +12,8 @@ jobs:
     steps:
       - name: Sambung ke VPS dan jalankan pembaruan
         env:
-          PASS: ${{ secrets.VPS_PASSWORD }}
-          GH_TOKEN: ${{ secrets.PANEL_GITHUB_TOKEN }}
+          PASS: ${{ secrets.VPS_PASSWORD || secrets.VPS_PASSWORDS || secrets.VPS_PASS || secrets.VPS_ROOT_PASSWORD }}
+          GH_TOKEN: ${{ secrets.PANEL_GITHUB_TOKEN || secrets.GH_TOKEN || secrets.PANEL_TOKEN || secrets.GITHUB_TOKEN }}
           ADMIN_EMAIL: ${{ inputs.admin_email }}
         run: |
           set -u
@@ -22,8 +22,8 @@ jobs:
           ALAMAT=43.156.99.4
           SKRIP=https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/aset.sh
           OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
-          if [ -z "${PASS}" ]; then echo "::error::Secret VPS_PASSWORD kosong."; exit 1; fi
-          if [ -z "${GH_TOKEN}" ]; then echo "::error::Secret PANEL_GITHUB_TOKEN kosong."; exit 1; fi
+          if [ -z "${PASS}" ]; then echo "::error::Secret password VPS belum ada (nama: VPS_PASSWORD)."; exit 1; fi
+          if [ -z "${GH_TOKEN}" ]; then echo "::error::Secret token GitHub belum ada (nama: PANEL_GITHUB_TOKEN)."; exit 1; fi
 
           echo "== Mencoba user root"
           if sshpass -p "$PASS" ssh $OPSI root@$ALAMAT \
