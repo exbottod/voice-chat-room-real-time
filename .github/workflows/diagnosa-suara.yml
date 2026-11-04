@@ -1,32 +1,41 @@
 name: Diagnosa suara
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/diagnosa-suara.yml"
+permissions:
+  contents: write
 jobs:
   cek:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Baca konfigurasi suara di VPS
         env:
           PASS: ${{ secrets.VPS_PASSWORD || secrets.VPS_PASSWORDS || secrets.VPS_PASS || secrets.VPS_ROOT_PASSWORD }}
         run: |
           sudo apt-get update -qq; sudo apt-get install -y -qq sshpass >/dev/null
-          ALAMAT=43.156.99.4
           OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
-          PERIKSA='set -e
-            D=$(dirname $(grep -rl "AGORA_APP_CERTIFICATE" /root /home/ubuntu /opt 2>/dev/null | head -1))
-            echo "folder layanan: $D"
+          PERIKSA='D=$(dirname $(grep -rl "AGORA_APP_CERTIFICATE" /root /home/ubuntu /opt /etc/systemd 2>/dev/null | head -1))
+            echo "folder: $D"
             for f in "$D/.env" "$D"/.env*; do
               [ -f "$f" ] || continue
-              A=$(grep -E "^AGORA_APP_ID=" "$f" | cut -d= -f2- | tr -d "\"" | tr -d "'")
-              C=$(grep -E "^AGORA_APP_CERTIFICATE=" "$f" | cut -d= -f2- | tr -d "\"" | tr -d "'")
+              A=$(grep -E "^AGORA_APP_ID=" "$f" | cut -d= -f2- | tr -d "\"" | tr -d "\x27")
+              C=$(grep -E "^AGORA_APP_CERTIFICATE=" "$f" | cut -d= -f2- | tr -d "\"" | tr -d "\x27")
               echo "file: $f"
-              echo "app_id: ${A:0:8}…  panjang: ${#A}"
-              printf "sidik sertifikat VPS: "; printf "%s" "$C" | sha256sum | cut -d" " -f1
-              echo "panjang sertifikat VPS: ${#C}"
-            done
-            echo "--- uji panggil layanan lokal:"
-            curl -s -o /dev/null -w "kode /agora tanpa tiket: %{http_code}\n" -X POST http://127.0.0.1:8090/agora || true
-            systemctl is-active rezo-wallet 2>/dev/null || true
-            pm2 ls 2>/dev/null | head -12 || true'
-          printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@$ALAMAT "sudo -S -p '' bash -c '$PERIKSA'" \
-            || sshpass -p "$PASS" ssh $OPSI root@$ALAMAT "bash -c '$PERIKSA'"
+              echo "app_id: $A"
+              echo "panjang_sertifikat: ${#C}"
+              printf "sidik_sertifikat: "; printf "%s" "$C" | sha256sum | cut -d" " -f1
+            done'
+          { printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@43.156.99.4 "sudo -S -p '' bash -c '$PERIKSA'"; } > hasil-suara.txt 2>&1 \
+            || sshpass -p "$PASS" ssh $OPSI root@43.156.99.4 "bash -c '$PERIKSA'" > hasil-suara.txt 2>&1 \
+            || true
+          cat hasil-suara.txt
+      - name: Simpan hasil ke repo
+        run: |
+          git config user.email dev@rezo.app
+          git config user.name "REZO Build"
+          git add hasil-suara.txt
+          git commit -m "chore: hasil diagnosa suara" || true
+          git push || true
