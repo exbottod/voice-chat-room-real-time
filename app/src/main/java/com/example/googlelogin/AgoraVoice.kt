@@ -232,7 +232,11 @@ object AgoraVoice {
             "https://superagent-6187eafe.base44.app/functions/agoraToken",
             "https://43-156-99-4.sslip.io/agora",
         )
-        BuildConfig.AGORA_TOKEN_URL.takeIf { it.isNotBlank() }?.let { kandidat.add(it) }
+        // Worker Cloudflare lama sudah kena batas kuota (429) dan hanya
+        // memperlambat: jangan pernah dipakai lagi sebagai sumber token.
+        BuildConfig.AGORA_TOKEN_URL
+            .takeIf { it.isNotBlank() && !it.contains("workers.dev") }
+            ?.let { kandidat.add(it) }
         return kandidat
     }
 
@@ -302,8 +306,13 @@ object AgoraVoice {
                 // Coba minta token; kalau worker gagal, tetap coba masuk tanpa token
                 // (berhasil bila project Agora tidak memakai sertifikat).
                 val t = fetchToken(id)
-                if (t == null) problem("Suara: token tidak didapat, coba masuk tanpa token")
-                else if (tanpaToken) problem("Suara: masuk tanpa token")
+                if (t == null && !tanpaToken) {
+                    // Jangan masuk dengan token kosong tanpa alasan: itu yang
+                    // memunculkan "gagal tersambung (10)" tanpa penjelasan.
+                    problem("Suara mati: server token tidak bisa dihubungi")
+                    return@withLock
+                }
+                if (tanpaToken) problem("Suara: masuk tanpa token (proyek tanpa sertifikat)")
                 if (roomId != id) return@withLock
                 val useAppId = t?.appId?.takeIf { it.isNotBlank() } ?: BuildConfig.AGORA_APP_ID
                 val e = ensure(app, useAppId) ?: return@withLock
