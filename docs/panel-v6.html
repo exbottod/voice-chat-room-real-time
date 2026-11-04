@@ -549,6 +549,16 @@ label{font-size:12px;color:var(--mut)}
   </div>
 
 <div id="tab-room" class="hide">
+  <div class="card">
+    <h2>Lencana OFFICIAL room</h2>
+    <p class="muted">Pasang pita OFFICIAL di foto room milik siapa pun. Masukkan ID room, lalu pilih pasang atau lepas.</p>
+    <input id="ofId" placeholder="ID room" style="width:100%;margin:6px 0;padding:8px;border-radius:8px;border:1px solid #444;background:#111;color:#eee">
+    <div style="display:flex;gap:8px">
+      <button id="ofOn" class="btn">Pasang OFFICIAL</button>
+      <button id="ofOff" class="btn">Lepas OFFICIAL</button>
+    </div>
+    <div id="ofMsg" class="muted" style="margin-top:8px"></div>
+  </div>
     <div class="card">
       <h2>Kelola room</h2>
       <p class="muted">Sematkan room agar naik ke atas daftar. Ganti nama untuk mereset nama room. Bersihkan menghapus kursi, chat, dan anggota tanpa menghapus room. Hapus menyembunyikan room dari daftar; room muncul kembali dengan nama dan foto yang sama saat pemiliknya membuat room lagi.</p>
@@ -1066,6 +1076,18 @@ function gcStart(){
     ref.on("value", snap => { gcCfg = snap.val() || {}; gcRender(); });
   } catch (e) {}
 }
+
+let ofCfg = {};
+async function ofSet(on){
+  const id = ($("ofId") || {}).value;
+  if (!id || !String(id).trim()) { $("ofMsg").textContent = "Isi ID room dulu"; return; }
+  try {
+    await rtSet("officialRooms/" + String(id).trim(), on);
+    $("ofMsg").textContent = on ? "Lencana dipasang" : "Lencana dilepas";
+  } catch (e) { $("ofMsg").textContent = "Gagal: " + (e.message || e); }
+}
+if ($("ofOn")) $("ofOn").onclick = () => ofSet(true);
+if ($("ofOff")) $("ofOff").onclick = () => ofSet(false);
 
 function betRender(cfg) {
   const box = document.getElementById("betGames");
@@ -1860,7 +1882,7 @@ function userCard(el, u, line2){
   row.append(av, box); el.appendChild(row);
 }
 
-const PANEL_BUILD = "2026-11-05b";
+const PANEL_BUILD = "2026-11-05c";
 (function stempelPanel(){
   const cek = () => {
     if (!document.body || document.getElementById("panelBuild")) return;

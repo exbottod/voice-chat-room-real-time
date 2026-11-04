@@ -184,6 +184,59 @@ object PanelStaffRepo {
         }
     }
 
+    /** Minta reset foto profil: diterapkan HP pemilik akun saat aplikasinya dibuka. */
+    suspend fun mintaResetFoto(target: String): String? {
+        return try {
+            Rtdb.ref("photoReset/$target").setValue(
+                hashMapOf<String, Any?>(
+                    "at" to System.currentTimeMillis(),
+                    "by" to (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""),
+                ),
+            ).await()
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.message ?: "Gagal mengirim permintaan"
+        }
+    }
+
+    /**
+     * Dijalankan HP penerima: foto profil dikembalikan ke ikon bawaan sesuai
+     * jenis kelamin akun. Nama tidak diubah.
+     */
+    suspend fun applyPendingPhotoReset(uid: String) {
+        if (uid.isBlank()) return
+        val snap = try {
+            kotlinx.coroutines.withTimeoutOrNull(6000L) { Rtdb.ref("photoReset/$uid").get().await() }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        } ?: return
+        if (!snap.exists()) return
+        try {
+            val ctx = com.google.firebase.FirebaseApp.getInstance().applicationContext
+            val email = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: return
+            val now = ProfileRepo.loadLocal(ctx, email)
+            val ikon = ResetAvatar.b64(ctx, now.gender) ?: now.avatarB64
+            val baru = now.copy(avatarB64 = ikon)
+            ProfileRepo.saveLocal(ctx, email, baru)
+            kotlinx.coroutines.withTimeoutOrNull(15000L) { ProfileRepo.saveRemote(baru) }
+            try {
+                Rtdb.ref("pub/$uid").updateChildren(
+                    hashMapOf<String, Any?>("av" to (ikon ?: "")),
+                ).await()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+            try { PublicSync.push(uid) } catch (e: Exception) { }
+            Rtdb.ref("photoReset/$uid").removeValue().await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+
     /**
      * Dijalankan HP penerima: kalau ada permintaan reset nama dari manager,
      * nama diubah kembali ke nama bawaan lalu penandanya dihapus.
@@ -557,6 +610,33 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                                 e.message ?: "ID user tidak ditemukan"
                             }
                             pesan = if (err == null) "Permintaan reset nama terkirim" else "Gagal: $err"
+                            sibuk = false
+                        }
+                    }
+                }
+
+                PanelSection("Reset foto profil user") {
+                    Text(
+                        "Foto kembali ke ikon bawaan pria atau wanita sesuai akunnya. Nama tidak diubah.",
+                        color = PanelMuted,
+                        fontSize = 11.sp,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    PanelAction(
+                        if (sibuk) "Memproses..." else "Reset foto profil",
+                        enabled = !sibuk && idUser.isNotBlank(),
+                    ) {
+                        sibuk = true
+                        pesan = "Memproses..."
+                        scope.launch {
+                            val err = try {
+                                PanelStaffRepo.mintaResetFoto(PanelStaffRepo.uidTarget(idUser))
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                e.message ?: "ID user tidak ditemukan"
+                            }
+                            pesan = if (err == null) "Permintaan reset foto terkirim" else "Gagal: $err"
                             sibuk = false
                         }
                     }

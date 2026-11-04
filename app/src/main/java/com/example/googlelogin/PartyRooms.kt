@@ -138,6 +138,22 @@ fun DialogCard(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
+/** Daftar room berlabel OFFICIAL, diatur dari panel dev lewat Realtime Database. */
+object OfficialRooms {
+    var ids by androidx.compose.runtime.mutableStateOf<Set<String>>(emptySet())
+        private set
+    private var mulai = false
+    fun start() {
+        if (mulai) return
+        mulai = true
+        try {
+            Rtdb.listen(Rtdb.ref("officialRooms")) { s ->
+                ids = s.children.mapNotNull { c -> c.key?.takeIf { c.value == true } }.toSet()
+            }
+        } catch (e: Exception) { }
+    }
+}
+
 @Composable
 fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
@@ -166,6 +182,18 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("● ${room.online}", color = Color(0xFF4CAF50), fontSize = 12.sp)
+            }
+            OfficialRooms.start()
+            if (OfficialRooms.ids.contains(room.id)) {
+                // Pita diagonal OFFICIAL di sudut kiri atas foto room.
+                Box(
+                    Modifier.align(Alignment.TopStart).padding(top = 6.dp)
+                        .clip(RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp))
+                        .background(Brush.horizontalGradient(listOf(Color(0xFFFFD54F), Color(0xFFFFB300))))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                ) {
+                    Text("OFFICIAL", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                }
             }
              if (rank in 1..3) {
                 val rb: Brush = when (rank) {

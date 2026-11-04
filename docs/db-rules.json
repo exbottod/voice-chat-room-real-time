@@ -380,6 +380,19 @@
     "gameCfg": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+    },
+    "photoReset": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['at','by'])"
+      }
+    },
+    "officialRooms": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+      }
     }
   }
 }
