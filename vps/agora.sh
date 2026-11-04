@@ -7,6 +7,7 @@ CERT="${CERT:-}"
 APPID="${APPID:-a64c0421b7814ded8f0b2806f00e1a90}"
 CLD_CLOUD="${CLD_CLOUD:-}"; CLD_KEY="${CLD_KEY:-}"; CLD_SECRET="${CLD_SECRET:-}"
 ADMIN_EMAIL_IN="${ADMIN_EMAIL:-}"
+GH_TOKEN="${GH_TOKEN:-}"; GH_REPO="${GH_REPO:-exbottod/voice-chat-room-real-time}"; GH_BRANCH="${GH_BRANCH:-main}"
 if [ -z "$CERT" ]; then echo "CERT (App Certificate Agora) belum diisi"; exit 1; fi
 
 echo "== Menyiapkan folder"
@@ -28,6 +29,9 @@ const env = {
   CLOUDINARY_CLOUD: process.env.CLOUDINARY_CLOUD || "",
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
+  GITHUB_TOKEN: process.env.GITHUB_TOKEN || "",
+  GITHUB_REPO: process.env.GITHUB_REPO || "",
+  GITHUB_BRANCH: process.env.GITHUB_BRANCH || "main",
 };
 const PORT = Number(process.env.PORT || 8090);
 const HOST = process.env.HOST || "127.0.0.1";
@@ -74,6 +78,9 @@ Environment=ADMIN_EMAIL=$ADMIN_EMAIL_IN
 Environment=CLOUDINARY_CLOUD=$CLD_CLOUD
 Environment=CLOUDINARY_API_KEY=$CLD_KEY
 Environment=CLOUDINARY_API_SECRET=$CLD_SECRET
+Environment=GITHUB_TOKEN=$GH_TOKEN
+Environment=GITHUB_REPO=$GH_REPO
+Environment=GITHUB_BRANCH=$GH_BRANCH
 ExecStart=/usr/bin/node /opt/rezo-agora/server.mjs
 Restart=always
 RestartSec=3

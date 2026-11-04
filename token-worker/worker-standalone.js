@@ -105,9 +105,6 @@ async function handleUpload(req, env) {
   if (!admin || String(p.email || '').toLowerCase() !== admin || provider !== 'google.com') {
     return json({ error: 'hanya admin (login: ' + provider + ', email: ' + (p.email || '-') + ')' }, 403);
   }
-  if (!env.CLOUDINARY_CLOUD || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
-    return json({ error: 'secret Cloudinary belum diisi' }, 500);
-  }
   const form = await req.formData();
   const file = form.get('file');
   const name = String(form.get('name') || 'asset').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40) || 'asset';
@@ -116,6 +113,38 @@ async function handleUpload(req, env) {
   const type = ALLOWED_EXT[ext];
   if (!type) return json({ error: 'format tidak didukung (png, jpg, gif, webp, mp4, svga)' }, 400);
   if (file.size > MAX_BYTES) return json({ error: 'file terlalu besar (maks 25 MB)' }, 400);
+
+  // Aset besar (frame, efek, SVGA, MP4) disimpan di repo GitHub lalu disajikan
+  // lewat CDN jsDelivr: gratis, tanpa kuota kredit, dan tidak menambah ukuran APK.
+  if (env.GITHUB_TOKEN && env.GITHUB_REPO) {
+    try {
+      const berkas = 'docs/aset/' + name + '_' + Date.now().toString(36) + '.' + ext;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let b64;
+      if (typeof Buffer !== 'undefined') b64 = Buffer.from(bytes).toString('base64');
+      else { let bin = ''; for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192)); b64 = btoa(bin); }
+      const res = await fetch('https://api.github.com/repos/' + env.GITHUB_REPO + '/contents/' + berkas, {
+        method: 'PUT',
+        headers: {
+          Authorization: 'Bearer ' + env.GITHUB_TOKEN,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'rezo-panel',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: 'aset: ' + name, content: b64, branch: env.GITHUB_BRANCH || 'main' }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) return json({ error: 'GitHub: ' + ((out && out.message) || res.status) }, 502);
+      const url = 'https://cdn.jsdelivr.net/gh/' + env.GITHUB_REPO + '@' + (env.GITHUB_BRANCH || 'main') + '/' + berkas;
+      return json({ url, kind: ext === 'svga' ? 'svga' : ext === 'mp4' ? 'mp4' : 'image', simpan: 'github' });
+    } catch (e) {
+      return json({ error: 'GitHub gagal: ' + (e && e.message) }, 502);
+    }
+  }
+
+  if (!env.CLOUDINARY_CLOUD || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
+    return json({ error: 'penyimpanan aset belum diatur (GitHub token / Cloudinary)' }, 500);
+  }
 
   const timestamp = Math.floor(Date.now() / 1000);
   const publicId = 'rezo/' + name + '_' + timestamp.toString(36) + (type === 'raw' ? '.' + ext : '');
@@ -130,7 +159,7 @@ async function handleUpload(req, env) {
   const res = await fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(env.CLOUDINARY_CLOUD) + '/' + type + '/upload', { method: 'POST', body: fd });
   const out = await res.json().catch(() => ({}));
   if (!res.ok || !out.secure_url) return json({ error: 'Cloudinary: ' + ((out.error && out.error.message) || res.status) }, 502);
-  return json({ url: out.secure_url, kind: ext === 'svga' ? 'svga' : ext === 'mp4' ? 'mp4' : 'image' });
+  return json({ url: out.secure_url, kind: ext === 'svga' ? 'svga' : ext === 'mp4' ? 'mp4' : 'image', simpan: 'cloudinary' });
 }
 
 // ---------- Database cadangan wallet (Cloudflare KV) ----------
