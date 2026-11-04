@@ -69,10 +69,32 @@ object UserDirectory {
      */
     suspend fun perbaikiId(ctx: Context, uid: String): String {
         if (uid.isBlank()) return ""
+        // Cache ID di HP bisa basi (mis. masih 100876). Bandingkan dengan
+        // server dulu; kalau beda, server yang menang.
+        try {
+            val (pasti, dariServer) = rtdbIdPasti(uid)
+            if (pasti && !dariServer.isNullOrBlank() && cachedId(ctx, uid) != dariServer) {
+                prefs(ctx).edit().putString(uid, dariServer).apply()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
         val sekarang = ensureUserId(ctx, uid)
-        val target = if (emailSekarang() == OWNER_EMAIL) ID_OWNER else sekarang
+        // Pemilik dikenali dari email developer ATAU dari penanda _owner/uid di
+        // database (diisi lewat panel developer), jadi tidak bergantung email.
+        val pemilik = emailSekarang() == OWNER_EMAIL || try {
+            kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                Rtdb.ref("_owner/uid").get().await().value as? String
+            } == uid
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
+        val target = if (pemilik) ID_OWNER else sekarang
         if (target.isBlank()) return sekarang
-        if (target != sekarang) prefs(ctx).edit().putString(uid, target).apply()
+        prefs(ctx).edit().putString(uid, target).apply()
         try {
             Rtdb.root().updateChildren(
                 hashMapOf<String, Any?>(

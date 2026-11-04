@@ -490,7 +490,11 @@ label{font-size:12px;color:var(--mut)}
     <div class="card">
       <h2>Perbaiki semua ID user</h2>
       <p class="muted">Menyamakan catatan ID (ids/u, ids/i, pub) untuk semua akun. Akun panel ini dipaksa jadi 100001.</p>
-      <button class="btn" id="pstFixIds">Perbaiki semua ID</button>
+      <div class="row" style="margin:8px 0">
+        <input id="pstOwnerId" placeholder="ID akun pemilik sekarang (mis. 100876)" inputmode="numeric">
+        <button class="btn" id="pstSetOwner">Jadikan ID 100001</button>
+      </div>
+      <button class="btn out" id="pstFixIds">Perbaiki semua ID</button>
       <div id="pstFixStatus" class="muted"></div>
     </div>
   </div>
@@ -1195,6 +1199,7 @@ async function perbaikiSemuaId(){
     const snap = await rtdb.ref("pub").once("value");
     const pub = snap.val() || {};
     const uids = Object.keys(pub);
+    const ownerUid = (await rtdb.ref("_owner/uid").once("value")).val() || "";
     let buf = {}, n = 0;
     const flush = async () => {
       if (!Object.keys(buf).length) return;
@@ -1204,7 +1209,7 @@ async function perbaikiSemuaId(){
     for (const uid of uids) {
       const p = pub[uid] || {};
       let id = p.id != null ? String(p.id).trim() : "";
-      if (uid === me.uid) id = "100001";
+      if (ownerUid ? uid === ownerUid : uid === me.uid) id = "100001";
       if (!id || !/^[0-9]+$/.test(id)) continue;
       buf["ids/u/" + uid] = id;
       buf["ids/i/" + id + "/uid"] = uid;
@@ -1217,6 +1222,42 @@ async function perbaikiSemuaId(){
     await flush();
     if (st) st.textContent = "Selesai: " + n + " akun dirapikan. ID akun panel ini = 100001.";
     toast("ID user dirapikan: " + n);
+  } catch (e) {
+    if (st) st.textContent = dbHelp(e);
+    toast(dbHelp(e));
+  }
+}
+
+/* Tetapkan akun tertentu sebagai pemilik (ID 100001). Akun yang tadinya
+   memegang 100001 dipindah ke nomor lama milik akun ini, jadi tidak ada ID kembar. */
+async function jadikanPemilik(){
+  const st = $("pstFixStatus");
+  const lama = String(($("pstOwnerId") || {}).value || "").trim();
+  if (!/^[0-9]+$/.test(lama)) return toast("Isi ID akun pemilik yang sekarang");
+  if (lama === "100001") return toast("Akun ini sudah ID 100001");
+  try {
+    if (st) st.textContent = "Mencari akun " + lama + "...";
+    const a = (await rtdb.ref("ids/i/" + lama + "/uid").once("value")).val();
+    const uidA = typeof a === "string" ? a : (a && a.uid);
+    if (!uidA) throw new Error("ID " + lama + " tidak ditemukan");
+    const b = (await rtdb.ref("ids/i/100001/uid").once("value")).val();
+    const uidB = typeof b === "string" ? b : (b && b.uid);
+    const up = {};
+    up["ids/u/" + uidA] = "100001";
+    up["ids/i/100001/uid"] = uidA;
+    up["pub/" + uidA + "/id"] = "100001";
+    up["_owner/uid"] = uidA;
+    if (uidB && uidB !== uidA) {
+      // pemegang lama 100001 menerima nomor lama akun ini (tukar)
+      up["ids/u/" + uidB] = lama;
+      up["ids/i/" + lama + "/uid"] = uidB;
+      up["pub/" + uidB + "/id"] = lama;
+    } else {
+      up["ids/i/" + lama] = null;
+    }
+    await rtdb.ref().update(up);
+    if (st) st.textContent = "Selesai: akun " + lama + " sekarang ID 100001" + (uidB && uidB !== uidA ? " (ID lama 100001 pindah ke " + lama + ")" : "") + ". Buka ulang aplikasi.";
+    toast("ID 100001 ditetapkan");
   } catch (e) {
     if (st) st.textContent = dbHelp(e);
     toast(dbHelp(e));
@@ -1262,7 +1303,7 @@ function pilihTab(k){
   if (key === "rocket") rocketStart();
   if (key === "topup") { payLoad(); manualLoad(false); }
   if (key === "staff") pstStart();
-  try { const fx = $("pstFixIds"); if (fx && !fx.onclick) fx.onclick = perbaikiSemuaId; } catch (e) {}
+  try { const fx = $("pstFixIds"); if (fx && !fx.onclick) fx.onclick = perbaikiSemuaId; const so = $("pstSetOwner"); if (so && !so.onclick) so.onclick = jadikanPemilik; } catch (e) {}
   if (key === "ann") annStart();
 }
 

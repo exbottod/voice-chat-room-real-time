@@ -357,6 +357,10 @@
       "$uid": {
         ".write": "auth != null"
       }
+    },
+    "_owner": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
     }
   }
 }
