@@ -143,21 +143,25 @@ object SupaRepo {
     }
 
     private suspend fun postWallet(body: org.json.JSONObject): Pair<Int, String> {
-        // Urutan jalur: VPS lebih dulu, lalu Cloudflare Worker, lalu Pages.
-        // Kalau VPS gagal dijangkau, Cloudflare langsung dipakai supaya
-        // pengguna lama tidak terganggu. Permintaan tulis aman diulang karena
-        // memakai nomor permintaan (req), jadi tidak diproses dua kali.
-        val urls = if (pakaiCadangan) listOf(WAL, VPS, WAL2) else listOf(VPS, WAL, WAL2)
+        // VPS SELALU dicoba lebih dulu. Cloudflare hanya cadangan terakhir:
+        // kuotanya sering habis (429), jadi jawabannya tidak boleh dianggap
+        // final selama jalur lain belum dicoba. Permintaan tulis aman diulang
+        // karena memakai nomor permintaan (req).
+        val urls = listOf(VPS, WAL2, WAL)
         var galat: java.io.IOException? = null
+        var terakhir: Pair<Int, String>? = null
         urls.forEachIndexed { i, u ->
             try {
-                val hasil = kirim(u, body, if (i == 0) 12_000 else 25_000)
-                pakaiCadangan = (u != VPS)
-                return hasil
+                val hasil = kirim(u, body, if (i == 0) 15_000 else 20_000)
+                val (code, txt) = hasil
+                val penuh = code == 429 || code >= 500 || txt.contains("1027")
+                if (!penuh) return hasil           // 2xx dan 4xx biasa (mis. 401) = jawaban sah
+                terakhir = hasil                   // jalur ini penuh/rusak: coba berikutnya
             } catch (e: java.io.IOException) {
                 galat = e
             }
         }
+        terakhir?.let { return it }
         throw galat ?: java.io.IOException("Jaringan tidak terjangkau")
     }
 
@@ -247,7 +251,7 @@ object SupaRepo {
     @Volatile private var jedaSampai = 0L
     private fun kenaBatas(code: Int, txt: String): Boolean {
         if (code == 429 || txt.contains("1027")) {
-            jedaSampai = System.currentTimeMillis() + 5 * 60_000L
+            jedaSampai = System.currentTimeMillis() + 45_000L
             return true
         }
         return false
@@ -259,7 +263,7 @@ object SupaRepo {
                 if (System.currentTimeMillis() < jedaSampai) {
                     // Pakai saldo terakhir yang tersimpan, jangan hubungi server.
                     cacheSaldo[params.optString("uid", "")]?.let { return@withContext it.res }
-                    return@withContext Res(null, "Server sedang penuh, coba lagi beberapa menit")
+                    return@withContext Res(null, "Server sedang penuh, coba lagi sebentar")
                 }
                 var token = token() ?: return@withContext Res(null, "Belum login")
                 val body = org.json.JSONObject()
@@ -281,7 +285,7 @@ object SupaRepo {
                 }
                 if (kenaBatas(code, txt)) {
                     cacheSaldo[params.optString("uid", "")]?.let { return@withContext it.res }
-                    return@withContext Res(null, "Server sedang penuh, coba lagi beberapa menit")
+                    return@withContext Res(null, "Server sedang penuh, coba lagi sebentar")
                 }
                 parseWalletResponse(code, txt)
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -522,7 +526,7 @@ object SupaRepo {
                 .put("a", action)
                 .put("t", token)
                 .put("p", params)
-            val urls = if (pakaiCadangan) listOf(WAL, VPS, WAL2) else listOf(VPS, WAL, WAL2)
+            val urls = listOf(VPS, WAL2, WAL)
             var hasil: org.json.JSONObject? = null
             var pesan = "Server panel tidak terjangkau, coba lagi"
             var i = 0
