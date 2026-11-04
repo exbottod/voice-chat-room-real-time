@@ -58,6 +58,8 @@ object AgoraVoice {
     @Volatile private var joined = false
     @Volatile private var wantSpeaking = false
     @Volatile private var muteRemote = false
+    @Volatile private var sengajaKeluar = false
+    @Volatile private var percobaan = 0
 
     var lastStatus by androidx.compose.runtime.mutableStateOf("")
         private set
@@ -172,6 +174,7 @@ object AgoraVoice {
 
     /** Masuk room (awalnya hanya mendengar; mic dibuka lewat setSpeaking). */
     fun join(ctx: Context, id: String) {
+        sengajaKeluar = false
         val app = ctx.applicationContext
         appCtx = app
         joinJob?.cancel()
@@ -191,18 +194,32 @@ object AgoraVoice {
                             when (ev) {
                                 is RoomEvent.Connected -> {
                                     joined = true
+                                    percobaan = 0
                                     lastStatus = "OK tersambung"
                                     appCtx?.let { c -> mainScope.launch { tuneAudioRoute(c) } }
                                 }
                                 is RoomEvent.Reconnecting -> { lastStatus = "Suara: menyambung ulang…" }
                                 is RoomEvent.Reconnected -> {
                                     joined = true
+                                    percobaan = 0
                                     lastStatus = "OK tersambung"
                                     appCtx?.let { c -> mainScope.launch { tuneAudioRoute(c) } }
                                 }
                                 is RoomEvent.Disconnected -> {
                                     joined = false
-                                    if (roomId == id) problem("Suara terputus: ${ev.error?.message ?: "tanpa sebab"}")
+                                    // Sambung ulang otomatis: dulu app langsung menyerah dan
+                                    // menampilkan "Suara terputus" saat room ramai / jaringan goyang.
+                                    if (!sengajaKeluar && roomId == id && percobaan < 6) {
+                                        percobaan += 1
+                                        lastStatus = "Suara: menyambung ulang (${percobaan}/6)…"
+                                        mainScope.launch {
+                                            delay(1200L * percobaan)
+                                            val c = appCtx
+                                            if (!sengajaKeluar && roomId == id && c != null) join(c, id)
+                                        }
+                                    } else if (!sengajaKeluar) {
+                                        problem("Suara terputus: ${ev.error?.message ?: "jaringan tidak stabil"}")
+                                    }
                                 }
                                 is RoomEvent.FailedToConnect -> problem("Suara gagal tersambung: ${ev.error.message}".take(140))
                                 is RoomEvent.TrackSubscribed -> applyMute()
@@ -270,6 +287,8 @@ object AgoraVoice {
     }
 
     fun leave() {
+        sengajaKeluar = true
+        percobaan = 0
         try { restoreAudioRoute() } catch (e: Exception) { }
         joinJob?.cancel()
         joined = false
