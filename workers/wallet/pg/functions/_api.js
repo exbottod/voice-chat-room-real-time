@@ -254,13 +254,71 @@ async function kirimGift(env, uid, p) {
 
   const berubah = r[1].affected > 0;
   const w = rapikan(r[4].rows[0]);
-  if (berubah) return ok(w);
+  if (berubah) {
+    // PENERIMA: aplikasi mengirim daftar uid penerima (p.to) dan nilai per
+    // penerima (p.each). Dulu daftar itu diabaikan, jadi diamond hanya masuk
+    // ke pengirim dan penerima tidak pernah menerima apa pun (halaman Tukar
+    // Berlian mereka tetap 0, terutama setelah akun direset). Sekarang setiap
+    // penerima dicatat sendiri, tetap aman diulang lewat penanda req.
+    await kreditPenerima(env, uid, p, price, item, room, now, req);
+    return ok(w);
+  }
   // Tidak berubah: bisa karena coin kurang atau permintaan sudah diproses.
   const cek = await pipe(env, [
     { sql: "select 1 as ada from gift_req where req_id = ?", args: [T(req)] },
   ]);
   if (cek[0].rows.length) return ok(w); // sudah pernah diproses: aman
   return gagal("Coin tidak cukup. Tekan Topup");
+}
+
+/**
+ * Tambahkan diamond ke setiap penerima gift. Nilai per penerima diambil dari
+ * p.each (harga gift x jumlah ketukan); kalau tidak dikirim, dibagi rata.
+ * Satu penerima gagal tidak menggagalkan penerima lain maupun pengirim.
+ */
+async function kreditPenerima(env, uid, p, price, item, room, now, req) {
+  const daftar = Array.isArray(p.to) ? p.to.map((x) => String(x ?? "").trim()).filter(Boolean) : [];
+  const unik = [...new Set(daftar)].filter((u) => u && u !== uid);
+  if (!unik.length) return;
+  let each = Math.trunc(Number(p.each ?? 0));
+  if (!(each > 0)) each = Math.floor(price / unik.length);
+  if (!(each > 0)) return;
+  for (const r of unik) {
+    try {
+      await pastikan(env, r);
+      const tanda = `${req}:to:${r}`;
+      await pipe(env, [
+        { sql: "begin immediate" },
+        {
+          sql: `update wallets set
+                  diamonds   = diamonds + ?,
+                  exp        = exp + (? * (case when vip between 1 and 9 and vip_until > ?
+                                                then 100 + 5 * vip else 100 end)) / 100,
+                  updated_at = ?
+                where uid = ?
+                  and not exists (select 1 from gift_req where req_id = ?)`,
+          args: [I(each), I(each), I(now), I(now), T(r), T(tanda)],
+        },
+        {
+          sql: "insert into gift_req (req_id, uid, at) select ?, ?, ? where changes() > 0",
+          args: [T(tanda), T(r), I(now)],
+        },
+        {
+          sql: `insert into money_tx (uid, kind, item_id, amount, room_id, created_at)
+                select ?, 'gift_in', ?, ?, ?, ? where changes() > 0`,
+          args: [T(r), item, I(each), room, I(now)],
+        },
+        { sql: "commit" },
+      ]);
+    } catch (e) {
+      try { await pipe(env, [{ sql: "rollback" }]); } catch (e2) { /* tidak ada transaksi aktif */ }
+    }
+  }
+  // Segarkan profil penerima supaya angka berlian di layar Tukar langsung naik.
+  try {
+    const pendengar = env.GIFT_PUSH;
+    if (typeof pendengar === "function") await pendengar(unik);
+  } catch (e) { /* opsional */ }
 }
 
 async function topup(env, uid, p) {
