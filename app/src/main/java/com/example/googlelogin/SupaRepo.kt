@@ -20,6 +20,10 @@ object SupaRepo {
     // Dompet sekarang di Cloudflare Worker + Turso. Saldo, gift, topup, VIP,
     // store, level, dan hadiah roket dilayani dari sini.
     private const val WAL = "https://rezo-wallet.bangexx01.workers.dev"
+    // Jalur cadangan (alamat lain, server dan database sama). Dipakai kalau HP
+    // tidak bisa menjangkau alamat utama, misalnya diblokir jaringan/ISP.
+    private const val WAL2 = "https://rezo-wallet.pages.dev"
+    @Volatile private var pakaiCadangan = false
     // Kunci publishable: memang boleh ada di dalam aplikasi
     // (setara kunci anon, tanpa akses data karena RLS menutup semua tabel).
     private const val KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W"
@@ -109,22 +113,39 @@ object SupaRepo {
         return hasil
     }
 
-    private suspend fun postWallet(body: org.json.JSONObject): Pair<Int, String> {
-        val conn = (URL(WAL).openConnection() as HttpURLConnection).apply {
+    private fun kirim(alamat: String, body: org.json.JSONObject, tunggu: Int): Pair<Int, String> {
+        val conn = (URL(alamat).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
-            connectTimeout = 15_000
-            // Edge function kadang perlu bangun dulu (cold start) sebelum
-            // menjawab. Waktu baca diperpanjang supaya tidak dianggap mati.
-            readTimeout = 50_000
+            connectTimeout = 8_000
+            readTimeout = tunggu
             doOutput = true
             setRequestProperty("apikey", KEY)
             setRequestProperty("Content-Type", "application/json")
         }
-        conn.outputStream.use { it.write(body.toString().toByteArray()) }
-        val code = conn.responseCode
-        val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
-            ?.bufferedReader()?.use { it.readText() } ?: ""
-        return Pair(code, txt)
+        try {
+            conn.outputStream.use { it.write(body.toString().toByteArray()) }
+            val code = conn.responseCode
+            val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                ?.bufferedReader()?.use { it.readText() } ?: ""
+            return Pair(code, txt)
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private suspend fun postWallet(body: org.json.JSONObject): Pair<Int, String> {
+        val utama = if (pakaiCadangan) WAL2 else WAL
+        val lain = if (pakaiCadangan) WAL else WAL2
+        // Jalur pertama diberi waktu cukup singkat; kalau gagal menjangkau,
+        // coba jalur lain sekali. Permintaan tulis aman karena memakai nomor
+        // permintaan (req) sehingga tidak diproses dua kali.
+        try {
+            return kirim(utama, body, 20_000)
+        } catch (e: java.io.IOException) {
+            val hasil = kirim(lain, body, 40_000)
+            pakaiCadangan = !pakaiCadangan
+            return hasil
+        }
     }
 
     private fun parseWalletResponse(code: Int, txt: String): Res {
