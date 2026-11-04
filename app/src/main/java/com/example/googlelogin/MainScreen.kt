@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -162,35 +163,45 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             minimized = false
             return
         }
+        val old = activeRoom
+        // Layar room langsung tampil. Semua pemeriksaan (daftar hitam & dompet)
+        // jalan di belakang layar supaya tidak terasa "menunggu" saat masuk.
+        activeRoom = room
+        minimized = false
+        // Keluar dari room lama tidak perlu ditunggu: cukup dijalankan di belakang.
+        if (old != null) scope.launch { RoomRepo.leave(old.id, uid) }
         scope.launch {
-            // Daftar hitam: user yang di-kick tidak bisa masuk dan diberi tahu.
-            val ban = try {
-                RoomRepo.banOf(room.id, uid)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                null
+
+            // Cek daftar hitam dan baca dompet terbaru bersamaan, bukan berurutan.
+            val banJob = async(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    kotlinx.coroutines.withTimeoutOrNull(2500L) { RoomRepo.banOf(room.id, uid) }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
             }
+            var w = wallet
+            val perluDompet = w.equip["entry"].isNullOrBlank() && w.equip["banner"].isNullOrBlank()
+            val dompetJob = if (perluDompet) async(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    kotlinx.coroutines.withTimeoutOrNull(2500L) { SupaRepo.get(uid, fresh = true).wallet }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            } else null
+
+            val ban = banJob.await()
             if (ban != null) {
+                if (activeRoom?.id == room.id) activeRoom = null
                 kickNote = ban
                 return@launch
             }
-            val old = activeRoom
-            activeRoom = room
-            minimized = false
-            if (old != null) RoomRepo.leave(old.id, uid)
-            // Efek masuk dibaca dari dompet TERBARU. Kalau dompet belum termuat (baru
-            // buka app / jaringan lambat), item "entry" kosong dan efeknya tidak
-            // pernah dikirim ke room walau sudah dipasang.
-            var w = wallet
-            if (w.equip["entry"].isNullOrBlank() && w.equip["banner"].isNullOrBlank()) {
-                try {
-                    kotlinx.coroutines.withTimeoutOrNull(4000L) { SupaRepo.get(uid, fresh = true).wallet }
-                        ?.let { w = it; wallet = it }
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) { }
-            }
+            dompetJob?.await()?.let { w = it; wallet = it }
+            if (activeRoom?.id != room.id) return@launch
             RoomRepo.join(room.id, myName, if (vipActive(w.vip, w.vipUntil)) w.vip else 0, activeEquip(w, "entry"), activeEquip(w, "banner"))
         }
     }
