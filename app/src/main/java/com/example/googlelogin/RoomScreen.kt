@@ -1631,7 +1631,7 @@ private fun RmSettings(r: RoomInfo, onClose: () -> Unit) {
         if (uri != null) {
             scope.launch {
                 busy = true
-                val b = ProfileRepo.encodeImage(context, uri, 900, square = false, quality = 72)
+                val b = ProfileRepo.encodeImage(context, uri, 720, square = false, quality = 55)
                 busy = false
                 if (b != null) bg = b
             }
