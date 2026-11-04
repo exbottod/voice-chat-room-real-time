@@ -1440,6 +1440,24 @@ async function roomHapus(id){
       rtdb.ref("messages/" + id).remove().catch(() => {}),
     ]);
     try { await db.collection("rooms").doc(id).delete(); } catch (e) { }
+    // Bersihkan sisa jejak room supaya tidak ada data lama yang ikut terbawa
+    // saat room baru dibuat: daftar hitam, penanda live, dan peringkat room.
+    try {
+      const sisa = ["blacklist/" + id, "gifts/" + id, "cashback/" + id];
+      await Promise.all(sisa.map(n => rtdb.ref(n).remove().catch(() => null)));
+      const rankSnap = await rtdb.ref("rank/rank_room").get().catch(() => null);
+      if (rankSnap && rankSnap.exists()) {
+        await Promise.all(rankSnap.children.map(c => rtdb.ref("rank/rank_room/" + c.key + "/" + id).remove().catch(() => null)));
+      }
+      const liveSnap = await rtdb.ref("live").get().catch(() => null);
+      if (liveSnap && liveSnap.exists()) {
+        const hapus = [];
+        liveSnap.forEach(ch => { if (String(ch.val()) === String(id)) hapus.push(rtdb.ref("live/" + ch.key).remove().catch(() => null)); });
+        if (hapus.length) await Promise.all(hapus);
+      }
+    } catch (e) { }
+    delete roomData[id];
+    roomRender();
     toast("Room dihapus");
   } catch (e) { toast("Gagal: " + (e.message || e)); }
 }
