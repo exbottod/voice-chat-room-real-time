@@ -160,9 +160,28 @@ object SupaRepo {
         return Res(null, err.ifBlank { "Server sibuk, coba lagi" }, err.contains("WALLET_NOT_FOUND"))
     }
 
+    /**
+     * Jeda darurat: kalau server menjawab 429 / "1027" (kuota Cloudflare habis),
+     * berhenti menembak sampai waktu ini. Tanpa jeda, app mengulang terus dan
+     * malah menghabiskan sisa kuota.
+     */
+    @Volatile private var jedaSampai = 0L
+    private fun kenaBatas(code: Int, txt: String): Boolean {
+        if (code == 429 || txt.contains("1027")) {
+            jedaSampai = System.currentTimeMillis() + 5 * 60_000L
+            return true
+        }
+        return false
+    }
+
     private suspend fun callInner(action: String, params: org.json.JSONObject): Res =
         withContext(Dispatchers.IO) {
             try {
+                if (System.currentTimeMillis() < jedaSampai) {
+                    // Pakai saldo terakhir yang tersimpan, jangan hubungi server.
+                    cacheSaldo[params.optString("uid", "")]?.let { return@withContext it.res }
+                    return@withContext Res(null, "Server sedang penuh, coba lagi beberapa menit")
+                }
                 var token = token() ?: return@withContext Res(null, "Belum login")
                 val body = org.json.JSONObject()
                     .put("a", action)
@@ -180,6 +199,10 @@ object SupaRepo {
                         code = ulang.first
                         txt = ulang.second
                     }
+                }
+                if (kenaBatas(code, txt)) {
+                    cacheSaldo[params.optString("uid", "")]?.let { return@withContext it.res }
+                    return@withContext Res(null, "Server sedang penuh, coba lagi beberapa menit")
                 }
                 parseWalletResponse(code, txt)
             } catch (e: kotlinx.coroutines.CancellationException) {
