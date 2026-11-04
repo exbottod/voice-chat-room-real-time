@@ -19,15 +19,9 @@ jobs:
           mkdir -p hasil
           OUT=hasil/lk-cek-${{ github.run_number }}.txt
           { printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@43.156.99.4 "sudo -S -p '' bash -c '$S'"; } > $OUT 2>&1 || true
+          { echo; echo "== uji dari luar (runner GitHub)";
+            for p in 443 7881; do if timeout 6 nc -zvw4 43.156.99.4 $p 2>&1 | grep -q succeeded; then echo "LUAR TCP $p TERBUKA"; else echo "LUAR TCP $p tertutup"; fi; done; } >> $OUT 2>&1
           cat $OUT
-      - name: Uji port dari luar (runner)
-        run: |
-          sudo apt-get install -y -qq netcat-openbsd >/dev/null 2>&1 || true
-          for p in 443 7881; do
-            if timeout 6 nc -zvw4 43.156.99.4 $p 2>&1 | grep -q succeeded; then echo "LUAR TCP $p TERBUKA"; else echo "LUAR TCP $p tertutup"; fi
-          done
-          curl -s -o /dev/null -w "lk-7880 via caddy: %{http_code}\n" -m 15 https://43-156-99-4.sslip.io/lk
-      - run: |
           git config user.email dev@rezo.app; git config user.name "REZO Build"
           git add hasil; git commit -m "chore: diagnosa livekit" || true
           git push || git pull -q --rebase origin main && git push || true
