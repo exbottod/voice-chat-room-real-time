@@ -509,35 +509,69 @@ object SupaRepo {
      * Panggilan panel staf (manager / admin). Balasan JSON apa adanya supaya
      * layar panel bisa menampilkan pesan server dengan tepat.
      */
+    /**
+     * Panggilan panel manager/admin. Dulu hanya lewat Cloudflare Worker, dan
+     * begitu kuota gratisnya habis (HTTP 429 / 1027) hak panel tidak pernah
+     * terbaca sehingga tombol panel tidak muncul walau sudah dikirim.
+     * Sekarang urutannya VPS lebih dulu, lalu Cloudflare, lalu Pages.
+     */
     suspend fun panelCall(action: String, params: org.json.JSONObject = org.json.JSONObject()): org.json.JSONObject =
         withContext(Dispatchers.IO) {
-            val kosong = org.json.JSONObject().put("ok", 0).put("e", "Tidak bisa menghubungi server")
-            try {
-                val token = token() ?: org.json.JSONObject().put("ok", 0).put("e", "Belum login")
-                val body = org.json.JSONObject()
-                    .put("a", action)
-                    .put("t", token)
-                    .put("p", params)
-                val conn = (URL("$WAL/panel").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 15_000
-                    readTimeout = 40_000
-                    doOutput = true
-                    setRequestProperty("apikey", KEY)
-                    setRequestProperty("Content-Type", "application/json")
+            val token = token() ?: return@withContext org.json.JSONObject().put("ok", 0).put("e", "Belum login")
+            val body = org.json.JSONObject()
+                .put("a", action)
+                .put("t", token)
+                .put("p", params)
+            val urls = if (pakaiCadangan) listOf(WAL, VPS, WAL2) else listOf(VPS, WAL, WAL2)
+            var hasil: org.json.JSONObject? = null
+            var pesan = "Server panel tidak terjangkau, coba lagi"
+            var i = 0
+            while (i < urls.size && hasil == null) {
+                val base = urls[i]
+                i++
+                var conn: HttpURLConnection? = null
+                try {
+                    conn = (URL("$base/panel").openConnection() as HttpURLConnection).apply {
+                        requestMethod = "POST"
+                        connectTimeout = 12_000
+                        readTimeout = 25_000
+                        doOutput = true
+                        setRequestProperty("apikey", KEY)
+                        setRequestProperty("Content-Type", "application/json")
+                    }
+                    conn.outputStream.use { it.write(body.toString().toByteArray()) }
+                    val code = conn.responseCode
+                    val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                        ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    val o = try {
+                        if (txt.isBlank()) null else org.json.JSONObject(txt)
+                    } catch (e: Exception) {
+                        null
+                    }
+                    if (code in 200..299 && o != null && o.optInt("ok") == 1) {
+                        pakaiCadangan = (base != VPS)
+                        hasil = o
+                    } else if (code in 400..498 && code != 429) {
+                        // Penolakan sungguhan (sesi tidak sah, uid salah). Tidak
+                        // perlu dicoba ke server lain karena jawabannya sama.
+                        hasil = o ?: org.json.JSONObject().put("ok", 0).put("e", "Server panel error $code")
+                    } else {
+                        pesan = o?.optString("e")?.takeIf { it.isNotBlank() }
+                            ?: if (code == 429) "Server panel penuh (429), coba lagi"
+                            else "Server panel error $code, coba lagi"
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    pesan = "Server panel lambat, coba lagi"
+                } finally {
+                    try {
+                        conn?.disconnect()
+                    } catch (e: Exception) {
+                    }
                 }
-                conn.outputStream.use { it.write(body.toString().toByteArray()) }
-                val code = conn.responseCode
-                val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
-                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
-                try { org.json.JSONObject(txt) } catch (e: Exception) {
-                    kosong.put("e", "Server panel error $code")
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                kosong.put("e", "Server panel lambat, coba lagi")
             }
+            hasil ?: org.json.JSONObject().put("ok", 0).put("e", pesan)
         }
 
     suspend fun signinClaim(uid: String, coins: Long, date: String): Res =

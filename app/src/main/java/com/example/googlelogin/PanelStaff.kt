@@ -87,7 +87,15 @@ object PanelStaffRepo {
 
     /** Semua panel milik akun ini. Satu akun bisa punya manager dan admin sekaligus. */
     suspend fun panels(): List<PanelInfo> {
-        val o = SupaRepo.panelCall("me")
+        // Hak panel dicek ke server. Kalau jalur pertama sibuk, coba lagi
+        // sebentar supaya panel yang sudah dikirim tidak "hilang" dari layar.
+        var o = SupaRepo.panelCall("me")
+        var coba = 1
+        while (o.optInt("ok") != 1 && coba < 3) {
+            kotlinx.coroutines.delay(1200L)
+            o = SupaRepo.panelCall("me")
+            coba++
+        }
         if (o.optInt("ok") != 1) return emptyList()
         val stok = bacaStok(o)
         val arr = o.optJSONArray("panels")
