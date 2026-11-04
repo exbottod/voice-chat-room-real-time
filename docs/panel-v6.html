@@ -1229,7 +1229,29 @@ async function perbaikiSemuaId(){
 }
 
 /* Tetapkan akun tertentu sebagai pemilik (ID 100001). Akun yang tadinya
-   memegang 100001 dipindah ke nomor lama milik akun ini, jadi tidak ada ID kembar. */
+   memegang 100001 dipindah ke nomor lama akun ini, jadi tidak ada ID kembar.
+   Tahan terhadap catatan lama: mencari uid lewat ids/i, ids/u, lalu pub. */
+async function cariUidDariId(id){
+  try {
+    const a = (await rtdb.ref("ids/i/" + id + "/uid").once("value")).val();
+    const u = typeof a === "string" ? a : (a && a.uid);
+    if (u) return u;
+  } catch (e) {}
+  try {
+    const snap = await rtdb.ref("ids/u").once("value");
+    const o = snap.val() || {};
+    const hit = Object.keys(o).find(function(k){ const v = o[k]; const t = typeof v === "string" ? v : (v && v.id); return String(t||"") === String(id); });
+    if (hit) return hit;
+  } catch (e) {}
+  try {
+    const snap = await rtdb.ref("pub").once("value");
+    const o = snap.val() || {};
+    const hit = Object.keys(o).find(function(k){ return String((o[k]||{}).id || "") === String(id); });
+    if (hit) return hit;
+  } catch (e) {}
+  return "";
+}
+
 async function jadikanPemilik(){
   const st = $("pstFixStatus");
   const lama = String(($("pstOwnerId") || {}).value || "").trim();
@@ -1237,18 +1259,14 @@ async function jadikanPemilik(){
   if (lama === "100001") return toast("Akun ini sudah ID 100001");
   try {
     if (st) st.textContent = "Mencari akun " + lama + "...";
-    const a = (await rtdb.ref("ids/i/" + lama + "/uid").once("value")).val();
-    const uidA = typeof a === "string" ? a : (a && a.uid);
-    if (!uidA) throw new Error("ID " + lama + " tidak ditemukan");
-    const b = (await rtdb.ref("ids/i/100001/uid").once("value")).val();
-    const uidB = typeof b === "string" ? b : (b && b.uid);
+    const uidA = await cariUidDariId(lama);
+    if (!uidA) throw new Error("Akun dengan ID " + lama + " tidak ditemukan");
+    const uidB = await cariUidDariId("100001");
     const up = {};
     up["ids/u/" + uidA] = "100001";
     up["ids/i/100001/uid"] = uidA;
     up["pub/" + uidA + "/id"] = "100001";
-    up["_owner/uid"] = uidA;
     if (uidB && uidB !== uidA) {
-      // pemegang lama 100001 menerima nomor lama akun ini (tukar)
       up["ids/u/" + uidB] = lama;
       up["ids/i/" + lama + "/uid"] = uidB;
       up["pub/" + uidB + "/id"] = lama;
@@ -1256,7 +1274,10 @@ async function jadikanPemilik(){
       up["ids/i/" + lama] = null;
     }
     await rtdb.ref().update(up);
-    if (st) st.textContent = "Selesai: akun " + lama + " sekarang ID 100001" + (uidB && uidB !== uidA ? " (ID lama 100001 pindah ke " + lama + ")" : "") + ". Buka ulang aplikasi.";
+    // Penanda pemilik (dipakai aplikasi). Kalau rules lama belum mengizinkan,
+    // abaikan saja: sisanya sudah beres.
+    try { await rtdb.ref("_owner/uid").set(uidA); } catch (e) {}
+    if (st) st.textContent = "Selesai: akun " + lama + " sekarang ID 100001. Buka ulang aplikasi.";
     toast("ID 100001 ditetapkan");
   } catch (e) {
     if (st) st.textContent = dbHelp(e);
