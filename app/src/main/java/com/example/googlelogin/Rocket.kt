@@ -494,6 +494,9 @@ object RocketRepo {
                     "test" to true,
                 ),
             ).await()
+            // Putar juga dari perangkat ini. Kalau pendengar database bermasalah,
+            // animasi tetap kelihatan sehingga jelas mana yang rusak.
+            localFx = Triple(lv.coerceIn(1, 5), System.nanoTime(), System.currentTimeMillis())
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
