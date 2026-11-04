@@ -228,8 +228,9 @@ object AgoraVoice {
 
     /** Server token yang tersedia, urut dari yang paling utama. */
     private fun sumberToken(): List<String> {
+        // Token suara hanya dari VPS (sertifikat Agora sudah dipasang di sana).
+        // Server Base44 dan worker Cloudflare lama tidak dipakai lagi.
         val kandidat = arrayListOf(
-            "https://superagent-6187eafe.base44.app/functions/agoraToken",
             "https://43-156-99-4.sslip.io/agora",
         )
         // Worker Cloudflare lama sudah kena batas kuota (429) dan hanya
