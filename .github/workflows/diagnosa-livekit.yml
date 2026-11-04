@@ -15,7 +15,7 @@ jobs:
         run: |
           sudo apt-get update -qq; sudo apt-get install -y -qq sshpass >/dev/null
           OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
-          S='echo "== layanan"; systemctl is-active rezo-livekit rezo-lktoken; echo "== port"; ss -lntup | grep -E ":7880|:7881|:50000" ; echo "== ufw"; ufw status 2>/dev/null | head -5; echo "== iptables"; iptables -S INPUT | head -10; echo "== log"; journalctl -u rezo-livekit -n 25 --no-pager | tail -25; echo "== tcp lokal"; timeout 5 bash -c "cat < /dev/null > /dev/tcp/127.0.0.1/7881" && echo "7881 lokal terbuka" || echo "7881 lokal tertutup"'
+          S='echo "== layanan"; systemctl is-active rezo-livekit rezo-lktoken; echo "== port"; ss -lntup | grep -E ":7880|:7881|:50000" ; echo "== ufw"; ufw status 2>/dev/null | head -5; echo "== beban"; uptime; free -m | head -3; nproc; echo "== log"; journalctl -u rezo-livekit -n 120 --no-pager | tail -120; echo "== kata kunci log"; journalctl -u rezo-livekit --since "-3h" --no-pager | grep -iE "ice|dtls|sfu|error|warn|drop|bandwidth|leave|participant" | tail -60; echo "== tcp lokal"; timeout 5 bash -c "cat < /dev/null > /dev/tcp/127.0.0.1/7881" && echo "7881 lokal terbuka" || echo "7881 lokal tertutup"'
           mkdir -p hasil
           OUT=hasil/lk-cek-${{ github.run_number }}.txt
           { printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@43.156.99.4 "sudo -S -p '' bash -c '$S'"; } > $OUT 2>&1 || true
