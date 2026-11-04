@@ -39,11 +39,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -483,6 +486,15 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                 android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
         }
+        // Sebagian HP mengabaikan permintaan putar pertama (misalnya saat
+        // baru masuk dari layar tegak). Diulang sekali setelah jeda pendek.
+        if (act != null && game.landscape) {
+            view.postDelayed({
+                if (act.requestedOrientation != android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
+                    act.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
+            }, 500)
+        }
         val ctrl = windowDari(view)?.let { WindowCompat.getInsetsController(it, it.decorView) }
         ctrl?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         ctrl?.hide(WindowInsetsCompat.Type.systemBars())
@@ -503,8 +515,14 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
         if (err.isNotBlank()) {
             Text(err, color = Color(0xFFFF6B6B), fontSize = 13.sp, modifier = Modifier.align(Alignment.TopCenter).padding(top = 60.dp, start = 16.dp, end = 16.dp))
         }
+        val cfg = LocalConfiguration.current
+        // Sebagian HP menolak berputar sendiri (mode putar terkunci, layar
+        // terbagi, atau pengaturan aksesibilitas). Kalau layar tetap tegak
+        // padahal game-nya lanskap, isi game diputar sendiri supaya penuh dan
+        // tidak terpotong.
+        val perluPutar = game.landscape && cfg.screenWidthDp <= cfg.screenHeightDp
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.putarLanskap(perluPutar),
             factory = { c ->
                 // Halaman game dilukis pada lebar desain aslinya (720 px) lalu
                 // diperkecil/diperbesar pas ke layar. Dengan cara ini tata letak
@@ -742,3 +760,26 @@ private fun TopThreeCard(
         ) { Text("Tutup", color = Color(0xFF1A1206), fontSize = 13.sp, fontWeight = FontWeight.Bold) }
     }
 }
+
+/**
+ * Isi layar lebar di dalam layar tegak: anak diukur dengan ukuran lanskap
+ * (lebar = tinggi layar) lalu diputar 90 derajat, jadi tata letak game tetap
+ * utuh dan hanya tampil menyamping.
+ */
+private fun Modifier.putarLanskap(aktif: Boolean): Modifier =
+    if (!aktif) {
+        this.fillMaxSize()
+    } else {
+        this.layout { measurable, constraints ->
+            val w = constraints.maxWidth
+            val h = constraints.maxHeight
+            if (w <= 0 || h <= 0) {
+                layout(w.coerceAtLeast(1), h.coerceAtLeast(1)) { }
+            } else {
+                val anak = measurable.measure(Constraints.fixed(h, w))
+                layout(w, h) {
+                    anak.placeWithLayer(x = (w - h) / 2, y = (h - w) / 2) { rotationZ = 90f }
+                }
+            }
+        }
+    }
