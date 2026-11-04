@@ -74,6 +74,9 @@ object AgoraVoice {
     @Volatile private var tanpaToken = false
     @Volatile private var sumberTerakhir = ""
 
+    /** Ringkasan asal token, ikut ditampilkan kalau suara gagal supaya penyebabnya jelas. */
+    @Volatile private var infoToken = ""
+
     /** Status terakhir untuk diagnosa (ditampilkan sebagai toast bila gagal). */
     // Dibaca layar room supaya kalau suara gagal, alasannya kelihatan langsung.
     var lastStatus by androidx.compose.runtime.mutableStateOf("")
@@ -128,7 +131,7 @@ object AgoraVoice {
                 // 6..10 = app id/channel/token ditolak server. Coba jalur lain.
                 if (reason in 6..10 && eskalasi >= 2) {
                     // Semua jalur sudah dicoba: penyebabnya di console Agora.
-                    lastStatus = "Suara mati: token ditolak Agora (cek App Certificate / App ID)"
+                    lastStatus = "Suara mati: token ditolak Agora ($infoToken)"
                 }
                 if (reason in 6..10 && eskalasi < 2) {
                     eskalasi++
@@ -221,7 +224,7 @@ object AgoraVoice {
         }
     }
 
-    private data class Tok(val token: String, val appId: String)
+    private data class Tok(val token: String, val appId: String, val menit: Long = 0)
 
     /** Token terakhir per channel, dipakai ulang kalau worker lambat (berlaku 24 jam). */
     private val tokenCache = HashMap<String, Pair<Long, Tok>>()
@@ -276,7 +279,12 @@ object AgoraVoice {
                         if (c.responseCode in 400..499 && c.responseCode != 408 && c.responseCode != 429) break
                     } else {
                         val o = JSONObject(c.inputStream.bufferedReader().readText())
-                        val tok = Tok(o.getString("token"), o.optString("appId", ""))
+                        val tok = Tok(
+                            o.getString("token"),
+                            o.optString("appId", ""),
+                            (o.optLong("expiresIn", o.optLong("ttl", 0)) / 60).coerceAtLeast(0),
+                        )
+                        infoToken = "sumber=${URL(url).host} appId=…${tok.appId.takeLast(6)} sisa=${tok.menit}m"
                         tokenCache[channel] = System.currentTimeMillis() to tok
                         return tok
                     }
@@ -310,7 +318,7 @@ object AgoraVoice {
                 if (t == null && !tanpaToken) {
                     // Jangan masuk dengan token kosong tanpa alasan: itu yang
                     // memunculkan "gagal tersambung (10)" tanpa penjelasan.
-                    problem("Suara mati: server token tidak bisa dihubungi")
+                    problem("Suara mati: server token tidak bisa dihubungi (cek VPS)")
                     return@withLock
                 }
                 if (tanpaToken) problem("Suara: masuk tanpa token (proyek tanpa sertifikat)")
@@ -396,6 +404,11 @@ object AgoraVoice {
 
     fun leave() {
         joinJob?.cancel()
+        // Setiap kali keluar room, mulai lagi dari token sungguhan. Tanpa ini,
+        // status "tanpa token" dari room lama terbawa ke room berikutnya.
+        tanpaToken = false
+        eskalasi = 0
+        sumberIdx = 0
         joined = false
         roomId = null
         wantSpeaking = false

@@ -673,25 +673,20 @@ object SupaRepo {
 
     class TopupStart(val order: String?, val url: String?, val error: String?)
 
-    /** Panggil edge function dan kembalikan JSON mentah (untuk aksi non-dompet). */
+    /**
+     * Panggil server dompet dan kembalikan JSON mentah (aksi non-dompet seperti
+     * klaim roket dan cashback gift). Ikut jalur failover VPS -> Worker -> Pages:
+     * dulu fungsi ini menghubungi Worker Cloudflare langsung, dan karena kuotanya
+     * habis (429) semua klaim gagal dengan pesan "Server tidak merespons".
+     */
     private suspend fun postRaw(action: String, params: org.json.JSONObject): org.json.JSONObject? =
         withContext(Dispatchers.IO) {
             try {
                 val token = token() ?: return@withContext null
                 val body = org.json.JSONObject().put("a", action).put("t", token).put("p", params)
-                val conn = (URL(WAL).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 8000
-                    readTimeout = 15000
-                    doOutput = true
-                    setRequestProperty("apikey", KEY)
-                    setRequestProperty("Content-Type", "application/json")
-                }
-                conn.outputStream.use { it.write(body.toString().toByteArray()) }
-                val code = conn.responseCode
-                val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
-                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
-                if (txt.isBlank()) null else org.json.JSONObject(txt)
+                val (code, txt) = postWallet(body)
+                if (code !in 200..299 || txt.isBlank()) null
+                else runCatching { org.json.JSONObject(txt) }.getOrNull()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
