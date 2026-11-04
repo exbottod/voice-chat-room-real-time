@@ -76,7 +76,7 @@ label{font-size:12px;color:var(--mut)}
   <div id="backbar">← Semua panel</div>
   <div id="secttitle"></div>
   <div id="home" class="homegrid"></div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div><div class="tab" data-t="staff">🛡️ Panel Staf</div><div class="tab" data-t="ann">📢 Pengumuman</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div><div class="tab" data-t="staff">🛡️ Panel Staf</div><div class="tab" data-t="ann">📢 Pengumuman</div><div class="tab" data-t="room">🏠 Room</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -516,6 +516,16 @@ label{font-size:12px;color:var(--mut)}
     <div class="card">
       <h2>Pengumuman aktif</h2>
       <div id="annList" class="muted">Memuat...</div>
+    </div>
+  </div>
+
+<div id="tab-room" class="hide">
+    <div class="card">
+      <h2>Kelola room</h2>
+      <p class="muted">Sematkan room agar naik ke atas daftar. Ganti nama untuk mereset nama room. Bersihkan menghapus kursi, chat, dan anggota tanpa menghapus room.</p>
+      <input type="text" id="roomCari" placeholder="Cari nama room, nomor room, atau pemilik">
+      <div id="roomJml" class="muted" style="margin:8px 0">Memuat...</div>
+      <div id="roomList" class="muted">Memuat...</div>
     </div>
   </div>
 
@@ -1099,7 +1109,7 @@ document.getElementById("betSave").onclick = async () => {
 
 let unsubBan = null, foundBan = null, foundCoin = null;
 
-const TAB_KEYS = ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff", "ann"];
+const TAB_KEYS = ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff", "ann", "room"];
 const TAB_INFO = [
   ["banner", "\uD83D\uDDBC\uFE0F", "Banner", "Pasang banner di aplikasi"],
   ["ban", "\uD83D\uDEAB", "Ban / Unban", "Blokir user dari room"],
@@ -1117,6 +1127,7 @@ const TAB_INFO = [
   ["rocket", "\uD83D\uDE80", "Hadiah Roket", "Level & hadiah roket"],
   ["staff", "\uD83D\uDEE1\uFE0F", "Panel Staf", "Manager & admin"],
   ["ann", "\uD83D\uDCE2", "Pengumuman", "Pengumuman resmi di tab Pesan"],
+  ["room", "\uD83C\uDFE0", "Room", "Sematkan, reset nama, bersihkan room"],
 ];
 
 /* ---------- Pengumuman resmi (tab Pesan aplikasi) ---------- */
@@ -1326,10 +1337,112 @@ function pilihTab(k){
   if (key === "staff") pstStart();
   try { const fx = $("pstFixIds"); if (fx && !fx.onclick) fx.onclick = perbaikiSemuaId; const so = $("pstSetOwner"); if (so && !so.onclick) so.onclick = jadikanPemilik; } catch (e) {}
   if (key === "ann") annStart();
+  if (key === "room") roomStart();
 }
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => pilihTab(t.dataset.t));
 
+
+
+/* ---------- Kelola room (sematkan / reset nama / bersihkan / hapus) ---------- */
+let roomOff = null, roomData = {};
+
+function roomStart(){
+  if (roomOff) return;
+  const cari = $("roomCari");
+  if (cari && !cari.oninput) cari.oninput = () => roomRender();
+  roomOff = { off: rtdb.ref("roomsPub").on("value", s => {
+    roomData = {};
+    s.forEach(c => { roomData[c.key] = c.val() || {}; });
+    roomRender();
+  }, e => { const el = $("roomList"); if (el) el.innerHTML = "Gagal memuat: " + escHtml(String(e.message || e)); }) };
+}
+
+function roomBersihNama(v){ return String(v == null ? "" : v).replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c])); }
+
+function roomRender(){
+  const box = $("roomList"); if (!box) return;
+  const kunci = Object.keys(roomData);
+  const cari = (($("roomCari") || {}).value || "").toLowerCase().trim();
+  const daftar = kunci.map(id => ({ id, ...roomData[id] }))
+    .filter(r => !cari || String(r.name || "").toLowerCase().includes(cari) || String(r.roomNo || "").includes(cari) || String(r.ownerName || "").toLowerCase().includes(cari))
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.pinnedAt || 0) - (a.pinnedAt || 0) || String(a.name || "").localeCompare(String(b.name || "")));
+  if ($("roomJml")) $("roomJml").textContent = kunci.length + " room, " + kunci.filter(i => roomData[i].pinned).length + " disematkan";
+  if (!daftar.length) { box.innerHTML = '<p class="muted">Tidak ada room yang cocok.</p>'; return; }
+  box.innerHTML = daftar.map(r => {
+    const semat = !!r.pinned;
+    return '<div class="rowcard" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)">' +
+      '<div style="min-width:150px">' +
+        '<div style="font-weight:700">' + (semat ? "📌 " : "") + roomBersihNama(r.name || "Room") + '</div>' +
+        '<div class="muted" style="font-size:12px">No ' + roomBersihNama(r.roomNo || "-") + ' · pemilik ' + roomBersihNama(r.ownerName || "-") + '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+        '<button class="btn" style="padding:6px 10px;font-size:12px" data-room-semat="' + r.id + '">' + (semat ? "Lepas" : "Sematkan") + '</button>' +
+        '<button class="btn" style="padding:6px 10px;font-size:12px" data-room-nama="' + r.id + '">Ganti nama</button>' +
+        '<button class="btn" style="padding:6px 10px;font-size:12px" data-room-bersih="' + r.id + '">Bersihkan</button>' +
+        '<button class="btn" style="padding:6px 10px;font-size:12px;background:#5a1b1b" data-room-hapus="' + r.id + '">Hapus</button>' +
+      '</div></div>';
+  }).join("");
+  box.querySelectorAll("[data-room-semat]").forEach(b => b.onclick = () => roomSemat(b.dataset.roomSemat));
+  box.querySelectorAll("[data-room-nama]").forEach(b => b.onclick = () => roomGantiNama(b.dataset.roomNama));
+  box.querySelectorAll("[data-room-bersih]").forEach(b => b.onclick = () => roomBersihkan(b.dataset.roomBersih));
+  box.querySelectorAll("[data-room-hapus]").forEach(b => b.onclick = () => roomHapus(b.dataset.roomHapus));
+}
+
+async function roomTulis(id, obj){
+  await rtdb.ref("roomsPub/" + id).update(obj);
+  try { await db.collection("rooms").doc(id).update(obj); } catch (e) { }
+}
+
+async function roomSemat(id){
+  const r = roomData[id] || {};
+  const jadi = !r.pinned;
+  try {
+    await roomTulis(id, { pinned: jadi, pinnedAt: jadi ? Date.now() : 0 });
+    toast(jadi ? "Room disematkan 📌" : "Semat dicabut");
+  } catch (e) { toast("Gagal: " + (e.message || e)); }
+}
+
+async function roomGantiNama(id){
+  const r = roomData[id] || {};
+  const bawaan = "Room " + (r.roomNo || "");
+  const baru = prompt("Nama baru untuk room ini (kosongkan untuk reset ke nama bawaan):", r.name || bawaan);
+  if (baru === null) return;
+  const nm = String(baru).trim().slice(0, 40) || bawaan.trim();
+  try {
+    await roomTulis(id, { name: nm });
+    toast("Nama room disimpan: " + nm);
+  } catch (e) { toast("Gagal: " + (e.message || e)); }
+}
+
+async function roomBersihkan(id){
+  const r = roomData[id] || {};
+  if (!confirm("Bersihkan room \u201c" + (r.name || "Room") + "\u201d?\n\nKursi mic, chat room, daftar anggota, dan pengumuman room akan dikosongkan. Room tetap ada dan nama tidak berubah.")) return;
+  try {
+    await Promise.all([
+      rtdb.ref("seats/" + id).remove().catch(() => {}),
+      rtdb.ref("members/" + id).remove().catch(() => {}),
+      rtdb.ref("messages/" + id).remove().catch(() => {}),
+    ]);
+    await roomTulis(id, { announcement: "", online: 0, lockedSeats: null });
+    toast("Room dibersihkan ✅");
+  } catch (e) { toast("Gagal: " + (e.message || e)); }
+}
+
+async function roomHapus(id){
+  const r = roomData[id] || {};
+  if (!confirm("Hapus room \u201c" + (r.name || "Room") + "\u201d permanen?\n\nRoom, kursi, chat, dan anggotanya akan dihapus.")) return;
+  try {
+    await Promise.all([
+      rtdb.ref("roomsPub/" + id).remove().catch(() => {}),
+      rtdb.ref("seats/" + id).remove().catch(() => {}),
+      rtdb.ref("members/" + id).remove().catch(() => {}),
+      rtdb.ref("messages/" + id).remove().catch(() => {}),
+    ]);
+    try { await db.collection("rooms").doc(id).delete(); } catch (e) { }
+    toast("Room dihapus");
+  } catch (e) { toast("Gagal: " + (e.message || e)); }
+}
 
 /* ---------- Cashback gift: RTP, bobot pecahan, aset SVGA ---------- */
 const CB_VALS = [0,1,2,3,5,10,20,50,100,250];
