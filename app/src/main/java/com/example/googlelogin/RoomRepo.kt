@@ -126,7 +126,7 @@ object RoomRepo {
 
     /** Tampilkan lagi room milik sendiri (dipakai saat pemilik membuat room lagi). */
     suspend fun restoreOwned(roomId: String) {
-        try { Rtdb.ref("roomsHidden/$roomId").remove().await() } catch (e: Exception) { }
+        try { Rtdb.ref("roomsHidden/$roomId").removeValue().await() } catch (e: Exception) { }
         try { getRoom(roomId, abaikanSembunyi = true)?.let { mirrorRoom(it) } } catch (e: Exception) { }
     }
 
