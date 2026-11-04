@@ -487,6 +487,12 @@ label{font-size:12px;color:var(--mut)}
       <h2>Daftar staf</h2>
       <div id="pstList" class="muted">Memuat...</div>
     </div>
+    <div class="card">
+      <h2>Perbaiki semua ID user</h2>
+      <p class="muted">Menyamakan catatan ID (ids/u, ids/i, pub) untuk semua akun. Akun panel ini dipaksa jadi 100001.</p>
+      <button class="btn" id="pstFixIds">Perbaiki semua ID</button>
+      <div id="pstFixStatus" class="muted"></div>
+    </div>
   </div>
 
 <div id="tab-ann" class="hide">
@@ -1179,6 +1185,44 @@ async function annPublish(){
   }
 }
 
+/* ---------- Perbaiki semua ID user (ids/u, ids/i, pub) ---------- */
+async function perbaikiSemuaId(){
+  const st = $("pstFixStatus");
+  const me = auth.currentUser;
+  if (!me) return toast("Login dulu untuk memperbaiki ID");
+  if (st) st.textContent = "Membaca data user...";
+  try {
+    const snap = await rtdb.ref("pub").once("value");
+    const pub = snap.val() || {};
+    const uids = Object.keys(pub);
+    let buf = {}, n = 0;
+    const flush = async () => {
+      if (!Object.keys(buf).length) return;
+      await rtdb.ref().update(buf);
+      buf = {};
+    };
+    for (const uid of uids) {
+      const p = pub[uid] || {};
+      let id = p.id != null ? String(p.id).trim() : "";
+      if (uid === me.uid) id = "100001";
+      if (!id || !/^[0-9]+$/.test(id)) continue;
+      buf["ids/u/" + uid] = id;
+      buf["ids/i/" + id + "/uid"] = uid;
+      n++;
+      if (Object.keys(buf).length >= 400) {
+        await flush();
+        if (st) st.textContent = "Memproses " + n + " dari " + uids.length + " user...";
+      }
+    }
+    await flush();
+    if (st) st.textContent = "Selesai: " + n + " akun dirapikan. ID akun panel ini = 100001.";
+    toast("ID user dirapikan: " + n);
+  } catch (e) {
+    if (st) st.textContent = dbHelp(e);
+    toast(dbHelp(e));
+  }
+}
+
 function buildHome(){
   const box = $("home"); if (!box) return;
   box.innerHTML = "";
@@ -1218,6 +1262,7 @@ function pilihTab(k){
   if (key === "rocket") rocketStart();
   if (key === "topup") { payLoad(); manualLoad(false); }
   if (key === "staff") pstStart();
+  try { const fx = $("pstFixIds"); if (fx && !fx.onclick) fx.onclick = perbaikiSemuaId; } catch (e) {}
   if (key === "ann") annStart();
 }
 

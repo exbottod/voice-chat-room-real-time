@@ -50,6 +50,58 @@ fun PublicUser.svipLevel(): Int {
 
 
 object UserDirectory {
+    /** Email pemilik aplikasi; akun ini selalu memakai ID 100001. */
+    private const val OWNER_EMAIL = "developerex100@gmail.com"
+
+    /** ID tetap milik pemilik (sekaligus akun Customer Service). */
+    const val ID_OWNER = "100001"
+
+    private fun emailSekarang(): String = try {
+        FirebaseAuth.getInstance().currentUser?.email?.lowercase() ?: ""
+    } catch (e: Exception) {
+        ""
+    }
+
+    /**
+     * Rapikan catatan ID satu user supaya [ids/u], [ids/i], dan [pub/{uid}/id]
+     * selalu cocok. Tidak pernah membuat nomor baru, jadi aman dipanggil setiap
+     * aplikasi dibuka. Akun pemilik dipaksa memakai ID 100001.
+     */
+    suspend fun perbaikiId(ctx: Context, uid: String): String {
+        if (uid.isBlank()) return ""
+        val sekarang = ensureUserId(ctx, uid)
+        val target = if (emailSekarang() == OWNER_EMAIL) ID_OWNER else sekarang
+        if (target.isBlank()) return sekarang
+        if (target != sekarang) prefs(ctx).edit().putString(uid, target).apply()
+        try {
+            Rtdb.root().updateChildren(
+                hashMapOf<String, Any?>(
+                    "ids/u/$uid" to target,
+                    "ids/i/$target/uid" to uid,
+                    "pub/$uid/id" to target,
+                ),
+            ).await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
+        // Cermin ke Firestore, tidak menahan tampilan.
+        mirrorScope.launch {
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                    db().collection("users").document(uid).set(
+                        hashMapOf("userId" to target), SetOptions.merge(),
+                    ).await()
+                    db().collection("userIds").document(target).set(
+                        hashMapOf("uid" to uid), SetOptions.merge(),
+                    ).await()
+                }
+            } catch (e: Exception) {
+            }
+        }
+        return target
+    }
+
     private val mirrorScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
     private fun db() = FirebaseFirestore.getInstance()
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("userid", Context.MODE_PRIVATE)

@@ -233,6 +233,13 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         try { ChatWatch.start(context, uid) } catch (e: Exception) { }
     }
 
+    // Rapikan ID user (ids/u, ids/i, pub) setiap app dibuka. Akun pemilik
+    // dipaksa memakai ID 100001 supaya Customer Service selalu ketemu.
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try { UserDirectory.perbaikiId(context, uid) } catch (e: Exception) { }
+    }
+
     // Sapu chat lama sekali sehari supaya chat tidak menumpuk jadi sampah.
     LaunchedEffect(uid) {
         if (uid.isBlank()) return@LaunchedEffect

@@ -50,7 +50,6 @@ object CacheBersih {
             val loader = ctx.imageLoader
             loader.memoryCache?.clear()
             loader.diskCache?.clear()
-            loader.diskCache?.directory?.deleteRecursively()
         } catch (e: Exception) {
         }
         // Cache web (WebView game dan halaman internal).
