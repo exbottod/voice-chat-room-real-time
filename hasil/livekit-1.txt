@@ -1,0 +1,14 @@
+Warning: Permanently added '43.156.99.4' (ED25519) to the list of known hosts.
+== unduh LiveKit 1.13.11
+livekit-server version 1.13.11
+== kunci API (dibuat sekali, dipertahankan)
+== layanan token
+== firewall (ufw / iptables bila aktif)
+== Caddy
+== pemeriksaan
+livekit  : active
+token    : active
+health   : {"ok":true,"siap":true}
+lk 7880  : 200
+publik   : 200
+ip publik: 43.156.99.4
