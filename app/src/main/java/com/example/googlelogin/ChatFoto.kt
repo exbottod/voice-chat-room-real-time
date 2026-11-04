@@ -36,9 +36,18 @@ object ChatFoto {
         // File sementara dibaca lewat ContentResolver dengan skema file://,
         // jadi tidak perlu FileProvider tambahan.
         val pakai: Uri = Uri.fromFile(tmp)
+        // Jalur utama: Cloudinary. Kalau kuota Cloudinary habis atau upload
+        // ditolak, foto pindah ke penyimpanan Supabase (jalur yang dipakai
+        // foto room) supaya pengiriman tetap jalan.
         val (url, err) = GiftFx.uploadMedia(context, pakai)
+        if (url != null) {
+            try { tmp.delete() } catch (e: Exception) { }
+            return url to null
+        }
+        val (url2, err2) = RoomImages.upload(context, pakai)
         try { tmp.delete() } catch (e: Exception) { }
-        return url to err
+        if (url2 != null) return url2 to null
+        return null to (err2 ?: err ?: "Gagal mengunggah foto")
     }
 
     /** Kecilkan sisi terpanjang ke SISI_MAKS tanpa merusak rasio. */
