@@ -82,10 +82,8 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
     LaunchedEffect(muatUlang) {
         HiveGames.init(ctx)
         val segar = try { HiveGames.listSegar() } catch (e: Exception) { emptyList() }
-        if (segar.isNotEmpty()) {
-            hiveGames = segar
-            daftarDariServer = true
-        }
+        if (segar.isNotEmpty()) hiveGames = segar
+        daftarDariServer = HiveGames.dariServer
     }
 
     LaunchedEffect(Unit) {

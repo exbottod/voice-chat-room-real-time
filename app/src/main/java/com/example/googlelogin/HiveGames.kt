@@ -124,6 +124,8 @@ object HiveGames {
     // Daftar terakhir dari server. Dipakai Game Center supaya game yang baru
     // ditambahkan di console Hive langsung muncul tanpa update APK.
     @Volatile private var cache: List<Game>? = null
+    /** true kalau daftar terakhir benar-benar datang dari server Hive. */
+    @Volatile var dariServer: Boolean = false
     @Volatile private var cacheAt: Long = 0L
 
     /** Daftar game terbaru (cache 2 menit, lalu ambil ulang dari Hive). */
@@ -228,6 +230,7 @@ object HiveGames {
                 val out = baca(txt)
                 if (out.isNotEmpty()) {
                     simpan(txt)
+                    dariServer = true
                     return@withContext out
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -238,6 +241,7 @@ object HiveGames {
                 if (percobaan == 0) kotlinx.coroutines.delay(1200)
             }
         }
+        dariServer = false
         val tersimpan = katalogTersimpan()
         if (tersimpan.isNotEmpty()) tersimpan else fallback
     }
