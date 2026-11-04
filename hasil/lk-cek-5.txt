@@ -1,0 +1,203 @@
+Warning: Permanently added '43.156.99.4' (ED25519) to the list of known hosts.
+== layanan
+activating
+active
+== port
+== ufw
+Status: inactive
+== beban
+ 21:32:54 up  8:32,  1 user,  load average: 0.01, 0.29, 0.29
+               total        used        free      shared  buff/cache   available
+Mem:            1967         620         183           2        1340        1347
+Swap:           1987           0        1987
+2
+== log
+Nov 04 21:31:59 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:02 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 26.
+Nov 04 21:32:02 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:02 VM-12-71-ubuntu livekit-server[136136]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:02 VM-12-71-ubuntu livekit-server[136136]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:02 VM-12-71-ubuntu livekit-server[136136]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:02 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:02 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:05 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 27.
+Nov 04 21:32:05 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:05 VM-12-71-ubuntu livekit-server[136145]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:05 VM-12-71-ubuntu livekit-server[136145]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:05 VM-12-71-ubuntu livekit-server[136145]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:05 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:05 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:08 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 28.
+Nov 04 21:32:08 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:08 VM-12-71-ubuntu livekit-server[136167]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:08 VM-12-71-ubuntu livekit-server[136167]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:08 VM-12-71-ubuntu livekit-server[136167]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:08 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:08 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:12 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 29.
+Nov 04 21:32:12 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:12 VM-12-71-ubuntu livekit-server[136188]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:12 VM-12-71-ubuntu livekit-server[136188]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:12 VM-12-71-ubuntu livekit-server[136188]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:12 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:12 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:15 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 30.
+Nov 04 21:32:15 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:15 VM-12-71-ubuntu livekit-server[136202]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:15 VM-12-71-ubuntu livekit-server[136202]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:15 VM-12-71-ubuntu livekit-server[136202]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:15 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:15 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:18 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 31.
+Nov 04 21:32:18 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:18 VM-12-71-ubuntu livekit-server[136226]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:18 VM-12-71-ubuntu livekit-server[136226]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:18 VM-12-71-ubuntu livekit-server[136226]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:18 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:18 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:21 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 32.
+Nov 04 21:32:21 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:21 VM-12-71-ubuntu livekit-server[136248]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:21 VM-12-71-ubuntu livekit-server[136248]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:21 VM-12-71-ubuntu livekit-server[136248]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:21 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:21 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:25 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 33.
+Nov 04 21:32:25 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:25 VM-12-71-ubuntu livekit-server[136262]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:25 VM-12-71-ubuntu livekit-server[136262]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:25 VM-12-71-ubuntu livekit-server[136262]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:25 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:25 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:28 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 34.
+Nov 04 21:32:28 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:28 VM-12-71-ubuntu livekit-server[136302]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:28 VM-12-71-ubuntu livekit-server[136302]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:28 VM-12-71-ubuntu livekit-server[136302]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:28 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:28 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:31 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 35.
+Nov 04 21:32:31 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:31 VM-12-71-ubuntu livekit-server[136330]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:31 VM-12-71-ubuntu livekit-server[136330]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:31 VM-12-71-ubuntu livekit-server[136330]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:31 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:31 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:34 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 36.
+Nov 04 21:32:34 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:34 VM-12-71-ubuntu livekit-server[136345]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:34 VM-12-71-ubuntu livekit-server[136345]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:34 VM-12-71-ubuntu livekit-server[136345]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:34 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:34 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:38 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 37.
+Nov 04 21:32:38 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:38 VM-12-71-ubuntu livekit-server[136358]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:38 VM-12-71-ubuntu livekit-server[136358]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:38 VM-12-71-ubuntu livekit-server[136358]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:38 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:38 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:41 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 38.
+Nov 04 21:32:41 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:41 VM-12-71-ubuntu livekit-server[136387]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:41 VM-12-71-ubuntu livekit-server[136387]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:41 VM-12-71-ubuntu livekit-server[136387]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:41 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:41 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:44 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 39.
+Nov 04 21:32:44 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:44 VM-12-71-ubuntu livekit-server[136397]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:44 VM-12-71-ubuntu livekit-server[136397]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:44 VM-12-71-ubuntu livekit-server[136397]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:44 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:44 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:47 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 40.
+Nov 04 21:32:47 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:47 VM-12-71-ubuntu livekit-server[136411]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:47 VM-12-71-ubuntu livekit-server[136411]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:47 VM-12-71-ubuntu livekit-server[136411]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:47 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:47 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:51 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 41.
+Nov 04 21:32:51 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:51 VM-12-71-ubuntu livekit-server[136432]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:51 VM-12-71-ubuntu livekit-server[136432]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:51 VM-12-71-ubuntu livekit-server[136432]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:51 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:51 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:54 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 42.
+Nov 04 21:32:54 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:54 VM-12-71-ubuntu livekit-server[136525]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:54 VM-12-71-ubuntu livekit-server[136525]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:54 VM-12-71-ubuntu livekit-server[136525]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:54 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:54 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+== kata kunci log
+Nov 04 21:32:28 VM-12-71-ubuntu livekit-server[136302]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:28 VM-12-71-ubuntu livekit-server[136302]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:28 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:28 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:31 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 35.
+Nov 04 21:32:31 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:31 VM-12-71-ubuntu livekit-server[136330]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:31 VM-12-71-ubuntu livekit-server[136330]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:31 VM-12-71-ubuntu livekit-server[136330]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:31 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:31 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:34 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 36.
+Nov 04 21:32:34 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:34 VM-12-71-ubuntu livekit-server[136345]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:34 VM-12-71-ubuntu livekit-server[136345]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:34 VM-12-71-ubuntu livekit-server[136345]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:34 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:34 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:38 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 37.
+Nov 04 21:32:38 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:38 VM-12-71-ubuntu livekit-server[136358]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:38 VM-12-71-ubuntu livekit-server[136358]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:38 VM-12-71-ubuntu livekit-server[136358]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:38 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:38 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:41 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 38.
+Nov 04 21:32:41 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:41 VM-12-71-ubuntu livekit-server[136387]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:41 VM-12-71-ubuntu livekit-server[136387]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:41 VM-12-71-ubuntu livekit-server[136387]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:41 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:41 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:44 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 39.
+Nov 04 21:32:44 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:44 VM-12-71-ubuntu livekit-server[136397]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:44 VM-12-71-ubuntu livekit-server[136397]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:44 VM-12-71-ubuntu livekit-server[136397]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:44 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:44 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:47 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 40.
+Nov 04 21:32:47 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:47 VM-12-71-ubuntu livekit-server[136411]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:47 VM-12-71-ubuntu livekit-server[136411]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:47 VM-12-71-ubuntu livekit-server[136411]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:47 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:47 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:51 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 41.
+Nov 04 21:32:51 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:51 VM-12-71-ubuntu livekit-server[136432]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:51 VM-12-71-ubuntu livekit-server[136432]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:51 VM-12-71-ubuntu livekit-server[136432]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:51 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:51 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:32:54 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 42.
+Nov 04 21:32:54 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:32:54 VM-12-71-ubuntu livekit-server[136525]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:32:54 VM-12-71-ubuntu livekit-server[136525]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:32:54 VM-12-71-ubuntu livekit-server[136525]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:32:54 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:32:54 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+== tcp lokal
+bash: connect: Connection refused
+bash: line 1: /dev/tcp/127.0.0.1/7881: Connection refused
+7881 lokal tertutup
+
+== uji dari luar (runner GitHub)
+LUAR TCP 443 TERBUKA
+LUAR TCP 7881 tertutup
