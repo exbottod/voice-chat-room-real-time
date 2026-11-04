@@ -369,6 +369,13 @@
       "$roomId": {
         ".write": "auth != null"
       }
+    },
+    "nameReset": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['at', 'by'])"
+      }
     }
   }
 }
