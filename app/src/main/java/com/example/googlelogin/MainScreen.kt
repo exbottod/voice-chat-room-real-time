@@ -231,7 +231,9 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     LaunchedEffect(uid) {
         if (uid.isEmpty()) return@LaunchedEffect
         try {
-            kotlinx.coroutines.withTimeoutOrNull(6000L) { RoomRepo.findOwned(uid) }?.let { RoomRepo.mirrorRoom(it) }
+            val mine = kotlinx.coroutines.withTimeoutOrNull(6000L) { RoomRepo.findOwned(uid) }
+            // findOwned sudah menyaring room yang dihapus permanen dari panel.
+            if (mine != null && !RoomRepo.isDeleted(mine.id)) RoomRepo.mirrorRoom(mine)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) { }

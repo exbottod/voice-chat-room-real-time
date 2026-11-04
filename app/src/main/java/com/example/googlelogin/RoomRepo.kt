@@ -73,13 +73,56 @@ object RoomRepo {
     }
 
 
-    suspend fun findOwned(ownerUid: String): RoomInfo? = try {
-        db().collection("rooms").whereEqualTo("ownerUid", ownerUid).limit(1).get().await()
-            .documents.firstOrNull()?.toRoom()
+    /**
+     * Room milik sendiri. Room yang sudah dihapus permanen dari panel dev
+     * (ditandai tombstone di Realtime Database) diabaikan, supaya tidak
+     * "hidup lagi" dari cache Firestore saat user membuat room baru.
+     */
+    suspend fun findOwned(ownerUid: String): RoomInfo? {
+        val kandidat = try {
+            db().collection("rooms").whereEqualTo("ownerUid", ownerUid)
+                .get(com.google.firebase.firestore.Source.SERVER).await()
+                .documents.mapNotNull { it.toRoom() } +
+                try {
+                    db().collection("rooms").whereEqualTo("ownerUid", ownerUid)
+                        .get(com.google.firebase.firestore.Source.CACHE).await()
+                        .documents.mapNotNull { it.toRoom() }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emptyList()
+                }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            try {
+                db().collection("rooms").whereEqualTo("ownerUid", ownerUid).limit(1).get().await()
+                    .documents.firstOrNull()?.toRoom()
+                    ?.let { listOf(it) } ?: emptyList()
+            } catch (e2: kotlinx.coroutines.CancellationException) {
+                throw e2
+            } catch (e2: Exception) {
+                emptyList()
+            }
+        }
+        for (r in kandidat.distinctBy { it.id }) {
+            if (!isDeleted(r.id)) return r
+            // Sudah dihapus dari panel: buang sisa dokumennya agar tidak kembali lagi.
+            try { db().collection("rooms").document(r.id).delete() } catch (e: Exception) { }
+        }
+        return null
+    }
+
+    /** Room yang dihapus permanen lewat panel dev ditandai di roomsDeleted/{id}. */
+    suspend fun isDeleted(roomId: String): Boolean = try {
+        val s = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+            Rtdb.ref("roomsDeleted/$roomId").get().await()
+        }
+        s?.exists() == true
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
-        null
+        false
     }
 
     suspend fun createRoom(ownerUid: String, ownerName: String, name: String, photoB64: String?): RoomInfo {
@@ -111,6 +154,8 @@ object RoomRepo {
     // jadi daftar room tetap tampil walau kuota Firestore habis / error.
     fun mirrorRoom(r: RoomInfo) {
         try {
+            // Room lama yang sudah dihapus permanen tidak boleh dicerminkan ulang.
+            if (r.id.isBlank()) return
             val m = hashMapOf<String, Any?>(
                 "roomNo" to r.roomNo, "name" to r.name, "ownerUid" to r.ownerUid,
                 "ownerName" to r.ownerName, "photoB64" to r.photoB64,
@@ -223,6 +268,8 @@ object RoomRepo {
     }
 
     suspend fun getRoom(id: String): RoomInfo? {
+        // Room yang sudah dihapus permanen dari panel tidak boleh muncul lagi.
+        if (isDeleted(id)) return null
         // REALTIME DATABASE dulu (bebas kuota Firestore): roomsPub/{id}.
         try {
             val snap = kotlinx.coroutines.withTimeoutOrNull(5000L) { Rtdb.ref("roomsPub/$id").get().await() }

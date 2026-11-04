@@ -1433,6 +1433,9 @@ async function roomHapus(id){
   const r = roomData[id] || {};
   if (!confirm("Hapus room \u201c" + (r.name || "Room") + "\u201d permanen?\n\nRoom, kursi, chat, dan anggotanya akan dihapus.")) return;
   try {
+    // Tombstone: penanda bahwa room ini dihapus permanen. Aplikasi memakainya
+    // agar room tidak "hidup lagi" dari cache saat user membuat room baru.
+    await rtdb.ref("roomsDeleted/" + id).set(Date.now()).catch(() => {});
     await Promise.all([
       rtdb.ref("roomsPub/" + id).remove().catch(() => {}),
       rtdb.ref("seats/" + id).remove().catch(() => {}),
