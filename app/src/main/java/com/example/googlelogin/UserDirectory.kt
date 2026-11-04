@@ -309,16 +309,45 @@ object UserDirectory {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) { }
-        // Cadangan: profil publik yang belum punya catatan ids/i.
+        // Cadangan 1: pemetaan terbalik ids/u/{uid} = id (akun yang terdaftar dari sisi uid).
         try {
-            val snap = kotlinx.coroutines.withTimeoutOrNull(5000L) { Rtdb.ref("pub").get().await() }
+            val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) { Rtdb.ref("ids/u").get().await() }
             if (snap != null && snap.exists()) {
                 var hit: String? = null
                 snap.children.forEach { c ->
                     val v = c.value
-                    if (v is Map<*, *> && ((v["id"]?.toString()) ?: "") == n) hit = c.key
+                    val idStr = when (v) {
+                        is Map<*, *> -> (v["id"] ?: v["n"])?.toString()
+                        null -> null
+                        else -> v.toString()
+                    }?.trim()
+                    if (idStr == n || idStr?.toLongOrNull() == n.toLongOrNull()) hit = c.key
                 }
-                if (hit != null) return hit
+                if (hit != null) {
+                    // Perbaiki catatan ids/i supaya pencarian berikutnya langsung cepat.
+                    try { Rtdb.ref("ids/i/$n/uid").setValue(hit).await() } catch (e: Exception) { }
+                    return hit
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Cadangan 2: profil publik yang belum punya catatan ids/i.
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(7000L) { Rtdb.ref("pub").get().await() }
+            if (snap != null && snap.exists()) {
+                var hit: String? = null
+                snap.children.forEach { c ->
+                    val v = c.value
+                    if (v is Map<*, *>) {
+                        val cand = (v["id"] ?: v["uid8"] ?: v["no"])?.toString()?.trim()
+                        if (cand == n || (cand != null && cand.toLongOrNull() != null && cand.toLongOrNull() == n.toLongOrNull())) hit = c.key
+                    }
+                }
+                if (hit != null) {
+                    try { Rtdb.ref("ids/i/$n/uid").setValue(hit).await() } catch (e: Exception) { }
+                    return hit
+                }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e

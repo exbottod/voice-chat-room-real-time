@@ -33,11 +33,16 @@ rtc:
   port_range_end: 50100
   use_external_ip: false
   node_ip: $IP_PUBLIK
+  allow_tcp_fallback: true
+  ice_disconnected_timeout: 30
+  ice_failed_timeout: 60
 keys:
   $LIVEKIT_API_KEY: $LIVEKIT_API_SECRET
 room:
-  empty_timeout: 120
+  empty_timeout: 300
+  departure_timeout: 60
   max_participants: 200
+  enable_remote_unmute: true
 logging:
   level: info
 YAML
