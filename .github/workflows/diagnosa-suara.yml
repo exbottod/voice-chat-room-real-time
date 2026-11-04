@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/diagnosa-suara.yml"
+      - "vps/diagnosa.sh"
 permissions:
   contents: write
 jobs:
@@ -17,15 +18,8 @@ jobs:
         run: |
           sudo apt-get update -qq; sudo apt-get install -y -qq sshpass >/dev/null
           OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
-          PERIKSA='F=$(grep -rl "AGORA_APP_CERTIFICATE" /root /home/ubuntu /opt /etc/systemd 2>/dev/null | head -1)
-            echo "berkas: $F"
-            A=$(grep -hoE "AGORA_APP_ID=[^ \"]*" "$F" | head -1 | cut -d= -f2-)
-            C=$(grep -hoE "AGORA_APP_CERTIFICATE=[^ \"]*" "$F" | head -1 | cut -d= -f2-)
-            echo "app_id: $A"
-            echo "panjang_sertifikat: ${#C}"
-            printf "sidik_sertifikat: "; printf "%s" "$C" | sha256sum | cut -d" " -f1
-            echo "--- berkas env lain:"
-            ls -la /opt/rezo-agora 2>/dev/null | head -12'
+          SKRIP=$(cat vps/diagnosa.sh | base64 -w0)
+          PERIKSA="echo $SKRIP | base64 -d | bash"
           { printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@43.156.99.4 "sudo -S -p '' bash -c '$PERIKSA'"; } > hasil-suara.txt 2>&1 \
             || sshpass -p "$PASS" ssh $OPSI root@43.156.99.4 "bash -c '$PERIKSA'" > hasil-suara.txt 2>&1 \
             || true
