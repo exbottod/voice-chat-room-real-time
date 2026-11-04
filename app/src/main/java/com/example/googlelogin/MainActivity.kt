@@ -114,6 +114,9 @@ class MainActivity : ComponentActivity() {
         CrashGuard.install(this)
         AppLang.load(this)
         WalletCache.init(this)
+        // Notifikasi chat: dua channel terpisah (Customer Service & chat pribadi).
+        try { ChatNotif.ensureChannels(this) } catch (e: Exception) { }
+        mintaIzinNotifikasi()
         // Nilai taruhan game (betCfg) didengarkan sejak awal supaya perubahan
         // dari panel developer langsung dipakai REZO tanpa buka ulang aplikasi.
         try { BetCfg.startLive() } catch (e: Exception) { }
@@ -143,13 +146,30 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Izin notifikasi Android 13+ (sekali saja, tanpa memaksa). */
+    private fun mintaIzinNotifikasi() {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                val izin = "android.permission.POST_NOTIFICATIONS"
+                if (androidx.core.content.ContextCompat.checkSelfPermission(this, izin) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(izin), 91)
+                }
+            }
+        } catch (e: Exception) {
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         AppAktif.ya = true
+        AppState.foreground = true
     }
 
     override fun onPause() {
         AppAktif.ya = false
+        AppState.foreground = false
         super.onPause()
     }
 

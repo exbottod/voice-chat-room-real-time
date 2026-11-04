@@ -153,12 +153,14 @@ object ChatRepo {
                     hashMapOf<String, Any?>(
                         "otherUid" to other.uid, "otherName" to other.name,
                         "otherId" to other.userId, "lastText" to text, "lastAt" to now,
+                        "lastFrom" to me,
                     ),
                 ).await()
                 Rtdb.ref("chatsByUser/${other.uid}/$id").updateChildren(
                     hashMapOf<String, Any?>(
                         "otherUid" to me, "otherName" to myName,
                         "otherId" to myId, "lastText" to text, "lastAt" to now,
+                        "lastFrom" to me,
                     ),
                 ).await()
             }
@@ -298,19 +300,123 @@ private fun ChatRow(c: ChatSummary) {
     }
 }
 
-/** Isi tab Pesan: daftar chat pribadi. */
+/** Isi tab Pesan: Pengumuman Resmi, Customer Service, lalu chat pribadi. */
 @Composable
 fun ChatListTab(myUid: String) {
+    val ctx = LocalContext.current
+    val actions = LocalActions.current
+    val scope = rememberCoroutineScope()
     var chats by remember { mutableStateOf<List<ChatSummary>>(emptyList()) }
+    var anns by remember { mutableStateOf<List<AnnRepo.Ann>>(emptyList()) }
+    var showAnn by remember { mutableStateOf(false) }
+    var csUid by remember { mutableStateOf<String?>(null) }
+    var readTick by remember { mutableStateOf(0) }
+
     DisposableEffect(myUid) {
         val r = ChatRepo.observeChats(myUid) { chats = it }
-        onDispose { r.remove() }
+        val a = AnnRepo.observe { anns = it }
+        onDispose { r.remove(); a.remove() }
     }
+    LaunchedEffect(myUid) { csUid = Cs.uid() }
+
+    val csChatId = remember(csUid, myUid) { csUid?.let { ChatRepo.chatId(myUid, it) } }
+    val csLast = remember(chats, csChatId) { chats.firstOrNull { it.id == csChatId } }
+    val csUnread = remember(csLast, csUid, readTick) {
+        csUid != null && csLast != null && csLast.lastAt > CsRead.at(ctx, myUid)
+    }
+    val annUnread = remember(anns, readTick) { AnnRepo.unread(ctx, anns) }
+
+    if (showAnn) {
+        AnnouncementScreen(anns) { showAnn = false; readTick++ }
+        return
+    }
+
     Column(Modifier.fillMaxSize()) {
         Text(
             "Pesan", color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )
+        // Pengumuman Resmi: hanya baca, tidak bisa dibalas.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable { showAnn = true; AnnRepo.markRead(ctx) }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(52.dp).clip(CircleShape).background(Color(0xFF2A2113)),
+                contentAlignment = Alignment.Center,
+            ) { Text("📢", fontSize = 26.sp) }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Pengumuman Resmi", color = GoldLight, fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp, maxLines = 1, modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (annUnread > 0) {
+                        Spacer(Modifier.width(6.dp))
+                        BadgeAngka(annUnread)
+                    }
+                }
+                Text(
+                    anns.firstOrNull()?.let { it.title.ifBlank { it.body } } ?: "Belum ada pengumuman",
+                    color = Color(0xFFBDBDBD), fontSize = 13.sp, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                anns.firstOrNull()?.let { if (it.at > 0) timeAgo(it.at) else "" } ?: "",
+                color = Color(0xFF8A8A8A), fontSize = 11.sp,
+            )
+        }
+        DividerRow()
+        // Customer Service: chat 1:1 ke akun resmi (ID 100001).
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable {
+                    val target = csUid
+                    if (target == null) {
+                        scope.launch {
+                            val u = Cs.uid()
+                            if (u != null) {
+                                csUid = u
+                                actions.openChat(Cs.profile(u))
+                            } else {
+                                Toast.makeText(ctx, tr("Akun Customer Service belum siap"), Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        actions.openChat(Cs.profile(target))
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CsLogo(52.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CsName(fontSize = 16, tag = false)
+                    if (csUnread) {
+                        Spacer(Modifier.width(6.dp))
+                        Box(Modifier.size(9.dp).clip(CircleShape).background(Color(0xFFE53935)))
+                    }
+                }
+                Text(
+                    csLast?.lastText?.takeIf { it.isNotBlank() } ?: tr("Chat langsung dengan admin resmi REZO"),
+                    color = Color(0xFFBDBDBD), fontSize = 13.sp, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                csLast?.let { if (it.lastAt > 0) timeAgo(it.lastAt) else "" } ?: "",
+                color = Color(0xFF8A8A8A), fontSize = 11.sp,
+            )
+        }
+        DividerRow()
         if (chats.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
@@ -327,6 +433,25 @@ fun ChatListTab(myUid: String) {
 }
 
 @Composable
+private fun BadgeAngka(n: Int) {
+    Text(
+        if (n > 99) "99+" else n.toString(),
+        color = Color.White,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(Color(0xFFE53935))
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+    )
+}
+
+@Composable
+private fun DividerRow() {
+    Box(Modifier.fillMaxWidth().padding(start = 80.dp).height(1.dp).background(Color(0xFF232323)))
+}
+
+@Composable
 fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -335,10 +460,19 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
     var msgs by remember { mutableStateOf<List<ChatMsg>>(emptyList()) }
     var text by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val isCs = Cs.isCs(other) || Cs.isCsId(other.userId)
+    var autos by remember(chatId) { mutableStateOf<List<Pair<String, Long>>>(emptyList()) }
 
     DisposableEffect(chatId) {
         val r = ChatRepo.observeMessagesMerged(chatId) { msgs = it }
-        onDispose { r.remove() }
+        AppState.openChatId = chatId
+        ChatWatch.markSeenNow(context, chatId)
+        ChatNotif.clear(context, chatId)
+        if (isCs) CsRead.mark(context, myUid)
+        onDispose {
+            r.remove()
+            if (AppState.openChatId == chatId) AppState.openChatId = null
+        }
     }
     LaunchedEffect(msgs.size) { if (msgs.isNotEmpty()) listState.animateScrollToItem(msgs.size - 1) }
     BackHandler(onBack = onBack)
@@ -363,8 +497,14 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
         if (t.isEmpty()) return
         text = ""
         scope.launch {
-            ChatRepo.send(myUid, myName, myId, other, t)?.let {
-                Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            val salah = ChatRepo.send(myUid, myName, myId, other, t)
+            if (salah != null) {
+                Toast.makeText(context, salah, Toast.LENGTH_LONG).show()
+            } else if (isCs) {
+                // CS offline: balas otomatis (maks. sekali per jam per user).
+                CsAuto.jadwalkan(context, myUid) { pesan, at ->
+                    autos = autos + (pesan to at)
+                }
             }
         }
     }
@@ -376,12 +516,13 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = GoldLight)
                 }
                 Row(
-                    Modifier.clickable { actions.openProfile(other.uid) },
+                    Modifier.clickable(enabled = !isCs) { if (!isCs) actions.openProfile(other.uid) },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    PublicAvatarFramed(other, 36.dp)
+                    if (isCs) CsLogo(36.dp) else PublicAvatarFramed(other, 36.dp)
                     Spacer(Modifier.width(10.dp))
-                    Text(other.name, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    if (isCs) CsName(fontSize = 18) else
+                        Text(other.name, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
             // Personal Ads (SVIP1): iklan pribadi pemilik profil tampil di kotak masuk.
@@ -413,6 +554,20 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                         ) {
                             Text(m.text, color = if (mine) Color.Black else Color.White, fontSize = 15.sp)
+                        }
+                    }
+                }
+                // Balasan otomatis CS saat admin offline (hanya di perangkat ini).
+                items(autos, key = { "auto_" + it.second }) { a ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                        Box(
+                            Modifier
+                                .widthIn(max = 280.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFF1E1E1E))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                        ) {
+                            Text(a.first, color = Color(0xFFCFCFCF), fontSize = 14.sp)
                         }
                     }
                 }

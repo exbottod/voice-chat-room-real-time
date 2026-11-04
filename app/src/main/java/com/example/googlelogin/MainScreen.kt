@@ -226,6 +226,13 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         } catch (e: Exception) { }
     }
 
+    // Pemantau chat: notifikasi muncul walau user sedang di tab lain / app
+    // di background. CS punya channel notifikasi sendiri.
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try { ChatWatch.start(context, uid) } catch (e: Exception) { }
+    }
+
     // Medal SVIP disimpan di RTDB. Muat sejak awal supaya medal yang dipasang
     // tidak sempat dianggap kosong saat app baru dibuka (dulu tampak hilang).
     LaunchedEffect(uid) {

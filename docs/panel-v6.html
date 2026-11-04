@@ -76,7 +76,7 @@ label{font-size:12px;color:var(--mut)}
   <div id="backbar">← Semua panel</div>
   <div id="secttitle"></div>
   <div id="home" class="homegrid"></div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div><div class="tab" data-t="staff">🛡️ Panel Staf</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div><div class="tab" data-t="staff">🛡️ Panel Staf</div><div class="tab" data-t="ann">📢 Pengumuman</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -486,6 +486,26 @@ label{font-size:12px;color:var(--mut)}
     <div class="card">
       <h2>Daftar staf</h2>
       <div id="pstList" class="muted">Memuat...</div>
+    </div>
+  </div>
+
+<div id="tab-ann" class="hide">
+    <div class="card">
+      <h2>Tulis pengumuman resmi</h2>
+      <p class="muted">Tampil paling atas di tab Pesan aplikasi. Hanya teks, tidak bisa dibalas user.</p>
+      <label>Judul</label>
+      <input type="text" id="annTitle" maxlength="80" placeholder="Contoh: Maintenance malam ini">
+      <label>Isi pengumuman</label>
+      <textarea id="annBody" rows="5" maxlength="2000" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px"></textarea>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <input type="checkbox" id="annPin" style="width:auto"> Sematkan di paling atas
+      </label>
+      <button class="btn" id="annPublish" style="margin-top:10px">Terbitkan</button>
+      <div id="annStatus" class="muted"></div>
+    </div>
+    <div class="card">
+      <h2>Pengumuman aktif</h2>
+      <div id="annList" class="muted">Memuat...</div>
     </div>
   </div>
 
@@ -1069,7 +1089,7 @@ document.getElementById("betSave").onclick = async () => {
 
 let unsubBan = null, foundBan = null, foundCoin = null;
 
-const TAB_KEYS = ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff"];
+const TAB_KEYS = ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff", "ann"];
 const TAB_INFO = [
   ["banner", "\uD83D\uDDBC\uFE0F", "Banner", "Pasang banner di aplikasi"],
   ["ban", "\uD83D\uDEAB", "Ban / Unban", "Blokir user dari room"],
@@ -1086,7 +1106,78 @@ const TAB_INFO = [
   ["cb", "\uD83D\uDCB5", "Gift CB", "Gift cashback"],
   ["rocket", "\uD83D\uDE80", "Hadiah Roket", "Level & hadiah roket"],
   ["staff", "\uD83D\uDEE1\uFE0F", "Panel Staf", "Manager & admin"],
+  ["ann", "\uD83D\uDCE2", "Pengumuman", "Pengumuman resmi di tab Pesan"],
 ];
+
+/* ---------- Pengumuman resmi (tab Pesan aplikasi) ---------- */
+function escHtml(v){
+  return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+let annItems = [], annRef = null;
+function annStart(){
+  if (!annRef) {
+    annRef = rtdb.ref("pengumuman").on("value", snap => {
+      annItems = [];
+      snap.forEach(c => { const v = c.val() || {}; annItems.push(Object.assign({ _id: c.key }, v)); });
+      annItems.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.at || 0) - (a.at || 0));
+      annRender();
+    }, e => toast("Gagal memuat pengumuman: " + e.message));
+  }
+  const btn = $("annPublish");
+  if (btn && !btn.onclick) btn.onclick = annPublish;
+}
+function annRender(){
+  const box = $("annList"); if (!box) return;
+  if (!annItems.length) { box.innerHTML = '<div class="muted">Belum ada pengumuman.</div>'; return; }
+  box.innerHTML = "";
+  annItems.forEach(a => {
+    const d = document.createElement("div");
+    d.className = "card";
+    d.style.marginBottom = "10px";
+    const tgl = a.at ? new Date(a.at).toLocaleString("id-ID") : "-";
+    d.innerHTML = '<div style="font-weight:700;color:#f3d97a">' + (a.pinned ? "📌 " : "") + escHtml(a.title || "Pengumuman") + '</div>' +
+      '<div style="font-size:11px;color:#9a9a9a;margin:2px 0 6px">' + escHtml(tgl) + (a.active === false ? " · nonaktif" : "") + '</div>' +
+      '<div style="white-space:pre-wrap;font-size:13px;line-height:1.5">' + escHtml(a.body || "") + '</div>' +
+      '<div class="row" style="margin-top:8px">' +
+        '<button class="btn out" data-act="pin">' + (a.pinned ? "Lepas sematan" : "Sematkan") + '</button>' +
+        '<button class="btn out" data-act="toggle">' + (a.active === false ? "Aktifkan" : "Sembunyikan") + '</button>' +
+        '<button class="btn bad" data-act="del">Hapus</button>' +
+      '</div>';
+    d.querySelector('[data-act="pin"]').onclick = async () => {
+      try { await rtSet("pengumuman/" + a._id + "/pinned", !a.pinned); toast("Sematan diperbarui"); }
+      catch (e) { toast(dbHelp(e)); }
+    };
+    d.querySelector('[data-act="toggle"]').onclick = async () => {
+      try { await rtSet("pengumuman/" + a._id + "/active", a.active === false); toast("Status diperbarui"); }
+      catch (e) { toast(dbHelp(e)); }
+    };
+    d.querySelector('[data-act="del"]').onclick = async () => {
+      if (!confirm("Hapus pengumuman ini?")) return;
+      try { await rtDel("pengumuman/" + a._id); toast("Pengumuman dihapus"); }
+      catch (e) { toast(dbHelp(e)); }
+    };
+    box.appendChild(d);
+  });
+}
+async function annPublish(){
+  const judul = ($("annTitle").value || "").trim();
+  const isi = ($("annBody").value || "").trim();
+  const pin = !!$("annPin").checked;
+  if (!judul && !isi) return toast("Judul atau isi belum diisi");
+  const st = $("annStatus");
+  if (st) st.textContent = "Menerbitkan...";
+  const id = "a" + Date.now();
+  try {
+    await rtSet("pengumuman/" + id, { title: judul || "Pengumuman", body: isi, at: Date.now(), active: true, pinned: pin, by: (auth.currentUser && auth.currentUser.email) || "" });
+    $("annTitle").value = ""; $("annBody").value = ""; $("annPin").checked = false;
+    if (st) st.textContent = "Pengumuman terbit. Buka tab Pesan di aplikasi untuk melihatnya.";
+    toast("Pengumuman terbit");
+  } catch (e) {
+    if (st) st.textContent = dbHelp(e);
+    toast(dbHelp(e));
+  }
+}
 
 function buildHome(){
   const box = $("home"); if (!box) return;
@@ -1127,6 +1218,7 @@ function pilihTab(k){
   if (key === "rocket") rocketStart();
   if (key === "topup") { payLoad(); manualLoad(false); }
   if (key === "staff") pstStart();
+  if (key === "ann") annStart();
 }
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => pilihTab(t.dataset.t));
