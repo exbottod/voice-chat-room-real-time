@@ -37,7 +37,15 @@ data class ChatSummary(
     val isRt: Boolean = false,
 )
 
-data class ChatMsg(val id: String, val from: String, val text: String, val at: Long)
+data class ChatMsg(val id: String, val from: String, val text: String, val at: Long) {
+    /** Pesan foto disimpan sebagai teks "[img]URL" supaya struktur chat lama tetap sama. */
+    val fotoUrl: String? get() = if (text.startsWith(FOTO_AWAL)) text.removePrefix(FOTO_AWAL).trim().takeIf { it.startsWith("http") } else null
+}
+
+const val FOTO_AWAL = "[img]"
+
+/** Teks untuk daftar chat dan notifikasi: foto tampil sebagai label, bukan tautan mentah. */
+fun ringkasPesan(t: String): String = if (t.startsWith(FOTO_AWAL)) "\uD83D\uDCF7 Foto" else t
 
 object ChatRepo {
     private fun db() = FirebaseFirestore.getInstance()
@@ -294,7 +302,7 @@ private fun ChatRow(c: ChatSummary) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(u?.name ?: c.otherName, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1)
-            Text(c.lastText, color = Color(0xFFBDBDBD), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(ringkasPesan(c.lastText), color = Color(0xFFBDBDBD), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text(timeAgo(c.lastAt), color = Color(0xFF8A8A8A), fontSize = 11.sp)
     }

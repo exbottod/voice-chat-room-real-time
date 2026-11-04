@@ -798,6 +798,31 @@ fun RocketScreen(
             tesPesan?.let {
                 Text(it, color = Color(0xFFFFE082), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
             }
+            // Tambah energi langsung (khusus developer) untuk menguji ambang roket.
+            Text(
+                "Tambah 1 miliar energi",
+                color = Color(0xFFA5D6A7), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0x3338A169))
+                    .clickable {
+                        kotlinx.coroutines.MainScope().launch {
+                            try {
+                                RocketRepo.addExp(roomId, "Tes", 1_000_000_000L)
+                                val snap = Rtdb.ref("rocket/$roomId").get().await()
+                                val e = snap.child("exp").getValue(Long::class.java) ?: 0L
+                                val st = snap.child("stage").getValue(Int::class.java) ?: 1
+                                val pesan = "Setelah +1M: stage " + st + ", energi " + ringkas(e) +
+                                    " | ambang " + RocketCfg.exp.joinToString("/") { ringkas(it) }
+                                tesPesan = pesan
+                                android.widget.Toast.makeText(ctxTes, pesan, android.widget.Toast.LENGTH_LONG).show()
+                            } catch (ex: Exception) {
+                                tesPesan = "Gagal: " + (ex.message ?: "").take(80)
+                            }
+                        }
+                    }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
             // Uji penulisan energi: memastikan database menerima, bukan hanya tampilan.
             Text(
                 "Tes energi roket",

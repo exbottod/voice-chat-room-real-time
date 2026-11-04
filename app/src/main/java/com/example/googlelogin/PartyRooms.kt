@@ -184,7 +184,7 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                 Text("● ${room.online}", color = Color(0xFF4CAF50), fontSize = 12.sp)
             }
             OfficialRooms.start()
-            if (OfficialRooms.ids.contains(room.id)) {
+            if (OfficialRooms.ids.contains(room.id) || (room.roomNo.isNotBlank() && OfficialRooms.ids.contains(room.roomNo))) {
                 // Pita diagonal OFFICIAL di sudut kiri atas foto room.
                 Box(
                     Modifier.align(Alignment.TopStart).padding(top = 6.dp)
