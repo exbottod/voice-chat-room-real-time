@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/diagnosa-suara.yml"
       - "vps/diagnosa.sh"
+      - "vps/perbaiki-sertifikat.sh"
 permissions:
   contents: write
 jobs:
@@ -18,7 +19,7 @@ jobs:
         run: |
           sudo apt-get update -qq; sudo apt-get install -y -qq sshpass >/dev/null
           OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
-          SKRIP=$(cat vps/diagnosa.sh | base64 -w0)
+          SKRIP=$(cat vps/perbaiki-sertifikat.sh vps/diagnosa.sh | base64 -w0)
           PERIKSA="echo $SKRIP | base64 -d | bash"
           { printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@43.156.99.4 "sudo -S -p '' bash -c '$PERIKSA'"; } > hasil-suara.txt 2>&1 \
             || sshpass -p "$PASS" ssh $OPSI root@43.156.99.4 "bash -c '$PERIKSA'" > hasil-suara.txt 2>&1 \
