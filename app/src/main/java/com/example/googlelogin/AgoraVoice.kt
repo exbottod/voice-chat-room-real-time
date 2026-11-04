@@ -102,6 +102,19 @@ object AgoraVoice {
             Log.i(TAG, lastStatus)
         }
 
+        override fun onConnectionStateChanged(state: Int, reason: Int) {
+            // 3 = CONNECTED. Sebagian HP jarang memanggil onJoinChannelSuccess,
+            // akibatnya aplikasi terus menyambung ulang padahal suara sudah jalan.
+            Log.i(TAG, "koneksi state=$state alasan=$reason")
+            if (state == 3) {
+                joined = true
+                retriedToken = false
+                lastStatus = "OK tersambung"
+            } else if (state == 5 && !joined) {
+                lastStatus = "Suara: gagal tersambung ($reason)"
+            }
+        }
+
         override fun onTokenPrivilegeWillExpire(token: String?) {
             val r = roomId ?: return
             scope.launch { fetchToken(r)?.let { engine?.renewToken(it.token) } }
@@ -135,9 +148,9 @@ object AgoraVoice {
                 try { it.setDefaultAudioRoutetoSpeakerphone(true) } catch (e: Exception) { }
                 try { it.setEnableSpeakerphone(true) } catch (e: Exception) { }
                 // Wajib untuk HP yang jaringannya memblokir UDP Agora.
-                // 5 = cloud proxy lewat TLS 443, untuk jaringan yang memblokir UDP Agora.
+                // Pakai auto proxy resmi SDK, bukan angka mentah.
                 try {
-                    it.setCloudProxy(5)
+                    it.setCloudProxy(Constants.CLOUD_PROXY_TYPE_AUTO_PROXY)
                 } catch (e: Exception) {
                     Log.e(TAG, "cloud proxy gagal: ${e.message}")
                 }
@@ -261,8 +274,8 @@ object AgoraVoice {
                 applyRole()
             }
 
-            // Kalau 8 detik belum benar-benar masuk channel, coba sekali lagi.
-            kotlinx.coroutines.delay(8000)
+            // Kalau 12 detik belum benar-benar masuk channel, coba sekali lagi.
+            kotlinx.coroutines.delay(12000)
             if (roomId != id) return@launch
             if (!joined) {
                 // Belum tersambung: coba lewat jalur lain (tanpa proxy) sekali,
