@@ -254,51 +254,73 @@ private fun GiftFlyOnce(
 private fun PartPop(value: Long, index: Int, box: IntSize) {
     val scale = remember { Animatable(0.6f) }
     LaunchedEffect(value, index) {
-        kotlinx.coroutines.delay(index * 260L)
-        scale.animateTo(1.15f, tween(220))
-        scale.animateTo(1f, tween(120))
+        kotlinx.coroutines.delay(index * 220L)
+        scale.animateTo(1.12f, tween(200))
+        scale.animateTo(1f, tween(110))
     }
-    // Posisi di layar: kiri atas, kanan atas, tengah, kiri bawah, kanan bawah, tengah atas.
+    // Semua pecahan tampil DI TENGAH layar, menggerombol rapat di tengah seperti
+    // di aplikasi acuan: satu di tengah, sisanya mengelilingi titik tengah.
     val spots = listOf(
-        Pair(0.24f, 0.26f), Pair(0.76f, 0.26f), Pair(0.50f, 0.44f),
-        Pair(0.26f, 0.62f), Pair(0.74f, 0.62f), Pair(0.50f, 0.20f),
-        Pair(0.22f, 0.44f), Pair(0.78f, 0.44f),
+        Pair(0f, 0f), Pair(-86f, -78f), Pair(86f, -78f),
+        Pair(-86f, 74f), Pair(86f, 74f), Pair(0f, -150f),
+        Pair(0f, 148f), Pair(0f, 0f),
     )
     val spot = spots[index % spots.size]
-    val size = 168f
+    val size = 156f
+    // Angka pecahan bisa jauh lebih besar dari aset yang ada (aset maksimal
+    // 10.000). Supaya animasi SVGA tetap muncul, dipakai aset terbesar yang
+    // tidak melebihi nilai pecahan, lalu nilai sebenarnya ditulis di bawahnya.
+    val aset = assetPecahan(value)
+    val cx = box.width / 2f
+    val cy = box.height * 0.46f
     Box(
         Modifier
             .offset {
                 IntOffset(
-                    (box.width * spot.first - size / 2f).toInt(),
-                    (box.height * spot.second - size / 2f).toInt(),
+                    (cx + spot.first - size / 2f).toInt(),
+                    (cy + spot.second - size / 2f).toInt(),
                 )
             }
-            .size(168.dp)
+            .size(156.dp)
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value },
         contentAlignment = Alignment.Center,
     ) {
-        // Angka pecahan = bagian dari total (harga gift x pengali), bukan 10.000 tetap.
-        // Aset SVGA hanya sampai 10.000, jadi nilai besar ditulis sebagai angka
-        // emas besar (tetap terbaca dan tidak ada berkas yang hilang).
-        val adaAset = value in 10L..10000L && (value % 10L == 0L)
-        if (adaAset) {
-            GiftSvga("asset/cashback/wois_gift_number_" + value + ".svga", "🪙", Modifier.fillMaxSize(), onEnd = { })
-        } else {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
+                GiftSvga("asset/cashback/wois_gift_number_" + aset + ".svga", "🪙", Modifier.fillMaxSize(), onEnd = { })
+            }
+            // Nilai pecahan yang sebenarnya, supaya jumlahnya tetap terbaca.
             Text(
                 fmtCompact(value),
                 color = Color(0xFFFFD24D),
-                fontSize = 30.sp,
+                fontSize = 20.sp,
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Black,
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier
+                    .offset { IntOffset(0, (-6f).toInt()) }
                     .clip(RoundedCornerShape(50))
-                    .background(Color(0x77000000))
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                    .background(Color(0x88000000))
+                    .padding(horizontal = 8.dp, vertical = 1.dp),
             )
         }
     }
+}
+
+/**
+ * Aset angka yang tersedia di aplikasi: 10, 20, 30, 50, 66, 88, 100, 200, 300,
+ * 400, 500, 666, 888, 1000, 2000, 3000, 4000, 6000, 8000, 9000, 10000.
+ * Dipilih yang paling besar tetapi tidak melebihi nilai pecahan.
+ */
+private val ASET_PECAHAN = longArrayOf(
+    10, 20, 30, 50, 66, 88, 100, 200, 300, 400, 500, 666, 888,
+    1000, 2000, 3000, 4000, 6000, 8000, 9000, 10000,
+)
+
+private fun assetPecahan(v: Long): Long {
+    var pilih = ASET_PECAHAN[0]
+    for (a in ASET_PECAHAN) if (a <= v) pilih = a
+    return pilih
 }
 
 
