@@ -149,6 +149,46 @@ object UserDirectory {
         return null
     }
 
+    /**
+     * Kebalikan dari ID resmi: cari UID Firebase dari ID angka (mis. 100129).
+     * Dipakai panel manager/admin supaya coin dikirim ke AKUN asli, bukan ke
+     * dompet palsu bernama "100129".
+     */
+    suspend fun uidFromId(id: String): String? {
+        val n = id.trim()
+        if (!n.all { it.isDigit() }) return n.takeIf { it.isNotBlank() }
+        try {
+            val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("ids/i/$n/uid").get().await() }
+            val v = s?.value
+            if (v is String && v.isNotBlank()) return v
+            if (v is Map<*, *>) (v["uid"] as? String)?.takeIf { it.isNotBlank() }?.let { return it }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Cadangan: profil publik yang belum punya catatan ids/i.
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(5000L) { Rtdb.ref("pub").get().await() }
+            if (snap != null && snap.exists()) {
+                var hit: String? = null
+                snap.children.forEach { c ->
+                    val v = c.value
+                    if (v is Map<*, *> && String.valueOf(v["id"] ?: "") == n) hit = c.key
+                }
+                if (hit != null) return hit
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Cadangan terakhir: data lama di Firestore.
+        try {
+            val d = kotlinx.coroutines.withTimeoutOrNull(4000L) { db().collection("userIds").document(n).get().await() }
+            (d?.getString("uid"))?.takeIf { it.isNotBlank() }?.let { return it }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        return null
+    }
+
     /** Simpan ID yang sudah ada ke Realtime Database (ids/u, ids/i). */
     private suspend fun mirrorIdToRtdb(uid: String, id: String) {
         try {

@@ -116,6 +116,19 @@ object PanelStaffRepo {
         0L
     }
 
+    /**
+     * Panel memakai ID angka, sedangkan server dompet memakai UID Firebase.
+     * Tanpa penerjemahan ini coin masuk ke dompet palsu bernama "100129"
+     * sehingga penerima sebenarnya tidak menerima apa pun.
+     */
+    suspend fun uidTarget(input: String): String {
+        val n = input.trim()
+        if (n.isBlank()) throw IllegalStateException("Isi ID user")
+        if (!n.all { it.isDigit() }) return n
+        val uid = UserDirectory.uidFromId(n) ?: throw IllegalStateException("ID $n tidak ditemukan")
+        return uid
+    }
+
     /** Pesan hasil aksi, siap ditampilkan. */
     suspend fun aksi(action: String, params: org.json.JSONObject, sebagai: String = ""): String {
         if (sebagai.isNotBlank()) params.put("sebagai", sebagai)
@@ -283,6 +296,15 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
         sibuk = true
         pesan = "Memproses..."
         scope.launch {
+            try {
+                if (params.has("to")) params.put("to", PanelStaffRepo.uidTarget(params.optString("to")))
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                pesan = e.message ?: "ID user tidak ditemukan"
+                sibuk = false
+                return@launch
+            }
             pesan = try {
                 PanelStaffRepo.aksi(action, params, info.role)
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -363,7 +385,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                                 pesan = try {
                                     val hasil = PanelStaffRepo.aksi(
                                         "send_coin",
-                                        org.json.JSONObject().put("to", idUser).put("coins", n),
+                                        org.json.JSONObject().put("to", PanelStaffRepo.uidTarget(idUser)).put("coins", n),
                                         info.role,
                                     )
                                     sisaCoin = PanelStaffRepo.sisaCoin(info.role)

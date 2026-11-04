@@ -873,6 +873,9 @@ async function panel(env, body) {
   const target = String(p.to ?? p.uid ?? "").trim();
   const butuhTarget = () => {
     if (!/^[A-Za-z0-9_-]{6,64}$/.test(target)) return "ID user tidak valid";
+    // ID angka (mis. 100129) BUKAN uid Firebase. Kalau diterima, coin masuk ke
+    // dompet palsu dan penerima asli tidak dapat apa pun.
+    if (/^\d+$/.test(target)) return "Kirim memakai UID akun, bukan ID angka. Update aplikasi ke versi terbaru.";
     return "";
   };
 
