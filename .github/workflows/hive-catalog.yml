@@ -23,8 +23,10 @@ jobs:
           req = urllib.request.Request(
               "https://api2023.duolepoker.com/v1/h5-game/third/game_info",
               data=body, headers={"Content-Type": "application/json"})
-          d = json.load(urllib.request.urlopen(req, timeout=30))
-          if d.get("code") != 200 or not d.get("data"):
+          raw = urllib.request.urlopen(req, timeout=30).read().decode()
+          d = json.loads(raw)
+          if str(d.get("code")) != "200" or not d.get("data"):
+              print("jawaban Hive:", raw[:300])
               raise SystemExit("katalog kosong/gagal: %s" % d.get("msg"))
           d["diambil"] = int(time.time() * 1000)
           json.dump(d, open("docs/hivegames.json", "w"), ensure_ascii=False, separators=(",", ":"))
