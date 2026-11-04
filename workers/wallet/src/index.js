@@ -75,16 +75,38 @@ async function pipe(env, stmts) {
 // ---------- Verifikasi token login Firebase ----------
 let jwks = { keys: [], at: 0 };
 
-async function kunci(kid) {
+// Kunci publik Firebase. Kalau Google lambat atau menolak, kunci lama tetap
+// dipakai - lebih baik verifikasi dengan kunci lama daripada semua user
+// mendadak dianggap "Sesi tidak sah" dan dompetnya tampil 0.
+async function ambilJwks() {
   const now = Date.now();
-  if (!jwks.keys.length || now - jwks.at > 3600_000) {
+  if (jwks.keys.length && now - jwks.at < 6 * 3600_000) return jwks;
+  try {
     const r = await fetch(
       "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com",
+      { signal: AbortSignal.timeout(8000) },
     );
+    if (!r.ok) throw new Error("jwks http " + r.status);
     const j = await r.json();
-    jwks = { keys: j.keys ?? [], at: now };
+    const keys = j.keys ?? [];
+    if (!keys.length) throw new Error("jwks kosong");
+    jwks = { keys, at: now };
+  } catch (e) {
+    jwks = { keys: jwks.keys, at: now - 6 * 3600_000 + 60_000 };
   }
-  return jwks.keys.find((k) => k.kid === kid) ?? null;
+  return jwks;
+}
+
+async function kunci(kid) {
+  let k = await ambilJwks();
+  let found = k.keys.find((x) => x.kid === kid) ?? null;
+  if (!found) {
+    // Kunci bisa berganti: paksa ambil sekali lagi sebelum menolak token.
+    jwks = { keys: [], at: 0 };
+    k = await ambilJwks();
+    found = k.keys.find((x) => x.kid === kid) ?? null;
+  }
+  return found;
 }
 
 function b64d(s) {
@@ -103,13 +125,14 @@ function klaimUid(token) {
   } catch { return ""; }
 }
 
+let sesiAlasan = "";
 async function sesiDariToken(token) {
   try {
     const [h, c, s] = token.split(".");
-    if (!h || !c || !s) return null;
+    if (!h || !c || !s) { sesiAlasan = "token tidak lengkap"; return null; }
     const head = JSON.parse(new TextDecoder().decode(b64d(h)));
     const jwk = await kunci(head.kid);
-    if (!jwk) return null;
+    if (!jwk) { sesiAlasan = "kunci kid tidak ada: " + String(head.kid); return null; }
     const key = await crypto.subtle.importKey(
       "jwk",
       { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: "RS256", ext: true },
@@ -123,16 +146,17 @@ async function sesiDariToken(token) {
       b64d(s),
       new TextEncoder().encode(`${h}.${c}`),
     );
-    if (!ok) return null;
+    if (!ok) { sesiAlasan = "tanda tangan tidak cocok"; return null; }
     const body = JSON.parse(new TextDecoder().decode(b64d(c)));
     const now = Math.floor(Date.now() / 1000);
-    if (String(body.aud) !== PROJ) return null;
-    if (String(body.iss) !== `https://securetoken.google.com/${PROJ}`) return null;
-    if (Number(body.exp ?? 0) <= now) return null;
+    if (String(body.aud) !== PROJ) { sesiAlasan = "aud beda: " + String(body.aud); return null; }
+    if (String(body.iss) !== `https://securetoken.google.com/${PROJ}`) { sesiAlasan = "iss beda"; return null; }
+    if (Number(body.exp ?? 0) <= now) { sesiAlasan = "token kadaluarsa"; return null; }
     const uid = String(body.sub ?? body.user_id ?? "");
     if (!uid) return null;
     return { uid, email: String(body.email ?? "") };
-  } catch {
+  } catch (e) {
+    sesiAlasan = "galat verifikasi: " + String(e?.message ?? e);
     return null;
   }
 }
@@ -1518,7 +1542,7 @@ export default {
     // Pemanggilan dari app wajib membawa token login Firebase.
     const uidToken = await uidDariToken(String(b.t ?? ""));
     if (!uidToken) {
-      await logGalat(env, klaimUid(String(b.t ?? "")), aksi, "token ditolak");
+      await logGalat(env, klaimUid(String(b.t ?? "")), aksi, "token ditolak: " + (sesiAlasan || "-"));
       return json({ ok: 0, e: "Sesi tidak sah" }, 401);
     }
 

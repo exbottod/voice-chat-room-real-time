@@ -201,7 +201,9 @@ object WalletRepo {
                 // dilonggarkan jadi 5 menit supaya kuota Supabase tidak habis.
                 // Kalau server bermasalah, jeda dilipatkan.
                 jeda = when {
-                    res.error != null -> minOf(jeda * 2, 300_000L)
+                    // Saat app sedang dibuka, jangan menunggu terlalu lama setelah
+                    // gagal: dompet bisa tampak kosong sampai 5 menit.
+                    res.error != null -> if (AppAktif.ya) minOf(jeda * 2, 60_000L) else minOf(jeda * 2, 300_000L)
                     // Sedang dipakai: tetap segar seperti dulu.
                     AppAktif.ya -> 15_000L
                     // Ditinggal di latar belakang: hemat kuota.
