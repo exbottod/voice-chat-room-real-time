@@ -1502,6 +1502,27 @@ async function hivePlay(req, env) {
   return hiveFail("endpoint tidak dikenal", 404);
 }
 
+/**
+ * Katalog game Hive lewat server kita sendiri. HP yang jaringannya memblokir
+ * domain katalog Hive tetap bisa mengambil daftar lewat Worker, jadi game yang
+ * dihapus/ditambah di console Hive selalu ikut tanpa update APK.
+ */
+async function hiveKatalog() {
+  const ts = String(Date.now());
+  const nonce = ts + String(1000 + Math.floor(Math.random() * 9000));
+  const sig = md5hex(HIVE_APP_ID + HIVE_KEY + nonce + ts);
+  const r = await fetch("https://api2023.duolepoker.com/v1/h5-game/third/game_info", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ appId: HIVE_APP_ID, timestamp: ts, nonce, signature: sig, env: "prod" }),
+  });
+  const t = await r.text();
+  return new Response(t, {
+    status: r.ok ? 200 : 502,
+    headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -1515,6 +1536,9 @@ export default {
       const b = await req.json().catch(() => null);
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
       return await admin(env, b);
+    }
+    if (url.pathname === "/hivecatalog") {
+      try { return await hiveKatalog(); } catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 502); }
     }
     if (url.pathname.toLowerCase().startsWith("/hive/")) {
       return await hivePlay(req, env);

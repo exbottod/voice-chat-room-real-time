@@ -81,6 +81,13 @@ object HiveGames {
     private const val CATALOG = "https://api2023.duolepoker.com/v1/h5-game/third/game_info"
     private const val ENV = "prod"
 
+    /** Cermin katalog: dipakai kalau domain Hive tidak bisa dihubungi dari HP. */
+    private val CERMIN = listOf(
+        "https://exbottod.github.io/voice-chat-room-real-time/hivegames.json",
+        "https://rezo-wallet.bangexx01.workers.dev/hivecatalog",
+        "https://rezo-wallet.pages.dev/hivecatalog",
+    )
+
     data class Game(
         val id: Int,
         val thirdPartyId: Int,
@@ -158,14 +165,16 @@ object HiveGames {
     /** Daftar terakhir yang berhasil diambil, disimpan di HP. */
     private fun simpan(txt: String) {
         try {
-            prefs()?.edit()?.putString("katalog", txt)?.apply()
+            prefs()?.edit()?.putString("katalog2", txt)?.apply()
         } catch (e: Exception) {
         }
     }
 
     private fun katalogTersimpan(): List<Game> {
         return try {
-            val txt = prefs()?.getString("katalog", null) ?: return emptyList()
+            // "katalog2": nama baru supaya daftar bawaan lama (18 game, sudah
+            // dihapus di console) tidak dipakai lagi di HP yang belum update.
+            val txt = prefs()?.getString("katalog2", null) ?: return emptyList()
             baca(txt)
         } catch (e: Exception) {
             emptyList()
@@ -241,32 +250,40 @@ object HiveGames {
                 if (percobaan == 0) kotlinx.coroutines.delay(1200)
             }
         }
+        // Jaringan HP sering memblokir domain Hive. Coba cermin katalog dulu
+        // sebelum menyerah: GitHub Pages (diperbarui tiap 10 menit) lalu server kita.
+        for (url in CERMIN) {
+            try {
+                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 8000
+                    readTimeout = 12000
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Cache-Control", "no-cache")
+                }
+                val txt = conn.inputStream.bufferedReader().use { it.readText() }
+                val out = baca(txt)
+                if (out.isNotEmpty()) {
+                    simpan(txt)
+                    dariServer = true
+                    return@withContext out
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+            }
+        }
         dariServer = false
-        val tersimpan = katalogTersimpan()
-        if (tersimpan.isNotEmpty()) tersimpan else fallback
+        // TIDAK memakai daftar bawaan: game yang sudah dihapus di console tidak
+        // boleh muncul lagi. Kalau belum ada data, tampilkan kosong + tombol muat ulang.
+        katalogTersimpan()
     }
 
-    // Cadangan kalau katalog tidak bisa dihubungi.
-    val fallback = listOf(
-        Game(1000, 11923, "KingOfOlympus", "https://d2bd0pfu4eztx8.cloudfront.net/20250820/17556825806565671233b0c.png", "https://www.duolefast.com/common-web/full/game1000/1.1.3/web-mobile/index.html", true, 720, 780),
-        Game(1005, 11924, "GatesOfGatotkaca", "https://d2bd0pfu4eztx8.cloudfront.net/20250820/1755682689838e629d93ef5.png", "https://www.duolefast.com/common-web/full/game1005/1.1.3/web-mobile/index.html", true, 720, 780),
-        Game(1006, 11925, "Aztec", "https://d2bd0pfu4eztx8.cloudfront.net/20251226/1766743520441442b525a6d.png", "https://www.duolefast.com/common-web/full/game1006/1.1.3/web-mobile/index.html", true, 720, 780),
-        Game(1008, 11926, "MahjongWays", "https://d2bd0pfu4eztx8.cloudfront.net/20260330/1774861065266e9b2f828e0.png", "https://www.duolefast.com/common-web/full/game1008/1.1.3/web-mobile/index.html", true, 720, 880),
-        Game(1011, 11927, "SweetBonanza", "https://d2bd0pfu4eztx8.cloudfront.net/20260403/177520651058399d652539f.png", "https://www.duolefast.com/common-web/full/game1011/1.1.3/web-mobile/index.html", true, 720, 780),
-        Game(1013, 11928, "SugarRush", "https://d2bd0pfu4eztx8.cloudfront.net/20251031/1761906655522eac63b2f5a.png", "https://www.duolefast.com/common-web/full/game1013/1.1.3/web-mobile/index.html", true, 720, 780),
-        Game(1014, 11929, "MonkeyKing", "https://d2bd0pfu4eztx8.cloudfront.net/20250820/17556827536300835603814.png", "https://www.duolefast.com/common-web/full/game1014/1.1.3/web-mobile/index.html", true, 720, 880),
-        Game(1017, 11930, "LuckyPig", "https://d2bd0pfu4eztx8.cloudfront.net/20250820/1755682609843e661837b7b.png", "https://www.duolefast.com/common-web/full/game1017/1.1.3/web-mobile/index.html", true, 720, 720),
-        Game(845, 11931, "GreedyKing", "https://d2bd0pfu4eztx8.cloudfront.net/20260420/1776668984853cb231a85b1.png", "https://www.duolefast.com/common-web/full/game845/1.1.3/web-mobile/index.html", false, 720, 920),
-        Game(848, 11932, "FruitParty", "https://d2bd0pfu4eztx8.cloudfront.net/20260423/1776915806327bab501454b.png", "https://www.duolefast.com/common-web/vert/game848/1.1.3/web-mobile/index.html", false, 720, 920),
-        Game(841, 11933, "DragonTiger", "https://d2bd0pfu4eztx8.cloudfront.net/20260625/178236620946457f4a36f02.png", "https://www.duolefast.com/common-web/full/game841/1.1.3/web-mobile/index.html", false, 720, 1100),
-        Game(1031, 11934, "ScratchCard", "https://d2bd0pfu4eztx8.cloudfront.net/20260706/1783333030006e505b47744.png", "https://www.duolefast.com/common-web/full/game1031/1.1.3/web-mobile/index.html", false, 720, 900),
-        Game(851, 11935, "GreedyBanker", "https://d2bd0pfu4eztx8.cloudfront.net/20260703/1783068147269705130bd1d.png", "https://www.duolefast.com/common-web/full/game851/1.1.3/web-mobile/index.html", false, 720, 920),
-        Game(853, 11936, "GreedyLion", "https://d2bd0pfu4eztx8.cloudfront.net/20260708/1783492250184e6d20b7761.png", "https://www.duolefast.com/common-web/full/game853/1.1.3/web-mobile/index.html", false, 720, 1040),
-        Game(842, 11937, "Crash", "https://d2bd0pfu4eztx8.cloudfront.net/20260825/178763822478197206cd72e.png", "https://www.duolefast.com/common-web/full/game842/1.1.3/web-mobile/index.html", true, 720, 950),
-        Game(857, 11938, "GreedyCatKing", "https://d1rbs2pv9iwt9o.cloudfront.net/20260928/179055866379578c68379d6.png", "https://www.duolefast.com/common-web/full/game857/1.1.3/web-mobile/index.html", false, 720, 1040),
-        Game(865, 11939, "Roulette", "https://d1rbs2pv9iwt9o.cloudfront.net/20261015/179202841149390c31925a7.png", "https://www.duolefast.com/common-web/full/game865/1.1.3/web-mobile/index.html", false, 720, 1000),
-        Game(864, 11940, "Teenpatti", "https://d1rbs2pv9iwt9o.cloudfront.net/20261023/17927337478481a291ef72f.png", "https://www.duolefast.com/common-web/full/game864/1.1.3/web-mobile/index.html", false, 720, 900),
-    )
+    /**
+     * Sengaja KOSONG: daftar bawaan APK membuat game yang sudah dihapus di
+     * console Hive tetap muncul. Sumber resmi hanya Hive + cermin katalog.
+     */
+    val fallback: List<Game> = emptyList()
 }
 
 /** Cari Activity dari Context (Compose memberi ContextWrapper). */

@@ -1,0 +1,44 @@
+# Cermin katalog game Hive di GitHub Pages. Diperbarui tiap 10 menit supaya
+# game yang dihapus/ditambah di console Hive hilang/muncul tanpa update APK,
+# dan tidak memakai kuota Cloudflare Worker.
+name: Katalog Hive
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  katalog:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ambil katalog dari Hive
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, random, time, urllib.request
+          APP, KEY = "100198", "eb09c56d97454d43ab2698ad548697ab"
+          ts = str(int(time.time() * 1000)); nonce = ts + str(random.randint(1000, 9999))
+          sig = hashlib.md5((APP + KEY + nonce + ts).encode()).hexdigest()
+          body = json.dumps({"appId": APP, "timestamp": ts, "nonce": nonce,
+                             "signature": sig, "env": "prod"}).encode()
+          req = urllib.request.Request(
+              "https://api2023.duolepoker.com/v1/h5-game/third/game_info",
+              data=body, headers={"Content-Type": "application/json"})
+          d = json.load(urllib.request.urlopen(req, timeout=30))
+          if d.get("code") != 200 or not d.get("data"):
+              raise SystemExit("katalog kosong/gagal: %s" % d.get("msg"))
+          d["diambil"] = int(time.time() * 1000)
+          json.dump(d, open("docs/hivegames.json", "w"), ensure_ascii=False, separators=(",", ":"))
+          print("game:", len(d["data"]))
+          PY
+      - name: Simpan kalau berubah
+        run: |
+          if [ -z "$(git status --porcelain docs/hivegames.json)" ]; then echo "Tidak ada perubahan."; exit 0; fi
+          git config user.name "rezo-bot"
+          git config user.email "rezo-bot@users.noreply.github.com"
+          cp docs/hivegames.json /tmp/hivegames.json
+          git fetch origin main
+          git reset --hard origin/main
+          cp /tmp/hivegames.json docs/hivegames.json
+          git add docs/hivegames.json
+          git commit -m "chore(katalog): cermin daftar game Hive"
+          git push origin HEAD:main
