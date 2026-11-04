@@ -1393,9 +1393,31 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
     }
 }
 
+/** Tekan lama pada teks chat room: salin isi pesan ke papan klip. */
+@Composable
+private fun IngatSalin(text: String): () -> Unit {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    return {
+        try {
+            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("REZO", text))
+            android.widget.Toast.makeText(ctx, "Teks disalin", android.widget.Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(ctx, "Gagal menyalin", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
 @Composable
 private fun RmMsgBox(text: String, color: Color) {
-    Box(Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x66000000)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+    val salin = IngatSalin(text)
+    Box(
+        Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x66000000))
+            .pointerInput(text) {
+                androidx.compose.foundation.gestures.detectTapGestures(onLongPress = { salin() })
+            }
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
         Text(text, color = color, fontSize = 14.sp)
     }
 }
@@ -1893,7 +1915,16 @@ private fun RmChatRow(m: RoomMsg, myUid: String, onProfile: (String) -> Unit) {
                         VipMedia(bAsset, Modifier.matchParentSize(), contentScale = androidx.compose.ui.layout.ContentScale.FillBounds)
                     }
                 }
-                Text(m.text, color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                val salinTeks = IngatSalin(m.text)
+                Text(
+                    m.text, color = Color.White, fontSize = 14.sp,
+                    modifier = Modifier.pointerInput(m.text) {
+                        androidx.compose.foundation.gestures.detectTapGestures(
+                            onLongPress = { salinTeks() },
+                        )
+                    }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                )
             }
         }
     }
