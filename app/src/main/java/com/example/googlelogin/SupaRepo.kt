@@ -23,6 +23,11 @@ object SupaRepo {
     // Jalur cadangan (alamat lain, server dan database sama). Dipakai kalau HP
     // tidak bisa menjangkau alamat utama, misalnya diblokir jaringan/ISP.
     private const val WAL2 = "https://rezo-wallet.pages.dev"
+    // Baca saldo langsung dari Turso, tanpa lewat Cloudflare. Token di bawah
+    // HARUS token baca-saja (read only), karena ikut tertanam di dalam APK.
+    // Kalau kosong, app kembali memakai jalur worker seperti biasa.
+    private const val TURSO_RO_URL = "https://rezo-voice-chat-officialex.aws-ap-southeast-1.turso.io"
+    private const val TURSO_RO_TOKEN = ""
     @Volatile private var pakaiCadangan = false
     // Kunci publishable: memang boleh ada di dalam aplikasi
     // (setara kunci anon, tanpa akses data karena RLS menutup semua tabel).
@@ -158,6 +163,72 @@ object SupaRepo {
         if (o.optInt("ok") == 1) return Res(parseWallet(o.optJSONObject("w")), null)
         val err = o.optString("e", "")
         return Res(null, err.ifBlank { "Server sibuk, coba lagi" }, err.contains("WALLET_NOT_FOUND"))
+    }
+
+    /** Baca baris dompet langsung dari Turso (jalur baca-saja). null = gagal. */
+    private fun bacaTurso(uid: String): Wallet? {
+        if (TURSO_RO_TOKEN.isBlank() || uid.isBlank()) return null
+        val sql = "select uid, coins, diamonds, exp, vip, vip_until, lv_claimed, inv, equip " +
+            "from wallets where uid = ?"
+        val stmt = org.json.JSONObject().put("sql", sql).put(
+            "args", org.json.JSONArray().put(
+                org.json.JSONObject().put("type", "text").put("value", uid)
+            )
+        )
+        val body = org.json.JSONObject().put(
+            "requests", org.json.JSONArray()
+                .put(org.json.JSONObject().put("type", "execute").put("stmt", stmt))
+                .put(org.json.JSONObject().put("type", "close"))
+        )
+        var c: HttpURLConnection? = null
+        return try {
+            c = (URL("$TURSO_RO_URL/v2/pipeline").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 6_000
+                readTimeout = 8_000
+                doOutput = true
+                setRequestProperty("Authorization", "Bearer $TURSO_RO_TOKEN")
+                setRequestProperty("Content-Type", "application/json")
+            }
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (c.responseCode !in 200..299) return null
+            val txt = c.inputStream.bufferedReader().use { it.readText() }
+            val hasil = org.json.JSONObject(txt).getJSONArray("results")
+                .getJSONObject(0).getJSONObject("response").getJSONObject("result")
+            val cols = hasil.getJSONArray("cols")
+            val rows = hasil.getJSONArray("rows")
+            if (rows.length() == 0) return null
+            val row = rows.getJSONArray(0)
+            fun kolom(nama: String): org.json.JSONObject? {
+                for (i in 0 until cols.length()) {
+                    if (cols.getJSONObject(i).optString("name") == nama) {
+                        if (row.isNull(i)) return null
+                        return row.getJSONObject(i)
+                    }
+                }
+                return null
+            }
+            fun angka(nama: String) = kolom(nama)?.optString("value")?.toDoubleOrNull()?.toLong() ?: 0L
+            fun teks(nama: String): String {
+                val k = kolom(nama) ?: return ""
+                val v = k.optString("value")
+                return if (v == "null") "" else v
+            }
+            val o = org.json.JSONObject()
+                .put("coins", angka("coins"))
+                .put("diamonds", angka("diamonds"))
+                .put("exp", angka("exp"))
+                .put("vip", angka("vip"))
+                .put("vipUntil", angka("vip_until"))
+                .put("lvClaimed", angka("lv_claimed"))
+                .put("inv", org.json.JSONObject(teks("inv").ifBlank { "{}" }))
+                .put("equip", org.json.JSONObject(teks("equip").ifBlank { "{}" }))
+            parseWallet(o)
+        } catch (e: Exception) {
+            null
+        } finally {
+            try { c?.disconnect() } catch (e: Exception) { }
+        }
     }
 
     /**
@@ -372,6 +443,13 @@ object SupaRepo {
         return bacaKunci.withLock {
             if (!fresh) {
                 cacheSaldo[uid]?.let { if (System.currentTimeMillis() - it.at < CACHE_MS) return@withLock it.res }
+            }
+            // Jalur utama: baca langsung ke Turso. Tidak memakai kuota Cloudflare
+            // dan tidak terpengaruh batas 100 ribu permintaan per hari.
+            bacaTurso(uid)?.let { w ->
+                val r = Res(w, null)
+                cacheSaldo[uid] = Entri(r, System.currentTimeMillis())
+                return@withLock r
             }
             val r = call("get", uidJson(uid))
             if (r.wallet != null) cacheSaldo[uid] = Entri(r, System.currentTimeMillis())
