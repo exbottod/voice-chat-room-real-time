@@ -148,9 +148,24 @@ object AgoraVoice {
                 try { it.setDefaultAudioRoutetoSpeakerphone(true) } catch (e: Exception) { }
                 try { it.setEnableSpeakerphone(true) } catch (e: Exception) { }
                 // Wajib untuk HP yang jaringannya memblokir UDP Agora.
-                // Pakai auto proxy resmi SDK, bukan angka mentah.
+                // Nama konstanta proxy berbeda antar versi SDK, jadi dipanggil
+                // lewat refleksi supaya build tidak gagal saat SDK diperbarui.
                 try {
-                    it.setCloudProxy(Constants.CLOUD_PROXY_TYPE_AUTO_PROXY)
+                    val m = it.javaClass.methods.firstOrNull {
+                        it.name == "setCloudProxy" && it.parameterTypes.size == 1
+                    }
+                    if (m != null) {
+                        val tipe = m.parameterTypes[0]
+                        val nilai = if (tipe.isEnum) {
+                            tipe.enumConstants?.firstOrNull { e ->
+                                (e as Enum<*>).name.contains("AUTO")
+                            }
+                        } else {
+                            // Angka: 3 = auto proxy pada SDK versi lama.
+                            3
+                        }
+                        if (nilai != null) m.invoke(it, nilai)
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "cloud proxy gagal: ${e.message}")
                 }
