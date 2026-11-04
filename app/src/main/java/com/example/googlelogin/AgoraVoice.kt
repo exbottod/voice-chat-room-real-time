@@ -135,7 +135,10 @@ object AgoraVoice {
                 try { it.setDefaultAudioRoutetoSpeakerphone(true) } catch (e: Exception) { }
                 try { it.setEnableSpeakerphone(true) } catch (e: Exception) { }
                 // Wajib untuk HP yang jaringannya memblokir UDP Agora.
-                try { it.setCloudProxy(5) // 5 = cloud proxy TLS 443 } catch (e: Exception) {
+                // 5 = cloud proxy lewat TLS 443, untuk jaringan yang memblokir UDP Agora.
+                try {
+                    it.setCloudProxy(5)
+                } catch (e: Exception) {
                     Log.e(TAG, "cloud proxy gagal: ${e.message}")
                 }
                 engine = it
