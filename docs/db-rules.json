@@ -31,7 +31,7 @@
     "messages": {
       "$roomId": {
         ".read": "auth != null",
-        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com' || root.child('roomsPub').child($roomId).child('ownerUid').val() === auth.uid)",
+        ".write": "auth != null",
         "$msgId": {
           ".validate": "!newData.exists() || (newData.child('text').isString() && newData.child('text').val().length <= 500 && newData.hasChild('createdAt') && (!newData.hasChild('img') || (newData.child('img').isString() && newData.child('img').val().length <= 500)))"
         }
