@@ -685,7 +685,12 @@ fun RocketRail(roomId: String, onOpen: () -> Unit, modifier: Modifier = Modifier
  * Dibuka dari ikon roket di room.
  */
 @Composable
-fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
+fun RocketScreen(
+    roomId: String,
+    onDismiss: () -> Unit,
+    fxAktif: Boolean = true,
+    onNyalakanFx: (() -> Unit)? = null,
+) {
     LaunchedEffect(Unit) { RocketCfg.start() }
     LaunchedEffect(roomId) { RocketRepo.room(roomId) }
     val total = RocketRepo.exp
@@ -777,6 +782,38 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
             )
             tesPesan?.let {
                 Text(it, color = Color(0xFFFFE082), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+            }
+            // Alasan paling sering animasi tidak muncul padahal database lancar:
+            // efek roket dimatikan di menu Blok Efek milik akun ini.
+            if (!fxAktif) {
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 8.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0x33FF5252))
+                        .padding(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        "Efek roket sedang DIMATIKAN di menu Blok Efek HP ini, jadi animasi tidak diputar.",
+                        color = Color(0xFFFFCDD2), fontSize = 11.sp, textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Nyalakan sekarang",
+                        color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clip(RoundedCornerShape(50))
+                            .background(Color(0xFFFFD54F))
+                            .clickable { onNyalakanFx?.invoke() }
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                    )
+                }
+            }
+            if (RocketCfg.uiOff) {
+                Text(
+                    "Roket juga sedang dimatikan global dari panel dev.",
+                    color = Color(0xFFFF8A80), fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 6.dp), textAlign = TextAlign.Center,
+                )
             }
 
             Spacer(Modifier.height(14.dp))

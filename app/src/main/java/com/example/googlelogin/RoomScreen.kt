@@ -878,7 +878,16 @@ fun RoomScreen(
         }
         // Tombol kombo bulat untuk gift cashback (klik terus untuk kirim ulang).
         GiftComboBar(myUid, myName)
-        if (rocketOpen) RocketScreen(r.id) { rocketOpen = false }
+        if (rocketOpen) RocketScreen(
+            roomId = r.id,
+            onDismiss = { rocketOpen = false },
+            fxAktif = fxRocketOn,
+            onNyalakanFx = {
+                fxRocketOn = true
+                try { fxLocal.edit().putBoolean("rocket", true).apply() } catch (e: Exception) { }
+                try { if (fxUid.isNotBlank()) Rtdb.ref("fxPrefs/$fxUid/rocket").setValue(true) } catch (e: Exception) { }
+            },
+        )
         if (fxBannerOn) GiftBanner(r.id)
         // Banner cashback terpisah: hanya saat JP 10.000 ke atas.
         if (fxBannerOn) CashbackBanner(r.id)
