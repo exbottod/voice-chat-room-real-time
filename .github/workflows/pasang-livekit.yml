@@ -1,0 +1,36 @@
+name: Pasang LiveKit
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/pasang-livekit.yml"
+      - "vps/livekit/**"
+permissions:
+  contents: write
+jobs:
+  pasang:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pasang LiveKit di VPS
+        env:
+          PASS: ${{ secrets.VPS_PASSWORD || secrets.VPS_PASSWORDS || secrets.VPS_PASS || secrets.VPS_ROOT_PASSWORD }}
+        run: |
+          sudo apt-get update -qq; sudo apt-get install -y -qq sshpass >/dev/null
+          OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+          mkdir -p hasil
+          SKRIP=$(cat vps/livekit/pasang.sh | base64 -w0)
+          PERIKSA="echo $SKRIP | base64 -d | bash"
+          OUT=hasil/livekit-${{ github.run_number }}.txt
+          { printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@43.156.99.4 "sudo -S -p '' bash -c '$PERIKSA'"; } > $OUT 2>&1 \
+            || sshpass -p "$PASS" ssh $OPSI root@43.156.99.4 "bash -c '$PERIKSA'" > $OUT 2>&1 \
+            || true
+          cat $OUT
+      - name: Simpan hasil
+        run: |
+          git config user.email dev@rezo.app
+          git config user.name "REZO Build"
+          git add hasil
+          git commit -m "chore: hasil pasang livekit" || true
+          git pull -q --rebase origin main || true
+          git push || git push || true
