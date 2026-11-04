@@ -1,17 +1,72 @@
 {
-  "status": "gagal",
-  "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AgoraVoice.kt:139:54 Unresolved reference 'e'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AgoraVoice.kt:140:18 Syntax error: Expecting 'catch' or 'finally'.",
-    "* What went wrong:"
-  ],
-  "versi": "1.0.725",
-  "ukuran_mb": 0,
-  "sha256": "",
-  "commit": "c9d5074",
-  "waktu": "2026-11-04T02:25:49Z",
+  "status": "ok",
+  "masalah": [],
+  "versi": "1.0.726",
+  "ukuran_mb": 106.8,
+  "sha256": "f67788273a40f64d65d9c16f96a89383b2cfc72a8a3ddff3e2bc974afc7a1c3b",
+  "commit": "18ca399",
+  "waktu": "2026-11-04T02:30:06Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 0,
-  "aset_total": 0,
-  "fitur": []
+  "aset_roket": 30,
+  "aset_total": 118,
+  "fitur": [
+    {
+      "nama": "Banner cashback terpisah",
+      "ada": true
+    },
+    {
+      "nama": "Banner gift biasa",
+      "ada": true
+    },
+    {
+      "nama": "Animasi cashback di avatar",
+      "ada": true
+    },
+    {
+      "nama": "Tombol kombo cashback",
+      "ada": true
+    },
+    {
+      "nama": "Roket level 1-5 di room",
+      "ada": true
+    },
+    {
+      "nama": "Peluncuran roket cadangan",
+      "ada": true
+    },
+    {
+      "nama": "Sambung ulang suara otomatis",
+      "ada": true
+    },
+    {
+      "nama": "Tukar diamond nominal sendiri",
+      "ada": true
+    },
+    {
+      "nama": "Papan peringkat roket",
+      "ada": true
+    }
+  ],
+  "roket_level": [
+    {
+      "level": 1,
+      "ada": true
+    },
+    {
+      "level": 2,
+      "ada": true
+    },
+    {
+      "level": 3,
+      "ada": true
+    },
+    {
+      "level": 4,
+      "ada": true
+    },
+    {
+      "level": 5,
+      "ada": true
+    }
+  ]
 }
