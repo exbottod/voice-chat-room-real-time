@@ -34,8 +34,6 @@ rtc:
   use_external_ip: false
   node_ip: $IP_PUBLIK
   allow_tcp_fallback: true
-  ice_disconnected_timeout: 30
-  ice_failed_timeout: 60
 keys:
   $LIVEKIT_API_KEY: $LIVEKIT_API_SECRET
 room:
