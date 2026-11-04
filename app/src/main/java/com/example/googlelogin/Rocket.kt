@@ -776,6 +776,12 @@ fun RocketScreen(
                                     ctxTes, tesPesan ?: "", android.widget.Toast.LENGTH_LONG,
                                 ).show()
                             } catch (ex: Exception) { }
+                            // Panel ditutup supaya animasi roket di room kelihatan.
+                            // Kalau panel tetap terbuka, video berjalan di belakangnya.
+                            if (e == null) {
+                                kotlinx.coroutines.delay(400)
+                                onDismiss()
+                            }
                         }
                     }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
