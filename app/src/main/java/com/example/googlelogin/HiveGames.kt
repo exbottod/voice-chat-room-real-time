@@ -136,58 +136,110 @@ object HiveGames {
         return fresh
     }
 
+    /** Paksa ambil ulang dari Hive (dipakai tombol "Muat ulang"). */
+    suspend fun listSegar(): List<Game> {
+        cache = null
+        cacheAt = 0L
+        return list()
+    }
+
+    private var appCtx: android.content.Context? = null
+
+    /** Dipanggil sekali dari Game Center supaya daftar terakhir bisa disimpan. */
+    fun init(c: android.content.Context) {
+        if (appCtx == null) appCtx = c.applicationContext
+    }
+
+    private fun prefs(): android.content.SharedPreferences? =
+        appCtx?.getSharedPreferences("rezo_hive", android.content.Context.MODE_PRIVATE)
+
+    /** Daftar terakhir yang berhasil diambil, disimpan di HP. */
+    private fun simpan(txt: String) {
+        try {
+            prefs()?.edit()?.putString("katalog", txt)?.apply()
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun katalogTersimpan(): List<Game> {
+        return try {
+            val txt = prefs()?.getString("katalog", null) ?: return emptyList()
+            baca(txt)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /** Urai jawaban katalog Hive. */
+    private fun baca(txt: String): List<Game> {
+        val out = ArrayList<Game>()
+        val arr = JSONObject(txt).optJSONArray("data") ?: return out
+        for (i in 0 until arr.length()) {
+            val g = arr.optJSONObject(i) ?: continue
+            val start = g.optString("startUrl")
+            if (start.isBlank()) continue
+            out.add(
+                Game(
+                    id = g.optInt("gameId"),
+                    thirdPartyId = g.optInt("thirdPartyId"),
+                    name = g.optString("gameName"),
+                    icon = g.optString("gameIcon"),
+                    startUrl = start,
+                    landscape = g.optString("screen").contains("\u6a2a"),
+                    screenWidth = g.optString("screenWidth").toIntOrNull() ?: 720,
+                    safeHeight = g.optString("safeHeight").toIntOrNull() ?: 900,
+                ),
+            )
+        }
+        return out
+    }
+
     /** Cari game menurut id, dari daftar terbaru maupun daftar cadangan. */
     fun find(id: Int): Game? =
         (cache ?: emptyList()).firstOrNull { it.id == id } ?: fallback.firstOrNull { it.id == id }
 
-    /** Daftar game dari Hive. Kalau jaringan gagal, pakai daftar bawaan. */
+    /**
+     * Daftar game dari Hive. Kalau jaringan gagal, dipakai daftar terakhir yang
+     * tersimpan di HP, baru terakhir daftar bawaan APK.
+     */
     suspend fun catalog(): List<Game> = withContext(Dispatchers.IO) {
-        try {
-            val ts = System.currentTimeMillis().toString()
-            val nonce = ts + (1000..9999).random()
-            val sig = md5(APP_ID + APP_KEY + nonce + ts)
-            val payload = JSONObject()
-                .put("appId", APP_ID)
-                .put("timestamp", ts)
-                .put("nonce", nonce)
-                .put("signature", sig)
-                .put("env", ENV)
-                .toString()
-            val conn = (URL(CATALOG).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 10000
-                readTimeout = 15000
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Accept", "application/json")
+        repeat(2) { percobaan ->
+            try {
+                val ts = System.currentTimeMillis().toString()
+                val nonce = ts + (1000..9999).random()
+                val sig = md5(APP_ID + APP_KEY + nonce + ts)
+                val payload = JSONObject()
+                    .put("appId", APP_ID)
+                    .put("timestamp", ts)
+                    .put("nonce", nonce)
+                    .put("signature", sig)
+                    .put("env", ENV)
+                    .toString()
+                val conn = (URL(CATALOG).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 12000
+                    readTimeout = 20000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                }
+                conn.outputStream.use { it.write(payload.toByteArray()) }
+                val txt = conn.inputStream.bufferedReader().use { it.readText() }
+                val out = baca(txt)
+                if (out.isNotEmpty()) {
+                    simpan(txt)
+                    return@withContext out
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Coba sekali lagi; HP dengan jaringan lambat sering gagal
+                // pada percobaan pertama.
+                if (percobaan == 0) kotlinx.coroutines.delay(1200)
             }
-            conn.outputStream.use { it.write(payload.toByteArray()) }
-            val txt = conn.inputStream.bufferedReader().use { it.readText() }
-            val arr = JSONObject(txt).optJSONArray("data") ?: return@withContext fallback
-            val out = ArrayList<Game>()
-            for (i in 0 until arr.length()) {
-                val g = arr.optJSONObject(i) ?: continue
-                val start = g.optString("startUrl")
-                if (start.isBlank()) continue
-                out.add(
-                    Game(
-                        id = g.optInt("gameId"),
-                        thirdPartyId = g.optInt("thirdPartyId"),
-                        name = g.optString("gameName"),
-                        icon = g.optString("gameIcon"),
-                        startUrl = start,
-                        landscape = g.optString("screen").contains("\u6a2a"),
-                        screenWidth = g.optString("screenWidth").toIntOrNull() ?: 720,
-                        safeHeight = g.optString("safeHeight").toIntOrNull() ?: 900,
-                    ),
-                )
-            }
-            if (out.isEmpty()) fallback else out.also { cache = it; cacheAt = System.currentTimeMillis() }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            fallback
         }
+        val tersimpan = katalogTersimpan()
+        if (tersimpan.isNotEmpty()) tersimpan else fallback
     }
 
     // Cadangan kalau katalog tidak bisa dihubungi.

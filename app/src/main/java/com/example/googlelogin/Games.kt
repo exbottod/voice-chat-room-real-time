@@ -74,9 +74,18 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
     var balance by remember { mutableStateOf(0L) }
     // Daftar game Hive diambil dari server, jadi game baru dari console ikut tampil.
     var hiveGames by remember { mutableStateOf(HiveGames.fallback) }
+    // true kalau daftar terbaru dari server berhasil diambil.
+    var daftarDariServer by remember { mutableStateOf(false) }
+    var muatUlang by remember { mutableStateOf(0) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
 
-    LaunchedEffect(Unit) {
-        hiveGames = try { HiveGames.list() } catch (e: Exception) { HiveGames.fallback }
+    LaunchedEffect(muatUlang) {
+        HiveGames.init(ctx)
+        val segar = try { HiveGames.listSegar() } catch (e: Exception) { emptyList() }
+        if (segar.isNotEmpty()) {
+            hiveGames = segar
+            daftarDariServer = true
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -141,6 +150,20 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                         Text("Game Center", color = Color(0xFFF0DDBF), fontSize = 17.sp)
                         Spacer(Modifier.width(10.dp))
                         Text("〰", color = Color(0xFFB08A5A), fontSize = 14.sp)
+                    }
+                    // Kalau daftar dari server gagal, munculkan tombol muat ulang
+                    // supaya game baru dari console Hive tetap bisa ditarik.
+                    if (!daftarDariServer) {
+                        Box(
+                            Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                                .clickable { muatUlang++ },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                "Daftar game belum dari server · ketuk untuk muat ulang",
+                                color = Color(0xFFFFC46B), fontSize = 11.sp,
+                            )
+                        }
                     }
 
                     Column(
