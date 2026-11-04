@@ -92,6 +92,7 @@ fun SettingsScreen(
     var showCache by remember { mutableStateOf(false) }
     var ukuranCache by remember { mutableStateOf(CacheBersih.ukuran(context)) }
     var hapusChatLama by remember { mutableStateOf(true) }
+    var hapusChatSemua by remember { mutableStateOf(false) }
     var sedangBersih by remember { mutableStateOf(false) }
     val scopeBersih = rememberCoroutineScope()
 
@@ -184,6 +185,17 @@ fun SettingsScreen(
                             color = GoldLight, fontSize = 14.sp,
                         )
                     }
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        Modifier.fillMaxWidth().clickable { hapusChatSemua = !hapusChatSemua },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = hapusChatSemua, onCheckedChange = { hapusChatSemua = it })
+                        Text(
+                            tr("Hapus semua daftar chat sampai ke akun lawan bicara"),
+                            color = Color(0xFFFF8A80), fontSize = 14.sp,
+                        )
+                    }
                     Spacer(Modifier.height(6.dp))
                     Text(
                         tr("Setelah bersih aplikasi langsung dimuat ulang seperti baru dibuka."),
@@ -201,14 +213,25 @@ fun SettingsScreen(
                             val bebas = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                 CacheBersih.bersihkan(context)
                             }
-                            val chat = if (hapusChatLama && uid.isNotBlank()) {
-                                try { ChatBersih.hapusLama(uid, ChatBersih.HARI) } catch (e: Exception) { 0 }
-                            } else 0
+                            // Dua pilihan: pangkas chat lama saja, atau hapus
+                            // seluruh thread sampai hilang di akun lawan bicara.
+                            var chat = 0
+                            if (uid.isNotBlank()) {
+                                if (hapusChatSemua) {
+                                    chat = try { ChatBersih.hapusSemua(uid) } catch (e: Exception) { 0 }
+                                } else if (hapusChatLama) {
+                                    chat = try { ChatBersih.hapusLama(uid, ChatBersih.HARI) } catch (e: Exception) { 0 }
+                                }
+                            }
                             sedangBersih = false
                             showCache = false
                             ukuranCache = CacheBersih.ukuran(context)
                             val pesan = tr("Cache dibersihkan") + ": " + CacheBersih.format(bebas) +
-                                if (chat > 0) " · $chat chat lama dihapus" else ""
+                                when {
+                                    hapusChatSemua && chat > 0 -> " · $chat chat dihapus di kedua akun"
+                                    chat > 0 -> " · $chat chat lama dihapus"
+                                    else -> ""
+                                }
                             Toast.makeText(context, pesan, Toast.LENGTH_LONG).show()
                             CacheBersih.muatUlang(context)
                         }

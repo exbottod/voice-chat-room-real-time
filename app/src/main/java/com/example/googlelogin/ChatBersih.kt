@@ -82,4 +82,69 @@ object ChatBersih {
         }
         return dihapus
     }
+
+    /**
+     * Hapus SELURUH riwayat chat milik [uid] sampai ke akun lawan bicara.
+     *
+     * Sebelumnya "Bersihkan cache" hanya memangkas pesan lama di perangkat
+     * sendiri, jadi chat di HP lawan bicara tetap utuh dan daftar chat muncul
+     * lagi. Sekarang satu thread dihapus dari RTDB (chats/{id}) berikut indeks
+     * kedua pihak, ditambah salinan Firestore-nya, sehingga hilang di dua akun.
+     *
+     * Return jumlah thread yang dihapus.
+     */
+    suspend fun hapusSemua(uid: String): Int {
+        if (uid.isBlank()) return 0
+        val daftar = try {
+            Rtdb.ref("chatsByUser/$uid").get().await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return 0
+        }
+        var jumlah = 0
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        for (c in daftar.children) {
+            val cid = c.key ?: continue
+            val lawan = c.child("otherUid").getValue(String::class.java) ?: ""
+            try {
+                Rtdb.ref("chats/$cid").removeValue().await()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+            }
+            for (u in listOf(uid, lawan).filter { it.isNotBlank() }) {
+                try {
+                    Rtdb.ref("chatsByUser/$u/$cid").removeValue().await()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                }
+            }
+            // Salinan Firestore: dokumen chat + seluruh pesannya (dibatasi per
+            // 400 dokumen agar tidak melewati batas satu batch).
+            try {
+                val doc = db.collection("chats").document(cid)
+                val pesan = doc.collection("messages").get().await().documents
+                var batch = db.batch()
+                var isi = 0
+                for (m in pesan) {
+                    batch.delete(m.reference)
+                    isi++
+                    if (isi >= 400) {
+                        batch.commit().await()
+                        batch = db.batch()
+                        isi = 0
+                    }
+                }
+                batch.delete(doc)
+                batch.commit().await()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+            }
+            jumlah++
+        }
+        return jumlah
+    }
 }
