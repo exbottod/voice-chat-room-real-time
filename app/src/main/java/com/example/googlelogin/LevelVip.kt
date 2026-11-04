@@ -730,12 +730,43 @@ private fun LegacyItemPreview(item: StoreItem) {
                 Box(Modifier.width(62.dp).height(36.dp).clip(RoundedCornerShape(10.dp)).background(item.color.copy(alpha = 0.75f)).border(1.5.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(10.dp)))
             }
             "entry" -> if (entryA != null) {
-                key(entryA.updatedAt) { VipMedia(entryA, Modifier.fillMaxSize(), loop = true) }
+                EntryPreview(item, 70.dp)
             } else {
                 Text("\u2728", fontSize = 38.sp)
             }
             "title" -> VipTag(item.vip)
             else -> Text(item.emoji, fontSize = 38.sp)
+        }
+    }
+}
+
+/**
+ * Pratinjau efek masuk di Store / My Item: TIDAK main sendiri saat daftar
+ * dibuka. Animasi baru berjalan setelah tombol putar ditekan, dan berhenti
+ * lagi saat diketuk.
+ */
+@Composable
+private fun EntryPreview(item: StoreItem, size: Dp) {
+    val dyn = item.asset
+    var main by remember(item.id) { mutableStateOf(false) }
+    Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+        if (main && dyn != null) {
+            key(dyn.updatedAt) { VipMedia(dyn, Modifier.fillMaxSize(), loop = false) }
+            Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)).clickable { main = false },
+                contentAlignment = Alignment.Center,
+            ) { }
+        } else {
+            Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)).background(Color(0x22FFFFFF)),
+                contentAlignment = Alignment.Center,
+            ) { Text("\u2728", fontSize = (size.value * 0.46f).sp) }
+            Box(
+                Modifier.align(Alignment.BottomEnd).padding(2.dp)
+                    .clip(CircleShape).background(Color(0xCC000000))
+                    .clickable(enabled = dyn != null) { main = true }
+                    .padding(horizontal = 7.dp, vertical = 3.dp),
+            ) { Text("\u25B6", color = Color.White, fontSize = 9.sp) }
         }
     }
 }
@@ -770,6 +801,7 @@ private fun ItemPreview(item: StoreItem, size: Dp = 70.dp) {
             }
             "badge" -> key(dyn.updatedAt) { VipMedia(dyn, Modifier.size((size.value * 0.8f).dp), loop = true) }
             "banner" -> key(dyn.updatedAt) { VipMedia(dyn, Modifier.fillMaxWidth().height(size), loop = true, contentScale = ContentScale.Fit) }
+            "entry" -> EntryPreview(item, size)
             else -> key(dyn.updatedAt) { VipMedia(dyn, Modifier.fillMaxSize(), loop = true) }
         }
     }
