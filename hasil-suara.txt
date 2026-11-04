@@ -1,0 +1,2 @@
+Warning: Permanently added '43.156.99.4' (ED25519) to the list of known hosts.
+folder: /opt/rezo-agora
