@@ -14,6 +14,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -1414,7 +1415,7 @@ private fun RmMsgBox(text: String, color: Color) {
     Box(
         Modifier.widthIn(max = 320.dp).clip(RoundedCornerShape(12.dp)).background(Color(0x66000000))
             .pointerInput(text) {
-                androidx.compose.foundation.gestures.detectTapGestures(onLongPress = { salin() })
+                detectTapGestures(onLongPress = { salin() })
             }
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
@@ -1919,9 +1920,7 @@ private fun RmChatRow(m: RoomMsg, myUid: String, onProfile: (String) -> Unit) {
                 Text(
                     m.text, color = Color.White, fontSize = 14.sp,
                     modifier = Modifier.pointerInput(m.text) {
-                        androidx.compose.foundation.gestures.detectTapGestures(
-                            onLongPress = { salinTeks() },
-                        )
+                        detectTapGestures(onLongPress = { salinTeks() })
                     }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 )
