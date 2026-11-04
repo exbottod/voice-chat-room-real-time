@@ -233,6 +233,12 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         try { ChatWatch.start(context, uid) } catch (e: Exception) { }
     }
 
+    // Sapu chat lama sekali sehari supaya chat tidak menumpuk jadi sampah.
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try { ChatBersih.otomatis(context, uid) } catch (e: Exception) { }
+    }
+
     // Medal SVIP disimpan di RTDB. Muat sejak awal supaya medal yang dipasang
     // tidak sempat dianggap kosong saat app baru dibuka (dulu tampak hilang).
     LaunchedEffect(uid) {

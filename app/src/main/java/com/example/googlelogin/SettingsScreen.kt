@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -88,6 +89,11 @@ fun SettingsScreen(
     var showSvip by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var hasPassword by remember { mutableStateOf(FirebaseSession.hasPassword()) }
+    var showCache by remember { mutableStateOf(false) }
+    var ukuranCache by remember { mutableStateOf(CacheBersih.ukuran(context)) }
+    var hapusChatLama by remember { mutableStateOf(true) }
+    var sedangBersih by remember { mutableStateOf(false) }
+    val scopeBersih = rememberCoroutineScope()
 
     // Tombol back: tutup panel yang sedang terbuka dulu, baru keluar dari Pengaturan
     BackHandler {
@@ -136,6 +142,7 @@ fun SettingsScreen(
                         showAddEmail = true
                     }
                 }
+                SettingRow(tr("Bersihkan cache"), CacheBersih.format(ukuranCache)) { showCache = true }
                 SettingRow(tr("Kebijakan privasi")) { showPrivacy = true }
                 SettingRow(tr("Bahasa"), AppLang.label()) { showLang = true }
                 SettingRow(tr("SVIP Settings")) { showSvip = true }
@@ -155,6 +162,64 @@ fun SettingsScreen(
         }
     }
 
+    if (showCache) {
+        AlertDialog(
+            onDismissRequest = { if (!sedangBersih) showCache = false },
+            title = { Text(tr("Bersihkan cache")) },
+            text = {
+                Column {
+                    Text(
+                        tr("Menghapus cache gambar, file sementara, dan cache web sebesar ") +
+                            CacheBersih.format(ukuranCache) + ".",
+                        color = Color.White, fontSize = 14.sp,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        Modifier.fillMaxWidth().clickable { hapusChatLama = !hapusChatLama },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = hapusChatLama, onCheckedChange = { hapusChatLama = it })
+                        Text(
+                            tr("Sekalian hapus chat lebih dari 30 hari"),
+                            color = GoldLight, fontSize = 14.sp,
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        tr("Setelah bersih aplikasi langsung dimuat ulang seperti baru dibuka."),
+                        color = Color(0xFF9A9A9A), fontSize = 12.sp,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !sedangBersih,
+                    onClick = {
+                        sedangBersih = true
+                        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                        scopeBersih.launch {
+                            val bebas = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                CacheBersih.bersihkan(context)
+                            }
+                            val chat = if (hapusChatLama && uid.isNotBlank()) {
+                                try { ChatBersih.hapusLama(uid, ChatBersih.HARI) } catch (e: Exception) { 0 }
+                            } else 0
+                            sedangBersih = false
+                            showCache = false
+                            ukuranCache = CacheBersih.ukuran(context)
+                            val pesan = tr("Cache dibersihkan") + ": " + CacheBersih.format(bebas) +
+                                if (chat > 0) " · $chat chat lama dihapus" else ""
+                            Toast.makeText(context, pesan, Toast.LENGTH_LONG).show()
+                            CacheBersih.muatUlang(context)
+                        }
+                    },
+                ) { Text(if (sedangBersih) tr("Membersihkan...") else tr("Bersihkan")) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCache = false }) { Text(tr("Batal")) }
+            },
+        )
+    }
     if (showLang) LanguageDialog(onDismiss = { showLang = false })
     if (showAddEmail) {
         AddEmailDialog(
