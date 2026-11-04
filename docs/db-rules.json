@@ -364,7 +364,7 @@
       ".read": "auth != null",
       ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
     },
-    "roomsDeleted": {
+    "roomsHidden": {
       ".read": "auth != null",
       "$roomId": {
         ".write": "auth != null"

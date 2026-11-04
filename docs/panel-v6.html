@@ -522,7 +522,7 @@ label{font-size:12px;color:var(--mut)}
 <div id="tab-room" class="hide">
     <div class="card">
       <h2>Kelola room</h2>
-      <p class="muted">Sematkan room agar naik ke atas daftar. Ganti nama untuk mereset nama room. Bersihkan menghapus kursi, chat, dan anggota tanpa menghapus room.</p>
+      <p class="muted">Sematkan room agar naik ke atas daftar. Ganti nama untuk mereset nama room. Bersihkan menghapus kursi, chat, dan anggota tanpa menghapus room. Hapus menyembunyikan room dari daftar; room muncul kembali dengan nama dan foto yang sama saat pemiliknya membuat room lagi.</p>
       <input type="text" id="roomCari" placeholder="Cari nama room, nomor room, atau pemilik">
       <div id="roomJml" class="muted" style="margin:8px 0">Memuat...</div>
       <div id="roomList" class="muted">Memuat...</div>
@@ -1431,23 +1431,21 @@ async function roomBersihkan(id){
 
 async function roomHapus(id){
   const r = roomData[id] || {};
-  if (!confirm("Hapus room \u201c" + (r.name || "Room") + "\u201d permanen?\n\nRoom, kursi, chat, dan anggotanya akan dihapus.")) return;
+  if (!confirm("Hapus room \u201c" + (r.name || "Room") + "\u201d dari daftar?\n\nRoom langsung hilang dari daftar Party dan kursi/chatnya dibersihkan. Nama, foto, dan pengaturan room tetap tersimpan, jadi saat pemiliknya membuat room lagi room ini muncul kembali dengan identitas yang sama.")) return;
   try {
-    // Tombstone: penanda bahwa room ini dihapus permanen. Aplikasi memakainya
-    // agar room tidak "hidup lagi" dari cache saat user membuat room baru.
-    await rtdb.ref("roomsDeleted/" + id).set(Date.now()).catch(() => {});
+    // Room disembunyikan, bukan dimusnahkan: hilang dari daftar sampai pemilik buat room lagi.
+    await rtdb.ref("roomsHidden/" + id).set(Date.now()).catch(() => {});
     await Promise.all([
       rtdb.ref("roomsPub/" + id).remove().catch(() => {}),
       rtdb.ref("seats/" + id).remove().catch(() => {}),
       rtdb.ref("members/" + id).remove().catch(() => {}),
       rtdb.ref("messages/" + id).remove().catch(() => {}),
+      rtdb.ref("blacklist/" + id).remove().catch(() => {}),
+      rtdb.ref("gifts/" + id).remove().catch(() => {}),
+      rtdb.ref("cashback/" + id).remove().catch(() => {}),
     ]);
-    try { await db.collection("rooms").doc(id).delete(); } catch (e) { }
-    // Bersihkan sisa jejak room supaya tidak ada data lama yang ikut terbawa
-    // saat room baru dibuat: daftar hitam, penanda live, dan peringkat room.
+    // Bersihkan sisa jejak: penanda live dan entri peringkat room.
     try {
-      const sisa = ["blacklist/" + id, "gifts/" + id, "cashback/" + id];
-      await Promise.all(sisa.map(n => rtdb.ref(n).remove().catch(() => null)));
       const rankSnap = await rtdb.ref("rank/rank_room").get().catch(() => null);
       if (rankSnap && rankSnap.exists()) {
         await Promise.all(rankSnap.children.map(c => rtdb.ref("rank/rank_room/" + c.key + "/" + id).remove().catch(() => null)));
@@ -1461,7 +1459,7 @@ async function roomHapus(id){
     } catch (e) { }
     delete roomData[id];
     roomRender();
-    toast("Room dihapus");
+    toast("Room dihapus dari daftar, muncul lagi saat pemilik buat room");
   } catch (e) { toast("Gagal: " + (e.message || e)); }
 }
 

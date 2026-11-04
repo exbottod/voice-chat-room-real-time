@@ -105,24 +105,29 @@ object RoomRepo {
                 emptyList()
             }
         }
-        for (r in kandidat.distinctBy { it.id }) {
-            if (!isDeleted(r.id)) return r
-            // Sudah dihapus dari panel: buang sisa dokumennya agar tidak kembali lagi.
-            try { db().collection("rooms").document(r.id).delete() } catch (e: Exception) { }
-        }
-        return null
+        return kandidat.distinctBy { it.id }.firstOrNull()
     }
 
-    /** Room yang dihapus permanen lewat panel dev ditandai di roomsDeleted/{id}. */
-    suspend fun isDeleted(roomId: String): Boolean = try {
+    /**
+     * Room yang "dihapus" dari panel dev disembunyikan (roomsHidden/{id}), bukan
+     * dimusnahkan: hilang dari daftar, tapi saat pemilik membuat room lagi room
+     * yang sama muncul kembali dengan nama/foto yang sudah ada.
+     */
+    suspend fun isHidden(roomId: String): Boolean = try {
         val s = kotlinx.coroutines.withTimeoutOrNull(4000L) {
-            Rtdb.ref("roomsDeleted/$roomId").get().await()
+            Rtdb.ref("roomsHidden/$roomId").get().await()
         }
         s?.exists() == true
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
         false
+    }
+
+    /** Tampilkan lagi room milik sendiri (dipakai saat pemilik membuat room lagi). */
+    suspend fun restoreOwned(roomId: String) {
+        try { Rtdb.ref("roomsHidden/$roomId").remove().await() } catch (e: Exception) { }
+        try { getRoom(roomId, abaikanSembunyi = true)?.let { mirrorRoom(it) } } catch (e: Exception) { }
     }
 
     suspend fun createRoom(ownerUid: String, ownerName: String, name: String, photoB64: String?): RoomInfo {
@@ -267,9 +272,10 @@ object RoomRepo {
         )
     }
 
-    suspend fun getRoom(id: String): RoomInfo? {
-        // Room yang sudah dihapus permanen dari panel tidak boleh muncul lagi.
-        if (isDeleted(id)) return null
+    suspend fun getRoom(id: String, abaikanSembunyi: Boolean = false): RoomInfo? {
+        // Room yang disembunyikan dari panel tidak bisa dimasuki lewat daftar/link,
+        // kecuali pemiliknya sedang membuka lagi room tersebut.
+        if (!abaikanSembunyi && isHidden(id)) return null
         // REALTIME DATABASE dulu (bebas kuota Firestore): roomsPub/{id}.
         try {
             val snap = kotlinx.coroutines.withTimeoutOrNull(5000L) { Rtdb.ref("roomsPub/$id").get().await() }

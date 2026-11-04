@@ -123,7 +123,10 @@ fun PartyTab(
                     refreshScope.launch {
                         val mine = RoomRepo.findOwned(myUid) ?: allRooms.firstOrNull { it.ownerUid == myUid }
                         if (mine != null) {
-                            Toast.makeText(context, "Kamu sudah punya room, langsung masuk", Toast.LENGTH_SHORT).show()
+                            // Room lama yang dulu "dihapus" dari panel dimunculkan lagi
+                            // dengan nama, foto, dan pengaturan yang sama.
+                            RoomRepo.restoreOwned(mine.id)
+                            Toast.makeText(context, "Room kamu dibuka lagi", Toast.LENGTH_SHORT).show()
                             onEnterRoom(mine)
                         } else {
                             showCreate = true
