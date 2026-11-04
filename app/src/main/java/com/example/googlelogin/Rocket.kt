@@ -1497,6 +1497,7 @@ fun RocketPrizeDialog(
     var coins by remember { mutableStateOf(0L) }
     var vip by remember { mutableStateOf(0) }
     var days by remember { mutableStateOf(0) }
+    var kartu by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(mode, rank, launchId, lv) {
@@ -1504,6 +1505,7 @@ fun RocketPrizeDialog(
         coins = r.coins
         vip = r.vip
         days = r.days
+        kartu = r.kartu
         err = r.error
         loading = false
     }
@@ -1548,6 +1550,10 @@ fun RocketPrizeDialog(
                 err != null -> Text(err ?: "", color = Color(0xFFFF8A80), fontSize = 14.sp, textAlign = TextAlign.Center)
                 else -> {
                     if (vip > 0) Text("👑 VIP$vip $days hari", color = Color(0xFFFFD54F), fontSize = 22.sp, fontWeight = FontWeight.Black)
+                    if (vip > 0 && kartu) Text(
+                        "Kartu masuk ke Props. Buka Profil › Alat peraga untuk mengaktifkannya.",
+                        color = Color(0xFF9FB6D9), fontSize = 11.sp, textAlign = TextAlign.Center,
+                    )
                     if (coins > 0) Text("+${ringkas(coins)} coin", color = Color(0xFFFFD54F), fontSize = 22.sp, fontWeight = FontWeight.Black)
                     Spacer(Modifier.height(6.dp))
                     Text("Hadiah sudah masuk ke dompetmu.", color = Color(0xFF9FB6D9), fontSize = 12.sp)

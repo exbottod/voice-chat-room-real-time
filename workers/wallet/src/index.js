@@ -717,6 +717,47 @@ function undiAny(cfg, levels, days) {
 }
 
 /** Klaim hadiah roket: peluncur, penonton, atau papan peringkat. */
+// ---------- Kartu hadiah (Props) ----------
+/** Tabel kartu hadiah roket. Dibuat otomatis kalau belum ada. */
+async function tabelProps(env) {
+  await pipe(env, [{
+    sql: "create table if not exists props (id text primary key, uid text, vip integer, days integer, src text, ts integer, used integer)",
+  }]);
+}
+/** Simpan kartu VIP ke tas pengguna, belum aktif sampai ditekan sendiri. */
+async function simpanProp(env, uid, vip, days, src) {
+  await tabelProps(env);
+  const id = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const now = Date.now();
+  await pipe(env, [{
+    sql: "insert into props (id, uid, vip, days, src, ts, used) values (?, ?, ?, ?, ?, ?, 0)",
+    args: [T(id), T(uid), I(vip), I(days), T(src || "rocket"), I(now)],
+  }]);
+  return { id: id, vip: Math.trunc(vip), days: Math.trunc(days), src: src || "rocket", ts: now };
+}
+/** Daftar kartu yang belum dipakai. */
+async function daftarProp(env, uid) {
+  await tabelProps(env);
+  const r = await pipe(env, [{
+    sql: "select id, vip, days, src, ts from props where uid = ? and used = 0 order by ts desc limit 100",
+    args: [T(uid)],
+  }]);
+  return r[0].rows;
+}
+/** Pakai kartu: masa aktif VIP dimulai saat ini. */
+async function pakaiProp(env, uid, id) {
+  await tabelProps(env);
+  const r = await pipe(env, [{
+    sql: "select id, vip, days from props where id = ? and uid = ? and used = 0",
+    args: [T(id), T(uid)],
+  }]);
+  const row = r[0].rows[0];
+  if (!row) return gagal("Kartu tidak ditemukan atau sudah dipakai");
+  const w = await beriVip(env, uid, Number(row.vip), Number(row.days));
+  await pipe(env, [{ sql: "update props set used = 1 where id = ?", args: [T(id)] }]);
+  return ok(w);
+}
+
 async function klaimRoket(env, uid, p) {
   const mode = String(p.mode ?? "launch");
   const cfg = await cfgRtdb("pub/_rocketCfg");
@@ -738,9 +779,15 @@ async function klaimRoket(env, uid, p) {
     hadiah = undiLevel(cfg, lv, 30) ?? undiAny(cfg, [5, 4, 3, 2, 1], 30) ?? { coins: 10000000, vip: 0, days: 0 };
   }
   await beriCoin(env, uid, hadiah.coins, "rocket", null);
-  if (hadiah.vip > 0 && hadiah.days > 0) await beriVip(env, uid, hadiah.vip, hadiah.days);
+  // Kartu VIP tidak langsung aktif: disimpan ke Props supaya pengguna sendiri
+  // yang memilih kapan memakainya. Coin tetap masuk otomatis.
+  let kartu = null;
+  if (hadiah.vip > 0 && hadiah.days > 0) {
+    if (p.hold) kartu = await simpanProp(env, uid, hadiah.vip, hadiah.days, "rocket");
+    else await beriVip(env, uid, hadiah.vip, hadiah.days);
+  }
   const w = await pastikan(env, uid);
-  return json({ ok: 1, coins: hadiah.coins, vip: hadiah.vip, days: hadiah.days, w, img: "", eff: "", badge: "" });
+  return json({ ok: 1, coins: hadiah.coins, vip: hadiah.vip, days: hadiah.days, card: kartu, w, img: "", eff: "", badge: "" });
 }
 
 // ---------- Cashback gift ----------
@@ -1669,6 +1716,10 @@ export default {
           return await wavePrepare(env, uid, p);
         case "gift_cashback":
           return await cashbackGift(env, uid, p);
+        case "prop_list":
+          return ok(await daftarProp(env, uid));
+        case "prop_use":
+          return await pakaiProp(env, uid, String(p.id ?? ""));
         case "rocket_claim":
           return await klaimRoket(env, uid, p);
         case "pay_info":

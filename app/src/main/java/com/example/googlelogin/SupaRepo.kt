@@ -639,7 +639,7 @@ object SupaRepo {
     }
 
     /** Hadiah hasil klaim roket dari server. */
-    class RocketPrize(val coins: Long, val vip: Int, val days: Int, val error: String?)
+    class RocketPrize(val coins: Long, val vip: Int, val days: Int, val error: String?, val kartu: Boolean = false)
 
     /**
      * Klaim hadiah roket. Server yang mengundi hadiahnya:
@@ -650,13 +650,48 @@ object SupaRepo {
         val p = uidJson(uid).put("mode", mode)
         if (rank > 0) p.put("rank", rank)
         p.put("lv", lv.coerceIn(1, 5))
+        // Hadiah VIP disimpan sebagai kartu di Props, baru aktif saat ditekan.
+        p.put("hold", 1)
         if (launch.isNotBlank()) p.put("launch", launch)
         val j = postRaw("rocket_claim", p)
             ?: return RocketPrize(0, 0, 0, "Server tidak merespons, coba lagi")
         if (j.optInt("ok") != 1) {
             return RocketPrize(0, 0, 0, j.optString("e").ifBlank { "Gagal klaim hadiah" })
         }
-        return RocketPrize(j.optLong("coins"), j.optInt("vip"), j.optInt("days"), null)
+        val adaKartu = j.optJSONObject("card") != null
+        return RocketPrize(j.optLong("coins"), j.optInt("vip"), j.optInt("days"), null, adaKartu)
+    }
+
+    /** Kartu hadiah (Props) milik satu akun. */
+    class PropKartu(val id: String, val vip: Int, val days: Int, val src: String) {
+        val judul: String get() = if (vip > 0) "VIP$vip · $days hari" else "Hadiah"
+    }
+
+    suspend fun propList(uid: String): List<PropKartu> {
+        val j = postRaw("prop_list", uidJson(uid)) ?: return emptyList()
+        val arr = j.optJSONArray("w") ?: return emptyList()
+        val out = mutableListOf<PropKartu>()
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            out.add(
+                PropKartu(
+                    id = o.optString("id"),
+                    vip = o.optInt("vip"),
+                    days = o.optInt("days"),
+                    src = o.optString("src").ifBlank { "rocket" },
+                ),
+            )
+        }
+        return out
+    }
+
+    /** Pakai kartu: masa aktif VIP mulai dihitung saat ini. */
+    suspend fun propUse(uid: String, id: String): Res {
+        val j = postRaw("prop_use", uidJson(uid).put("id", id))
+            ?: return Res(null, "Server tidak merespons, coba lagi")
+        if (j.optInt("ok") != 1) return Res(null, j.optString("e").ifBlank { "Gagal memakai kartu" })
+        val w = j.optJSONObject("w")
+        return Res(if (w != null) parseWallet(w) else null, null)
     }
 
     suspend fun exchange(uid: String, diamonds: Long): Res {

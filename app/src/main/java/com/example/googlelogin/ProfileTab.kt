@@ -150,6 +150,7 @@ fun ProfileTab(
     onLevelClick: () -> Unit = {},
     onStoreClick: () -> Unit = {},
     onGloryClick: () -> Unit = {},
+    onPropsClick: () -> Unit = {},
     onFamilyClick: () -> Unit = {},
     onFansClick: () -> Unit = {},
     onFollowingClick: () -> Unit = {},
@@ -372,7 +373,7 @@ fun ProfileTab(
                 MenuItem("⭐", tr("MY MEDALS")) { onGloryClick() }
                 MenuItem("🎨", tr("Pusat kustom")) { soon(tr("Pusat kustom")) }
                 MenuItem("🏪", tr("Store & My Item"), icon = R.drawable.ic_store_myitem) { onStoreClick() }
-                MenuItem("🧰", tr("Alat peraga")) { soon(tr("Alat peraga")) }
+                MenuItem("🧰", tr("Alat peraga")) { onPropsClick() }
                 MenuItem("🏰", tr("Family"), trailing = tr("Liga Peringkat Fam"), icon = R.drawable.ic_family_saya) { onFamilyClick() }
                 MenuItem("🏠", tr("CP house")) { soon(tr("CP house")) }
                 panelList.forEach { pi ->

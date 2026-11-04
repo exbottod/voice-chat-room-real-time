@@ -82,6 +82,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var showLevel by remember { mutableStateOf(false) }
     var showVip by remember { mutableStateOf(false) }
     var showStore by remember { mutableStateOf(false) }
+    var showProps by remember { mutableStateOf(false) }
     var showGlory by remember { mutableStateOf(false) }
     var sheetUid by remember { mutableStateOf<String?>(null) }
     var fullProfileUid by remember { mutableStateOf<String?>(null) }
@@ -457,6 +458,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             onLevelClick = { showLevel = true },
                             onStoreClick = { showStore = true },
                             onGloryClick = { showGlory = true },
+                            onPropsClick = { showProps = true },
                             onFamilyClick = { selected = 2 },
                             onFansClick = { followList = uid to FOLLOW_MODE_FANS },
                             onFollowingClick = { followList = uid to FOLLOW_MODE_FOLLOWING },
@@ -551,6 +553,13 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             if (showLevel) KecilkanKonten { LevelScreen(user = user, profile = profile, wallet = wallet, uid = uid, onBack = { showLevel = false }) }
             if (showVip) KecilkanKonten { VipScreen(uid = uid, wallet = wallet, onBack = { showVip = false }) }
             if (showGlory) GloryMedalScreen(uid = uid, wallet = wallet, onBack = { showGlory = false })
+            if (showProps) {
+                PropsScreen(
+                    myUid = uid,
+                    onBack = { showProps = false },
+                    onWalletChanged = { muatUlang() },
+                )
+            }
             if (showStore) {
                 StoreScreen(
                     uid = uid,
