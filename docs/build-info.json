@@ -1,72 +1,24 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.0.790",
-  "ukuran_mb": 66.9,
-  "sha256": "62177e235e356f75b00a26d3c2c0f11693d06fa344090e1fddaa637be8f94208",
-  "commit": "ad66307",
-  "waktu": "2026-11-04T13:33:46Z",
-  "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 30,
-  "aset_total": 118,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
+  "status": "gagal",
+  "masalah": [
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomRepo.kt:633:32 Cannot infer type for this parameter. Please specify it exp",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomRepo.kt:633:32 Not enough information to infer type argument for 'R'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomRepo.kt:633:47 Cannot infer type for this parameter. Please specify it exp",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomRepo.kt:634:49 Unresolved reference 'async'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomRepo.kt:643:51 Unresolved reference 'async'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomRepo.kt:644:47 Suspension functions can only be called within coroutine bo",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomRepo.kt:646:24 Cannot infer type for this parameter. Please specify it exp",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomRepo.kt:647:26 Cannot infer type for this parameter. Please specify it exp",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/RoomRepo.kt:647:26 Not enough information to infer type argument for 'T'.",
+    "* What went wrong:"
   ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ]
+  "versi": "1.0.791",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "7414520",
+  "waktu": "2026-11-04T14:08:30Z",
+  "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
