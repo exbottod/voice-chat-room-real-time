@@ -498,7 +498,9 @@ object RocketRepo {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            e.message ?: "Gagal menulis ke database"
+            // Database menolak: tetap putar di perangkat ini supaya kelihatan.
+            localFx = Triple(lv.coerceIn(1, 5), System.nanoTime(), System.currentTimeMillis())
+            "Database menolak, diputar lokal: " + (e.message ?: "").take(70)
         }
     }
 
@@ -753,6 +755,7 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
             }
             // Uji cepat: putar video roket sekarang juga, tanpa menunggu energi.
             var tesPesan by remember { mutableStateOf<String?>(null) }
+            val ctxTes = androidx.compose.ui.platform.LocalContext.current
             Text(
                 "Tes luncur roket",
                 color = Color(0xFFFFD86B), fontSize = 12.sp, fontWeight = FontWeight.Bold,
@@ -762,7 +765,12 @@ fun RocketScreen(roomId: String, onDismiss: () -> Unit) {
                     .clickable {
                         kotlinx.coroutines.MainScope().launch {
                             val e = RocketRepo.testLaunch(roomId, "Tes")
-                            tesPesan = e ?: "Dikirim, lihat layar room"
+                            tesPesan = e ?: "Terkirim, lihat layar room"
+                            try {
+                                android.widget.Toast.makeText(
+                                    ctxTes, tesPesan ?: "", android.widget.Toast.LENGTH_LONG,
+                                ).show()
+                            } catch (ex: Exception) { }
                         }
                     }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
