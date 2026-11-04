@@ -1,20 +1,17 @@
 #!/bin/bash
-# Diagnosa konfigurasi suara. Nilai rahasia TIDAK dicetak, hanya sidik & panjang.
-D=/opt/rezo-agora
-echo "== isi $D"; ls -la $D 2>&1 | head -20
-echo "== layanan"; systemctl list-units --type=service 2>/dev/null | grep -iE "rezo|agora|wallet|caddy" | head
-echo "== cari nama variabel di berkas"
-grep -rIl -iE "AGORA" $D /etc/systemd/system /etc/rezo* /root /home/ubuntu 2>/dev/null | grep -v node_modules | head -10
-echo "== nilai (disamarkan)"
-for f in $(grep -rIl -iE "AGORA" $D /etc/systemd/system /etc/rezo* /root /home/ubuntu 2>/dev/null | grep -v node_modules | head -6); do
-  echo "berkas: $f"
-  grep -hiE "AGORA[A-Z_]*(ID|CERT)" "$f" 2>/dev/null | sed -E 's/^[[:space:]]*(export[[:space:]]+)?//' | while IFS= read -r baris; do
-    nama="${baris%%=*}"; nilai="${baris#*=}"; nilai="${nilai//\"/}"; nilai="${nilai//\'/}"; nilai="${nilai//[[:space:]]/}"
-    case "$nama" in
-      *ID*) echo "  $nama = $nilai";;
-      *) echo "  $nama panjang=${#nilai} sidik=$(printf '%s' "$nilai" | sha256sum | cut -d' ' -f1)";;
-    esac
-  done
+# Hanya mencetak sidik (hash) dan panjang; nilai rahasia tidak pernah dicetak.
+U=/etc/systemd/system/rezo-agora.service
+echo "== status layanan: $(systemctl is-active rezo-agora)"
+echo "== jumlah baris Environment: $(grep -c '^Environment' $U)"
+ENV_TEXT=$(systemctl show rezo-agora -p Environment --value)
+for nama in AGORA_APP_ID AGORA_APP_CERTIFICATE; do
+  nilai=$(printf '%s\n' "$ENV_TEXT" | tr ' ' '\n' | grep "^$nama=" | head -1 | cut -d= -f2-)
+  nilai=${nilai//\"/}
+  if [ "$nama" = AGORA_APP_ID ]; then
+    echo "$nama = $nilai (panjang ${#nilai})"
+  else
+    echo "$nama panjang=${#nilai} sidik=$(printf '%s' "$nilai" | sha256sum | cut -d' ' -f1)"
+    echo "$nama awal-akhir=${nilai:0:2}…${nilai: -2}"
+  fi
 done
-echo "== tes layanan lokal"
-curl -s -o /dev/null -w "port 8090: %{http_code}\n" -X POST http://127.0.0.1:8090/agora 2>&1
+echo "== sidik yang diharapkan (sertifikat dari owner): 37ff6a4be3ebee00831a8c7fe37c80edfffc9829f4744644c920ec90e7249328"
