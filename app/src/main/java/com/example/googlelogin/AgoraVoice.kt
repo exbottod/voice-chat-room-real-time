@@ -63,6 +63,17 @@ object AgoraVoice {
     @Volatile private var pakaiProxy = true
     @Volatile private var sudahCobaTanpaProxy = false
 
+    /**
+     * Penolakan token (alasan 6-10) bukan alasan menyerah: server token pertama
+     * bisa memakai sertifikat yang berbeda dengan project Agora. Kita naikkan
+     * eskalasi: coba server token lain, lalu terakhir masuk tanpa token (sah
+     * kalau project tidak memakai App Certificate).
+     */
+    @Volatile private var sumberIdx = 0
+    @Volatile private var eskalasi = 0
+    @Volatile private var tanpaToken = false
+    @Volatile private var sumberTerakhir = ""
+
     /** Status terakhir untuk diagnosa (ditampilkan sebagai toast bila gagal). */
     // Dibaca layar room supaya kalau suara gagal, alasannya kelihatan langsung.
     var lastStatus by androidx.compose.runtime.mutableStateOf("")
@@ -98,6 +109,7 @@ object AgoraVoice {
         override fun onJoinChannelSuccess(channel: String?, uid: Int, elapsed: Int) {
             joined = true
             retriedToken = false
+            eskalasi = 0
             lastStatus = "OK joined $channel"
             Log.i(TAG, lastStatus)
         }
@@ -109,9 +121,39 @@ object AgoraVoice {
             if (state == 3) {
                 joined = true
                 retriedToken = false
+                eskalasi = 0
                 lastStatus = "OK tersambung"
             } else if (state == 5 && !joined) {
                 lastStatus = "Suara: gagal tersambung ($reason)"
+                // 6..10 = app id/channel/token ditolak server. Coba jalur lain.
+                if (reason in 6..10 && eskalasi >= 2) {
+                    // Semua jalur sudah dicoba: penyebabnya di console Agora.
+                    lastStatus = "Suara mati: token ditolak Agora (cek App Certificate / App ID)"
+                }
+                if (reason in 6..10 && eskalasi < 2) {
+                    eskalasi++
+                    val c = appCtx
+                    val r = roomId
+                    if (eskalasi == 1) {
+                        // Server token ini ditolak: pindah ke server berikutnya.
+                        val daftar = sumberToken()
+                        sumberIdx = (sumberIdx + 1) % daftar.size
+                        sumberTerakhir = daftar[sumberIdx]
+                        tokenCache.clear()
+                        lastStatus = "Suara: token ditolak, coba server lain…"
+                    } else {
+                        // Semua token ditolak: masuk tanpa token (proyek tanpa sertifikat).
+                        tanpaToken = true
+                        tokenCache.clear()
+                        lastStatus = "Suara: token ditolak, coba tanpa token…"
+                    }
+                    if (c != null && r != null) {
+                        scope.launch {
+                            kotlinx.coroutines.delay(700)
+                            join(c, r)
+                        }
+                    }
+                }
             }
         }
 
@@ -184,14 +226,23 @@ object AgoraVoice {
     /** Token terakhir per channel, dipakai ulang kalau worker lambat (berlaku 24 jam). */
     private val tokenCache = HashMap<String, Pair<Long, Tok>>()
 
-    private suspend fun fetchToken(channel: String): Tok? {
-        // Urutan server token: server Base44 dulu (kuota sendiri, tidak kena
-        // batas Cloudflare), lalu VPS, terakhir worker lama sebagai cadangan.
+    /** Server token yang tersedia, urut dari yang paling utama. */
+    private fun sumberToken(): List<String> {
         val kandidat = arrayListOf(
             "https://superagent-6187eafe.base44.app/functions/agoraToken",
-            "https://43-156-99-4.sslip.io/agora"
+            "https://43-156-99-4.sslip.io/agora",
         )
         BuildConfig.AGORA_TOKEN_URL.takeIf { it.isNotBlank() }?.let { kandidat.add(it) }
+        return kandidat
+    }
+
+    private suspend fun fetchToken(channel: String): Tok? {
+        if (tanpaToken) return null
+        val kandidat = sumberToken().let { l ->
+            val mulai = sumberIdx.coerceIn(0, l.size - 1)
+            l.drop(mulai) + l.take(mulai)
+        }
+        sumberTerakhir = kandidat.firstOrNull().orEmpty()
         val now = System.currentTimeMillis()
         tokenCache[channel]?.let { (at, tok) ->
             if (now - at < 6L * 3600_000L) return tok
@@ -252,6 +303,7 @@ object AgoraVoice {
                 // (berhasil bila project Agora tidak memakai sertifikat).
                 val t = fetchToken(id)
                 if (t == null) problem("Suara: token tidak didapat, coba masuk tanpa token")
+                else if (tanpaToken) problem("Suara: masuk tanpa token")
                 if (roomId != id) return@withLock
                 val useAppId = t?.appId?.takeIf { it.isNotBlank() } ?: BuildConfig.AGORA_APP_ID
                 val e = ensure(app, useAppId) ?: return@withLock
