@@ -85,11 +85,16 @@ object UserDirectory {
     suspend fun ensureUserId(ctx: Context, uid: String): String {
         cachedId(ctx, uid)?.takeIf { it.isNotBlank() && it != "..." }?.let { return it }
         // 1) Sudah punya ID di Realtime Database? Pakai itu (cepat, tanpa Firestore).
-        rtdbOfficialId(uid)?.let {
-            prefs(ctx).edit().putString(uid, it).apply()
-            publishPubId(uid, it)
-            return it
+        //    Kalau ada beberapa nomor untuk uid ini (pernah dapat ID baru karena
+        //    bacaan gagal), nomor paling lama yang dipakai supaya ID tidak berubah.
+        val (pasti, idRtdb) = rtdbIdPasti(uid)
+        if (idRtdb != null) {
+            prefs(ctx).edit().putString(uid, idRtdb).apply()
+            publishPubId(uid, idRtdb)
+            rtdbPulihkanId(ctx, uid)?.let { if (it != idRtdb) return it }
+            return idRtdb
         }
+        rtdbPulihkanId(ctx, uid)?.let { return it }
         // 2) User lama: ID yang sudah ada di Firestore tetap dipakai (hanya cadangan, timeout singkat).
         try {
             val d = kotlinx.coroutines.withTimeoutOrNull(2500L) {
@@ -105,8 +110,12 @@ object UserDirectory {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) { }
+        // Kalau bacaan Realtime Database gagal (bukan "memang belum punya"),
+        // JANGAN buat nomor baru. Cukup kosongkan dulu; nanti dicoba lagi.
+        if (!pasti) return ""
         // 3) Akun baru: ID dibuat di Realtime Database.
         val id = rtdbEnsureId(uid)
+        if (id.isBlank()) return ""
         prefs(ctx).edit().putString(uid, id).apply()
         publishPubId(uid, id)
         // 4) Cermin best-effort ke Firestore di BELAKANG layar (tidak menahan tampilan ID).
@@ -123,6 +132,67 @@ object UserDirectory {
             } catch (e: Exception) { }
         }
         return id
+    }
+
+    /**
+     * Baca ID dari Realtime Database dengan status kepastian.
+     * first = true artinya server sudah menjawab (ada isinya atau memang kosong),
+     * jadi aman untuk memutuskan membuat ID baru. first = false artinya bacaan
+     * gagal/waktu habis, sehingga ID TIDAK boleh dibuat ulang.
+     */
+    private suspend fun rtdbIdPasti(uid: String): Pair<Boolean, String?> {
+        return try {
+            val a = kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                Rtdb.ref("ids/u/$uid").get().await()
+            } ?: return Pair(false, null)
+            val v = a.value?.toString()?.takeIf { it.isNotBlank() && it != "null" }
+            if (v != null) Pair(true, v) else Pair(true, null)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Pair(false, null)
+        }
+    }
+
+    /** Semua nomor ID yang pernah tercatat untuk satu uid (urut dari yang paling kecil). */
+    private suspend fun rtdbSemuaId(uid: String): List<String> {
+        return try {
+            val q = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                Rtdb.ref("ids/i").orderByChild("uid").equalTo(uid).get().await()
+            } ?: return emptyList()
+            q.children.mapNotNull { c ->
+                c.key?.takeIf { k -> k.isNotEmpty() && k.all { it.isDigit() } }
+            }.sortedBy { it.toLongOrNull() ?: Long.MAX_VALUE }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Pakai ID paling lama milik uid. Kalau perangkat sempat gagal membaca
+     * Realtime Database, akun bisa dapat nomor baru (mis. 100876). Nomor lama
+     * masih tersimpan di ids/i, jadi dikembalikan supaya ID tidak berubah-ubah.
+     */
+    private suspend fun rtdbPulihkanId(ctx: Context, uid: String): String? {
+        val semua = rtdbSemuaId(uid)
+        if (semua.isEmpty()) return null
+        val pilih = semua.first()
+        try {
+            Rtdb.root().updateChildren(
+                hashMapOf<String, Any?>(
+                    "ids/u/$uid" to pilih,
+                    "ids/i/$pilih/uid" to uid,
+                ),
+            ).await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
+        prefs(ctx).edit().putString(uid, pilih).apply()
+        publishPubId(uid, pilih)
+        return pilih
     }
 
     /** Tulis ID ke pub/{uid}/id: dibaca layar room & profil orang lain. */
@@ -329,6 +399,8 @@ object UserDirectory {
         val id = try {
             cachedId(ctx, uid) ?: ensureUserId(ctx, uid)
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { return e }
+        // ID kosong = server belum bisa dipastikan; jangan menimpa ID yang ada.
+        if (id.isBlank()) return IllegalStateException("ID belum tersedia")
         val data = hashMapOf<String, Any?>(
             "uid" to uid,
             "name" to d.nickname.ifBlank { user.name },
