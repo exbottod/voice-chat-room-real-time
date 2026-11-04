@@ -501,8 +501,17 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                         enabled = !sibuk && idUser.isNotBlank(),
                     ) {
                         sibuk = true
+                        pesan = "Memproses..."
                         scope.launch {
-                            val err = PanelStaffRepo.mintaResetNama(idUser)
+                            // Antrean reset disimpan per UID; kirim pakai UID asli agar
+                            // HP penerima benar-benar menerima perintahnya.
+                            val err = try {
+                                PanelStaffRepo.mintaResetNama(PanelStaffRepo.uidTarget(idUser))
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                e.message ?: "ID user tidak ditemukan"
+                            }
                             pesan = if (err == null) "Permintaan reset nama terkirim" else "Gagal: $err"
                             sibuk = false
                         }
