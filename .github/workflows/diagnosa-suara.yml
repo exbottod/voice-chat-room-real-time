@@ -19,16 +19,18 @@ jobs:
         run: |
           sudo apt-get update -qq; sudo apt-get install -y -qq sshpass >/dev/null
           OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+          mkdir -p hasil
           SKRIP=$(cat vps/diagnosa.sh | base64 -w0)
           PERIKSA="echo $SKRIP | base64 -d | bash"
-          { printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@43.156.99.4 "sudo -S -p '' bash -c '$PERIKSA'"; } > hasil-suara.txt 2>&1 \
-            || sshpass -p "$PASS" ssh $OPSI root@43.156.99.4 "bash -c '$PERIKSA'" > hasil-suara.txt 2>&1 \
+          { printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@43.156.99.4 "sudo -S -p '' bash -c '$PERIKSA'"; } > hasil/vps-${{ github.run_number }}.txt 2>&1 \
+            || sshpass -p "$PASS" ssh $OPSI root@43.156.99.4 "bash -c '$PERIKSA'" > hasil/vps-${{ github.run_number }}.txt 2>&1 \
             || true
-          cat hasil-suara.txt
+          cat hasil/vps-${{ github.run_number }}.txt
       - name: Simpan hasil ke repo
         run: |
           git config user.email dev@rezo.app
           git config user.name "REZO Build"
-          git add hasil-suara.txt
+          git add hasil
           git commit -m "chore: hasil diagnosa suara" || true
-          git push || true
+          git pull -q --rebase origin main || true
+          git push || git push || true
