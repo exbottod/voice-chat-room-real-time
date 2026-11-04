@@ -147,6 +147,12 @@ object WalletCache {
     }
 }
 
+/** Status pemuatan dompet: dipakai layar supaya "0" tidak tampil seolah dompet kosong. */
+object StatusDompet {
+    var galat by androidx.compose.runtime.mutableStateOf("")
+    var terakhir by androidx.compose.runtime.mutableStateOf(0L)
+}
+
 object WalletRepo {
     private val backupCbs = java.util.concurrent.CopyOnWriteArrayList<(String, Wallet) -> Unit>()
     private fun db() = FirebaseFirestore.getInstance()
@@ -188,6 +194,8 @@ object WalletRepo {
                     res = SupaRepo.migrate(uid, legacy)
                 }
                 res.wallet?.let { emitBackup(uid, it) }
+                StatusDompet.galat = res.error ?: ""
+                if (res.wallet != null) StatusDompet.terakhir = System.currentTimeMillis()
                 // Saat aplikasi sedang dibuka, saldo diperbarui tiap 15 detik
                 // seperti biasa. Saat ditinggal di latar belakang, jedanya
                 // dilonggarkan jadi 5 menit supaya kuota Supabase tidak habis.
@@ -503,6 +511,7 @@ fun WalletScreen(uid: String, wallet: Wallet, onRefresh: () -> Unit = {}, onBack
 
     // Tarik ke bawah untuk mengambil ulang saldo, riwayat, dan data akun.
     var tarik by remember { mutableStateOf(false) }
+    val galatSaldo = StatusDompet.galat
     androidx.compose.material3.pulltorefresh.PullToRefreshBox(
         isRefreshing = tarik,
         onRefresh = {
@@ -521,6 +530,28 @@ fun WalletScreen(uid: String, wallet: Wallet, onRefresh: () -> Unit = {}, onBack
             .background(Brush.verticalGradient(listOf(WalTealTop, WalTealMid, Color.White), endY = 900f)),
     ) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            // Saldo gagal dimuat: jangan tampil seolah dompet kosong.
+            if (galatSaldo.isNotBlank()) {
+                Box(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)
+                        .background(Color(0xFFFFE2E2), RoundedCornerShape(10.dp))
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() },
+                        ) {
+                            scope.launch {
+                                onRefresh()
+                            }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        "Saldo gagal dimuat: " + galatSaldo + ". Ketuk untuk coba lagi.",
+                        color = Color(0xFF8A1F1F),
+                        fontSize = 12.sp,
+                    )
+                }
+            }
             // ---- bar judul ----
             Box(Modifier.fillMaxWidth().height(54.dp)) {
                 Text(
