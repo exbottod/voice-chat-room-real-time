@@ -1,2 +1,12 @@
 Warning: Permanently added '43.156.99.4' (ED25519) to the list of known hosts.
-folder: /opt/rezo-agora
+berkas: /opt/rezo-agora/server.mjs
+app_id: 
+panjang_sertifikat: 0
+sidik_sertifikat: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+--- berkas env lain:
+total 36
+drwxr-xr-x 2 root root  4096 Nov  4 16:47 .
+drwxr-xr-x 5 root root  4096 Nov  4 16:47 ..
+-rw-r--r-- 1 root root    18 Nov  4 18:35 package.json
+-rw-r--r-- 1 root root  2165 Nov  4 18:35 server.mjs
+-rw-r--r-- 1 root root 20371 Nov  4 18:35 worker.js
