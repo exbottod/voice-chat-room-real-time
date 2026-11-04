@@ -23,6 +23,10 @@ object SupaRepo {
     // Jalur cadangan (alamat lain, server dan database sama). Dipakai kalau HP
     // tidak bisa menjangkau alamat utama, misalnya diblokir jaringan/ISP.
     private const val WAL2 = "https://rezo-wallet.pages.dev"
+    // Jalur utama baru: VPS Helipod (Singapore). Kuota Cloudflare gratis
+    // sering habis karena callback game, jadi VPS dipakai lebih dulu dan
+    // Cloudflare tinggal menjadi cadangan.
+    private const val VPS = "https://43-156-99-4.sslip.io"
     // Baca saldo langsung dari Turso, tanpa lewat Cloudflare. Token di bawah
     // HARUS token baca-saja (read only), karena ikut tertanam di dalam APK.
     // Kalau kosong, app kembali memakai jalur worker seperti biasa.
@@ -139,18 +143,22 @@ object SupaRepo {
     }
 
     private suspend fun postWallet(body: org.json.JSONObject): Pair<Int, String> {
-        val utama = if (pakaiCadangan) WAL2 else WAL
-        val lain = if (pakaiCadangan) WAL else WAL2
-        // Jalur pertama diberi waktu cukup singkat; kalau gagal menjangkau,
-        // coba jalur lain sekali. Permintaan tulis aman karena memakai nomor
-        // permintaan (req) sehingga tidak diproses dua kali.
-        try {
-            return kirim(utama, body, 20_000)
-        } catch (e: java.io.IOException) {
-            val hasil = kirim(lain, body, 40_000)
-            pakaiCadangan = !pakaiCadangan
-            return hasil
+        // Urutan jalur: VPS lebih dulu, lalu Cloudflare Worker, lalu Pages.
+        // Kalau VPS gagal dijangkau, Cloudflare langsung dipakai supaya
+        // pengguna lama tidak terganggu. Permintaan tulis aman diulang karena
+        // memakai nomor permintaan (req), jadi tidak diproses dua kali.
+        val urls = if (pakaiCadangan) listOf(WAL, VPS, WAL2) else listOf(VPS, WAL, WAL2)
+        var galat: java.io.IOException? = null
+        urls.forEachIndexed { i, u ->
+            try {
+                val hasil = kirim(u, body, if (i == 0) 12_000 else 25_000)
+                pakaiCadangan = (u != VPS)
+                return hasil
+            } catch (e: java.io.IOException) {
+                galat = e
+            }
         }
+        throw galat ?: java.io.IOException("Jaringan tidak terjangkau")
     }
 
     private fun parseWalletResponse(code: Int, txt: String): Res {
