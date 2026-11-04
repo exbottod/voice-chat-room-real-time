@@ -1,0 +1,203 @@
+Warning: Permanently added '43.156.99.4' (ED25519) to the list of known hosts.
+== layanan
+active
+active
+== port
+tcp   LISTEN 0      4096                        127.0.0.1:7880       0.0.0.0:*    users:(("livekit-server",pid=137260,fd=6))            
+tcp   LISTEN 0      4096                                *:7881             *:*    users:(("livekit-server",pid=137260,fd=3))            
+== ufw
+Status: inactive
+== beban
+ 21:34:45 up  8:34,  1 user,  load average: 0.18, 0.30, 0.29
+               total        used        free      shared  buff/cache   available
+Mem:            1967         607         195           2        1341        1360
+Swap:           1987           0        1987
+2
+== log
+Nov 04 21:33:13 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:13 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:16 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 49.
+Nov 04 21:33:16 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:16 VM-12-71-ubuntu livekit-server[136680]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:16 VM-12-71-ubuntu livekit-server[136680]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:16 VM-12-71-ubuntu livekit-server[136680]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:16 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:16 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:19 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 50.
+Nov 04 21:33:19 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:19 VM-12-71-ubuntu livekit-server[136704]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:19 VM-12-71-ubuntu livekit-server[136704]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:19 VM-12-71-ubuntu livekit-server[136704]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:19 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:19 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:23 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 51.
+Nov 04 21:33:23 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:23 VM-12-71-ubuntu livekit-server[136725]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:23 VM-12-71-ubuntu livekit-server[136725]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:23 VM-12-71-ubuntu livekit-server[136725]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:23 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:23 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:26 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 52.
+Nov 04 21:33:26 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:26 VM-12-71-ubuntu livekit-server[136754]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:26 VM-12-71-ubuntu livekit-server[136754]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:26 VM-12-71-ubuntu livekit-server[136754]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:26 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:26 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:29 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 53.
+Nov 04 21:33:29 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:29 VM-12-71-ubuntu livekit-server[136780]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:29 VM-12-71-ubuntu livekit-server[136780]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:29 VM-12-71-ubuntu livekit-server[136780]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:29 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:29 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:32 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 54.
+Nov 04 21:33:32 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:32 VM-12-71-ubuntu livekit-server[136804]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:32 VM-12-71-ubuntu livekit-server[136804]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:32 VM-12-71-ubuntu livekit-server[136804]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:32 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:32 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:35 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 55.
+Nov 04 21:33:35 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:35 VM-12-71-ubuntu livekit-server[136817]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:35 VM-12-71-ubuntu livekit-server[136817]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:35 VM-12-71-ubuntu livekit-server[136817]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:35 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:35 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:39 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 56.
+Nov 04 21:33:39 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:39 VM-12-71-ubuntu livekit-server[136839]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:39 VM-12-71-ubuntu livekit-server[136839]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:39 VM-12-71-ubuntu livekit-server[136839]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:39 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:39 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:42 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 57.
+Nov 04 21:33:42 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:42 VM-12-71-ubuntu livekit-server[136861]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:42 VM-12-71-ubuntu livekit-server[136861]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:42 VM-12-71-ubuntu livekit-server[136861]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:42 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:42 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:45 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 58.
+Nov 04 21:33:45 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:45 VM-12-71-ubuntu livekit-server[136872]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:45 VM-12-71-ubuntu livekit-server[136872]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:45 VM-12-71-ubuntu livekit-server[136872]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:45 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:45 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:48 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 59.
+Nov 04 21:33:48 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:48 VM-12-71-ubuntu livekit-server[136891]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:48 VM-12-71-ubuntu livekit-server[136891]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:48 VM-12-71-ubuntu livekit-server[136891]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:48 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:48 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:52 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 60.
+Nov 04 21:33:52 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:52 VM-12-71-ubuntu livekit-server[136916]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:52 VM-12-71-ubuntu livekit-server[136916]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:52 VM-12-71-ubuntu livekit-server[136916]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:52 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:52 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:55 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 61.
+Nov 04 21:33:55 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:55 VM-12-71-ubuntu livekit-server[136926]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:55 VM-12-71-ubuntu livekit-server[136926]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:55 VM-12-71-ubuntu livekit-server[136926]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:55 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:55 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:58 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 62.
+Nov 04 21:33:58 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:58 VM-12-71-ubuntu livekit-server[136948]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:58 VM-12-71-ubuntu livekit-server[136948]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:58 VM-12-71-ubuntu livekit-server[136948]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:58 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:58 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:34:01 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 63.
+Nov 04 21:34:01 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:34:01 VM-12-71-ubuntu livekit-server[137064]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:34:01 VM-12-71-ubuntu livekit-server[137064]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:34:01 VM-12-71-ubuntu livekit-server[137064]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:34:01 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:34:01 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 64.
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: Stopping rezo-livekit.service - LiveKit server (suara REZO)...
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Deactivated successfully.
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: Stopped rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:34:05 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:05.253+0800        INFO        livekit        hwstats/memory_linux.go:77        failed reading cgroup specific memory stats, falling back to system wide implementation
+Nov 04 21:34:05 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:05.255+0800        INFO        livekit        routing/interfaces.go:181        using single-node routing
+Nov 04 21:34:05 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:05.257+0800        INFO        livekit        rtcconfig/webrtc_config.go:112        using explicit node IP for NAT1To1Ips        {"ip": {"V4":"43.156.99.4","V6":""}, "advertiseInternalIP": false}
+Nov 04 21:34:05 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:05.260+0800        INFO        livekit        service/server.go:309        starting LiveKit server        {"portHttp": 7880, "nodeID": "ND_iSkNFXZ8jM7K", "nodeIP": "43.156.99.4", "version": "1.13.11", "bindAddresses": ["127.0.0.1"], "rtc.portTCP": 7881, "rtc.portICERange": [50000, 50100]}
+Nov 04 21:34:18 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:18.182+0800        INFO        livekit        service/roommanager.go:436        starting RTC session        {"room": "khBCAsfwvv2qPjS2mxjX", "roomID": "RM_pWEN6YH7SGKg", "participant": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "participantID": "PA_YGgmmJAxiDEe", "remote": false, "room": "khBCAsfwvv2qPjS2mxjX", "nodeID": "ND_iSkNFXZ8jM7K", "numParticipants": 0, "participantInit": {"Identity": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "Reconnect": false, "ReconnectReason": "RR_UNKNOWN", "AutoSubscribe": true, "AutoSubscribeDataTrack": "not-set", "Client": {"sdk": "ANDROID", "version": "2.30.0", "protocol": 13, "os": "android", "osVersion": "15", "deviceModel": "realme RMX3830", "network": "wifi", "clientProtocol": 2, "capabilities": ["CAP_COMPRESSION_DEFLATE_RAW"]}, "Grants": {"Identity": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "Kind": "", "KindDetails": [], "Video": {"RoomCreate": false, "RoomList": false, "RoomRecord": false, "RoomAdmin": false, "RoomJoin": true, "Room": "khBCAsfwvv2qPjS2mxjX", "CanPublish": true, "CanSubscribe": true, "CanPublishData": true, "CanPublishSources": [], "CanUpdateOwnMetadata": "not-set", "IngressAdmin": false, "Hidden": false, "Recorder": false, "Agent": false, "CanSubscribeMetrics": "not-set", "CanManageAgentSession": "not-set", "DestinationRoom": ""}, "SIP": {}, "Agent": {}, "Inference": {}, "Observability": {}, "AgentEndpoint": {}, "AgentThread": {}, "RoomConfig": {}, "RoomPreset": ""}, "TokenExpiresAt": "2026-11-05T03:34:17.000+0800", "Region": "", "AdaptiveStream": false, "ID": "", "SubscriberAllowPause": "not-set", "DisableICELite": false, "CreateRoom": {"name": "khBCAsfwvv2qPjS2mxjX"}, "AddTrackRequests": [], "PublisherOffer": {}, "SyncState": {}, "UseSinglePeerConnection": false}, "apiKey": "APIbaab57fdf4cd"}
+Nov 04 21:34:19 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:19.746+0800        INFO        livekit        rtc/room.go:1284        participant active        {"room": "khBCAsfwvv2qPjS2mxjX", "roomID": "RM_pWEN6YH7SGKg", "participant": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "participantID": "PA_YGgmmJAxiDEe", "remote": false, "publisherCandidates": ["[local][selected:1][trickle] udp4 host 43.156.99.4:50071 (resolved: 43.156.99.4:50071)", "[local][trickle] tcp4 host 43.156.99.4:7881 (resolved: 43.156.99.4:7881)", "[remote][trickle] udp host 192.168.1.2:57917", "[remote][selected:1][trickle] udp srflx 157.85.220....:22647  related 192.168.1.2:57917"], "subscriberCandidates": ["[local][selected:1][trickle] udp4 host 43.156.99.4:50077 (resolved: 43.156.99.4:50077)", "[local][trickle] tcp4 host 43.156.99.4:7881 (resolved: 43.156.99.4:7881)", "[remote][trickle] udp host 192.168.1.2:38366", "[remote][selected:1] udp prflx 157.85.220....:22635"], "connectionType": "udp", "clientInfo": {"sdk": "ANDROID", "version": "2.30.0", "protocol": 13, "os": "android", "osVersion": "15", "deviceModel": "realme RMX3830", "network": "wifi", "clientProtocol": 2, "capabilities": ["CAP_COMPRESSION_DEFLATE_RAW"]}, "connectTime": "1.564583652s"}
+Nov 04 21:34:19 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:19.820+0800        INFO        livekit.pub        rtc/participant.go:2465        mediaTrack published        {"room": "khBCAsfwvv2qPjS2mxjX", "roomID": "RM_pWEN6YH7SGKg", "participant": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "participantID": "PA_YGgmmJAxiDEe", "remote": false, "kind": "audio", "trackID": "TR_AMsT25W3czxtnE", "webrtcTrackID": "40100ae8-7af0-449e-a777-d187636c53be", "rid": "", "ssrc": 2521957037, "rtxSsrc": 0, "mime": "audio/red", "trackInfo": {"sid": "TR_AMsT25W3czxtnE", "type": "AUDIO", "source": "MICROPHONE", "mimeType": "audio/red", "mid": "1", "codecs": [{"mimeType": "audio/red", "mid": "1", "cid": "40100ae8-7af0-449e-a777-d187636c53be", "videoLayerMode": "ONE_SPATIAL_LAYER_PER_STREAM"}], "encryption": "NONE", "stream": "camera", "version": {"unixMicro": 1793799259820127}, "audioFeatures": ["TF_AUTO_GAIN_CONTROL", "TF_ECHO_CANCELLATION", "TF_NOISE_SUPPRESSION"], "backupCodecPolicy": "SIMULCAST"}, "fromSdp": true, "isReceiverAdded": true, "sdpRids": ["", "", ""]}
+== kata kunci log
+Nov 04 21:33:39 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:42 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 57.
+Nov 04 21:33:42 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:42 VM-12-71-ubuntu livekit-server[136861]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:42 VM-12-71-ubuntu livekit-server[136861]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:42 VM-12-71-ubuntu livekit-server[136861]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:42 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:42 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:45 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 58.
+Nov 04 21:33:45 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:45 VM-12-71-ubuntu livekit-server[136872]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:45 VM-12-71-ubuntu livekit-server[136872]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:45 VM-12-71-ubuntu livekit-server[136872]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:45 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:45 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:48 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 59.
+Nov 04 21:33:48 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:48 VM-12-71-ubuntu livekit-server[136891]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:48 VM-12-71-ubuntu livekit-server[136891]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:48 VM-12-71-ubuntu livekit-server[136891]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:48 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:48 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:52 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 60.
+Nov 04 21:33:52 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:52 VM-12-71-ubuntu livekit-server[136916]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:52 VM-12-71-ubuntu livekit-server[136916]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:52 VM-12-71-ubuntu livekit-server[136916]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:52 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:52 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:55 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 61.
+Nov 04 21:33:55 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:55 VM-12-71-ubuntu livekit-server[136926]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:55 VM-12-71-ubuntu livekit-server[136926]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:55 VM-12-71-ubuntu livekit-server[136926]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:55 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:55 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:33:58 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 62.
+Nov 04 21:33:58 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:33:58 VM-12-71-ubuntu livekit-server[136948]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:33:58 VM-12-71-ubuntu livekit-server[136948]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:33:58 VM-12-71-ubuntu livekit-server[136948]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:33:58 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:33:58 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:34:01 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 63.
+Nov 04 21:34:01 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:34:01 VM-12-71-ubuntu livekit-server[137064]: could not parse config: yaml: unmarshal errors:
+Nov 04 21:34:01 VM-12-71-ubuntu livekit-server[137064]:   line 10: field ice_disconnected_timeout not found in type config.RTCConfig
+Nov 04 21:34:01 VM-12-71-ubuntu livekit-server[137064]:   line 11: field ice_failed_timeout not found in type config.RTCConfig
+Nov 04 21:34:01 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Main process exited, code=exited, status=1/FAILURE
+Nov 04 21:34:01 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Failed with result 'exit-code'.
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Scheduled restart job, restart counter is at 64.
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: Stopping rezo-livekit.service - LiveKit server (suara REZO)...
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: rezo-livekit.service: Deactivated successfully.
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: Stopped rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:34:05 VM-12-71-ubuntu systemd[1]: Started rezo-livekit.service - LiveKit server (suara REZO).
+Nov 04 21:34:05 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:05.260+0800        INFO        livekit        service/server.go:309        starting LiveKit server        {"portHttp": 7880, "nodeID": "ND_iSkNFXZ8jM7K", "nodeIP": "43.156.99.4", "version": "1.13.11", "bindAddresses": ["127.0.0.1"], "rtc.portTCP": 7881, "rtc.portICERange": [50000, 50100]}
+Nov 04 21:34:18 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:18.182+0800        INFO        livekit        service/roommanager.go:436        starting RTC session        {"room": "khBCAsfwvv2qPjS2mxjX", "roomID": "RM_pWEN6YH7SGKg", "participant": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "participantID": "PA_YGgmmJAxiDEe", "remote": false, "room": "khBCAsfwvv2qPjS2mxjX", "nodeID": "ND_iSkNFXZ8jM7K", "numParticipants": 0, "participantInit": {"Identity": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "Reconnect": false, "ReconnectReason": "RR_UNKNOWN", "AutoSubscribe": true, "AutoSubscribeDataTrack": "not-set", "Client": {"sdk": "ANDROID", "version": "2.30.0", "protocol": 13, "os": "android", "osVersion": "15", "deviceModel": "realme RMX3830", "network": "wifi", "clientProtocol": 2, "capabilities": ["CAP_COMPRESSION_DEFLATE_RAW"]}, "Grants": {"Identity": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "Kind": "", "KindDetails": [], "Video": {"RoomCreate": false, "RoomList": false, "RoomRecord": false, "RoomAdmin": false, "RoomJoin": true, "Room": "khBCAsfwvv2qPjS2mxjX", "CanPublish": true, "CanSubscribe": true, "CanPublishData": true, "CanPublishSources": [], "CanUpdateOwnMetadata": "not-set", "IngressAdmin": false, "Hidden": false, "Recorder": false, "Agent": false, "CanSubscribeMetrics": "not-set", "CanManageAgentSession": "not-set", "DestinationRoom": ""}, "SIP": {}, "Agent": {}, "Inference": {}, "Observability": {}, "AgentEndpoint": {}, "AgentThread": {}, "RoomConfig": {}, "RoomPreset": ""}, "TokenExpiresAt": "2026-11-05T03:34:17.000+0800", "Region": "", "AdaptiveStream": false, "ID": "", "SubscriberAllowPause": "not-set", "DisableICELite": false, "CreateRoom": {"name": "khBCAsfwvv2qPjS2mxjX"}, "AddTrackRequests": [], "PublisherOffer": {}, "SyncState": {}, "UseSinglePeerConnection": false}, "apiKey": "APIbaab57fdf4cd"}
+Nov 04 21:34:19 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:19.746+0800        INFO        livekit        rtc/room.go:1284        participant active        {"room": "khBCAsfwvv2qPjS2mxjX", "roomID": "RM_pWEN6YH7SGKg", "participant": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "participantID": "PA_YGgmmJAxiDEe", "remote": false, "publisherCandidates": ["[local][selected:1][trickle] udp4 host 43.156.99.4:50071 (resolved: 43.156.99.4:50071)", "[local][trickle] tcp4 host 43.156.99.4:7881 (resolved: 43.156.99.4:7881)", "[remote][trickle] udp host 192.168.1.2:57917", "[remote][selected:1][trickle] udp srflx 157.85.220....:22647  related 192.168.1.2:57917"], "subscriberCandidates": ["[local][selected:1][trickle] udp4 host 43.156.99.4:50077 (resolved: 43.156.99.4:50077)", "[local][trickle] tcp4 host 43.156.99.4:7881 (resolved: 43.156.99.4:7881)", "[remote][trickle] udp host 192.168.1.2:38366", "[remote][selected:1] udp prflx 157.85.220....:22635"], "connectionType": "udp", "clientInfo": {"sdk": "ANDROID", "version": "2.30.0", "protocol": 13, "os": "android", "osVersion": "15", "deviceModel": "realme RMX3830", "network": "wifi", "clientProtocol": 2, "capabilities": ["CAP_COMPRESSION_DEFLATE_RAW"]}, "connectTime": "1.564583652s"}
+Nov 04 21:34:19 VM-12-71-ubuntu livekit-server[137260]: 2026-11-04T21:34:19.820+0800        INFO        livekit.pub        rtc/participant.go:2465        mediaTrack published        {"room": "khBCAsfwvv2qPjS2mxjX", "roomID": "RM_pWEN6YH7SGKg", "participant": "GbJdFQx2iWU5UcjJX2H1P7hu0Pn1", "participantID": "PA_YGgmmJAxiDEe", "remote": false, "kind": "audio", "trackID": "TR_AMsT25W3czxtnE", "webrtcTrackID": "40100ae8-7af0-449e-a777-d187636c53be", "rid": "", "ssrc": 2521957037, "rtxSsrc": 0, "mime": "audio/red", "trackInfo": {"sid": "TR_AMsT25W3czxtnE", "type": "AUDIO", "source": "MICROPHONE", "mimeType": "audio/red", "mid": "1", "codecs": [{"mimeType": "audio/red", "mid": "1", "cid": "40100ae8-7af0-449e-a777-d187636c53be", "videoLayerMode": "ONE_SPATIAL_LAYER_PER_STREAM"}], "encryption": "NONE", "stream": "camera", "version": {"unixMicro": 1793799259820127}, "audioFeatures": ["TF_AUTO_GAIN_CONTROL", "TF_ECHO_CANCELLATION", "TF_NOISE_SUPPRESSION"], "backupCodecPolicy": "SIMULCAST"}, "fromSdp": true, "isReceiverAdded": true, "sdpRids": ["", "", ""]}
+== tcp lokal
+7881 lokal terbuka
+
+== uji dari luar (runner GitHub)
+LUAR TCP 443 TERBUKA
+LUAR TCP 7881 TERBUKA
