@@ -223,6 +223,9 @@ object LvRepo {
     suspend fun equip(uid: String, slot: String, id: String): String? {
         val r = SupaRepo.equip(uid, slot, id)
         r.wallet?.let { WalletRepo.emitBackup(uid, it) }
+        // Lencana/medal/frame yang baru dipasang langsung dikirim ke profil
+        // publik (RTDB) supaya orang lain melihatnya dalam hitungan detik.
+        if (r.error == null) r.wallet?.let { PublicSync.pushFast(uid, it, profil = false) }
         return r.error
     }
 
@@ -1095,6 +1098,54 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
 object PublicSync {
     private val docIds = HashMap<String, String>()
     private val lastKey = HashMap<String, String>()
+
+    /**
+     * Tulis perubahan LANGSUNG ke Realtime Database pub/{uid}, tanpa Firestore
+     * dan tanpa pengecekan "sudah pernah dikirim". Dipakai tepat setelah user
+     * ganti nama/foto/bio atau memasang medal/lencana/frame, supaya profil di
+     * layar orang lain berubah dalam hitungan detik (RTDB mengirim ke semua
+     * pendengar secara real-time).
+     *
+     * w = dompet terbaru (kalau null, bagian item tidak diubah).
+     * profil = true kalau data identitas (nama, foto, bio, negara, gender) ikut ditulis.
+     */
+    suspend fun pushFast(uid: String, w: Wallet? = null, profil: Boolean = true) {
+        if (uid.isBlank()) return
+        try {
+            val m = HashMap<String, Any?>()
+            if (w != null) {
+                val w2 = SvipInv.apply(uid, w)
+                m["frame"] = activeEquip(w2, "frame")
+                m["bubble"] = activeEquip(w2, "bubble")
+                m["badge"] = activeEquip(w2, "badge")
+                m["medals"] = activeMedalIds(w2).joinToString(",")
+                m["exp"] = w2.exp
+                m["vip"] = w2.vip.toLong()
+                m["vipUntil"] = w2.vipUntil
+            }
+            if (profil) {
+                val me = UserCache.meLocal(uid)
+                if (me != null) {
+                    // Foto boleh dikosongkan (hapus foto), nama/bio hanya kalau terisi.
+                    m["av"] = me.avatarB64 ?: ""
+                    me.name.takeIf { it.isNotBlank() }?.let { m["name"] = it }
+                    m["bio"] = me.bio
+                    me.gender.takeIf { it.isNotBlank() }?.let { m["gender"] = it }
+                    me.countryCode.takeIf { it.isNotBlank() }?.let { m["cc"] = it }
+                    me.photoUrl?.takeIf { it.isNotBlank() }?.let { m["photo"] = it }
+                }
+            }
+            if (m.isEmpty()) return
+            kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                Rtdb.ref("pub/$uid").updateChildren(m).await()
+            }
+            // Buang cache profil lama di HP ini supaya pembukaan berikutnya segar.
+            UserCache.forget(uid)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
+    }
 
     /** Kuota Firestore habis: dorong frame/lencana ke RTDB dari wallet cache / server cadangan,
      *  supaya profil publik (room, kursi) tetap lengkap dan tidak kosong. */

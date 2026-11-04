@@ -161,6 +161,11 @@ object UserCache {
 
     fun peek(uid: String): PublicUser? = map[uid]?.second ?: disk(uid)
 
+    /** Buang salinan memori profil ini supaya pembacaan berikutnya mengambil data segar. */
+    fun forget(uid: String) {
+        map.remove(uid)
+    }
+
     /** Profil SENDIRI instan dari data lokal (profil + wallet cache + SVIP lokal),
      *  TANPA jaringan sama sekali. Dipakai saat membuka profil sendiri di room /
      *  OtherProfile supaya tidak loading lama saat kuota Firestore habis. */

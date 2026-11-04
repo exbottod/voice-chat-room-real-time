@@ -338,6 +338,11 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     fun updateProfile(new: ProfileData) {
         profile = new
         ProfileRepo.saveLocal(context, user.email, new)
+        // Langsung ke profil publik (RTDB) TANPA menunggu server lain, supaya
+        // ganti nama/foto/bio terlihat di layar orang lain dalam beberapa detik.
+        scope.launch {
+            try { PublicSync.pushFast(uid, null, profil = true) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        }
         scope.launch {
             ProfileRepo.saveRemote(new)?.let {
                 Toast.makeText(context, "Tersimpan di perangkat, gagal sinkron: ${it.message}", Toast.LENGTH_LONG).show()
