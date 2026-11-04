@@ -278,7 +278,13 @@ object GiftFx {
         } catch (e: Exception) { }
         }
         // EXP roket: bertambah dari koin yang dipakai mengirim gift.
-        RocketRepo.addExp(roomId, name, g.price * count)
+        try {
+            RocketRepo.addExp(roomId, name, g.price * count)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            RocketRepo.noteAddFail(e.message ?: "error")
+        }
         // Efek layar penuh untuk semua orang di room (mp4/gif/svga) atau emoji besar.
         // Gift cashback dilewati: animasinya sudah terbang ke kursi penerima.
         if (!(g.cashback || g.cbRate > 0)) Rtdb.ref("giftFx/$roomId").push().setValue(

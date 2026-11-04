@@ -236,6 +236,11 @@ object RocketRepo {
     var lastError by mutableStateOf<String?>(null)
         private set
 
+    /** Catatan percobaan energi terakhir: sumber, koin masuk, hasilnya. */
+    var lastAdd by mutableStateOf<String?>(null)
+
+    fun noteAddFail(msg: String) { lastAdd = "gift: addExp error (${msg.take(60)})" }
+
     /** Peluncuran cadangan di perangkat sendiri kalau database menolak tulisan. */
     var localFx by mutableStateOf<Triple<Int, Long, Long>?>(null)
         private set
@@ -400,6 +405,8 @@ object RocketRepo {
         // peluncuran baru.
         var launches = mutableListOf<Pair<Int, Long>>()
         var txErr: String? = null
+        var hasilExp = -1L
+        var hasilStage = 0
         try {
             txErr = Rtdb.tx(Rtdb.ref("rocket/$roomId")) { d ->
                 // Setiap percobaan mulai dari daftar kosong supaya tidak dobel.
@@ -436,6 +443,8 @@ object RocketRepo {
                 // Roket 5 adalah roket terakhir. Setelah roket itu pecah, energi
                 // kembali ke syaratnya (bukan menumpuk terus).
                 val akhir = if (kenaBatas) left else if (st >= 5) left % need else left
+                hasilExp = akhir
+                hasilStage = st
                 d.child("exp").value = akhir
                 d.child("stage").value = st
                 d.child("seq").value = seq
@@ -452,6 +461,11 @@ object RocketRepo {
         // Energi gagal disimpan = roket tidak akan pernah meluncur.
         // Ditampilkan di panel Rocket supaya penyebabnya kelihatan.
         lastError = txErr?.let { "Energi roket ditolak database: ${it.take(90)}" }
+        lastAdd = if (txErr != null) {
+            "masuk ${ringkas(coins)}: DITOLAK (${txErr.take(60)})"
+        } else {
+            "masuk ${ringkas(coins)}: ${launches.size} luncur, stage $hasilStage, energi ${ringkas(hasilExp.coerceAtLeast(0L))}"
+        }
         // Peringkat: siapa paling banyak kirim gift di room ini pekan ini.
         try {
             Rtdb.ref("rocketRank/$roomId/${season()}/$u").setValue(
@@ -797,6 +811,9 @@ fun RocketScreen(
             )
             tesPesan?.let {
                 Text(it, color = Color(0xFFFFE082), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+            }
+            RocketRepo.lastAdd?.let {
+                Text("Terakhir: $it", color = Color(0xFFB0BEC5), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
             }
             // Tambah energi langsung (khusus developer) untuk menguji ambang roket.
             Text(
