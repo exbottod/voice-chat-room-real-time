@@ -628,24 +628,14 @@ object RoomRepo {
             val m = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
             if (photoB64 != null) m["photoB64"] = photoB64
             if (bgB64 != null) m["backgroundB64"] = bgB64
-            // RTDB dan Firestore ditulis bersamaan. Dulu berurutan sehingga
-            // menyimpan background (base64 besar) terasa lama sekali.
-            kotlinx.coroutines.coroutineScope {
-                val keRtdb = kotlinx.coroutines.async(kotlinx.coroutines.Dispatchers.IO) {
-                    try {
-                        val rm = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
-                        if (photoB64 != null) rm["photoB64"] = photoB64
-                        Rtdb.ref("roomsPub/$roomId").updateChildren(rm)
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e
-                    } catch (e: Exception) { }
-                }
-                val keSimpan = kotlinx.coroutines.async(kotlinx.coroutines.Dispatchers.IO) {
-                    roomRef(roomId).update(m).await()
-                }
-                keRtdb.await()
-                keSimpan.await()
-            }
+            // RTDB tidak ditunggu (kirim lalu lanjut), hanya Firestore yang ditunggu.
+            // Dulu keduanya berurutan sehingga menyimpan background terasa lama.
+            try {
+                val rm = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
+                if (photoB64 != null) rm["photoB64"] = photoB64
+                Rtdb.ref("roomsPub/$roomId").updateChildren(rm)
+            } catch (e: Exception) { }
+            roomRef(roomId).update(m).await()
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e

@@ -378,6 +378,15 @@ label{font-size:12px;color:var(--mut)}
 
 <div id="tab-rocket" class="hide">
   <div class="card">
+    <h2>Roket di room (global)</h2>
+    <p class="muted">Saklar untuk semua pengguna. Kalau MATI, ikon roket dan animasi peluncuran hilang di semua room.</p>
+    <div id="rkUiNow" class="muted" style="margin:6px 0">Memuat...</div>
+    <div style="display:flex;gap:8px">
+      <button id="rkUiOn" class="btn">Aktifkan roket</button>
+      <button id="rkUiOff" class="btn">Matikan roket</button>
+    </div>
+  </div>
+  <div class="card">
     <h2>Hadiah peringkat mingguan</h2>
     <p class="muted">Hadiah untuk pengirim gift terbanyak di room tiap pekan. Isi Top 1, Top 2, Top 3, dan satu hadiah untuk Top 4 ke bawah (berlaku sama untuk peringkat 4 dan seterusnya). Hadiah roket per level, animasi, dan syarat energi sudah ada di dalam aplikasi.</p>
     <div id="rkMsg" class="muted" style="min-height:18px;margin:6px 0"></div>
@@ -1614,11 +1623,12 @@ async function rkRemove(path){
   try { await rtDel(rkMirrorPath(path)); } catch (e) {}
 }
 function rocketStart(){
+  try { rkUiRender(); } catch (e) {}
   // Store perlu dimuat lebih dulu supaya efek & lencana bisa dipilih dari store.
   if (typeof vipStart === "function") vipStart();
   if (rkOff) { rkRender(); return; }
   const ref = rtdb.ref("rocketCfg");
-  const cb = ref.on("value", snap => { rkCfg = snap.val() || {}; rkRender(); });
+  const cb = ref.on("value", snap => { rkCfg = snap.val() || {}; rkRender(); try { rkUiRender(); } catch (e) {} });
   rkOff = () => ref.off("value", cb);
 }
 function rkStoreOptions(slots){
