@@ -494,9 +494,6 @@ object RocketRepo {
                     "test" to true,
                 ),
             ).await()
-            // Putar juga dari perangkat ini. Kalau pendengar database bermasalah,
-            // animasi tetap kelihatan sehingga jelas mana yang rusak.
-            localFx = Triple(lv.coerceIn(1, 5), System.nanoTime(), System.currentTimeMillis())
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
@@ -761,9 +758,14 @@ fun RocketScreen(
                 Spacer(Modifier.width(8.dp))
                 RocketRoundBtn("\uD83C\uDF81") { showPrizes = true }
             }
-            // Uji cepat: putar video roket sekarang juga, tanpa menunggu energi.
+            // Tombol uji hanya untuk akun developer, tidak boleh dilihat pengguna.
+            val devTes = try {
+                com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email == "developerex100@gmail.com"
+            } catch (e: Exception) { false }
             var tesPesan by remember { mutableStateOf<String?>(null) }
             val ctxTes = androidx.compose.ui.platform.LocalContext.current
+            if (devTes) {
+            // Uji cepat: putar video roket sekarang juga, tanpa menunggu energi.
             Text(
                 "Tes luncur roket",
                 color = Color(0xFFFFD86B), fontSize = 12.sp, fontWeight = FontWeight.Bold,
@@ -791,6 +793,7 @@ fun RocketScreen(
             )
             tesPesan?.let {
                 Text(it, color = Color(0xFFFFE082), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+            }
             }
             // Alasan paling sering animasi tidak muncul padahal database lancar:
             // efek roket dimatikan di menu Blok Efek milik akun ini.
