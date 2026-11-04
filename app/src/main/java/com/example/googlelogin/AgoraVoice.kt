@@ -55,6 +55,14 @@ object AgoraVoice {
     private var appCtx: Context? = null
     private var joinJob: Job? = null
 
+    /**
+     * Beberapa operator seluler memblokir port media Agora (UDP 1089-1091), akibatnya
+     * joinChannel balas 0 tetapi channel tidak pernah tersambung: layar menampilkan
+     * "Suara: menyambung ulang…" terus. Cloud proxy memaksa lewat TLS 443.
+     */
+    @Volatile private var pakaiProxy = true
+    @Volatile private var sudahCobaTanpaProxy = false
+
     /** Status terakhir untuk diagnosa (ditampilkan sebagai toast bila gagal). */
     // Dibaca layar room supaya kalau suara gagal, alasannya kelihatan langsung.
     var lastStatus by androidx.compose.runtime.mutableStateOf("")
@@ -126,6 +134,10 @@ object AgoraVoice {
                 // Suara room harus keluar dari speaker, bukan earpiece.
                 try { it.setDefaultAudioRoutetoSpeakerphone(true) } catch (e: Exception) { }
                 try { it.setEnableSpeakerphone(true) } catch (e: Exception) { }
+                // Wajib untuk HP yang jaringannya memblokir UDP Agora.
+                try { it.setCloudProxy(5) // 5 = cloud proxy TLS 443 } catch (e: Exception) {
+                    Log.e(TAG, "cloud proxy gagal: ${e.message}")
+                }
                 engine = it
                 appIdInUse = use
             }
@@ -246,8 +258,17 @@ object AgoraVoice {
             kotlinx.coroutines.delay(8000)
             if (roomId != id) return@launch
             if (!joined) {
-                lastStatus = "Suara: menyambung ulang…"
-                Log.e(TAG, lastStatus)
+                // Belum tersambung: coba lewat jalur lain (tanpa proxy) sekali,
+                // karena sebagian jaringan justru menghalangi proxy tapi lancar UDP.
+                if (pakaiProxy && !sudahCobaTanpaProxy) {
+                    sudahCobaTanpaProxy = true
+                    pakaiProxy = false
+                    try { engine?.setCloudProxy(0) } catch (ex: Exception) { }
+                    lastStatus = "Suara: menyambung ulang…"
+                } else {
+                    lastStatus = "Suara: menyambung ulang…"
+                }
+                Log.e(TAG, lastStatus + " proxy=$pakaiProxy")
                 join(ctx, id)
             }
         }
