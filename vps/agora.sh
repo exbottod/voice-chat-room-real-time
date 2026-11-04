@@ -4,6 +4,7 @@
 set -euo pipefail
 DOMAIN="${DOMAIN:-43-156-99-4.sslip.io}"
 CERT="${CERT:-}"
+APPID="${APPID:-a64c0421b7814ded8f0b2806f00e1a90}"
 if [ -z "$CERT" ]; then echo "CERT (App Certificate Agora) belum diisi"; exit 1; fi
 
 echo "== Menyiapkan folder"
@@ -62,7 +63,7 @@ After=network.target
 [Service]
 WorkingDirectory=/opt/rezo-agora
 Environment=FIREBASE_PROJECT_ID=arboreal-cat-511705-p6
-Environment=AGORA_APP_ID=a64c0421b7814ded8f0b2806f00e1a90
+Environment=AGORA_APP_ID=$APPID
 Environment=AGORA_APP_CERTIFICATE=$CERT
 ExecStart=/usr/bin/node /opt/rezo-agora/server.mjs
 Restart=always
