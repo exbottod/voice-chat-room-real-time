@@ -254,6 +254,13 @@
         ".write": "auth != null"
       }
     },
+    "pengumuman": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')",
+        ".validate": "newData.hasChildren(['title','body','at'])"
+      }
+    },
     "banners": {
       ".read": "auth != null",
       "$id": {
