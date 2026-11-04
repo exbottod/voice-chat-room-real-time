@@ -1,16 +1,72 @@
 {
-  "status": "gagal",
-  "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AgoraVoice.kt:153:48 Unresolved reference 'CLOUD_PROXY_TYPE_AUTO_PROXY'.",
-    "* What went wrong:"
-  ],
-  "versi": "1.0.744",
-  "ukuran_mb": 0,
-  "sha256": "",
-  "commit": "7c53717",
-  "waktu": "2026-11-04T06:57:20Z",
+  "status": "ok",
+  "masalah": [],
+  "versi": "1.0.745",
+  "ukuran_mb": 106.9,
+  "sha256": "a6bb6b068dfac4a2ccd18cdd7e7039330115910d24946377356c8a512265bf53",
+  "commit": "635e6ae",
+  "waktu": "2026-11-04T07:02:59Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 0,
-  "aset_total": 0,
-  "fitur": []
+  "aset_roket": 30,
+  "aset_total": 119,
+  "fitur": [
+    {
+      "nama": "Banner cashback terpisah",
+      "ada": true
+    },
+    {
+      "nama": "Banner gift biasa",
+      "ada": true
+    },
+    {
+      "nama": "Animasi cashback di avatar",
+      "ada": true
+    },
+    {
+      "nama": "Tombol kombo cashback",
+      "ada": true
+    },
+    {
+      "nama": "Roket level 1-5 di room",
+      "ada": true
+    },
+    {
+      "nama": "Peluncuran roket cadangan",
+      "ada": true
+    },
+    {
+      "nama": "Sambung ulang suara otomatis",
+      "ada": true
+    },
+    {
+      "nama": "Tukar diamond nominal sendiri",
+      "ada": true
+    },
+    {
+      "nama": "Papan peringkat roket",
+      "ada": true
+    }
+  ],
+  "roket_level": [
+    {
+      "level": 1,
+      "ada": true
+    },
+    {
+      "level": 2,
+      "ada": true
+    },
+    {
+      "level": 3,
+      "ada": true
+    },
+    {
+      "level": 4,
+      "ada": true
+    },
+    {
+      "level": 5,
+      "ada": true
+    }
+  ]
 }
