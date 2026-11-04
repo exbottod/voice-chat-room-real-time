@@ -157,48 +157,52 @@ object AgoraVoice {
     private val tokenCache = HashMap<String, Pair<Long, Tok>>()
 
     private suspend fun fetchToken(channel: String): Tok? {
-        val url = BuildConfig.AGORA_TOKEN_URL
-        if (url.isBlank()) {
-            problem("Suara mati: AGORA_TOKEN_URL kosong di build")
-            return null
-        }
+        // Urutan server token: server Base44 dulu (kuota sendiri, tidak kena
+        // batas Cloudflare), lalu VPS, terakhir worker lama sebagai cadangan.
+        val kandidat = arrayListOf(
+            "https://superagent-6187eafe.base44.app/functions/agoraToken",
+            "https://43-156-99-4.sslip.io/agora"
+        )
+        BuildConfig.AGORA_TOKEN_URL.takeIf { it.isNotBlank() }?.let { kandidat.add(it) }
         val now = System.currentTimeMillis()
         tokenCache[channel]?.let { (at, tok) ->
             if (now - at < 6L * 3600_000L) return tok
         }
         var lastErr = ""
-        // Sampai 3 percobaan: jaringan seluler sering putus-nyambung.
-        for (attempt in 1..3) {
-            try {
-                val idToken = FirebaseAuth.getInstance().currentUser
-                    ?.getIdToken(attempt > 1)?.await()?.token
-                if (idToken == null) { problem("Suara mati: belum login"); return null }
-                val c = (URL(url).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 15000
-                    readTimeout = 25000
-                    doOutput = true
-                    setRequestProperty("Authorization", "Bearer $idToken")
-                    setRequestProperty("Content-Type", "application/json")
+        for (url in kandidat) {
+            // Dua percobaan per server: jaringan seluler sering putus-nyambung.
+            for (attempt in 1..2) {
+                try {
+                    val idToken = FirebaseAuth.getInstance().currentUser
+                        ?.getIdToken(attempt > 1)?.await()?.token
+                    if (idToken == null) { problem("Suara mati: belum login"); return null }
+                    val c = (URL(url).openConnection() as HttpURLConnection).apply {
+                        requestMethod = "POST"
+                        connectTimeout = 10_000
+                        readTimeout = 15_000
+                        doOutput = true
+                        setRequestProperty("Authorization", "Bearer $idToken")
+                        setRequestProperty("Content-Type", "application/json")
+                    }
+                    c.outputStream.use { it.write(JSONObject().put("channel", channel).toString().toByteArray()) }
+                    if (c.responseCode != 200) {
+                        val body = c.errorStream?.bufferedReader()?.readText().orEmpty()
+                        lastErr = "token gagal ${c.responseCode} $body"
+                        // 4xx (login/secret salah) tidak akan sembuh dengan mengulang.
+                        if (c.responseCode in 400..499 && c.responseCode != 408 && c.responseCode != 429) break
+                    } else {
+                        val o = JSONObject(c.inputStream.bufferedReader().readText())
+                        val tok = Tok(o.getString("token"), o.optString("appId", ""))
+                        tokenCache[channel] = System.currentTimeMillis() to tok
+                        return tok
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    lastErr = "token error ${e.message}"
                 }
-                c.outputStream.use { it.write(JSONObject().put("channel", channel).toString().toByteArray()) }
-                if (c.responseCode != 200) {
-                    val body = c.errorStream?.bufferedReader()?.readText().orEmpty()
-                    lastErr = "token gagal ${c.responseCode} $body"
-                    // 4xx dari worker (login/secret salah) tidak akan sembuh dengan mengulang.
-                    if (c.responseCode in 400..499 && c.responseCode != 408 && c.responseCode != 429) break
-                } else {
-                    val o = JSONObject(c.inputStream.bufferedReader().readText())
-                    val tok = Tok(o.getString("token"), o.optString("appId", ""))
-                    tokenCache[channel] = System.currentTimeMillis() to tok
-                    return tok
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                lastErr = "token error ${e.message}"
+                kotlinx.coroutines.delay(700L * attempt)
             }
-            kotlinx.coroutines.delay(900L * attempt)
         }
         problem("Suara mati: $lastErr".take(140))
         return null
