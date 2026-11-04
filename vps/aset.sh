@@ -28,9 +28,12 @@ if [ ! -f "$UNIT" ]; then
   echo "Layanan belum pernah dipasang. Jalankan dulu vps/agora.sh."; exit 1
 fi
 
-EMAIL_IN=""; GH_IN=""
-tanya "Email admin panel" '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' EMAIL_IN || { echo "email gagal"; exit 1; }
-tanya "Token GitHub" '^(github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,})$' GH_IN || { echo "token gagal"; exit 1; }
+EMAIL_IN="${ADMIN_EMAIL:-}"; GH_IN="${GH_TOKEN:-}"
+# Mode tanpa tanya-jawab (dipakai GitHub Actions): nilai datang dari env.
+if [ -z "$EMAIL_IN" ] || [ -z "$GH_IN" ]; then
+  tanya "Email admin panel" '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' EMAIL_IN || { echo "email gagal"; exit 1; }
+  tanya "Token GitHub" '^(github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,})$' GH_IN || { echo "token gagal"; exit 1; }
+fi
 
 echo "== Memasang kode terbaru"
 sudo mkdir -p "$DIR"

@@ -1,0 +1,28 @@
+name: Pasang layanan VPS
+on:
+  workflow_dispatch:
+    inputs:
+      admin_email:
+        description: Email admin panel (login Google)
+        default: developerex100@gmail.com
+        required: true
+      perbarui_suara:
+        description: Perbarui juga rumus token suara (yes/no)
+        default: "yes"
+        required: false
+jobs:
+  pasang:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sambung ke VPS dan jalankan pembaruan
+        env:
+          SSHPASS: ${{ secrets.VPS_PASSWORD }}
+          GH_TOKEN: ${{ secrets.PANEL_GITHUB_TOKEN }}
+          ADMIN_EMAIL: ${{ inputs.admin_email }}
+        run: |
+          set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+          sshpass -e ssh -o StrictHostKeyChecking=no -o ConnectTimeout=25 \
+            root@43.156.99.4 \
+            "ADMIN_EMAIL='$ADMIN_EMAIL' GH_TOKEN='$GH_TOKEN' bash <(curl -fsSL https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/aset.sh)"
