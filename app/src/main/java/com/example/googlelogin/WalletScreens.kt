@@ -205,7 +205,7 @@ object WalletRepo {
                     // gagal: dompet bisa tampak kosong sampai 5 menit.
                     res.error != null -> if (AppAktif.ya) minOf(jeda * 2, 60_000L) else minOf(jeda * 2, 300_000L)
                     // Sedang dipakai: tetap segar seperti dulu.
-                    AppAktif.ya -> 15_000L
+                    AppAktif.ya -> 30_000L
                     // Ditinggal di latar belakang: hemat kuota.
                     else -> 300_000L
                 }

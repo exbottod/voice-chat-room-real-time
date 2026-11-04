@@ -430,7 +430,7 @@ object SupaRepo {
     // berkala. Tanpa cache, tiap permintaan = satu panggilan Edge Function.
     // Kuota free plan cuma 500 ribu panggilan sebulan, jadi saldo disimpan
     // sebentar dan permintaan yang bersamaan digabung jadi satu.
-    private const val CACHE_MS = 20_000L
+    private const val CACHE_MS = 45_000L
     private class Entri(val res: Res, val at: Long)
     private val cacheSaldo = java.util.concurrent.ConcurrentHashMap<String, Entri>()
     private val bacaKunci = Mutex()
