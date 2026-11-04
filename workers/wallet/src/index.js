@@ -885,8 +885,10 @@ async function panel(env, body) {
     if (salah) return gagal(salah);
     const coins = Math.trunc(Number(p.coins ?? 0));
     if (!(coins > 0) || coins > 100000000000) return gagal("Jumlah coin tidak valid");
-    // Manager hanya boleh mengirim dari stok coin yang dikirim developer.
-    if (peran === "manager") {
+    // Pemilik akun yang juga developer tetap memakai jalur manager di panel manager,
+    // supaya stok coin benar-benar berkurang sesuai jumlah yang dikirim.
+    const pakaiStok = staf && staf.role === "manager";
+    if (pakaiStok) {
       const sisa = staf.coins;
       if (coins > sisa) {
         return gagal(`Stok coin panel habis. Sisa ${sisa.toLocaleString("id-ID")} coin, minta tambah ke developer.`);

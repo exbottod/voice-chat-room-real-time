@@ -121,6 +121,18 @@ object PanelStaffRepo {
      * Tanpa penerjemahan ini coin masuk ke dompet palsu bernama "100129"
      * sehingga penerima sebenarnya tidak menerima apa pun.
      */
+    /** Nama penerima untuk konfirmasi, supaya tidak salah orang. */
+    suspend fun namaTarget(uid: String): String = try {
+        val snap = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("pub/$uid").get().await() }
+        val v = snap?.value
+        val nm = if (v is Map<*, *>) (v["name"] as? String) ?: "" else ""
+        nm.takeIf { it.isNotBlank() } ?: "-"
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        "-"
+    }
+
     suspend fun uidTarget(input: String): String {
         val n = input.trim()
         if (n.isBlank()) throw IllegalStateException("Isi ID user")
@@ -290,6 +302,8 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
     var alasan by remember { mutableStateOf("") }
     var itemPilih by remember { mutableStateOf<PanelStok?>(null) }
     var sisaCoin by remember { mutableStateOf(info.coins) }
+    // Konfirmasi dua langkah: tampilkan nama penerima sebelum coin dikirim.
+    var konfirmasi by remember { mutableStateOf("") }
 
     fun jalankan(action: String, params: org.json.JSONObject) {
         if (sibuk) return
@@ -378,7 +392,29 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                             pesan = "Isi ID user dan jumlah coin"
                         } else if (n > sisaCoin) {
                             pesan = "Stok coin tidak cukup. Sisa ${fmtNum(sisaCoin)} coin."
+                        } else if (konfirmasi != idUser.trim() + "|" + n) {
+                            sibuk = true
+                            pesan = "Mencari penerima..."
+                            scope.launch {
+                                val uidT = try {
+                                    PanelStaffRepo.uidTarget(idUser)
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    pesan = e.message ?: "ID user tidak ditemukan"
+                                    sibuk = false
+                                    return@launch
+                                }
+                                val nama = PanelStaffRepo.namaTarget(uidT)
+                                val diri = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                konfirmasi = idUser.trim() + "|" + n
+                                pesan = "Penerima: " + nama + " (ID " + idUser.trim() + ")" +
+                                    (if (uidT == diri) " - INI AKUN ANDA SENDIRI!" else "") +
+                                    ". Tekan \"Kirim coin\" sekali lagi untuk mengirim " + fmtNum(n) + " coin."
+                                sibuk = false
+                            }
                         } else {
+                            konfirmasi = ""
                             sibuk = true
                             pesan = "Memproses..."
                             scope.launch {
@@ -389,7 +425,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                                         info.role,
                                     )
                                     sisaCoin = PanelStaffRepo.sisaCoin(info.role)
-                                    hasil
+                                    "Terkirim ke ID " + idUser.trim() + ". " + hasil
                                 } catch (e: kotlinx.coroutines.CancellationException) {
                                     throw e
                                 } catch (e: Exception) {
