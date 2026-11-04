@@ -392,6 +392,16 @@ label{font-size:12px;color:var(--mut)}
     <div id="rkMsg" class="muted" style="min-height:18px;margin:6px 0"></div>
     <div id="rkRank"></div>
   </div>
+  <div class="card">
+    <h2>Syarat energi roket</h2>
+    <p class="muted">Kosongkan untuk memakai angka bawaan (100M, 500M, 1B, 1,5B, 2B). Untuk uji cepat, isi Roket 1 dengan angka kecil seperti 500000, lalu kirim gift.</p>
+    <div id="rkExp"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <label class="muted" style="display:flex;align-items:center;gap:6px">Durasi animasi (detik)
+        <input type="number" id="rkFlyDur" min="5" max="120" step="1" style="width:80px">
+      </label>
+      <button id="rkExpSave" class="btn">Simpan syarat energi</button>
+  </div>
 </div>
 
 <div id="tab-bet" class="hide">
@@ -1628,7 +1638,7 @@ function rocketStart(){
   if (typeof vipStart === "function") vipStart();
   if (rkOff) { rkRender(); return; }
   const ref = rtdb.ref("rocketCfg");
-  const cb = ref.on("value", snap => { rkCfg = snap.val() || {}; rkRender(); try { rkUiRender(); } catch (e) {} });
+  const cb = ref.on("value", snap => { rkCfg = snap.val() || {}; rkRender(); try { rkUiRender(); } catch (e) {} try { rkExpRender(); } catch (e) {} });
   rkOff = () => ref.off("value", cb);
 }
 function rkStoreOptions(slots){
@@ -1736,6 +1746,22 @@ function rkExpRender(){
     if (n === 1 && $("rkFlyDur")) $("rkFlyDur").value = rkCfg.flyDur || 15;
   }
 }
+function rkExpSave(){
+  const jalan = async () => {
+    for (let n = 1; n <= 5; n++) {
+      const el = $("rexp_" + n); if (!el) continue;
+      const v = parseInt(el.value, 10);
+      if (Number.isFinite(v) && v > 0) await rkSave("rocketCfg/exp" + n, v);
+    }
+    const d = parseInt(($("rkFlyDur") || {}).value, 10);
+    if (Number.isFinite(d) && d >= 5 && d <= 120) await rkSave("rocketCfg/flyDur", d);
+    rkMsg("Syarat energi disimpan ✅");
+    rkExpRender();
+  };
+  jalan().catch(e => rkMsg("Gagal: " + (e.message || e)));
+}
+if ($("rkExpSave")) $("rkExpSave").onclick = rkExpSave;
+
 function rkRender(){
   // Tab Rocket hanya mengatur hadiah peringkat mingguan. Hadiah roket per level
   // dan animasinya sudah menyatu di dalam aplikasi.
