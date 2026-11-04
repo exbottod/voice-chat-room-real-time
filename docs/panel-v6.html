@@ -2111,7 +2111,9 @@ const BACKUP_URL = "https://rezo-agora-token.bangexx01.workers.dev";
 const WALLET_API = "https://fdemjdqagxkhgqkmfvwk.supabase.co/functions/v1/smart-processor";
 /* Dompet pindah ke Cloudflare Worker + Turso. Perintah yang sudah pindah
    dikirim ke sana, sisanya masih ke server lama. */
-const WALLET_NEW = "https://rezo-wallet.bangexx01.workers.dev/admin";
+/* Server panel di Base44 (tidak kena kuota Cloudflare). Cloudflare jadi cadangan. */
+const WALLET_NEW = "https://superagent-6187eafe.base44.app/functions/walletPanel";
+const WALLET_CADANGAN = "https://rezo-wallet.bangexx01.workers.dev/admin";
 /* Semua operasi admin sudah dilayani worker dompet. Daftar ini dulu memaksa
    "add" dan "vip" ke Supabase lama yang sudah mati, jadi tombol kirim coin
    tidak pernah memberi jawaban. */
@@ -2126,11 +2128,22 @@ async function walletAdmin(p){
   if (!u) throw new Error("Belum login");
   if (OPS_TANPA_UID.has(p.op) && !p.uid) p = Object.assign({}, p, { uid: "-" });
   const idToken = await u.getIdToken(true);
-  const res = await fetch(OPS_NEW.has(p.op) ? WALLET_NEW : WALLET_API, {
+  const kirim = (url) => fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: WALLET_KEY },
     body: JSON.stringify({ a: "admin", t: idToken, p })
   });
+  let res;
+  if (OPS_NEW.has(p.op)) {
+    // Server Base44 dulu; kalau tidak terjangkau, coba Cloudflare.
+    try { res = await kirim(WALLET_NEW); }
+    catch (e) { res = await kirim(WALLET_CADANGAN); }
+    if (res.status === 429 || res.status >= 500) {
+      try { res = await kirim(WALLET_CADANGAN); } catch (e) { /* pakai jawaban pertama */ }
+    }
+  } else {
+    res = await kirim(WALLET_API);
+  }
   const out = await res.json().catch(() => ({}));
   if (!out.ok) throw new Error(out.e || (res.status === 546 ? "Server kehabisan tenaga (546), coba lagi" : ("HTTP " + res.status)));
   return out;
