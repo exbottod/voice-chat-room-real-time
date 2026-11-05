@@ -3,11 +3,11 @@
   "masalah": [
     "Build gagal, buka riwayat build untuk detail."
   ],
-  "versi": "1.0.862",
+  "versi": "1.0.863",
   "ukuran_mb": 0,
   "sha256": "",
-  "commit": "bd19c88",
-  "waktu": "2026-11-05T15:59:32Z",
+  "commit": "5877362",
+  "waktu": "2026-11-05T16:06:42Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
   "aset_roket": 0,
   "aset_total": 0,
