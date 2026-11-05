@@ -430,6 +430,12 @@
     "tabBg": {
       ".read": "auth != null",
       ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+    },
+    "phoneDir": {
+      ".read": true,
+      "$nomor": {
+        ".write": "auth != null"
+      }
     }
   }
 }

@@ -80,8 +80,10 @@ fun LoginScreen(
     },
     onVerifikasiKode: (String, String) -> Unit = { _, _ -> },
     perluPassword: Boolean = false,
+    modePasswordHp: Boolean = false,
     onLengkapiPendaftaran: (String, String) -> Unit = { _, _ -> },
     onLoginNomorPassword: (String, String) -> Unit = { _, _ -> },
+    onGantiNomor: () -> Unit = {},
     onEmailLogin: (String, String) -> Unit,
     onForgotPassword: () -> Unit,
     onSignUp: () -> Unit,
@@ -215,7 +217,62 @@ fun LoginScreen(
                 val nomorLengkap = KodeArea.gabung(negaraIso, nomor)
                 val nomorValid = digit.length in 6..14
 
-                if (perluPassword) {
+                if (modePasswordHp && !perluPassword) {
+                    // ---------- Nomor sudah terdaftar: langsung password ----------
+                    Text(nomorLengkap, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = passwordHp,
+                        onValueChange = { passwordHp = it.take(40) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        placeholder = { Text("Password") },
+                        trailingIcon = {
+                            Text(
+                                if (lihatPassHp) "Sembunyi" else "Lihat",
+                                color = HijauAksen, fontSize = 12.sp,
+                                modifier = Modifier
+                                    .clickable { lihatPassHp = !lihatPassHp }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                        },
+                        visualTransformation = if (lihatPassHp) VisualTransformation.None
+                        else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = fieldColorsLogin(),
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    val bisaLogin = passwordHp.isNotBlank() && !loading
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(
+                                if (bisaLogin) Color.White else Color.White.copy(alpha = 0.35f),
+                            )
+                            .clickable(enabled = bisaLogin) { onLoginNomorPassword(nomorLengkap, passwordHp) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (loading) {
+                            CircularProgressIndicator(
+                                color = Color(0xFF10231C), strokeWidth = 2.4.dp,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        } else {
+                            Text("Login", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Bukan nomor ini? Ganti nomor",
+                        color = HijauMuda, fontSize = 13.sp,
+                        modifier = Modifier
+                            .clickable { onGantiNomor() }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                    )
+                } else if (perluPassword) {
                     // ---------- Tahap Mendaftar: buat password ----------
                     Text(
                         "Mendaftar", color = Color.White, fontSize = 18.sp,

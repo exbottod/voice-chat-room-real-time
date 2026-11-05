@@ -198,6 +198,8 @@ fun AppRoot() {
     // Akun nomor baru: setelah kode SMS benar, minta password dulu sebelum masuk.
     var perluPasswordHp by remember { mutableStateOf(false) }
     var nomorBaruHp by remember { mutableStateOf("") }
+    // Nomor sudah terdaftar: langsung minta password, tanpa SMS.
+    var nomorPasswordHp by remember { mutableStateOf<String?>(null) }
 
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
@@ -309,7 +311,17 @@ fun AppRoot() {
             hasil(null, "Hanya bisa dari layar aplikasi")
             return
         }
-        PhoneAuthLogin.mintaKode(activity, nomor, hasil)
+        // Nomor yang sudah punya akun langsung meminta password, tanpa SMS.
+        scope.launch {
+            if (NomorTerdaftar.cek(nomor)) {
+                nomorPasswordHp = nomor
+                hasil("@password", null)
+                return@launch
+            }
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                PhoneAuthLogin.mintaKode(activity, nomor, hasil)
+            }
+        }
     }
 
     fun masukkanSesiNomor(fbUser: com.google.firebase.auth.FirebaseUser) {
@@ -375,6 +387,7 @@ fun AppRoot() {
                 return@launch
             }
             perluPasswordHp = false
+            NomorTerdaftar.daftarkan(nomor.ifBlank { nomorBaruHp }, fbUser.uid)
             masukkanSesiNomor(fbUser)
         }
     }
@@ -384,6 +397,7 @@ fun AppRoot() {
         scope.launch {
             try {
                 val fb = FirebaseSession.signInEmail(FirebaseSession.emailDariNomor(nomor), password)
+                NomorTerdaftar.daftarkan(nomor, fb.uid)
                 masukkanSesiNomor(fb)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -452,6 +466,8 @@ fun AppRoot() {
             onKirimKode = ::kirimKodeHp,
             onVerifikasiKode = ::verifikasiKodeHp,
             perluPassword = perluPasswordHp,
+            modePasswordHp = nomorPasswordHp != null,
+            onGantiNomor = { nomorPasswordHp = null },
             onLengkapiPendaftaran = ::lengkapiPendaftaranHp,
             onLoginNomorPassword = ::loginNomorPassword,
             onEmailLogin = { e, p -> emailLogin(e, p) },
