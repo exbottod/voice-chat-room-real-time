@@ -390,6 +390,7 @@ label{font-size:12px;color:var(--mut)}
     <h2>Hadiah peringkat mingguan</h2>
     <p class="muted">Hadiah untuk pengirim gift terbanyak di room tiap pekan. Isi Top 1, Top 2, Top 3, dan satu hadiah untuk Top 4 ke bawah (berlaku sama untuk peringkat 4 dan seterusnya). Hadiah roket per level, animasi, dan syarat energi sudah ada di dalam aplikasi.</p>
     <div id="rkMsg" class="muted" style="min-height:18px;margin:6px 0"></div>
+    <button class="btn" id="rkRankDefault" style="margin-bottom:8px">Isi hadiah peringkat bawaan</button>
     <div id="rkRank"></div>
   </div>
   <div class="card">
@@ -1886,7 +1887,12 @@ function rkPrize(label, path, cur, key){
         updatedAt: Date.now(),
       };
       await rkSave(path, out);
-      rkMsg("Tersimpan ✅ " + label);
+      // Baca ulang: pastikan angkanya benar-benar tersimpan di database.
+      const cek = (await rtdb.ref(path).get()).val() || {};
+      const cocok = Number(cek.coins || 0) === out.coins && Number(cek.vip || 0) === out.vip;
+      rkMsg(cocok
+        ? "Tersimpan ✅ " + label + " · " + (out.vip ? "VIP" + out.vip + " " : "") + rupiahRingkas(out.coins) + " coin"
+        : "GAGAL tersimpan " + label + " (rules database menolak atau angka tidak masuk)");
     } catch (e) { rkMsg("Gagal: " + e.message); }
     finally { btn.disabled = false; }
   };
@@ -1896,6 +1902,41 @@ function rkPrize(label, path, cur, key){
   };
   return d;
 }
+function rupiahRingkas(n){
+  n = Number(n || 0);
+  if (n >= 1000000000) return (n / 1000000000).toString().replace(/\.0$/, "") + " M";
+  if (n >= 1000000) return (n / 1000000).toString().replace(/\.0$/, "") + " jt";
+  if (n >= 1000) return (n / 1000).toString().replace(/\.0$/, "") + " rb";
+  return String(n);
+}
+/** Hadiah peringkat mingguan sesuai ketentuan: Top1 VIP9 + 100 jt, dst. */
+async function rkIsiRankBawaan(){
+  const btn = $("rkRankDefault"); if (btn) btn.disabled = true;
+  const daftar = [
+    ["t1", { vip: 9, coins: 100000000 }],
+    ["t2", { vip: 8, coins: 50000000 }],
+    ["t3", { vip: 5, coins: 10000000 }],
+    ["t4", { vip: 0, coins: 10000000 }],
+  ];
+  try {
+    for (const [k, v] of daftar) {
+      const cur = (rkCfg.rank || {})[k] || {};
+      await rkSave("rocketCfg/rank/" + k, Object.assign({
+        img: cur.img || "", eff: cur.eff || "", badge: cur.badge || "", updatedAt: Date.now(),
+      }, v));
+    }
+    const cek = (await rtdb.ref("rocketCfg/rank").get()).val() || {};
+    const t1 = cek.t1 || {};
+    if (Number(t1.vip || 0) === 9 && Number(t1.coins || 0) === 100000000) {
+      rkMsg("Tersimpan ✅ Top 1 VIP9 + 100 jt, Top 2 VIP8 + 50 jt, Top 3 VIP5 + 10 jt, Top 4+ 10 jt");
+    } else {
+      rkMsg("GAGAL tersimpan. Rules rocketCfg menolak tulisan panel.");
+    }
+  } catch (e) { rkMsg("Gagal: " + e.message); }
+  finally { if (btn) btn.disabled = false; }
+}
+if ($("rkRankDefault")) $("rkRankDefault").onclick = rkIsiRankBawaan;
+
 function rkUiRender(){
   const el = $("rkUiNow"); if (!el) return;
   el.textContent = rkCfg.uiOff ? "Sekarang: MATI" : "Sekarang: AKTIF";
