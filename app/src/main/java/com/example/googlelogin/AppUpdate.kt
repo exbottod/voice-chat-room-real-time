@@ -36,6 +36,7 @@ import androidx.compose.foundation.clickable
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -91,7 +92,17 @@ object AppUpdate {
                 }
                 out.filter { it.isNotBlank() }.joinToString(" \u2022 ")
             } catch (e: Exception) { "" }
-            Info(latest, notes.ifBlank { "Perbaikan dan peningkatan untuk REZO." }, REL + apkName())
+            // Catatan rilis bisa ditulis sendiri dari panel (rocketCfg/updateNote)
+            // supaya tidak perlu build ulang hanya untuk mengubah kalimatnya.
+            val panelNote = try {
+                kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                    com.google.firebase.database.FirebaseDatabase.getInstance()
+                        .getReference("rocketCfg/updateNote").get().await()
+                        .getValue(String::class.java)
+                }?.trim().orEmpty()
+            } catch (e: Exception) { "" }
+            val akhir = panelNote.ifBlank { notes.ifBlank { "Perbaikan dan peningkatan untuk REZO." } }
+            Info(latest, akhir, REL + apkName())
         } catch (e: Exception) { null }
     }
 

@@ -543,6 +543,17 @@ label{font-size:12px;color:var(--mut)}
       <div id="annStatus" class="muted"></div>
     </div>
     <div class="card">
+      <h2>Catatan dialog pembaruan</h2>
+      <p class="muted">Tulisan yang muncul di dialog "Pembaruan Tersedia" saat pengguna membuka aplikasi. Bisa diganti kapan saja tanpa build baru. Kosongkan lalu simpan untuk kembali memakai catatan otomatis dari build.</p>
+      <label>Isi catatan</label>
+      <textarea id="upNote" rows="5" maxlength="600" placeholder="Contoh: Roket otomatis meluncur • Perbaikan suara room • Tombol salin teks di chat" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn" id="upNoteSave">Simpan catatan</button>
+        <button class="btn" id="upNoteClear">Kosongkan</button>
+      </div>
+      <div id="upNoteStatus" class="muted" style="min-height:18px;margin-top:6px"></div>
+    </div>
+    <div class="card">
       <h2>Pengumuman aktif</h2>
       <div id="annList" class="muted">Memuat...</div>
     </div>
@@ -1673,6 +1684,38 @@ function cbStartOnce(){
   if (up) up.onclick = cbUploadAll;
 }
 document.addEventListener("DOMContentLoaded", cbStartOnce);
+
+/* ---------- Catatan dialog pembaruan (rocketCfg/updateNote) ---------- */
+function upNoteMsg(t){ const e = $("upNoteStatus"); if (e) e.textContent = t; }
+async function upNoteLoad(){
+  try {
+    const snap = await rtdb.ref("rocketCfg/updateNote").get();
+    const v = snap.val();
+    if ($("upNote")) $("upNote").value = typeof v === "string" ? v : "";
+    upNoteMsg(v ? "Catatan aktif dari panel ✅" : "Belum diatur: dialog memakai catatan build.");
+  } catch (e) {
+    upNoteMsg(/permission/i.test(e.message || "") ? "Ditolak rules (rocketCfg)." : "Gagal memuat: " + e.message);
+  }
+}
+async function upNoteSave(txt){
+  try {
+    const bersih = String(txt || "").trim();
+    if (bersih) await rtSet("rocketCfg/updateNote", bersih);
+    else await rtDel("rocketCfg/updateNote");
+    try {
+      if (bersih) await rtSet("pub/_rocketCfg/updateNote", bersih); else await rtDel("pub/_rocketCfg/updateNote");
+    } catch (e) { }
+    upNoteMsg(bersih ? "Catatan disimpan ✅" : "Catatan dihapus, dialog memakai catatan build.");
+  } catch (e) {
+    upNoteMsg("Gagal: " + e.message);
+  }
+}
+if ($("upNoteSave")) $("upNoteSave").onclick = () => upNoteSave($("upNote").value);
+if ($("upNoteClear")) $("upNoteClear").onclick = () => { $("upNote").value = ""; upNoteSave(""); };
+// Muat setelah akun developer benar-benar masuk (rules rocketCfg butuh login).
+auth.onAuthStateChanged(u => {
+  if (u && (u.email || "").toLowerCase() === ADMIN_EMAIL) setTimeout(upNoteLoad, 600);
+});
 
 /* ---------- Roket: hadiah per level + hadiah peringkat ---------- */
 let rkSel = 1, rkCfg = {}, rkOff = null;
