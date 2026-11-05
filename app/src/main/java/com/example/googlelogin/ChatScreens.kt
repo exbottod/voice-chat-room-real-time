@@ -1,25 +1,31 @@
 package com.example.googlelogin
 
 import android.media.RingtoneManager
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
+import coil.compose.AsyncImage
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
@@ -517,6 +523,26 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
         }
     }
 
+    // Foto di chat pribadi: pilih gambar, kecilkan di HP, unggah, lalu kirim
+    // sebagai pesan "[img]URL" supaya struktur chat lama tetap terbaca.
+    var kirimFoto by remember { mutableStateOf(false) }
+    val pilihFoto = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        kirimFoto = true
+        scope.launch {
+            val (url, err) = ChatFoto.unggah(context, uri)
+            if (url == null) {
+                Toast.makeText(context, err ?: "Foto gagal dikirim", Toast.LENGTH_LONG).show()
+            } else {
+                val salah = ChatRepo.send(myUid, myName, myId, other, FOTO_AWAL + url)
+                if (salah != null) Toast.makeText(context, salah, Toast.LENGTH_LONG).show()
+            }
+            kirimFoto = false
+        }
+    }
+
     OverlayBox {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             Row(Modifier.fillMaxWidth().height(60.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -561,7 +587,20 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
                                 .background(if (mine) Gold else Color(0xFF1E1E1E))
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                         ) {
-                            Text(m.text, color = if (mine) Color.Black else Color.White, fontSize = 15.sp)
+                            val foto = m.fotoUrl
+                            if (foto != null) {
+                                AsyncImage(
+                                    model = foto,
+                                    contentDescription = "Foto",
+                                    modifier = Modifier
+                                        .widthIn(max = 220.dp)
+                                        .heightIn(max = 300.dp)
+                                        .clip(RoundedCornerShape(12.dp)),
+                                    contentScale = ContentScale.Fit,
+                                )
+                            } else {
+                                Text(m.text, color = if (mine) Color.Black else Color.White, fontSize = 15.sp)
+                            }
                         }
                     }
                 }
@@ -590,6 +629,10 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
                     shape = RoundedCornerShape(24.dp),
                     colors = goldFieldColors(),
                 )
+                IconButton(onClick = { if (!kirimFoto) pilihFoto.launch("image/*") }, enabled = !kirimFoto) {
+                    if (kirimFoto) CircularProgressIndicator(Modifier.size(20.dp), color = Gold, strokeWidth = 2.dp)
+                    else Icon(Icons.Filled.Add, "Kirim foto", tint = Gold)
+                }
                 IconButton(onClick = { send() }) {
                     Icon(Icons.AutoMirrored.Filled.Send, "Kirim", tint = Gold)
                 }
