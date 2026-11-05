@@ -416,6 +416,12 @@
         ".read": "auth != null",
         ".write": "auth != null"
       }
+    },
+    "roomsBg": {
+      ".read": "auth != null",
+      "$roomId": {
+        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com' || data.child('at').exists() || root.child('roomsPub/'+$roomId+'/ownerUid').val() === auth.uid)"
+      }
     }
   }
 }

@@ -685,28 +685,49 @@ object RoomRepo {
 
     suspend fun updateSettings(roomId: String, name: String, photoB64: String?, bgB64: String?, announcement: String): String? {
         return try {
-            val m = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
-            if (photoB64 != null) m["photoB64"] = photoB64
-            if (bgB64 != null) m["backgroundB64"] = bgB64
-            // RTDB tidak ditunggu (kirim lalu lanjut), hanya Firestore yang ditunggu.
-            // Dulu keduanya berurutan sehingga menyimpan background terasa lama.
-            // Gambar sengaja TIDAK ikut ke roomsPub: base64 di daftar room
-            // membuat semua HP mengunduh gambar setiap kali daftar berubah.
+            // Teks ringan ke daftar room. Gambar TIDAK ikut ke roomsPub supaya
+            // semua HP tidak mengunduh gambar setiap kali daftar berubah.
             val rm = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
-            // RTDB adalah sumber data layar room, jadi ditunggu dulu supaya
-            // latar/nama langsung berubah. Firestore hanya cermin.
+            var rtdbOk = false
             try {
                 Rtdb.ref("roomsPub/$roomId").updateChildren(rm).await()
+                rtdbOk = true
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) { }
+
+            // Gambar disimpan di node sendiri (roomsBg/{roomId}) dan hanya
+            // dibaca sekali saat room dibuka, jadi kuota tetap hemat.
+            var gambarErr: String? = null
+            if (photoB64 != null || bgB64 != null) {
+                try {
+                    val isi = hashMapOf<String, Any?>("at" to System.currentTimeMillis())
+                    if (photoB64 != null) isi["photo"] = photoB64
+                    if (bgB64 != null) isi["bg"] = bgB64
+                    Rtdb.ref("roomsBg/$roomId").updateChildren(isi).await()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    gambarErr = e.message ?: "gagal simpan gambar"
+                }
+            }
+
+            // Cermin Firestore (cadangan, tidak ditunggu hasilnya).
             try {
+                val m = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
+                if (photoB64 != null) m["photoB64"] = photoB64
+                if (bgB64 != null) m["backgroundB64"] = bgB64
                 roomRef(roomId).update(m).await()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) { }
+
             // Layar langsung memakai gambar baru tanpa mengunduh ulang.
             RoomImg.simpan(roomId, photoB64, bgB64)
+            if (gambarErr != null) {
+                return "Gambar gagal disimpan (" + gambarErr + "). Publikasikan rules db-rules.json lalu coba lagi."
+            }
+            if (!rtdbOk) return "Nama/pengumuman gagal disimpan (ditolak rules)"
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e

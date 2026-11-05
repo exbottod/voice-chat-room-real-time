@@ -2026,16 +2026,32 @@ if ($("bersihGambar")) $("bersihGambar").onclick = async () => {
     const snap = await rtdb.ref("roomsPub").once("value");
     const kerja = [];
     let byte = 0, room = 0;
+    const pindah = {};
     snap.forEach(c => {
       room++;
       const p = c.child("photoB64"), b = c.child("backgroundB64");
-      if (p.exists()) { byte += String(p.val() || "").length; kerja.push(rtdb.ref("roomsPub/" + c.key + "/photoB64").remove()); }
-      if (b.exists()) { byte += String(b.val() || "").length; kerja.push(rtdb.ref("roomsPub/" + c.key + "/backgroundB64").remove()); }
+      const isi = {};
+      if (p.exists()) { byte += String(p.val() || "").length; isi.photo = p.val(); }
+      if (b.exists()) { byte += String(b.val() || "").length; isi.bg = b.val(); }
+      if (Object.keys(isi).length) {
+        isi.at = Date.now();
+        pindah[c.key] = isi;
+      }
     });
-    if (!kerja.length) { st.textContent = "Daftar room sudah bersih (" + room + " room)."; return; }
-    st.textContent = "Menghapus " + kerja.length + " gambar dari " + room + " room (\u00b1" + (byte / 1048576).toFixed(1) + " MB)...";
-    await Promise.all(kerja);
-    st.textContent = "Selesai. " + kerja.length + " gambar dihapus dari daftar room. Foto tetap tersimpan di Firestore.";
+    const ids = Object.keys(pindah);
+    if (!ids.length) { st.textContent = "Daftar room sudah bersih (" + room + " room)."; return; }
+    st.textContent = "Memindahkan gambar dari " + ids.length + " room (\u00b1" + (byte / 1048576).toFixed(1) + " MB)...";
+    let gagal = 0;
+    for (const id of ids) {
+      try {
+        await rtdb.ref("roomsBg/" + id).update(pindah[id]);
+        await rtdb.ref("roomsPub/" + id + "/photoB64").remove();
+        await rtdb.ref("roomsPub/" + id + "/backgroundB64").remove();
+      } catch (e) { gagal++; }
+    }
+    st.textContent = gagal
+      ? "Selesai, tapi " + gagal + " room gagal dipindah. Publikasikan rules lalu ulangi."
+      : "Selesai. " + ids.length + " room dipindah ke roomsBg. Gambar tetap tampil, kuota hemat.";
   } catch (e) {
     st.textContent = /permission/i.test(e.message || "") ? "Ditolak rules (roomsPub)." : "Gagal: " + e.message;
   }

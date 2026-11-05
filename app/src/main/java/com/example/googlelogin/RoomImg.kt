@@ -29,16 +29,35 @@ object RoomImg {
         if (id.isBlank()) return
         if (!paksa && (sudah.contains(id) || sedang.contains(id))) return
         sedang.add(id)
+        var fotoAda = false
         try {
-            val d = FirebaseFirestore.getInstance().collection("rooms").document(id).get().await()
-            foto[id] = d.getString("photoB64")
-            latar[id] = d.getString("backgroundB64")
+            // Sumber utama: roomsBg (hanya satu room, bukan seluruh daftar).
+            val s = Rtdb.ref("roomsBg/$id").get().await()
+            val p = s.child("photo").getValue(String::class.java)
+            val b = s.child("bg").getValue(String::class.java)
+            if (!p.isNullOrBlank() || !b.isNullOrBlank()) {
+                foto[id] = p
+                latar[id] = b
+                fotoAda = true
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        try {
+            // Cadangan: dokumen room di Firestore (room lama).
+            val perluFoto = !fotoAda || foto[id].isNullOrBlank()
+            val perluBg = !fotoAda || latar[id].isNullOrBlank()
+            if (perluFoto || perluBg) {
+                val d = FirebaseFirestore.getInstance().collection("rooms").document(id).get().await()
+                if (perluFoto) foto[id] = d.getString("photoB64")
+                if (perluBg) latar[id] = d.getString("backgroundB64")
+            }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
             if (!sudah.contains(id)) {
-                foto[id] = null
-                latar[id] = null
+                if (!fotoAda) foto[id] = null
+                if (!fotoAda) latar[id] = null
             }
         } finally {
             sedang.remove(id)
