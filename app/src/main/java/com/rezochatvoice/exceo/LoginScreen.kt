@@ -113,6 +113,14 @@ fun LoginScreen(
             }
         }
     }
+
+    if (pilihZona) {
+        CountryPickerScreen(
+            onPilih = { iso -> negaraIso = iso; pilihZona = false },
+            onKembali = { pilihZona = false },
+        )
+        return
+    }
     var lihatSyarat by remember { mutableStateOf(false) }
 
     // Halaman Persyaratan Pengguna (privacy.html) di atas layar login.
@@ -582,14 +590,6 @@ private fun TombolPil(
 /** Ikon "f" Facebook digambar sederhana (tanpa aset tambahan). */
 @Composable
 private fun IkonFacebook() {
-    if (pilihZona) {
-        CountryPickerScreen(
-            onPilih = { iso -> negaraIso = iso; pilihZona = false },
-            onKembali = { pilihZona = false },
-        )
-        return
-    }
-
     Box(
         Modifier.size(22.dp).clip(CircleShape).background(Color(0xFF1877F2)),
         contentAlignment = Alignment.Center,
