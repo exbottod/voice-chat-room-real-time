@@ -209,7 +209,11 @@ object AppUpdate {
                     hasil
                 }?.trim().orEmpty()
             } catch (e: Exception) { "" }
-            val akhir = panelNote.ifBlank { notes.ifBlank { "Perbaikan dan peningkatan untuk REZO." } }
+            // Catatan dari file repo (docs/update-note.txt) dipakai lebih dulu
+            // daripada daftar fitur otomatis. Jadi teks dialog bisa diatur
+            // tanpa panel dan tanpa database.
+            val catatanBuild = j.optString("catatan").trim()
+            val akhir = panelNote.ifBlank { catatanBuild.ifBlank { notes.ifBlank { "Perbaikan dan peningkatan untuk REZO." } } }
             val terpasang = installedVersion(ctx)
             Info(latest, akhir, REL + apkName(), patchInfo(latest, terpasang))
         } catch (e: Exception) { null }

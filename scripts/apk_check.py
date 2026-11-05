@@ -8,6 +8,18 @@ import re
 import sys
 import zipfile
 
+
+def catatan():
+    """Teks catatan dialog pembaruan dari docs/update-note.txt (baris jadi butir)."""
+    jalur = os.path.join("docs", "update-note.txt")
+    try:
+        isi = open(jalur, encoding="utf-8").read()
+    except Exception:
+        return ""
+    baris = [b.strip(" -\t") for b in isi.splitlines() if b.strip(" -\t")]
+    return " \u2022 ".join(baris)[:400]
+
+
 APK = sys.argv[1] if len(sys.argv) > 1 else "app/build/outputs/apk/release/app-release.apk"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "docs/build-info.json"
 
@@ -53,7 +65,6 @@ def main():
 
     masalah = [f["nama"] for f in fitur if not f["ada"]]
     masalah += ["Aset roket level %d" % x["level"] for x in level_ok if not x["ada"]]
-
     info = {
         "status": "ok" if not masalah else "ada masalah",
         "masalah": masalah,
@@ -67,6 +78,9 @@ def main():
         "aset_total": len([n for n in names if n.startswith("assets/")]),
         "fitur": fitur,
         "roket_level": level_ok,
+        # Catatan dialog pembaruan: dibaca dari docs/update-note.txt supaya
+        # teksnya bisa diubah cukup dengan mengedit file, tanpa panel/database.
+        "catatan": catatan(),
     }
     with open(OUT, "w") as f:
         json.dump(info, f, indent=2, ensure_ascii=False)
