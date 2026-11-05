@@ -1,6 +1,16 @@
 {
-  "versi_baru": "1.0.834",
+  "versi_baru": "1.0.835",
   "patch": [
+    {
+      "dari": "1.0.834",
+      "ke": "1.0.835",
+      "armv7": {
+        "file": "patch-1.0.834-to-1.0.835-armv7.bin",
+        "ukuran": 6692427,
+        "sha256": "edf55b923a7048caa0bca650891a06c673c30eaf5452c89f1917dfb8ff179d1c",
+        "apk_ukuran": 50973939
+      }
+    },
     {
       "dari": "1.0.832",
       "ke": "1.0.834",
@@ -48,11 +58,11 @@
       }
     }
   ],
-  "versi_lama": "1.0.832",
+  "versi_lama": "1.0.834",
   "armv7": {
-    "file": "patch-1.0.832-to-1.0.834-armv7.bin",
-    "ukuran": 4228065,
-    "sha256": "1b9b34d64abcc59a4a7c2c6da484ac3969389b557d80517f6c63a841be1e6634",
-    "apk_ukuran": 50971586
+    "file": "patch-1.0.834-to-1.0.835-armv7.bin",
+    "ukuran": 6692427,
+    "sha256": "edf55b923a7048caa0bca650891a06c673c30eaf5452c89f1917dfb8ff179d1c",
+    "apk_ukuran": 50973939
   }
 }
