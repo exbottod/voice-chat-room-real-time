@@ -184,21 +184,127 @@ object PanelStaffRepo {
         }
     }
 
-    /** Minta reset foto profil: diterapkan HP pemilik akun saat aplikasinya dibuka. */
+    /**
+     * Minta reset foto profil. Penanda ditulis untuk HP pemilik akun (supaya
+     * simpanan lokalnya ikut dibersihkan), DAN reset langsung diterapkan dari
+     * HP ini ke database. Dulu resetnya hanya menunggu HP penerima dibuka,
+     * jadi kalau penerima tidak membuka aplikasi fotonya tidak berubah.
+     */
     suspend fun mintaResetFoto(target: String): String? {
-        return try {
+        if (target.isBlank()) return "ID user kosong"
+        var err: String? = null
+        try {
             Rtdb.ref("photoReset/$target").setValue(
                 hashMapOf<String, Any?>(
                     "at" to System.currentTimeMillis(),
                     "by" to (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""),
                 ),
             ).await()
-            null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            e.message ?: "Gagal mengirim permintaan"
+            err = e.message ?: "Gagal mengirim permintaan"
         }
+        // Terapkan sekarang juga, tanpa menunggu HP penerima.
+        val ok = terapkanResetFoto(target)
+        if (!ok && err == null) err = "Gambar bawaan tidak terbaca di HP ini"
+        return err
+    }
+
+    /**
+     * Tulis ikon bawaan ke SEMUA tempat foto dibaca, supaya benar-benar
+     * kembali ke ikon bawaan: Realtime Database (sumber tampilan utama),
+     * cermin Firestore, dan hapus tautan foto lama.
+     */
+    suspend fun terapkanResetFoto(uid: String): Boolean {
+        if (uid.isBlank()) return false
+        val ctx = try {
+            com.google.firebase.FirebaseApp.getInstance().applicationContext
+        } catch (e: Exception) {
+            return false
+        }
+        val gender = genderDari(uid)
+        val ikon = ResetAvatar.b64(ctx, gender) ?: return false
+        var ok = false
+        // 1) Realtime Database: "av" = foto, "photo" dikosongkan supaya tautan
+        //    foto lama tidak dipakai lagi oleh profil publik.
+        try {
+            Rtdb.ref("pub/$uid").updateChildren(
+                hashMapOf<String, Any?>("av" to ikon, "photo" to ""),
+            ).await()
+            ok = true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // 2) Cermin Firestore (kalau aturannya menolak, RTDB tetap jadi acuan).
+        try {
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            kotlinx.coroutines.withTimeoutOrNull(7000L) {
+                db.collection("users").document(uid).set(
+                    hashMapOf<String, Any?>("avatarB64" to ikon, "photoUrl" to null),
+                    com.google.firebase.firestore.SetOptions.merge(),
+                ).await()
+            }
+            val id = UserDirectory.officialIdOf(uid)
+            if (!id.isNullOrBlank()) {
+                kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                    db.collection("userIds").document(id).set(
+                        hashMapOf<String, Any?>("avatarB64" to ikon, "photoUrl" to null),
+                        com.google.firebase.firestore.SetOptions.merge(),
+                    ).await()
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // 3) Kalau ini akun sendiri: simpanan lokal ikut dibersihkan.
+        try {
+            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+            if (auth.currentUser?.uid == uid) {
+                val email = auth.currentUser?.email ?: ""
+                if (email.isNotBlank()) {
+                    val now = ProfileRepo.loadLocal(ctx, email)
+                    val baru = now.copy(avatarB64 = ikon)
+                    ProfileRepo.saveLocal(ctx, email, baru)
+                    kotlinx.coroutines.withTimeoutOrNull(12000L) { ProfileRepo.saveRemote(baru) }
+                }
+                // Foto akun (Google/Firebase) juga dilepas, kalau tidak foto lama
+                // bisa muncul lagi dari situ walau foto profil sudah direset.
+                try {
+                    auth.currentUser?.updateProfile(
+                        com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                            .setPhotoUri(null)
+                            .build(),
+                    )
+                } catch (e: Exception) { }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        try { UserCache.forget(uid) } catch (e: Exception) { }
+        return ok
+    }
+
+    /** Jenis kelamin akun target: RTDB dulu, lalu Firestore, lalu lokal (akun sendiri). */
+    private suspend fun genderDari(uid: String): String {
+        try {
+            val s = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("pub/$uid/gender").get().await() }
+            val g = s?.value as? String
+            if (!g.isNullOrBlank()) return g
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        try {
+            val d = kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    .collection("users").document(uid).get().await()
+            }
+            val g = d?.getString("gender")
+            if (!g.isNullOrBlank()) return g
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        return ""
     }
 
     /**
@@ -215,26 +321,12 @@ object PanelStaffRepo {
             null
         } ?: return
         if (!snap.exists()) return
-        try {
-            val ctx = com.google.firebase.FirebaseApp.getInstance().applicationContext
-            val email = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: return
-            val now = ProfileRepo.loadLocal(ctx, email)
-            val ikon = ResetAvatar.b64(ctx, now.gender) ?: now.avatarB64
-            val baru = now.copy(avatarB64 = ikon)
-            ProfileRepo.saveLocal(ctx, email, baru)
-            kotlinx.coroutines.withTimeoutOrNull(15000L) { ProfileRepo.saveRemote(baru) }
-            try {
-                Rtdb.ref("pub/$uid").updateChildren(
-                    hashMapOf<String, Any?>("av" to (ikon ?: "")),
-                ).await()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) { }
-            try { PublicSync.push(uid) } catch (e: Exception) { }
-            Rtdb.ref("photoReset/$uid").removeValue().await()
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) { }
+        val ok = terapkanResetFoto(uid)
+        // Penanda dihapus apa pun hasilnya, supaya tidak menumpuk dan tidak
+        // memicu reset berulang setiap aplikasi dibuka.
+        try { PublicSync.push(uid) } catch (e: Exception) { }
+        try { Rtdb.ref("photoReset/$uid").removeValue().await() } catch (e: Exception) { }
+        if (!ok) return
     }
 
     /**

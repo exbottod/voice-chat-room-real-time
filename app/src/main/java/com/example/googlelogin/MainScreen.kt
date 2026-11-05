@@ -279,6 +279,27 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         try { PanelStaffRepo.applyPendingPhotoReset(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
     }
 
+    // Perintah reset foto juga dipantau LANGSUNG. Dulu hanya diperiksa saat
+    // aplikasi dibuka, jadi reset dari panel tidak terasa sampai app ditutup.
+    var resetFotoTick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try {
+            val reg = Rtdb.listen(Rtdb.ref("photoReset/$uid")) { s ->
+                if (s.exists()) resetFotoTick = resetFotoTick + 1
+            }
+            kotlinx.coroutines.awaitCancellation()
+            reg.remove()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+    LaunchedEffect(resetFotoTick) {
+        if (resetFotoTick > 0) {
+            try { PanelStaffRepo.applyPendingPhotoReset(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        }
+    }
+
     // Cek in harian: kalau hari ini belum klaim, tampilkan dialog otomatis.
     LaunchedEffect(uid, signinChecked) {
         if (uid.isEmpty() || signinChecked) return@LaunchedEffect

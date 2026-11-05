@@ -186,7 +186,9 @@ object UserCache {
                 countryCode = d.countryCode,
                 bio = d.bio,
                 avatarB64 = d.avatarB64,
-                photoUrl = photoUrl,
+                // Foto bawaan/pilihan sendiri menang atas foto akun Google.
+                // Tanpa ini, foto akun Google muncul lagi setelah reset foto.
+                photoUrl = if (d.avatarB64.isNullOrBlank()) photoUrl else null,
                 gender = d.gender,
                 exp = w?.exp ?: 0L,
                 vip = w?.vip ?: 0,
@@ -209,7 +211,9 @@ object UserCache {
         return new.copy(
             // FIX avatar: jangan buang foto lama kalau data baru tidak membawanya.
             avatarB64 = new.avatarB64 ?: old.avatarB64,
-            photoUrl = new.photoUrl ?: old.photoUrl,
+            // Kalau data baru sudah membawa foto sendiri, tautan foto lama
+            // tidak boleh dipakai lagi (ini yang bikin foto lama balik).
+            photoUrl = if (new.avatarB64 != null) new.photoUrl else (new.photoUrl ?: old.photoUrl),
             userId = new.userId.ifBlank { old.userId },
             name = new.name.ifBlank { old.name },
             countryCode = new.countryCode.ifBlank { old.countryCode },
