@@ -87,7 +87,7 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var formHp by remember { mutableStateOf(false) }
-    var nomor by remember { mutableStateOf("+62") }
+    var nomor by remember { mutableStateOf("") }
     var kode by remember { mutableStateOf("") }
     var verifId by remember { mutableStateOf<String?>(null) }
     var menunggu by remember { mutableStateOf(false) }
@@ -190,91 +190,102 @@ fun LoginScreen(
                     )
                 }
             } else {
-                // ---------- Login nomor HP: kirim kode lalu masukkan OTP ----------
+                // ---------- Login nomor HP: kode zona + nomor, lalu kode SMS ----------
+                val digit = nomor.filter { it.isDigit() }.trimStart('0')
+                val nomorLengkap = "+62" + digit.removePrefix("62")
+                val nomorValid = digit.removePrefix("62").length in 8..13
+
                 if (verifId == null) {
+                    // Baris kode zona (tetap Indonesia +62, bisa diperluas nanti).
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
+                            .background(Color.White.copy(alpha = 0.10f))
+                            .padding(horizontal = 18.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Indonesia", color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        Text("(+62)", color = HijauMuda, fontSize = 15.sp)
+                    }
+                    Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
                         value = nomor,
-                        onValueChange = { nomor = it },
+                        onValueChange = { nomor = it.filter { c -> c.isDigit() }.take(14) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        placeholder = { Text("Nomor HP, contoh +628123456789") },
-                        leadingIcon = { Icon(Icons.Default.Phone, null, tint = HijauMuda) },
+                        placeholder = { Text("Nomor HP, contoh 81234567890") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(26.dp),
                         colors = fieldColorsLogin(),
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(14.dp))
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxWidth(0.8f)
                             .height(50.dp)
                             .clip(RoundedCornerShape(26.dp))
-                            .background(Color.White)
-                            .clickable {
-                                val n = nomor.replace(" ", "").replace("-", "")
-                                if (n.length < 9) {
-                                    android.widget.Toast.makeText(
-                                        context, "Nomor belum lengkap, pakai format +628...",
-                                        android.widget.Toast.LENGTH_SHORT,
-                                    ).show()
-                                } else if (!menunggu) {
-                                    menunggu = true
-                                    onKirimKode(n) { vid, err ->
-                                        menunggu = false
-                                        if (vid != null) {
-                                            verifId = vid
-                                            android.widget.Toast.makeText(
-                                                context, "Kode dikirim lewat SMS",
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            ).show()
-                                        } else {
-                                            android.widget.Toast.makeText(
-                                                context, err ?: "Gagal mengirim kode",
-                                                android.widget.Toast.LENGTH_LONG,
-                                            ).show()
-                                        }
+                            .background(if (nomorValid && !menunggu) Color.White else Color.White.copy(alpha = 0.35f))
+                            .clickable(enabled = nomorValid && !menunggu) {
+                                menunggu = true
+                                onKirimKode(nomorLengkap) { vid, err ->
+                                    menunggu = false
+                                    if (vid != null) {
+                                        verifId = vid
+                                        kode = ""
+                                    } else {
+                                        android.widget.Toast.makeText(
+                                            context, err ?: "Gagal mengirim kode",
+                                            android.widget.Toast.LENGTH_LONG,
+                                        ).show()
                                     }
                                 }
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(
-                            if (menunggu) "Mengirim kode..." else "Kirim kode",
-                            color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp,
-                        )
+                        if (menunggu) {
+                            CircularProgressIndicator(
+                                color = Color(0xFF10231C), strokeWidth = 2.4.dp,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        } else {
+                            Text("Lanjut", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
                     }
                 } else {
-                    OutlinedTextField(
-                        value = kode,
-                        onValueChange = { if (it.length <= 6) kode = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        placeholder = { Text("Kode 6 angka dari SMS") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = fieldColorsLogin(),
+                    Text(
+                        "Kode dikirim ke $nomorLengkap",
+                        color = HijauMuda, fontSize = 13.sp, textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = kode,
+                        onValueChange = { kode = it.filter { c -> c.isDigit() }.take(6) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        placeholder = { Text("Masukkan kode 6 angka") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = fieldColorsLogin(),
+                    )
+                    Spacer(Modifier.height(14.dp))
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxWidth(0.8f)
                             .height(50.dp)
                             .clip(RoundedCornerShape(26.dp))
-                            .background(Color.White)
-                            .clickable {
-                                val vid = verifId
-                                if (vid != null && kode.length >= 4) {
-                                    onVerifikasiKode(vid, kode)
-                                } else {
-                                    android.widget.Toast.makeText(
-                                        context, "Masukkan kode dari SMS",
-                                        android.widget.Toast.LENGTH_SHORT,
-                                    ).show()
-                                }
+                            .background(if (kode.length == 6 && !loading) Color.White else Color.White.copy(alpha = 0.35f))
+                            .clickable(enabled = kode.length == 6 && !loading) {
+                                verifId?.let { onVerifikasiKode(it, kode) }
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("Masuk", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        if (loading) {
+                            CircularProgressIndicator(
+                                color = Color(0xFF10231C), strokeWidth = 2.4.dp,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        } else {
+                            Text("Selanjutnya", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
                     }
                 }
                 Spacer(Modifier.height(6.dp))
@@ -293,8 +304,8 @@ fun LoginScreen(
                     )
                     if (verifId != null) {
                         Text(
-                            "Kirim ulang",
-                            color = HijauMuda, fontSize = 13.sp,
+                            "Tidak menerima kode? Kirim ulang",
+                            color = HijauAksen, fontSize = 13.sp,
                             modifier = Modifier
                                 .clickable {
                                     verifId = null
