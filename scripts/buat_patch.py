@@ -48,6 +48,13 @@ def main():
     info["versi_lama"] = args.versi_lama
     info["versi_baru"] = args.versi_baru
 
+    if args.versi_lama and args.versi_lama == args.versi_baru:
+        print("Versi lama sama dengan versi baru, patch dilewati.")
+        info.pop(args.kunci, None)
+        os.makedirs(os.path.dirname(args.json) or ".", exist_ok=True)
+        json.dump(info, open(args.json, "w"), indent=2, ensure_ascii=False)
+        return 0
+
     if not (os.path.exists(args.lama) and os.path.exists(args.baru)):
         print("APK lama/baru tidak lengkap, patch dilewati untuk", args.kunci)
         info.pop(args.kunci, None)

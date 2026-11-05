@@ -74,11 +74,14 @@ jobs:
           gh release download terbaru -p REZO-CHAT-VOICE-arm64.apk -O lama/arm64.apk >/dev/null 2>&1 || true
           gh release download terbaru -p REZO-CHAT-VOICE-armv7.apk -O lama/armv7.apk >/dev/null 2>&1 || true
           ls -la lama || true
+          # Versi lama diambil dari commit, bukan dari file kerja: langkah
+          # "Periksa isi APK" sudah menulis versi baru ke file kerja.
+          git show HEAD:docs/build-info.json > /tmp/lama-info.json 2>/dev/null || echo '{}' > /tmp/lama-info.json
           python3 - <<'PY'
-          import json, os
+          import json
           v = ""
           try:
-              v = json.load(open("docs/build-info.json")).get("versi", "")
+              v = json.load(open("/tmp/lama-info.json")).get("versi", "")
           except Exception:
               pass
           open("lama/versi.txt", "w").write(v or "")
