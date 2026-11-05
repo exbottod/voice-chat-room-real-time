@@ -225,7 +225,15 @@ fun AppRoot() {
                 }
             } catch (e: GetCredentialCancellationException) {
                 Log.w("GoogleLogin", "Login dibatalkan / ditolak", e)
-                toast("Login Google dibatalkan. Jika dialog langsung menutup sendiri, periksa SHA-1 & package di Google Cloud Console.")
+                // Dialog yang menutup sendiri hampir selalu masalah pengaturan
+                // (SHA-1 / package / provider Google belum aktif), bukan user
+                // menekan batal. Tipe galat dipakai untuk membedakannya.
+                val tipe: String = e.type
+                if (tipe.contains("USER_CANCELED") || tipe.contains("CANCELED")) {
+                    toast("Login Google dibatalkan.")
+                } else {
+                    toast("Google menolak login [${tipe.ifBlank { "tanpa tipe" }}]. Periksa SHA-1, package, dan provider Google di Firebase.")
+                }
             } catch (e: NoCredentialException) {
                 Log.e("GoogleLogin", "Tidak ada akun Google di perangkat", e)
                 toast("Tidak ada akun Google di perangkat. Tambahkan akun Google di Pengaturan lalu coba lagi.")
