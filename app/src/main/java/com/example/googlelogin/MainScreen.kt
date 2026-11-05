@@ -614,11 +614,11 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                         chatWith = PublicUser(
                             userId = "",
                             uid = s.uid,
-                            name = s.store.ifBlank { "Coin Seller" },
+                            name = s.namaTampil,
                             countryCode = "ID",
                             bio = "",
-                            avatarB64 = null,
-                            photoUrl = s.photo.takeIf { it.startsWith("http") },
+                            avatarB64 = s.avatarB64,
+                            photoUrl = (s.avatarUrl.ifBlank { s.photo }).takeIf { it.startsWith("http") },
                         )
                     },
                 )

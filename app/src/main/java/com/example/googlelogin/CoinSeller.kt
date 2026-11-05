@@ -3,6 +3,7 @@ package com.example.googlelogin
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -59,7 +60,14 @@ data class SellerInfo(
     val photo: String,
     val pesanan: Int,
     val active: Boolean,
-)
+    /** Nama dan foto profil asli akun di aplikasi. */
+    val nama: String = "",
+    val avatarUrl: String = "",
+    val avatarB64: String? = null,
+) {
+    /** Nama yang tampil: nama akun aplikasi, cadangan nama toko. */
+    val namaTampil: String get() = nama.ifBlank { store }.ifBlank { "Coin Seller" }
+}
 
 object SellerRepo {
     private fun baca(o: JSONObject?): SellerInfo? {
@@ -83,7 +91,19 @@ object SellerRepo {
         val o = SupaRepo.sellerCall("list")
         val arr = o.optJSONArray("seller") ?: return Pair(emptyList(), o.optString("e", ""))
         val out = ArrayList<SellerInfo>(arr.length())
-        for (i in 0 until arr.length()) baca(arr.optJSONObject(i))?.let { out.add(it) }
+        for (i in 0 until arr.length()) {
+            val d = baca(arr.optJSONObject(i)) ?: continue
+            // Nama dan foto diambil dari profil aplikasi, bukan dari data toko,
+            // supaya sama dengan yang dilihat user di chat dan profil.
+            val pu = try { UserDirectory.findByUid(d.uid) } catch (e: Exception) { null }
+            out.add(
+                if (pu == null) d else d.copy(
+                    nama = pu.name,
+                    avatarUrl = pu.photoUrl ?: "",
+                    avatarB64 = pu.avatarB64,
+                )
+            )
+        }
         return Pair(out, "")
     }
 
@@ -147,16 +167,20 @@ private fun bukaWa(ctx: android.content.Context, s: SellerInfo) {
 @Composable
 private fun SellerAvatar(s: SellerInfo, size: Int = 52) {
     Box(Modifier.size(size.dp).clip(CircleShape).background(Color(0xFFE9EEF5)), contentAlignment = Alignment.Center) {
-        if (s.photo.startsWith("http")) {
+        val bmp = remember(s.avatarB64) { ProfileRepo.decodeB64(s.avatarB64) }
+        val url = s.avatarUrl.ifBlank { s.photo }
+        if (bmp != null) {
+            Image(bmp, s.namaTampil, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else if (url.startsWith("http")) {
             AsyncImage(
-                model = s.photo,
-                contentDescription = s.store,
+                model = url,
+                contentDescription = s.namaTampil,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
             Text(
-                s.store.take(1).uppercase().ifBlank { "S" },
+                s.namaTampil.take(1).uppercase().ifBlank { "S" },
                 color = Color(0xFF2A4A63),
                 fontSize = (size / 2.4).sp,
                 fontWeight = FontWeight.Bold,
@@ -243,13 +267,24 @@ fun SellerListScreen(
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        s.store.ifBlank { "Coin Seller" },
+                                        s.namaTampil,
                                         color = Color(0xFF12324A),
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     )
                                     Spacer(Modifier.width(6.dp))
                                     Text("🇮🇩", fontSize = 13.sp)
+                                }
+                                if (s.store.isNotBlank() && s.store != s.namaTampil) {
+                                    Text(
+                                        s.store,
+                                        color = Color(0xFF7A8FA0),
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    )
                                 }
                                 Spacer(Modifier.height(2.dp))
                                 // Nomor WhatsApp tampil di bawah nama toko, bisa disalin.
