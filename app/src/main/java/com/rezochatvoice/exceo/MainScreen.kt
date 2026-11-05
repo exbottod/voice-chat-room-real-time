@@ -1,0 +1,765 @@
+package com.rezochatvoice.exceo
+
+import android.widget.Toast
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+
+// Icon tab memakai drawable: ganti file PNG di res/drawable untuk ubah tampilannya.
+private data class NavItem(val label: String, val icon: Int)
+
+private const val OV_NONE = 0
+private const val OV_EDIT = 1
+private const val OV_SETTINGS = 2
+private const val OV_INVITE = 3
+private const val OV_SEARCH = 4
+private const val OV_POST = 5
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val items = listOf(
+        NavItem("Party", R.drawable.ic_tab_party),
+        NavItem("Moment", R.drawable.ic_tab_moment),
+        NavItem("Family", R.drawable.ic_tab_family),
+        NavItem("Pesan", R.drawable.ic_tab_pesan),
+        NavItem("Saya", R.drawable.ic_tab_saya),
+    )
+    val uid = remember { FirebaseAuth.getInstance().currentUser?.uid ?: "" }
+    var selected by rememberSaveable { mutableStateOf(0) }
+    var overlay by rememberSaveable { mutableStateOf(OV_NONE) }
+    var profile by remember { mutableStateOf(ProfileRepo.loadLocal(context, user.email)) }
+    var userId by remember { mutableStateOf(UserDirectory.cachedId(context, uid) ?: "...") }
+    var activeRoom by remember { mutableStateOf<RoomInfo?>(null) }
+    var minimized by remember { mutableStateOf(false) }
+    val myName = profile.nickname.ifBlank { user.name }
+    var showWallet by remember { mutableStateOf(false) }
+    var showLevel by remember { mutableStateOf(false) }
+    var showVip by remember { mutableStateOf(false) }
+    var showStore by remember { mutableStateOf(false) }
+    var showProps by remember { mutableStateOf(false) }
+    var showGlory by remember { mutableStateOf(false) }
+    var sheetUid by remember { mutableStateOf<String?>(null) }
+    var fullProfileUid by remember { mutableStateOf<String?>(null) }
+    var followList by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var chatWith by remember { mutableStateOf<PublicUser?>(null) }
+    // Coin seller: daftar penjual di Dompet dan panel seller di tab Profil.
+    var showSellers by remember { mutableStateOf(false) }
+    var showSellerPanel by remember { mutableStateOf(false) }
+    var commentMoment by remember { mutableStateOf<Moment?>(null) }
+    var wallet by remember { mutableStateOf(Wallet()) }
+    // Tarik-ulang: dipakai tab Saya dan halaman Dompet. Semua data diambil
+    // ulang dari server, bukan dari cache, supaya angkanya benar-benar baru.
+    var refreshingTab by remember { mutableStateOf(false) }
+    val refreshScope = rememberCoroutineScope()
+    val muatUlang: () -> Unit = {
+        refreshScope.launch {
+            refreshingTab = true
+            try {
+                val w = kotlinx.coroutines.withTimeoutOrNull(15000L) { SupaRepo.get(uid, fresh = true).wallet }
+                if (w != null) {
+                    wallet = w
+                    WalletCache.save(uid, w)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(12000L) { PublicSync.push(uid) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+            refreshingTab = false
+        }
+    }
+    // ---- cek in harian: muncul otomatis sekali sehari sesudah tanggal berganti
+    var showSignin by remember { mutableStateOf(false) }
+    var signinChecked by remember { mutableStateOf(false) }
+    // Info kick saat user mencoba masuk room yang mem-blacklist dirinya.
+    var kickNote by remember { mutableStateOf<RoomRepo.RoomBan?>(null) }
+    // Layar pendaftaran (avatar, alias, ulang tahun, jenis kelamin, negara) untuk akun baru.
+    var needWelcome by remember { mutableStateOf(false) }
+    var welcomeChecked by remember { mutableStateOf(false) }
+    var following by remember { mutableStateOf(0L) }
+    var fans by remember { mutableStateOf(0L) }
+    var followTick by remember { mutableStateOf(0) }
+    val actions = remember {
+        AppActions(
+            openProfile = { sheetUid = it },
+            openChat = {
+                chatWith = it
+                sheetUid = null
+                fullProfileUid = null
+            },
+            openWallet = { showWallet = true },
+            openFullProfile = {
+                fullProfileUid = it
+                sheetUid = null
+            },
+        )
+    }
+
+    DisposableEffect(uid) {
+        val reg = if (uid.isNotEmpty()) WalletRepo.observe(uid) { wallet = it } else null
+        onDispose { reg?.remove() }
+    }
+
+    LaunchedEffect(uid, selected, followTick) {
+        if (uid.isNotEmpty()) {
+            try {
+                val c = FollowRepo.counts(uid)
+                following = c.first
+                fans = c.second
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    fun enterRoom(room: RoomInfo) {
+        if (activeRoom?.id == room.id) {
+            minimized = false
+            return
+        }
+        val old = activeRoom
+        // Layar room langsung tampil. Semua pemeriksaan (daftar hitam & dompet)
+        // jalan di belakang layar supaya tidak terasa "menunggu" saat masuk.
+        activeRoom = room
+        minimized = false
+        // Keluar dari room lama tidak perlu ditunggu: cukup dijalankan di belakang.
+        if (old != null) scope.launch { RoomRepo.leave(old.id, uid) }
+        scope.launch {
+
+            // Cek daftar hitam dan baca dompet terbaru bersamaan, bukan berurutan.
+            val banJob = async(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    kotlinx.coroutines.withTimeoutOrNull(2500L) { RoomRepo.banOf(room.id, uid) }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            var w = wallet
+            val perluDompet = w.equip["entry"].isNullOrBlank() && w.equip["banner"].isNullOrBlank()
+            val dompetJob = if (perluDompet) async(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    kotlinx.coroutines.withTimeoutOrNull(2500L) { SupaRepo.get(uid, fresh = true).wallet }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+            } else null
+
+            val ban = banJob.await()
+            if (ban != null) {
+                if (activeRoom?.id == room.id) activeRoom = null
+                kickNote = ban
+                return@launch
+            }
+            dompetJob?.await()?.let { w = it; wallet = it }
+            if (activeRoom?.id != room.id) return@launch
+            RoomRepo.join(room.id, myName, if (vipActive(w.vip, w.vipUntil)) w.vip else 0, activeEquip(w, "entry"), activeEquip(w, "banner"))
+        }
+    }
+
+    fun exitRoom() {
+        val r = activeRoom ?: return
+        activeRoom = null
+        minimized = false
+        scope.launch { RoomRepo.leave(r.id, uid) }
+    }
+
+    // Deep link "bagikan room" (rezo://room/<id>): otomatis masuk room
+    // saat link dibuka dan user sudah login. Link tiap room unik (memuat ID room),
+    // jadi penerima link selalu masuk ke room milik orang yang membagikan.
+    LaunchedEffect(RoomDeepLink.pendingRoomId) {
+        val rid = RoomDeepLink.pendingRoomId ?: return@LaunchedEffect
+        RoomDeepLink.pendingRoomId = null
+        if (activeRoom?.id == rid) {
+            minimized = false
+            return@LaunchedEffect
+        }
+        RoomRepo.getRoom(rid)?.let { enterRoom(it) }
+    }
+
+    // Cerminkan room milik sendiri ke RTDB (roomsPub) supaya muncul di tab Party
+    // walau Firestore bermasalah / kuota habis.
+    LaunchedEffect(uid) {
+        if (uid.isEmpty()) return@LaunchedEffect
+        try {
+            val mine = kotlinx.coroutines.withTimeoutOrNull(6000L) { RoomRepo.findOwned(uid) }
+            // Room yang disembunyikan dari panel tetap tersimpan, tapi tidak
+            // dicerminkan ke daftar sampai pemiliknya membuat room lagi.
+            if (mine != null && !RoomRepo.isHidden(mine.id)) RoomRepo.mirrorRoom(mine)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+
+    // Pemantau chat: notifikasi muncul walau user sedang di tab lain / app
+    // di background. CS punya channel notifikasi sendiri.
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try { ChatWatch.start(context, uid) } catch (e: Exception) { }
+    }
+
+    // Rapikan ID user (ids/u, ids/i, pub) setiap app dibuka. Akun pemilik
+    // dipaksa memakai ID 100001 supaya Customer Service selalu ketemu.
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try {
+            val baru = UserDirectory.perbaikiId(context, uid)
+            if (baru.isNotBlank() && baru != userId) userId = baru
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+
+    // Sapu chat lama sekali sehari supaya chat tidak menumpuk jadi sampah.
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try { ChatBersih.otomatis(context, uid) } catch (e: Exception) { }
+    }
+
+    // Medal SVIP disimpan di RTDB. Muat sejak awal supaya medal yang dipasang
+    // tidak sempat dianggap kosong saat app baru dibuka (dulu tampak hilang).
+    LaunchedEffect(uid) {
+        if (uid.isNotBlank()) SvipInv.observe(uid)
+    }
+
+    // Hadiah cek-in yang tertunda (server lambat waktu klaim) dikirim ulang diam-diam.
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try { SigninRepo.retryPending(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        // Permintaan reset nama dari panel manager diterapkan di sini.
+        try { PanelStaffRepo.applyPendingNameReset(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        try { PanelStaffRepo.applyPendingPhotoReset(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+
+    // Perintah reset foto juga dipantau LANGSUNG. Dulu hanya diperiksa saat
+    // aplikasi dibuka, jadi reset dari panel tidak terasa sampai app ditutup.
+    var resetFotoTick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try {
+            val reg = Rtdb.listen(Rtdb.ref("photoReset/$uid")) { s ->
+                if (s.exists()) resetFotoTick = resetFotoTick + 1
+            }
+            kotlinx.coroutines.awaitCancellation()
+            reg.remove()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+    var resetNamaTick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try {
+            val reg = Rtdb.listen(Rtdb.ref("nameReset/$uid")) { s ->
+                if (s.exists()) resetNamaTick = resetNamaTick + 1
+            }
+            kotlinx.coroutines.awaitCancellation()
+            reg.remove()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+    LaunchedEffect(resetNamaTick) {
+        if (resetNamaTick > 0) {
+            try { PanelStaffRepo.applyPendingNameReset(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        }
+    }
+
+    LaunchedEffect(resetFotoTick) {
+        if (resetFotoTick > 0) {
+            try { PanelStaffRepo.applyPendingPhotoReset(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        }
+    }
+
+    // Cek in harian: kalau hari ini belum klaim, tampilkan dialog otomatis.
+    LaunchedEffect(uid, signinChecked) {
+        if (uid.isEmpty() || signinChecked) return@LaunchedEffect
+        try {
+            val cfg = SigninRepo.loadCfg()
+            val st = SigninRepo.loadState(uid)
+            if (cfg.enabled && SigninRepo.canClaim(st)) showSignin = true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        signinChecked = true
+    }
+
+    // Muat profil dari Firestore, pastikan ID pengguna (mulai 100000) ada, lalu publikasikan.
+    LaunchedEffect(uid) {
+        // Katalog (gift/store/VIP) dimuat PALING AWAL, tidak bergantung proses lain,
+        // supaya gift bawaan selalu tampil walau Firestore limit/koneksi bermasalah.
+        VipAssets.load()
+        StoreCatalog.start()
+        GiftCatalog.start()
+        if (uid.isEmpty()) return@LaunchedEffect
+        ProfileRepo.loadRemote()?.let {
+            profile = it
+            ProfileRepo.saveLocal(context, user.email, it)
+        }
+        // Akun baru wajib mengisi profil dulu. Null (tidak pasti) = jangan ganggu.
+        try {
+            val lokalAda = profile.gender.isNotBlank()
+            val sudah = ProfileRepo.isWelcomed(uid, lokalAda)
+            if (sudah == false) needWelcome = true
+            else if (sudah == true && !lokalAda) { /* akun lama, biarkan */ }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        welcomeChecked = true
+        // Daftar akun: ID dibuat lewat Realtime Database; coba sampai 3x.
+        // userId awalnya "..." (placeholder), jadi dianggap BELUM ADA sampai angka asli terisi.
+        fun idReady() = userId.isNotBlank() && userId != "..." && userId.all { it.isDigit() }
+        repeat(6) { attempt ->
+            if (idReady()) return@repeat
+            try {
+                userId = UserDirectory.ensureUserId(context, uid)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (attempt == 5) Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
+                else kotlinx.coroutines.delay(1500L)
+            }
+        }
+        try {
+            UserDirectory.publish(context, user, profile)
+            PublicSync.push(uid)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // SVIP offline: sinkronkan toggle yang tersimpan lokal saat kuota/koneksi kembali.
+        try { SvipRepo.resync(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        // Status online (SVIP5 Hide Online Status): online = true selama app hidup,
+        // otomatis false saat app mati. Hide Online = tidak menulis status sama sekali.
+        try {
+            val s = Rtdb.ref("status/$uid")
+            if (SvipRepo.myOn(uid, "hideOnline", 5)) {
+                s.removeValue()
+            } else {
+                s.onDisconnect().setValue(false)
+                s.setValue(true).await()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+    }
+
+    // Item VIP otomatis masuk My Item, termasuk VIP yang dibeli sebelumnya
+    LaunchedEffect(wallet.vip, wallet.vipUntil, wallet.inv.size) {
+        if (uid.isNotEmpty()) LvRepo.backfillVip(uid, wallet)
+    }
+
+    fun updateProfile(new: ProfileData) {
+        profile = new
+        ProfileRepo.saveLocal(context, user.email, new)
+        // Langsung ke profil publik (RTDB) TANPA menunggu server lain, supaya
+        // ganti nama/foto/bio terlihat di layar orang lain dalam beberapa detik.
+        scope.launch {
+            try { PublicSync.pushFast(uid, null, profil = true) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        }
+        scope.launch {
+            ProfileRepo.saveRemote(new)?.let {
+                Toast.makeText(context, "Tersimpan di perangkat, gagal sinkron: ${it.message}", Toast.LENGTH_LONG).show()
+            }
+            UserDirectory.publish(context, user, new)
+            // Nama di bawah nama room ikut berganti saat profil disimpan.
+            RoomRepo.syncOwnerName(uid, new.nickname.ifBlank { user.name })
+        }
+    }
+
+    // Setiap aplikasi dibuka, samakan nama room dengan nama profil terbaru
+    // (memperbaiki room yang namanya masih tersimpan dari versi lama).
+    androidx.compose.runtime.LaunchedEffect(uid, myName) {
+        if (myName.isNotBlank()) RoomRepo.syncOwnerName(uid, myName)
+    }
+
+    // Muat config background tab: cache lokal dulu (instan), lalu refresh RTDB.
+    LaunchedEffect(Unit) {
+        TabBgs.loadLocal(context)
+        TabBgs.refresh()
+    }
+
+    CompositionLocalProvider(LocalActions provides actions) {
+        Box(Modifier.fillMaxSize()) {
+            // Background mengikuti tab yang sedang aktif (diatur dari Panel Developer).
+            TabBackground(items[selected].label.lowercase())
+            Scaffold(
+                containerColor = Color.Transparent,
+                bottomBar = {
+                    // Tab Saya (index 4): bilah bawah transparan supaya latar profil
+                    // terlihat sampai ke bawah. Tab lain tetap hitam.
+                    NavigationBar(
+                        containerColor = if (selected == 4 && activeRoom == null) Color.Transparent else Color(0xFF0B0B0B),
+                    ) {
+                        items.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                selected = selected == index,
+                                onClick = { selected = index },
+                                icon = { Icon(painterResource(item.icon), contentDescription = item.label, Modifier.size(45.dp), tint = Color.Unspecified) },
+                                label = { Text(tr(item.label)) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color.Black,
+                                    selectedTextColor = Gold,
+                                    indicatorColor = Color(0xFF2ED573),
+                                    unselectedIconColor = Color(0xFF9A9A9A),
+                                    unselectedTextColor = Color(0xFF9A9A9A),
+                                ),
+                            )
+                        }
+                    }
+                },
+            ) { padding ->
+                // Tab profil memakai header sampai ke bawah status bar, jadi tanpa padding atas.
+                val contentPadding = if (selected == 4) {
+                    PaddingValues(bottom = padding.calculateBottomPadding())
+                } else {
+                    padding
+                }
+                Box(Modifier.fillMaxSize().padding(contentPadding)) {
+                    when (selected) {
+                        0 -> KecilkanKonten(0.88f) {
+                            PartyTab(
+                                myUid = uid,
+                                myName = myName,
+                                onSearch = { overlay = OV_SEARCH },
+                                onEnterRoom = ::enterRoom,
+                            )
+                        }
+                        1 -> KecilkanKonten(0.92f) {
+                            MomentTab(
+                                myUid = uid,
+                                onPost = { overlay = OV_POST },
+                                onComments = { commentMoment = it },
+                            )
+                        }
+                        2 -> KecilkanKonten(0.90f) { FamilyTabScreen(myUid = uid, myName = myName, myAvatar = profile.avatarB64, myId = userId) }
+                        3 -> KecilkanKonten(0.92f) { ChatListTab(myUid = uid) }
+                        else -> androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                            isRefreshing = refreshingTab,
+                            onRefresh = muatUlang,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                        ProfileTab(
+                            user = user,
+                            profile = profile,
+                            userId = userId,
+                            onEditClick = { overlay = OV_EDIT },
+                            onInviteClick = { overlay = OV_INVITE },
+                            onSettingsClick = { overlay = OV_SETTINGS },
+                            onSignOutClick = onSignOutClick,
+                            coins = wallet.coins,
+                            following = following,
+                            fans = fans,
+                            onWalletClick = { showWallet = true },
+                            onSellerPanelClick = { showSellerPanel = true },
+                            onProfileClick = { fullProfileUid = uid },
+                            wallet = wallet,
+                            onVipClick = { showVip = true },
+                            onLevelClick = { showLevel = true },
+                            onStoreClick = { showStore = true },
+                            onGloryClick = { showGlory = true },
+                            onPropsClick = { showProps = true },
+                            onFamilyClick = { selected = 2 },
+                            onFansClick = { followList = uid to FOLLOW_MODE_FANS },
+                            onFollowingClick = { followList = uid to FOLLOW_MODE_FOLLOWING },
+                        )
+                        }
+                    }
+                }
+            }
+
+            when (overlay) {
+                OV_EDIT -> EditProfileScreen(
+                    user = user,
+                    userId = userId,
+                    profile = profile,
+                    onChange = ::updateProfile,
+                    onBack = { overlay = OV_NONE },
+                )
+                OV_SETTINGS -> SettingsScreen(
+                    user = user,
+                    userId = userId,
+                    onSignOut = onSignOutClick,
+                    onBack = { overlay = OV_NONE },
+                )
+                OV_INVITE -> InviteScreen(
+                    uid = uid,
+                    myUserId = userId,
+                    onBack = { overlay = OV_NONE },
+                )
+                OV_SEARCH -> UserSearchScreen(
+                    myUserId = userId,
+                    onBack = { overlay = OV_NONE },
+                    onEnterRoom = { r -> overlay = OV_NONE; enterRoom(r) },
+                )
+                OV_POST -> PostMomentScreen(
+                    uid = uid,
+                    name = myName,
+                    onBack = { overlay = OV_NONE },
+                )
+            }
+
+            // Banner roket: kelihatan di mana pun, bisa diketuk untuk masuk ke room
+            // yang sedang meluncurkan roket.
+            Box(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                RocketLiveBanner(
+                    currentRoomId = activeRoom?.id,
+                    onOpen = { rid -> RoomDeepLink.pendingRoomId = rid },
+                )
+            }
+
+            val room = activeRoom
+            if (room != null) {
+                key(room.id) { AgoraRoomBridge(roomId = room.id, myUid = uid) }
+                if (!minimized) {
+                    // key(room.id): pindah/masuk ulang room selalu mulai dari state bersih (tanpa draft)
+                    key(room.id) {
+                        RoomScreen(
+                            roomId = room.id,
+                            myUid = uid,
+                            myName = myName,
+                            myAvatarB64 = profile.avatarB64,
+                            onExit = ::exitRoom,
+                            onMinimize = { minimized = true },
+                        )
+                    }
+                } else {
+                    FloatingRoomBubble(room = room, onClick = { minimized = false })
+                }
+            }
+
+            // Dompet, Level Center, dan VIP Center diperkecil 86% supaya rapi di semua device.
+            if (showWallet) KecilkanKonten {
+                WalletScreen(
+                    uid = uid,
+                    wallet = wallet,
+                    onRefresh = muatUlang,
+                    onBack = { showWallet = false },
+                    onSellerClick = { showSellers = true },
+                )
+            }
+            if (showLevel) KecilkanKonten { LevelScreen(user = user, profile = profile, wallet = wallet, uid = uid, onBack = { showLevel = false }) }
+            if (showVip) KecilkanKonten { VipScreen(uid = uid, wallet = wallet, onBack = { showVip = false }) }
+            if (showGlory) GloryMedalScreen(uid = uid, wallet = wallet, onBack = { showGlory = false })
+            if (showProps) {
+                PropsScreen(
+                    myUid = uid,
+                    onBack = { showProps = false },
+                    onWalletChanged = { muatUlang() },
+                )
+            }
+            if (showSellers) {
+                SellerListScreen(
+                    onBack = { showSellers = false },
+                    onChat = { s ->
+                        chatWith = PublicUser(
+                            userId = "",
+                            uid = s.uid,
+                            name = s.namaTampil,
+                            countryCode = "ID",
+                            bio = "",
+                            avatarB64 = s.avatarB64,
+                            photoUrl = (s.avatarUrl.ifBlank { s.photo }).takeIf { it.startsWith("http") },
+                        )
+                    },
+                )
+            }
+            if (showSellerPanel) {
+                SellerPanelScreen(
+                    myUid = uid,
+                    myName = myName,
+                    myPhoto = user.photoUrl ?: "",
+                    onBack = { showSellerPanel = false },
+                    onWalletChanged = { muatUlang() },
+                )
+            }
+            if (showStore) {
+                StoreScreen(
+                    uid = uid,
+                    wallet = wallet,
+                    onOpenVip = {
+                        showStore = false
+                        showVip = true
+                    },
+                    onBack = { showStore = false },
+                )
+            }
+            commentMoment?.let {
+                MomentCommentsPanel(m = it, myUid = uid, myName = myName, onDismiss = { commentMoment = null })
+            }
+            sheetUid?.let {
+                UserProfileSheet(
+                    uid = it,
+                    myUid = uid,
+                    onDismiss = { sheetUid = null },
+                    onChat = { u ->
+                        chatWith = u
+                        sheetUid = null
+                    },
+                    onFollowChanged = { followTick++ },
+                    onOpenFull = {
+                        fullProfileUid = it
+                        sheetUid = null
+                    },
+                )
+            }
+            fullProfileUid?.let {
+                OtherProfileScreen(
+                    uid = it,
+                    myUid = uid,
+                    onBack = { fullProfileUid = null },
+                    onChat = { u ->
+                        chatWith = u
+                        fullProfileUid = null
+                    },
+                    onFansClick = { followList = it to FOLLOW_MODE_FANS },
+                    onFollowingClick = { followList = it to FOLLOW_MODE_FOLLOWING },
+                    onEnterLiveRoom = { rid ->
+                        fullProfileUid = null
+                        scope.launch { RoomRepo.getRoom(rid)?.let { enterRoom(it) } }
+                    },
+                )
+            }
+            followList?.let { (fUid, fMode) ->
+                FollowListScreen(
+                    uid = fUid,
+                    mode = fMode,
+                    myUid = uid,
+                    onBack = { followList = null },
+                    onOpenUser = { fullProfileUid = it },
+                )
+            }
+            // Banner cashback terpisah dari banner gift biasa.
+            GlobalCashbackBanner(currentRoomId = activeRoom?.id) { quick ->
+                if (quick.id.isNotBlank()) {
+                    enterRoom(quick)
+                }
+            }
+            GlobalGiftBanner(currentRoomId = activeRoom?.id) { quick ->
+                if (quick.id.isNotBlank()) {
+                    // Masuk SEKETIKA dari data di banner (tanpa menunggu database),
+                    // lalu RoomScreen melengkapi foto/pengumuman dari RTDB/Firestore.
+                    enterRoom(quick)
+                    scope.launch {
+                        val full = RoomRepo.getRoom(quick.id)
+                        if (full != null && activeRoom?.id == full.id) activeRoom = full
+                    }
+                }
+            }
+            // Pendaftaran akun baru: menutup seluruh layar sampai selesai diisi.
+            if (needWelcome) {
+                WelcomeProfileScreen(
+                    user = user,
+                    initial = profile,
+                    onDone = { done ->
+                        needWelcome = false
+                        updateProfile(done)
+                        scope.launch { ProfileRepo.markWelcomed(uid) }
+                    },
+                )
+            }
+            kickNote?.let { b ->
+                AlertDialog(
+                    onDismissRequest = { kickNote = null },
+                    containerColor = Color(0xFF1E1A16),
+                    title = { Text(tr("Anda telah di kick dari room ⚠️"), color = Color(0xFFFF7043), fontWeight = FontWeight.Bold) },
+                    text = {
+                        Text(
+                            if (b.until <= 0L) tr("Kick permanen. Owner bisa membuka kick lewat Daftar hitam.")
+                            else tr("Kick sementara, ") + b.sisa() + ". " + tr("Owner bisa membuka kick lebih awal lewat Daftar hitam."),
+                            color = Color(0xFFD8D3C6), fontSize = 13.sp,
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { kickNote = null }) {
+                            Text(tr("Oke"), color = Color(0xFFFFC65C), fontWeight = FontWeight.Bold)
+                        }
+                    },
+                )
+            }
+            if (showSignin) {
+                SigninDialog(
+                    uid = uid,
+                    balance = wallet.coins,
+                    vipTier = if (vipActive(wallet.vip, wallet.vipUntil)) wallet.vip else 0,
+                    onClose = { showSignin = false },
+                    onClaimed = { gained ->
+                        scope.launch {
+                            try {
+                                wallet = SupaRepo.get(uid).wallet ?: wallet
+                                WalletRepo.emitBackup(uid, wallet.copy(coins = wallet.coins + gained))
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                            }
+                        }
+                    },
+                )
+            }
+            chatWith?.let {
+                ChatScreen(
+                    myUid = uid,
+                    myName = myName,
+                    myId = userId,
+                    other = it,
+                    onBack = { chatWith = null },
+                )
+            }
+            BanGate(uid = uid, onSignOut = onSignOutClick, onBanned = { if (activeRoom != null) exitRoom() })
+            UpdateGate()
+        }
+    }
+}

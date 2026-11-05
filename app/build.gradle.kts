@@ -24,7 +24,7 @@ val googleWebClientId: String =
         ?: (project.findProperty("googleWebClientId") as String? ?: "")
 
 android {
-    namespace = "com.example.googlelogin"
+    namespace = "com.rezochatvoice.exceo"
     compileSdk = 35
 
     // Aset roket (mp4/svga) ikut di dalam APK dan dibaca langsung dari assets,

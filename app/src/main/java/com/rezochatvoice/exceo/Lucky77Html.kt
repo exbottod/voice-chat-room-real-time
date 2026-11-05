@@ -1,0 +1,322 @@
+package com.rezochatvoice.exceo
+
+import android.annotation.SuppressLint
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
+import java.util.UUID
+
+/**
+ * Lucky 77 memakai kode HTML/CSS/JS milik owner, dijalankan di dalam app.
+ * Koin disambungkan ke dompet akun lewat jembatan AndroidGame.
+ */
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+fun Lucky77HtmlScreen(myUid: String, myName: String = "Player", onClose: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var balance by remember { mutableStateOf(0L) }
+
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().background(Color(0xFF14001C))) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        setBackgroundColor(0xFF14001C.toInt())
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.loadWithOverviewMode = true
+                        settings.useWideViewPort = true
+                        webViewClient = WebViewClient()
+                        addJavascriptInterface(
+                            GameBridge(
+                                myUid = myUid,
+                                myName = myName,
+                                onBalance = { balance = it },
+                                onClose = onClose,
+                                scope = scope,
+                            ),
+                            "AndroidGame",
+                        )
+                        loadUrl("file:///android_asset/games/lucky77.html")
+                    }
+                },
+            )
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(8.dp).size(34.dp)
+                    .background(Color(0xCC000000), CircleShape)
+                    .clickable { onClose() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("✕", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+/** Jembatan JS -> dompet Supabase. Dipanggil dari JavaScript halaman game. */
+internal class GameBridge(
+    private val myUid: String,
+    private val myName: String,
+    private val label: String = "Lucky 77",
+    private val gameKey: String = "lucky77",
+    private val onBalance: (Long) -> Unit,
+    private val onClose: () -> Unit,
+    private val scope: kotlinx.coroutines.CoroutineScope,
+) {
+    private var lastErr: String = ""
+
+    /** Foto profil user sebagai data URI (atau URL), dengan cache. */
+    private val avatarCache = HashMap<String, String>()
+    private suspend fun avatarUri(uid: String): String {
+        if (uid.isBlank()) return ""
+        avatarCache[uid]?.let { return it }
+        val v = try {
+            // PROFIL UTAMA DI RTDB: av (base64) / photo (URL) sudah disinkronkan ke pub.
+            val s = kotlinx.coroutines.withTimeoutOrNull(2500L) { Rtdb.ref("pub/$uid").get().await() }
+            val b64 = s?.child("av")?.getValue(String::class.java)?.takeIf { it.isNotBlank() }
+            val photo = s?.child("photo")?.getValue(String::class.java)?.takeIf { it.startsWith("http") }
+            when {
+                b64 != null -> "data:image/jpeg;base64," + b64
+                photo != null -> photo
+                else -> ""
+            }
+        } catch (e: Exception) {
+            ""
+        }
+        avatarCache[uid] = v
+        return v
+    }
+
+    /** Foto profil satu user (data URI), dipakai papan peringkat agar daftar tampil cepat. */
+    @JavascriptInterface
+    fun avatar(uid: String): String = runBlocking { avatarUri(uid) }
+
+    /** Foto profil pemain yang sedang main (dipakai dialog menang). */
+    @JavascriptInterface
+    fun myAvatar(): String = runBlocking { avatarUri(myUid) }
+
+    @JavascriptInterface
+    fun balance(): Long = runBlocking {
+        val b = try {
+            SupaRepo.get(myUid).wallet?.coins ?: 0L
+        } catch (e: Exception) {
+            0L
+        }
+        onBalance(b)
+        b
+    }
+
+    /** Potong coin untuk taruhan. Kembalikan saldo baru, atau -1 kalau gagal. */
+    @JavascriptInterface
+    fun bet(amount: Long): Long = runBlocking {
+        val r = try {
+            SupaRepo.waveFlowMsg(amount, 1, UUID.randomUUID().toString(), label)
+        } catch (e: Exception) {
+            Pair<Long?, String>(null, e.message ?: "gagal")
+        }
+        val nb = r.first
+        if (nb == null) {
+            lastErr = if (r.second.isBlank()) "gagal memotong coin" else r.second
+            -1L
+        } else {
+            lastErr = ""
+            onBalance(nb)
+            nb
+        }
+    }
+
+    /** Nilai chip taruhan game ini dari panel developer (betCfg di Realtime Database). */
+    @JavascriptInterface
+    fun bets(): String = runBlocking {
+        val paths = listOf("betCfg", "pub/_betCfg")
+        for (base in paths) {
+            try {
+                val s = Rtdb.ref(base + "/" + gameKey + "/chips").get().await()
+                val arr = org.json.JSONArray()
+                for (c in s.children) {
+                    val v = c.getValue(Long::class.java) ?: c.getValue(Int::class.java)?.toLong() ?: 0L
+                    if (v > 0L) arr.put(v)
+                }
+                if (arr.length() > 0) return@runBlocking arr.toString()
+            } catch (e: Exception) {
+                // coba lokasi berikutnya
+            }
+        }
+        "[]"
+    }
+
+    /** Alasan terakhir saat coin gagal dipotong (ditampilkan di game). */
+    @JavascriptInterface
+    fun lastError(): String = lastErr
+
+    /** Catat hasil ronde ke Realtime Database, lalu kembalikan Top 3 sebagai JSON. */
+    @JavascriptInterface
+    fun report(round: Long, betTotal: Long, winTotal: Long): String = runBlocking {
+        try {
+            val key = if (round > 0) round.toString() else "now"
+            Rtdb.ref("gameRounds/" + gameKey + "/" + key + "/" + myUid).setValue(
+                hashMapOf(
+                    "name" to myName.ifBlank { "Player" },
+                    "bet" to betTotal,
+                    "win" to winTotal,
+                )
+            ).await()
+            val snap = Rtdb.ref("gameRounds/" + gameKey + "/" + key).get().await()
+            val rows = ArrayList<Triple<String, Long, String>>()
+            for (c in snap.children) {
+                val n = c.child("name").getValue(String::class.java)?.ifBlank { "Player" } ?: "Player"
+                val w = c.child("win").getValue(Long::class.java) ?: 0L
+                rows.add(Triple(n, w, avatarUri(c.key ?: "")))
+            }
+            val sb = StringBuilder("[")
+            rows.sortedByDescending { it.second }.take(3).forEachIndexed { i, p ->
+                if (i > 0) sb.append(",")
+                sb.append("{\"n\":\"").append(p.first.replace("\"", "")).append("\",\"w\":").append(p.second)
+                    .append(",\"a\":\"").append(p.third.replace("\"", "")).append("\"}")
+            }
+            sb.append("]")
+            sb.toString()
+        } catch (e: Exception) {
+            lastErr = e.message ?: "gagal mencatat hasil"
+            "[]"
+        }
+    }
+
+    /** Tambah coin saat menang atau batal taruhan. */
+    @JavascriptInterface
+    fun win(amount: Long): Long = runBlocking {
+        if (amount > 0) GameBanner.publish(myName, label, amount)
+        val nb = try {
+            SupaRepo.waveFlow(amount, 2, UUID.randomUUID().toString(), label)
+        } catch (e: Exception) {
+            null
+        }
+        if (nb == null) -1L else {
+            onBalance(nb)
+            nb
+        }
+    }
+
+    /** Benih ronde bersama: pemain pertama yang menulis, sisanya membaca. */
+    @JavascriptInterface
+    fun seed(round: Long): Long = runBlocking {
+        try {
+            val ref = Rtdb.ref("gameRounds/" + gameKey + "/seed/" + round)
+            val first = ref.get().await().getValue(Long::class.java)
+            if (first != null) {
+                first
+            } else {
+                val v = (System.currentTimeMillis() * 1103515245L) % 2147483647L
+                ref.setValue(v).await()
+                ref.get().await().getValue(Long::class.java) ?: v
+            }
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    /** Tiga pemenang teratas pada satu ronde, sebagai JSON. */
+    @JavascriptInterface
+    fun top(round: Long): String = runBlocking {
+        try {
+            val snap = Rtdb.ref("gameRounds/" + gameKey + "/" + round).get().await()
+            val rows = ArrayList<Pair<String, Long>>()
+            for (c in snap.children) {
+                val n = c.child("name").getValue(String::class.java)?.ifBlank { "Player" } ?: "Player"
+                val w = c.child("win").getValue(Long::class.java) ?: 0L
+                if (w > 0L) rows.add(Pair(n, w))
+            }
+            val sb = StringBuilder("[")
+            rows.sortedByDescending { it.second }.take(3).forEachIndexed { i, p ->
+                if (i > 0) sb.append(",")
+                sb.append("{\"n\":\"").append(p.first.replace("\"", "")).append("\",\"w\":").append(p.second).append("}")
+            }
+            sb.append("]")
+            sb.toString()
+        } catch (e: Exception) {
+            "[]"
+        }
+    }
+
+    /** Waktu server (ms) dari Realtime Database, agar ronde sama di semua HP. */
+    @JavascriptInterface
+    fun serverTime(): Long = runBlocking {
+        try {
+            val off = Rtdb.ref(".info/serverTimeOffset").get().await().getValue(Long::class.java) ?: 0L
+            System.currentTimeMillis() + off
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+    }
+
+
+    /** Papan peringkat game ini: total kemenangan per pemain, lengkap dengan foto profil. */
+    @JavascriptInterface
+    fun ranking(): String = runBlocking {
+        try {
+            val root = Rtdb.ref("gameRounds/" + gameKey).get().await()
+            val keys = ArrayList<Long>()
+            for (c in root.children) {
+                val k = c.key ?: continue
+                if (k == "seed") continue
+                k.toLongOrNull()?.let { keys.add(it) }
+            }
+            keys.sortDescending()
+            val total = HashMap<String, Long>()
+            val names = HashMap<String, String>()
+            for (k in keys.take(400)) {
+                val c = root.child(k.toString())
+                for (u in c.children) {
+                    val uid = u.key ?: continue
+                    val w = u.child("win").getValue(Long::class.java) ?: 0L
+                    if (w <= 0L) continue
+                    total[uid] = (total[uid] ?: 0L) + w
+                    u.child("name").getValue(String::class.java)?.takeIf { it.isNotBlank() }?.let { names[uid] = it }
+                }
+            }
+            val sb = StringBuilder("[")
+            total.entries.sortedByDescending { it.value }.take(20).forEachIndexed { i, e ->
+                if (i > 0) sb.append(",")
+                val n = (names[e.key] ?: "Player").replace("\"", "")
+                sb.append("{\"u\":\"").append(e.key).append("\",\"n\":\"").append(n)
+                    .append("\",\"w\":").append(e.value)
+                    .append("}")
+            }
+            sb.append("]")
+            sb.toString()
+        } catch (e: Exception) {
+            "[]"
+        }
+    }
+    @JavascriptInterface
+    fun close() {
+        scope.launch { onClose() }
+    }
+}
