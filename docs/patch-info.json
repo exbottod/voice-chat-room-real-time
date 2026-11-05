@@ -1,6 +1,22 @@
 {
-  "versi_baru": "1.0.844",
+  "versi_baru": "1.0.846",
   "patch": [
+    {
+      "dari": "1.0.845",
+      "ke": "1.0.846",
+      "arm64": {
+        "file": "patch-1.0.845-to-1.0.846-arm64.bin",
+        "ukuran": 4178183,
+        "sha256": "d6be198c4feeadc97ef109663bb205ab4b67bdd8e832e61952d12e9c83a06841",
+        "apk_ukuran": 52857591
+      },
+      "armv7": {
+        "file": "patch-1.0.845-to-1.0.846-armv7.bin",
+        "ukuran": 4178796,
+        "sha256": "4c16ed09a66ec65a0502d1d1f20ef050b3096680b18aef4754d3dd1e5d0d9eed",
+        "apk_ukuran": 51008721
+      }
+    },
     {
       "dari": "1.0.843",
       "ke": "1.0.844",
@@ -64,35 +80,19 @@
         "sha256": "9a97188b7a9e3377efd855318f2363c9dfc6a3a70145bc8652a9be19d347b517",
         "apk_ukuran": 50980813
       }
-    },
-    {
-      "dari": "1.0.838",
-      "ke": "1.0.839",
-      "arm64": {
-        "file": "patch-1.0.838-to-1.0.839-arm64.bin",
-        "ukuran": 4122125,
-        "sha256": "699346ce2c978952c8f2aadb594e1ede22dc3865fe2ea7521fe3a715c7fa24a4",
-        "apk_ukuran": 52829179
-      },
-      "armv7": {
-        "file": "patch-1.0.838-to-1.0.839-armv7.bin",
-        "ukuran": 4121400,
-        "sha256": "4f5a8f42a129a3096e809f34934ef6305d328f276968ed707fda8a293d5a1a8b",
-        "apk_ukuran": 50980319
-      }
     }
   ],
-  "versi_lama": "1.0.843",
+  "versi_lama": "1.0.845",
   "arm64": {
-    "file": "patch-1.0.843-to-1.0.844-arm64.bin",
-    "ukuran": 3991786,
-    "sha256": "b6a5640ebb38abd988860a7e5f3375fe477d1118d3039f5e201d0be341255c15",
-    "apk_ukuran": 52829532
+    "file": "patch-1.0.845-to-1.0.846-arm64.bin",
+    "ukuran": 4178183,
+    "sha256": "d6be198c4feeadc97ef109663bb205ab4b67bdd8e832e61952d12e9c83a06841",
+    "apk_ukuran": 52857591
   },
   "armv7": {
-    "file": "patch-1.0.843-to-1.0.844-armv7.bin",
-    "ukuran": 3994925,
-    "sha256": "85f6b5414fc157c22de734fb20181a5a587f32c41c80c3cb7ac8b4996fd0f3b8",
-    "apk_ukuran": 50980667
+    "file": "patch-1.0.845-to-1.0.846-armv7.bin",
+    "ukuran": 4178796,
+    "sha256": "4c16ed09a66ec65a0502d1d1f20ef050b3096680b18aef4754d3dd1e5d0d9eed",
+    "apk_ukuran": 51008721
   }
 }
