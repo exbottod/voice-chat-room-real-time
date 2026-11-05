@@ -167,21 +167,99 @@ object PanelStaffRepo {
         }
     }
 
-    /** Minta reset nama: diterapkan HP penerima saat aplikasinya dibuka. */
+    /** Nama setelah direset dari panel manager. */
+    const val NAMA_SETELAH_RESET = "Unknown"
+
+    /**
+     * Minta reset nama: nama akun dikembalikan ke "Unknown".
+     * Penanda nameReset tetap ditulis supaya HP pemilik akun ikut membersihkan
+     * simpanan lokalnya, tapi reset juga LANGSUNG diterapkan dari HP ini.
+     */
     suspend fun mintaResetNama(target: String): String? {
-        return try {
+        if (target.isBlank()) return "ID user kosong"
+        var err: String? = null
+        try {
             Rtdb.ref("nameReset/$target").setValue(
                 hashMapOf<String, Any?>(
                     "at" to System.currentTimeMillis(),
                     "by" to (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""),
                 ),
             ).await()
-            null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            e.message ?: "Gagal mengirim permintaan"
+            err = e.message ?: "Gagal mengirim permintaan"
         }
+        val ok = terapkanResetNama(target)
+        if (!ok && err == null) err = "Gagal menulis nama baru ke database"
+        return err
+    }
+
+    /**
+     * Tulis nama "Unknown" ke semua tempat nama dibaca: Realtime Database
+     * (pub dan daftar ID) serta cermin Firestore. Dijalankan langsung dari HP
+     * panel supaya tidak menunggu HP penerima membuka aplikasi.
+     */
+    suspend fun terapkanResetNama(uid: String): Boolean {
+        if (uid.isBlank()) return false
+        val nama = NAMA_SETELAH_RESET
+        var ok = false
+        try {
+            Rtdb.ref("pub/$uid").updateChildren(
+                hashMapOf<String, Any?>("name" to nama),
+            ).await()
+            ok = true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Daftar ID dipakai layar pencarian; namanya ikut diperbarui.
+        try {
+            val id = UserDirectory.officialIdOf(uid)
+            if (!id.isNullOrBlank()) {
+                Rtdb.ref("ids/i/$id").updateChildren(hashMapOf<String, Any?>("name" to nama)).await()
+                ok = true
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        try {
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            kotlinx.coroutines.withTimeoutOrNull(8000L) {
+                db.collection("users").document(uid).set(
+                    hashMapOf<String, Any?>("nickname" to nama, "name" to nama),
+                    com.google.firebase.firestore.SetOptions.merge(),
+                ).await()
+            }
+            val id = UserDirectory.officialIdOf(uid)
+            if (!id.isNullOrBlank()) {
+                kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                    db.collection("userIds").document(id).set(
+                        hashMapOf<String, Any?>("name" to nama),
+                        com.google.firebase.firestore.SetOptions.merge(),
+                    ).await()
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Akun sendiri: simpanan lokal juga diganti.
+        try {
+            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+            if (auth.currentUser?.uid == uid) {
+                val email = auth.currentUser?.email ?: ""
+                if (email.isNotBlank()) {
+                    val ctx = com.google.firebase.FirebaseApp.getInstance().applicationContext
+                    val now = ProfileRepo.loadLocal(ctx, email)
+                    val baru = now.copy(nickname = nama)
+                    ProfileRepo.saveLocal(ctx, email, baru)
+                    kotlinx.coroutines.withTimeoutOrNull(12000L) { ProfileRepo.saveRemote(baru) }
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        try { UserCache.forget(uid) } catch (e: Exception) { }
+        return ok
     }
 
     /**
@@ -343,41 +421,9 @@ object PanelStaffRepo {
             null
         } ?: return
         if (!snap.exists()) return
-        try {
-            val ctx = com.google.firebase.FirebaseApp.getInstance().applicationContext
-            val email = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email ?: return
-            val now = ProfileRepo.loadLocal(ctx, email)
-            // Nama bawaan selalu "User <ID resmi>". Sebelumnya ID bisa tidak terbaca
-            // sehingga namanya berakhir kosong dan tampil sebagai "unknown".
-            val idResmi = UserDirectory.officialIdOf(uid)
-                ?: UserDirectory.cachedId(ctx, uid)
-                ?: uid.takeLast(4)
-            val bawaan = "User " + idResmi
-            // Foto ikut direset ke ikon bawaan sesuai jenis kelamin akun.
-            val ikon = ResetAvatar.b64(ctx, now.gender) ?: now.avatarB64
-            val baru = now.copy(nickname = bawaan, avatarB64 = ikon)
-            ProfileRepo.saveLocal(ctx, email, baru)
-            kotlinx.coroutines.withTimeoutOrNull(15000L) { ProfileRepo.saveRemote(baru) }
-            try {
-                Rtdb.ref("pub/$uid").updateChildren(
-                    hashMapOf<String, Any?>(
-                        "name" to bawaan,
-                        "av" to (ikon ?: ""),
-                        "id" to idResmi,
-                    ),
-                ).await()
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) { }
-            try {
-                PublicSync.push(uid)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) { }
-            Rtdb.ref("nameReset/$uid").removeValue().await()
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) { }
+        terapkanResetNama(uid)
+        try { PublicSync.push(uid) } catch (e: Exception) { }
+        try { Rtdb.ref("nameReset/$uid").removeValue().await() } catch (e: Exception) { }
     }
 }
 
@@ -680,7 +726,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
             if (info.isManager) {
                 PanelSection("Reset nama user") {
                     Text(
-                        "Nama dikembalikan ke nama bawaan. Berlaku saat pemilik akun membuka aplikasinya.",
+                        "Nama akun langsung diganti menjadi \"Unknown\" (berlaku sekarang, tanpa menunggu HP pemilik akun).",
                         color = PanelMuted,
                         fontSize = 11.sp,
                     )
@@ -701,7 +747,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                             } catch (e: Exception) {
                                 e.message ?: "ID user tidak ditemukan"
                             }
-                            pesan = if (err == null) "Permintaan reset nama terkirim" else "Gagal: $err"
+                            pesan = if (err == null) "Nama diganti menjadi Unknown" else "Gagal: $err"
                             sibuk = false
                         }
                     }
@@ -728,7 +774,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                             } catch (e: Exception) {
                                 e.message ?: "ID user tidak ditemukan"
                             }
-                            pesan = if (err == null) "Permintaan reset foto terkirim" else "Gagal: $err"
+                            pesan = if (err == null) "Foto dikembalikan ke ikon bawaan" else "Gagal: $err"
                             sibuk = false
                         }
                     }

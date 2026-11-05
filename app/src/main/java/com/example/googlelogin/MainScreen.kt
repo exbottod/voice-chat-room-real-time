@@ -294,6 +294,25 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             throw e
         } catch (e: Exception) { }
     }
+    var resetNamaTick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+    LaunchedEffect(uid) {
+        if (uid.isBlank()) return@LaunchedEffect
+        try {
+            val reg = Rtdb.listen(Rtdb.ref("nameReset/$uid")) { s ->
+                if (s.exists()) resetNamaTick = resetNamaTick + 1
+            }
+            kotlinx.coroutines.awaitCancellation()
+            reg.remove()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+    LaunchedEffect(resetNamaTick) {
+        if (resetNamaTick > 0) {
+            try { PanelStaffRepo.applyPendingNameReset(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
+        }
+    }
+
     LaunchedEffect(resetFotoTick) {
         if (resetFotoTick > 0) {
             try { PanelStaffRepo.applyPendingPhotoReset(uid) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { }
