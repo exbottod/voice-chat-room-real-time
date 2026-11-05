@@ -107,6 +107,26 @@ fun OtherProfileScreen(
     var famFid by remember(uid) { mutableStateOf<String?>(null) }
     var famOpen by remember { mutableStateOf(false) }
     var myName by remember { mutableStateOf("") }
+    // Latar profil dari Edit Profil pemilik akun (users/{uid}.backgroundB64).
+    // Diambil sekali saat halaman dibuka supaya daftar lain tidak ikut berat.
+    var latarProfil by remember(uid) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(uid) {
+        latarProfil = try {
+            kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    .collection("users").document(uid).get().await()
+                val b64 = doc.getString("backgroundB64")
+                if (b64.isNullOrBlank()) null
+                else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    ProfileRepo.decodeB64(b64)
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     // Status online live dari RTDB (fitur SVIP5 Hide Online Status).
     DisposableEffect(uid) {
@@ -237,6 +257,26 @@ fun OtherProfileScreen(
     ) {
         // Profil misterius: latar animasi raja full screen (zoom pelan + kilau emas).
         if (hidden) KingBg()
+        // Latar dari Edit Profil: tampil di bagian atas (avatar, nama, UID).
+        // Memudar ke warna halaman supaya kartu di bawahnya tetap rapi.
+        val latar = latarProfil
+        if (!hidden && latar != null) {
+            Box(Modifier.fillMaxWidth().height(380.dp)) {
+                androidx.compose.foundation.Image(
+                    bitmap = latar,
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Crop,
+                )
+                Box(
+                    Modifier.matchParentSize().background(
+                        Brush.verticalGradient(
+                            listOf(Color(0x66000000), Color(0x33000000), Color(0xFF1E3D38).copy(alpha = 0f), PageTop),
+                        ),
+                    ),
+                )
+            }
+        }
         val u = user
         if (u == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

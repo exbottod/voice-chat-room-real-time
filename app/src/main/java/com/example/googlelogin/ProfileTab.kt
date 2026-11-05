@@ -192,32 +192,34 @@ fun ProfileTab(
         }
     }
 
+    // Latar profil penuh layar (sampai di belakang bilah bawah yang transparan).
+    // Kalau belum ada latar dari Edit Profil, pakai gradien hijau-tosca bawaan.
+    Box(Modifier.fillMaxSize()) {
+    Box(
+        Modifier
+            .matchParentSize()
+            .background(Brush.verticalGradient(listOf(Teal, Color(0xFF8EE0D2), PageBg))),
+    )
+    if (bg != null) {
+        Image(
+            bitmap = bg,
+            contentDescription = null,
+            modifier = Modifier.matchParentSize(),
+            contentScale = ContentScale.Crop,
+        )
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(Brush.verticalGradient(listOf(Color(0x55000000), Color(0x22000000), Color(0x33000000)))),
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PageBg)
             .verticalScroll(rememberScrollState()),
     ) {
         // ---------- Header ----------
         Box(Modifier.fillMaxWidth()) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .background(Brush.verticalGradient(listOf(Teal, Color(0xFF8EE0D2), PageBg))),
-            )
-            if (bg != null) {
-                Image(
-                    bitmap = bg,
-                    contentDescription = null,
-                    modifier = Modifier.matchParentSize(),
-                    contentScale = ContentScale.Crop,
-                )
-                Box(
-                    Modifier
-                        .matchParentSize()
-                        .background(Brush.verticalGradient(listOf(Color(0x55000000), Color(0x22000000), PageBg))),
-                )
-            }
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -403,6 +405,7 @@ fun ProfileTab(
             Spacer(Modifier.height(24.dp))
         }
     }
+    } // penutup Box latar penuh
     panelAktif?.let { pi ->
         PanelStafDialog(pi) { panelAktif = null }
     }

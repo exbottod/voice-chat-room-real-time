@@ -434,7 +434,11 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             Scaffold(
                 containerColor = Color.Transparent,
                 bottomBar = {
-                    NavigationBar(containerColor = Color(0xFF0B0B0B)) {
+                    // Tab Saya (index 4): bilah bawah transparan supaya latar profil
+                    // terlihat sampai ke bawah. Tab lain tetap hitam.
+                    NavigationBar(
+                        containerColor = if (selected == 4) Color.Transparent else Color(0xFF0B0B0B),
+                    ) {
                         items.forEachIndexed { index, item ->
                             NavigationBarItem(
                                 selected = selected == index,
@@ -444,7 +448,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = Color.Black,
                                     selectedTextColor = Gold,
-                                    indicatorColor = Gold,
+                                    indicatorColor = Color(0xFF2ED573),
                                     unselectedIconColor = Color(0xFF9A9A9A),
                                     unselectedTextColor = Color(0xFF9A9A9A),
                                 ),
