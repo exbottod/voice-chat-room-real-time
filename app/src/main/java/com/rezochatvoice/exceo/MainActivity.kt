@@ -281,7 +281,8 @@ fun AppRoot() {
                 val fbUser = FirebaseSession.signInFacebook(token)
                 val profil = UserProfile(
                     name = fbUser.displayName?.takeIf { it.isNotBlank() } ?: "Pengguna Facebook",
-                    email = fbUser.email ?: "",
+                    email = fbUser.email?.takeIf { it.isNotBlank() }
+                        ?: (fbUser.uid + "@facebook.rezostar"),
                     photoUrl = fbUser.photoUrl?.toString(),
                     idToken = token,
                 )

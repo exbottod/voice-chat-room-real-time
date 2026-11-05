@@ -119,9 +119,11 @@ object FbLogin {
             },
         )
         try {
+            // Hanya public_profile: scope "email" ditolak Facebook bila izinnya
+            // belum diaktifkan di App Dashboard ("Invalid Scopes: email").
             LoginManager.getInstance().logInWithReadPermissions(
                 activity,
-                listOf("public_profile", "email"),
+                listOf("public_profile"),
             )
         } catch (e: Exception) {
             if (cont.isActive) {
