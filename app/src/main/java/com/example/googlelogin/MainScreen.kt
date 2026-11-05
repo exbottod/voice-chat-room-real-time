@@ -437,7 +437,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     // Tab Saya (index 4): bilah bawah transparan supaya latar profil
                     // terlihat sampai ke bawah. Tab lain tetap hitam.
                     NavigationBar(
-                        containerColor = if (selected == 4) Color.Transparent else Color(0xFF0B0B0B),
+                        containerColor = if (selected == 4 && activeRoom == null) Color.Transparent else Color(0xFF0B0B0B),
                     ) {
                         items.forEachIndexed { index, item ->
                             NavigationBarItem(

@@ -1729,8 +1729,19 @@ private fun RmSettings(r: RoomInfo, onClose: () -> Unit) {
     GoldButton(tr("Konfirmasi"), enabled = name.isNotBlank() && !busy) {
         scope.launch {
             busy = true
-            val err = RoomRepo.updateSettings(r.id, name.trim(), photo, bg, ann.trim())
-            busy = false
+            val err = try {
+                // Batas total supaya tombol tidak pernah menggantung.
+                val r2 = kotlinx.coroutines.withTimeoutOrNull(40_000L) {
+                    RoomRepo.updateSettings(r.id, name.trim(), photo, bg, ann.trim()) to true
+                }
+                if (r2 == null) "Koneksi lambat, coba tekan Konfirmasi lagi" else r2.first
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.message ?: "Gagal menyimpan"
+            } finally {
+                busy = false
+            }
             Toast.makeText(context, err ?: "Tersimpan", Toast.LENGTH_SHORT).show()
             if (err == null) onClose()
         }
