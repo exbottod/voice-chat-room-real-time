@@ -96,7 +96,14 @@ fun LoginScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Box(Modifier.fillMaxSize().background(HijauLebih)) {
-        LatarBokeh()
+        // Latar dari desain (bokeh hijau + kelinci di pojok kanan bawah).
+        Image(
+            painter = painterResource(R.drawable.bg_login),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            alignment = Alignment.BottomEnd,
+        )
 
         Column(
             modifier = Modifier

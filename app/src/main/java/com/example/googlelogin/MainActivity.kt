@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -287,6 +288,19 @@ fun AppRoot() {
         }
     }
 
+    // Splash: gambar yang sama dengan latar window (muncul seketika saat APK dibuka),
+    // ditahan singkat lalu langsung ke layar login / beranda. Hanya sekali per proses.
+    var splashSelesai by remember { mutableStateOf(SplashState.sudahTampil) }
+    if (!splashSelesai) {
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(1400L)
+            SplashState.sudahTampil = true
+            splashSelesai = true
+        }
+        SplashScreen()
+        return
+    }
+
     val current = user
     if (current == null) {
         LoginScreen(
@@ -335,5 +349,30 @@ fun PermissionWarmup() {
             ContextCompat.checkSelfPermission(context, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
         }
         if (perlu.isNotEmpty()) launcher.launch(perlu.toTypedArray())
+    }
+}
+
+
+/** Penanda splash sudah tampil di proses ini (tidak diulang saat layar berputar/kembali). */
+object SplashState {
+    @Volatile var sudahTampil = false
+}
+
+/**
+ * Splash Rezo Star: latar bokeh hijau, logo kelinci di tengah, nama aplikasi emas.
+ * Tata letaknya meniru desain supaya transisi dari latar window tidak terasa melompat.
+ */
+@Composable
+fun SplashScreen() {
+    androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black),
+    ) {
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(R.drawable.bg_splash),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            alignment = androidx.compose.ui.Alignment.BottomEnd,
+        )
     }
 }
