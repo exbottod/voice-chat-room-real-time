@@ -328,8 +328,12 @@ object AgoraVoice {
     fun pauseMusic() { try { player?.pause() } catch (e: Exception) { } }
     fun resumeMusic() { try { player?.start() } catch (e: Exception) { } }
     fun seekMusic(ms: Long) { try { player?.seekTo(ms.toInt()) } catch (e: Exception) { } }
-    fun musicDurationMs(): Int = try { player?.duration ?: -1 } catch (e: Exception) { -1 }
-    fun musicPositionMs(): Int = try { player?.currentPosition ?: 0 } catch (e: Exception) { 0 }
+    fun musicDurationMs(): Int = try {
+        player?.duration ?: RoomMusicShare.durasiMs()
+    } catch (e: Exception) { -1 }
+    fun musicPositionMs(): Int = try {
+        player?.currentPosition ?: RoomMusicShare.posisiMs()
+    } catch (e: Exception) { 0 }
     fun setMusicVolume(v: Int) {
         musicVol = v.coerceIn(0, 100)
         try { player?.setVolume(musicVol / 100f, musicVol / 100f) } catch (e: Exception) { }

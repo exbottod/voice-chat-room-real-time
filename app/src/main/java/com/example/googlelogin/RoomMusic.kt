@@ -43,8 +43,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -61,11 +63,20 @@ data class MusicTrack(val title: String, val path: String)
  * Playlist disimpan lokal di perangkat DJ.
  */
 object MusicEngine {
+    /** Room tempat musik dibagikan (diisi saat panel musik dibuka). */
+    var roomId: String = ""
+    private var tautanAktif: String = ""
+    private var judulAktif: String = ""
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     var playlist by mutableStateOf(listOf<MusicTrack>())
     var current by mutableStateOf(-1)
     var playing by mutableStateOf(false)
     var looping by mutableStateOf(false)
     var volume by mutableStateOf(80)
+
+    /** Pesan galat saat lagu gagal dibagikan ke room. */
+    var galatMusik by mutableStateOf("")
 
     /** Salin lagu dari URI (file picker) ke cache agar bisa diputar Agora. Return jumlah sukses. */
     suspend fun importFromUris(context: android.content.Context, uris: List<android.net.Uri>): Int =
@@ -97,21 +108,53 @@ object MusicEngine {
 
     fun play(index: Int): Boolean {
         if (index !in playlist.indices) return false
-        if (!AgoraVoice.startMusic(playlist[index].path, looping)) return false
-        current = index
-        playing = true
-        AgoraVoice.setMusicVolume(volume)
+        val lagu = playlist[index]
+        // Putar lokal dulu supaya pemutar sendiri langsung dengar suara,
+        // lalu unggah dan siarkan supaya semua orang di room ikut dengar.
+        if (AgoraVoice.startMusic(lagu.path, looping)) {
+            current = index
+            playing = true
+            AgoraVoice.setMusicVolume(volume)
+        }
+        scope.launch {
+            val berkas = try { File(lagu.path) } catch (e: Exception) { null } ?: return@launch
+            val (url, err) = RoomMusicShare.unggah(berkas)
+            if (url.isNullOrBlank()) {
+                galatMusik = err ?: "Gagal membagikan musik ke room"
+                return@launch
+            }
+            tautanAktif = url
+            judulAktif = lagu.title
+            current = index
+            playing = true
+            // Setelah tautan siap, pemutar lokal dimatikan dan semua HP
+            // (termasuk pemutar sendiri) memakai pemutar bersama.
+            try { AgoraVoice.stopMusic() } catch (e: Exception) { }
+            RoomMusicShare.siarkan(roomId, url, lagu.title, true, 0L)
+        }
         return true
     }
 
     fun resume() {
-        AgoraVoice.resumeMusic()
         playing = true
+        if (tautanAktif.isNotBlank()) {
+            scope.launch {
+                RoomMusicShare.siarkan(roomId, tautanAktif, judulAktif, true, RoomMusicShare.posisiMs().toLong())
+            }
+        } else {
+            AgoraVoice.resumeMusic()
+        }
     }
 
     fun pause() {
-        AgoraVoice.pauseMusic()
         playing = false
+        if (tautanAktif.isNotBlank()) {
+            scope.launch {
+                RoomMusicShare.siarkan(roomId, tautanAktif, judulAktif, false, RoomMusicShare.posisiMs().toLong())
+            }
+        } else {
+            AgoraVoice.pauseMusic()
+        }
     }
 
     /** false = pause, true = play/resume. Return status playing setelahnya. */
@@ -144,12 +187,20 @@ object MusicEngine {
         AgoraVoice.stopMusic()
         playing = false
         current = -1
+        tautanAktif = ""
+        judulAktif = ""
+        scope.launch { RoomMusicShare.hentikan(roomId) }
     }
 
-    /** Dipanggil saat keluar room. Playlist tetap tersimpan untuk nanti. */
+    /** Dipanggil saat keluar room. Playlist tetap tersimpan untuk nanti.
+     *  Musik TIDAK dihentikan untuk penghuni room lain; hanya HP ini berhenti. */
     fun reset() {
-        stop()
+        AgoraVoice.stopMusic()
+        playing = false
         current = -1
+        tautanAktif = ""
+        judulAktif = ""
+        RoomMusicShare.lepas()
     }
 
     fun seekFraction(f: Float) {
@@ -174,6 +225,8 @@ fun MusicSheet(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Musik dibagikan ke room ini supaya terdengar semua orang.
+    LaunchedEffect(roomId) { MusicEngine.roomId = roomId }
     var showPlaylist by remember { mutableStateOf(false) }
     var volumeOpen by remember { mutableStateOf(false) }
     var pos by remember { mutableStateOf(0) }

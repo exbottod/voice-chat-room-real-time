@@ -252,6 +252,8 @@ fun RoomScreen(
         clearedAt = System.currentTimeMillis()
         // Room dimuat dari Realtime Database (bebas kuota Firestore).
         val a = RoomRepo.observeRoom(roomId) { got -> if (got != null) room = got }
+        // Musik room diputar dari tautan bersama: semua orang di room mendengar.
+        RoomMusicShare.observe(roomId)
         val b = RoomRepo.observeSeats(roomId) { rawSeats = it }
         // Status follow room (RTDB, hemat kuota Firestore).
         val freg = Rtdb.listen(Rtdb.ref("followRooms/" + myUid + "/" + roomId)) { snap ->
