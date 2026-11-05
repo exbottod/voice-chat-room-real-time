@@ -1,7 +1,6 @@
 {
   "status": "gagal",
   "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:87:22 Syntax error: Expecting '('.",
     "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:30 Cannot infer type for this parameter. Please specify it ex",
     "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:41 No value passed for parameter 'value'.",
     "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:44 Overload resolution ambiguity between candidates:",
@@ -18,11 +17,11 @@
     "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:109:66 Unresolved reference 'optString'.",
     "* What went wrong:"
   ],
-  "versi": "1.0.822",
+  "versi": "1.0.823",
   "ukuran_mb": 0,
   "sha256": "",
-  "commit": "b3ccb5f",
-  "waktu": "2026-11-05T02:19:35Z",
+  "commit": "8a62b97",
+  "waktu": "2026-11-05T02:24:39Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
   "aset_roket": 0,
   "aset_total": 0,
