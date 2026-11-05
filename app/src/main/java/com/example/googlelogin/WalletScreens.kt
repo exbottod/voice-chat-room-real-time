@@ -638,13 +638,13 @@ fun WalletScreen(
                                 badge = "Penawaran terbaik",
                                 icon = { RezoMark() },
                             ) { onSellerClick() }
-                            TopupMethodRow("Google Play", icon = { PayDot("GP", Color(0xFF34A853)) }) { onSellerClick() }
-                            TopupMethodRow("DANA", icon = { PayLogo(R.drawable.logo_dana) }) { onSellerClick() }
-                            TopupMethodRow("GoPay", icon = { PayLogo(R.drawable.logo_gopay) }) { onSellerClick() }
-                            TopupMethodRow("OVO", icon = { PayLogo(R.drawable.logo_ovo) }) { onSellerClick() }
-                            TopupMethodRow("ShopeePay", icon = { PayDot("SPay", Color(0xFFEE4D2D)) }) { onSellerClick() }
-                            TopupMethodRow("LINKAJA", icon = { PayLogo(R.drawable.logo_linkaja) }) { onSellerClick() }
-                            TopupMethodRow("QRIS", icon = { PayLogo(R.drawable.logo_qris) }) { onSellerClick() }
+                            TopupMethodRow("Google Play", icon = { PayDot("GP", Color(0xFF34A853)) }) { showPacks = true }
+                            TopupMethodRow("DANA", icon = { PayLogo(R.drawable.logo_dana) }) { showPacks = true }
+                            TopupMethodRow("GoPay", icon = { PayLogo(R.drawable.logo_gopay) }) { showPacks = true }
+                            TopupMethodRow("OVO", icon = { PayLogo(R.drawable.logo_ovo) }) { showPacks = true }
+                            TopupMethodRow("ShopeePay", icon = { PayDot("SPay", Color(0xFFEE4D2D)) }) { showPacks = true }
+                            TopupMethodRow("LINKAJA", icon = { PayLogo(R.drawable.logo_linkaja) }) { showPacks = true }
+                            TopupMethodRow("QRIS", icon = { PayLogo(R.drawable.logo_qris) }) { showPacks = true }
                             TopupMethodRow("PayPal", icon = { PayLogo(R.drawable.logo_paypal) }) {
                                 toast("PayPal belum tersedia untuk topup")
                             }
