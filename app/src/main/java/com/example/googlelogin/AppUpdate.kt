@@ -190,13 +190,23 @@ object AppUpdate {
                 }
                 out.filter { it.isNotBlank() }.joinToString(" \u2022 ")
             } catch (e: Exception) { "" }
-            // Catatan rilis bisa ditulis sendiri dari panel (rocketCfg/updateNote)
-            // supaya tidak perlu build ulang hanya untuk mengubah kalimatnya.
+            // Catatan rilis ditulis sendiri dari panel. Dibaca dari cermin
+            // publik (pub/_rocketCfg/updateNote) lebih dulu karena bisa
+            // dibaca semua akun, lalu dari rocketCfg/updateNote, baru dari
+            // daftar fitur build. Cara lama hanya membaca rocketCfg, sehingga
+            // kalau rules menolak, dialog jatuh ke catatan build.
             val panelNote = try {
-                kotlinx.coroutines.withTimeoutOrNull(5000L) {
-                    com.google.firebase.database.FirebaseDatabase.getInstance()
-                        .getReference("rocketCfg/updateNote").get().await()
-                        .getValue(String::class.java)
+                kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                    val db = com.google.firebase.database.FirebaseDatabase.getInstance()
+                    val jalur = listOf("pub/_rocketCfg/updateNote", "rocketCfg/updateNote")
+                    var hasil = ""
+                    for (j in jalur) {
+                        val v = try {
+                            db.getReference(j).get().await().getValue(String::class.java)
+                        } catch (e: Exception) { null }
+                        if (!v.isNullOrBlank()) { hasil = v; break }
+                    }
+                    hasil
                 }?.trim().orEmpty()
             } catch (e: Exception) { "" }
             val akhir = panelNote.ifBlank { notes.ifBlank { "Perbaikan dan peningkatan untuk REZO." } }
