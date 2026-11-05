@@ -1930,10 +1930,12 @@ async function otpMinta(env, b) {
   // Kode ditaruh dalam blok monospace: di WhatsApp tinggal diketuk untuk
   // menyalin, tidak perlu tekan-lama dan menyeret seleksi.
   const pesan =
-    "REZO Star\n\nKode masuk Anda:\n```" + kode + "```\n\n" +
-    "Ketuk kode di atas untuk menyalin. Berlaku 5 menit.\n" +
+    "REZO Star\n\nKode masuk Anda ada di pesan berikutnya. Berlaku 5 menit.\n" +
     "Jangan beri kode ini ke siapa pun, termasuk yang mengaku admin.";
   await kirimWa(env, nomor, pesan);
+  // Pesan kedua hanya berisi angka: tekan-tahan lalu Salin, atau muncul
+  // sebagai saran kode di keyboard banyak HP.
+  await kirimWa(env, nomor, String(kode));
   await pipe(env, [{
     sql: "insert into otp (nomor, kode, exp, kirim, coba, at) values (?,?,?,?,0,?) on conflict(nomor) do update set kode=excluded.kode, exp=excluded.exp, kirim=excluded.kirim, coba=0, at=excluded.at",
     args: [T(nomor), T(kode), I(exp), I(kirimKe), I(now)],

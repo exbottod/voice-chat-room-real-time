@@ -438,11 +438,17 @@ fun AppRoot() {
             // loading WAJIB dilepas di semua jalur, kalau tidak tombol
             // "Lengkapi Pendaftaran" terkunci dan layar terasa macet.
             try {
-                val err = FirebaseSession.tautkanPassword(nomor.ifBlank { nomorBaruHp }, password.trim())
-                if (err != null && err !is com.google.firebase.auth.FirebaseAuthUserCollisionException) {
-                    loading = false
-                    toast("Gagal menyimpan password: ${err.message}")
-                    return@launch
+                // Tautkan password hanya bila sudah ada sesi Firebase (akun lama
+                // dari SMS). Akun baru dari kode WhatsApp belum punya sesi, jadi
+                // langsung dibuat di bawah; memanggil tautkan di sini selalu
+                // gagal "Belum login".
+                if (FirebaseAuth.getInstance().currentUser != null) {
+                    val err = FirebaseSession.tautkanPassword(nomor.ifBlank { nomorBaruHp }, password.trim())
+                    if (err != null && err !is com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                        loading = false
+                        toast("Gagal menyimpan password: ${err.message}")
+                        return@launch
+                    }
                 }
                 var fbUser = FirebaseAuth.getInstance().currentUser
                 if (fbUser == null) {
