@@ -299,6 +299,48 @@ fun AppRoot() {
         }
     }
 
+    fun kirimKodeHp(nomor: String, hasil: (String?, String?) -> Unit) {
+        val activity = context as? android.app.Activity
+        if (activity == null) {
+            hasil(null, "Hanya bisa dari layar aplikasi")
+            return
+        }
+        PhoneAuthLogin.mintaKode(activity, nomor, hasil)
+    }
+
+    fun verifikasiKodeHp(verificationId: String, kode: String) {
+        loading = true
+        PhoneAuthLogin.verifikasi(verificationId, kode) { fbUser, err ->
+            if (fbUser == null) {
+                loading = false
+                toast("Login gagal: ${err ?: "kode tidak valid"}")
+                return@verifikasi
+            }
+            scope.launch {
+                try {
+                    val profil = UserProfile(
+                        name = fbUser.displayName?.takeIf { it.isNotBlank() }
+                            ?: fbUser.phoneNumber ?: "Pengguna",
+                        email = fbUser.email ?: "",
+                        photoUrl = fbUser.photoUrl?.toString(),
+                        idToken = "",
+                    )
+                    store.save(profil)
+                    user = profil
+                    FirebaseSession.saveProfile(fbUser.uid, profil)?.let {
+                        toast("Profil belum tersimpan di server: ${it.message}")
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    toast("Gagal menyimpan sesi: ${e.message}")
+                } finally {
+                    loading = false
+                }
+            }
+        }
+    }
+
     fun emailLogin(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
             toast("Isi email dan password")
@@ -354,6 +396,8 @@ fun AppRoot() {
             loading = loading,
             onGoogleClick = ::signIn,
             onFacebookClick = ::facebookLogin,
+            onKirimKode = ::kirimKodeHp,
+            onVerifikasiKode = ::verifikasiKodeHp,
             onEmailLogin = { e, p -> emailLogin(e, p) },
             onForgotPassword = { toast("Lupa password belum tersedia") },
             onSignUp = { toast("Pendaftaran belum tersedia") },
