@@ -6,8 +6,11 @@ SECRET=${WA_OTP_SECRET:-$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head 
 
 command -v node >/dev/null || { echo "Node.js belum ada. Pasang dulu: curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs"; exit 1; }
 
+RAW="${REPO_RAW:-https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/wa-otp}"
 mkdir -p "$DIR/auth"
-cp server.mjs package.json "$DIR"/
+echo "Mengunduh berkas gateway..."
+curl -fsSL "$RAW/server.mjs" -o "$DIR/server.mjs"
+curl -fsSL "$RAW/package.json" -o "$DIR/package.json"
 cd "$DIR"
 npm install --omit=dev
 
