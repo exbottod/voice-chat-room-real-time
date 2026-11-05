@@ -1,16 +1,16 @@
 {
-  "versi_lama": "1.0.827",
-  "versi_baru": "1.0.828",
+  "versi_lama": "1.0.828",
+  "versi_baru": "1.0.829",
   "arm64": {
     "file": "patch-arm64.bin",
-    "ukuran": 4210379,
-    "sha256": "cf46993c589b89190e691ccb40efa3c1c14301117d9f53bc98983cbfc22bfe44",
-    "apk_ukuran": 52803940
+    "ukuran": 4190104,
+    "sha256": "9fbbc1be444eb4f2b2434b2f4c87540c46fb6e25fd56dc91fddcb9b50f53e520",
+    "apk_ukuran": 52803864
   },
   "armv7": {
     "file": "patch-armv7.bin",
-    "ukuran": 4208180,
-    "sha256": "a20b8dddd6b6f18f4b055911a3ff9c7ae48b6442680866ae8cd56e1183d1bc24",
-    "apk_ukuran": 50955079
+    "ukuran": 4192355,
+    "sha256": "e34954e00ca9170707b4e6c069803e7ee36f5a0cb1bb880c6aafd46fd6e2abd7",
+    "apk_ukuran": 50954993
   }
 }
