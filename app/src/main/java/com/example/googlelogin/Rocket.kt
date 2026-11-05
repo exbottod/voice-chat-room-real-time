@@ -810,6 +810,23 @@ fun RocketScreen(
                     }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             )
+            // Angka mentah dari database: memastikan tahap, energi, dan nomor
+            // urut peluncuran yang dipakai aplikasi memang sesuai.
+            var rawNode by remember(roomId) { mutableStateOf("") }
+            DisposableEffect(roomId) {
+                val regRaw = Rtdb.listen(Rtdb.ref("rocket/$roomId")) { s ->
+                    val seqRaw = s.child("seq").getValue(Long::class.java) ?: 0L
+                    val stRaw = (s.child("stage").getValue(Int::class.java) ?: 1).coerceIn(1, 5)
+                    val eRaw = s.child("exp").getValue(Long::class.java) ?: 0L
+                    val needRaw = RocketCfg.exp.getOrElse(stRaw - 1) { 0L }
+                    rawNode = "DB: stage $stRaw · energi " + ringkas(eRaw) + " / " + ringkas(needRaw) +
+                        " · seq $seqRaw"
+                }
+                onDispose { regRaw.remove() }
+            }
+            if (rawNode.isNotBlank()) {
+                Text(rawNode, color = Color(0xFF90A4AE), fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp))
+            }
             tesPesan?.let {
                 Text(it, color = Color(0xFFFFE082), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
             }
@@ -1223,6 +1240,9 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
 
     val seen = remember(roomId) { mutableSetOf<String>() }
     var seenSeq by remember(roomId) { mutableStateOf<Long?>(null) }
+    // Level peluncuran yang sudah diputar dari nomor urut energi, beserta jamnya.
+    // Dipakai supaya kejadian rocketFx yang sama tidak diputar dua kali.
+    val autoLv = remember(roomId) { mutableListOf<Pair<Int, Long>>() }
     var seenStage by remember(roomId) { mutableStateOf(1) }
     var pending by remember(roomId) { mutableStateOf(listOf<LaunchEv>()) }
     var tertunda by remember(roomId) { mutableStateOf(listOf<Pair<LaunchEv, String>>()) }
@@ -1262,6 +1282,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                 )
             }
             seenStage = stageNow
+            tambah.forEach { autoLv.add(it.lv to now) }
             pending = (pending + tambah).sortedBy { it.end }.take(5)
         }
         // Tombol "Tes luncur roket" tetap memakai node rocketFx.
@@ -1273,7 +1294,14 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                 if (seen.contains(id)) continue
                 seen.add(id)
                 // Peluncuran nyata sudah ditangani lewat nomor urut di atas.
-                if (c.child("test").getValue(Boolean::class.java) != true) continue
+                // Kalau node ini ternyata satu-satunya jejak (mis. tulisan nomor
+                // urut ditolak database), animasi tetap diputar, tapi tidak dobel.
+                val lvEv = (c.child("lv").getValue(Int::class.java) ?: 1).coerceIn(1, 5)
+                if (c.child("test").getValue(Boolean::class.java) != true) {
+                    val tEv = c.child("ts").getValue(Long::class.java) ?: now
+                    if (autoLv.any { it.first == lvEv && kotlin.math.abs(tEv - it.second) < 20_000L }) continue
+                    autoLv.add(lvEv to tEv)
+                }
                 val ts = c.child("ts").getValue(Long::class.java) ?: continue
                 val dur = c.child("dur").getValue(Long::class.java) ?: RocketCfg.flyDurMs
                 // Kejadian yang sudah lewat tidak diputar lagi.
