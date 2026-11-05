@@ -361,6 +361,18 @@
     "_owner": {
       ".read": "auth != null",
       ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
+    },
+    "officialRooms": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
+      }
+    },
+    "photoReset": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
+      }
     }
   }
 }
