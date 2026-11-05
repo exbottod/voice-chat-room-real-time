@@ -65,6 +65,26 @@ jobs:
           [ -f "$APK" ] || APK=app/build/outputs/apk/release/app-release.apk
           python3 scripts/apk_check.py "$APK" docs/build-info.json
 
+      - name: Simpan APK versi lama untuk pembuat patch
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p lama
+          gh release download terbaru -p REZO-CHAT-VOICE-arm64.apk -O lama/arm64.apk >/dev/null 2>&1 || true
+          gh release download terbaru -p REZO-CHAT-VOICE-armv7.apk -O lama/armv7.apk >/dev/null 2>&1 || true
+          ls -la lama || true
+          python3 - <<'PY'
+          import json, os
+          v = ""
+          try:
+              v = json.load(open("docs/build-info.json")).get("versi", "")
+          except Exception:
+              pass
+          open("lama/versi.txt", "w").write(v or "")
+          print("versi lama:", v)
+          PY
+
       - name: Publikasikan APK terbaru ke Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -120,6 +140,25 @@ jobs:
           json.dump(info, open("docs/build-info.json", "w"), indent=2, ensure_ascii=False)
           PYEOF
 
+      - name: Buat file selisih (patch) update kecil
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
+        run: |
+          set -e
+          pip install --quiet bsdiff4
+          D=app/build/outputs/apk/release
+          VLAMA=$(cat lama/versi.txt 2>/dev/null || echo "")
+          python3 scripts/buat_patch.py --lama lama/arm64.apk --baru "$D/app-arm64-v8a-release.apk"             --kunci arm64 --keluaran patch-arm64.bin             --versi-lama "$VLAMA" --versi-baru "$VERSION_NAME" --json docs/patch-info.json || true
+          python3 scripts/buat_patch.py --lama lama/armv7.apk --baru "$D/app-armeabi-v7a-release.apk"             --kunci armv7 --keluaran patch-armv7.bin             --versi-lama "$VLAMA" --versi-baru "$VERSION_NAME" --json docs/patch-info.json || true
+          ls -l patch-*.bin 2>/dev/null || echo "Tidak ada patch yang dibuat."
+          shopt -s nullglob
+          BERKAS=(patch-*.bin)
+          if [ ${#BERKAS[@]} -gt 0 ]; then
+            gh release upload terbaru "${BERKAS[@]}" --clobber
+          fi
+
       - name: Simpan hasil cek ke halaman web
         if: always()
         env:
@@ -132,12 +171,15 @@ jobs:
           # "git pull --rebase" dan gagal total saat ada commit bersamaan,
           # sehingga versi baru tidak pernah terdeteksi aplikasi.
           cp docs/build-info.json /tmp/build-info.json
+          [ -f docs/patch-info.json ] && cp docs/patch-info.json /tmp/patch-info.json || true
           for i in 1 2 3 4 5; do
             git rebase --abort >/dev/null 2>&1 || true
             git fetch -q origin "${GITHUB_REF_NAME}"
             git reset -q --hard FETCH_HEAD
             cp /tmp/build-info.json docs/build-info.json
+            [ -f /tmp/patch-info.json ] && cp /tmp/patch-info.json docs/patch-info.json || true
             git add docs/build-info.json
+            [ -f docs/patch-info.json ] && git add docs/patch-info.json || true
             git commit -q -m "Perbarui isi APK 1.0.${GITHUB_RUN_NUMBER} [skip ci]" || true
             if git push -q origin HEAD:"${GITHUB_REF_NAME}"; then
               echo "Info build tersimpan."

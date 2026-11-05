@@ -52,8 +52,16 @@ import java.net.URL
 object AppUpdate {
     private const val INFO_URL = "https://exbottod.github.io/voice-chat-room-real-time/build-info.json"
     private const val REL = "https://github.com/exbottod/voice-chat-room-real-time/releases/download/terbaru/"
+    private const val PATCH_URL = "https://exbottod.github.io/voice-chat-room-real-time/patch-info.json"
 
-    class Info(val version: String, val notes: String, val url: String)
+    class Info(val version: String, val notes: String, val url: String, val patch: Patch? = null)
+
+    /**
+     * File selisih untuk update kecil. Hanya dipakai kalau versi yang
+     * terpasang sama persis dengan versi dasar patch; kalau tidak cocok,
+     * aplikasi otomatis unduh APK penuh.
+     */
+    class Patch(val url: String, val ukuran: Long, val sha256: String)
 
     /** "1.0.683" -> 683. Nomor terakhir dipakai sebagai urutan build. */
     fun build(v: String): Int = v.trim().substringAfterLast('.').toIntOrNull() ?: 0
@@ -61,6 +69,47 @@ object AppUpdate {
     fun installedVersion(ctx: Context): String = try {
         ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
     } catch (e: Exception) { "" }
+
+    /** Sidik jari file, untuk memastikan hasil gabungan patch benar. */
+    fun sha256(f: File): String = try {
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        f.inputStream().use { ins ->
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+                val n = ins.read(buf)
+                if (n < 0) break
+                md.update(buf, 0, n)
+            }
+        }
+        md.digest().joinToString("") { "%02x".format(it.toInt() and 0xFF) }
+    } catch (e: Exception) { "" }
+
+    private fun kunci: String {
+        val abis = Build.SUPPORTED_ABIS.toList()
+        return when {
+            abis.any { it == "arm64-v8a" } -> "arm64"
+            abis.any { it == "armeabi-v7a" } -> "armv7"
+            else -> "universal"
+        }
+    }
+
+    /** Info patch untuk versi ini, atau null kalau tidak tersedia / tidak cocok. */
+    private fun patchInfo(versiBaru: String, versiTerpasang: String): Patch? = try {
+        val c = URL(PATCH_URL + "?t=" + System.currentTimeMillis()).openConnection() as HttpURLConnection
+        c.connectTimeout = 8000
+        c.readTimeout = 8000
+        c.setRequestProperty("Cache-Control", "no-cache")
+        val j = JSONObject(c.inputStream().bufferedReader().use { it.readText() })
+        val dari = j.optString("versi_lama")
+        val ke = j.optString("versi_baru")
+        val entri = j.optJSONObject(kunci)
+        if (dari == versiTerpasang && ke == versiBaru && entri != null) {
+            val nama = entri.optString("file")
+            if (nama.isNotBlank()) {
+                Patch(REL + nama, entri.optLong("ukuran"), entri.optString("sha256"))
+            } else null
+        } else null
+    } catch (e: Exception) { null }
 
     /** File APK yang cocok dengan HP ini (arm64, armv7, atau universal). */
     private fun apkName(): String {
@@ -102,16 +151,25 @@ object AppUpdate {
                 }?.trim().orEmpty()
             } catch (e: Exception) { "" }
             val akhir = panelNote.ifBlank { notes.ifBlank { "Perbaikan dan peningkatan untuk REZO." } }
-            Info(latest, akhir, REL + apkName())
+            val terpasang = installedVersion(ctx)
+            Info(latest, akhir, REL + apkName(), patchInfo(latest, terpasang))
         } catch (e: Exception) { null }
     }
 
-    /** Unduh APK; [onProgress] 0..100. Mengembalikan file, atau null kalau gagal. */
-    suspend fun download(ctx: Context, url: String, onProgress: (Int) -> Unit): File? =
-        withContext(Dispatchers.IO) {
-            try {
-                val dir = File(ctx.cacheDir, "update").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
-                val out = File(dir, "REZO-update.apk")
+    /**
+     * Unduh file ke folder cache update. [minimal] mencegah file rusak/terpotong
+     * dianggap berhasil; untuk patch batasnya jauh lebih kecil dari APK.
+     */
+    private suspend fun unduh(
+        ctx: Context,
+        url: String,
+        nama: String,
+        minimal: Long,
+        onProgress: (Int) -> Unit,
+    ): File? = withContext(Dispatchers.IO) {
+        try {
+                val dir = File(ctx.cacheDir, "update").apply { mkdirs() }
+                val out = File(dir, nama)
                 val c = URL(url).openConnection() as HttpURLConnection
                 c.connectTimeout = 15000
                 c.readTimeout = 30000
@@ -135,8 +193,41 @@ object AppUpdate {
                         }
                     }
                 }
-                if (out.length() < 1_000_000L) null else out
+                if (out.length() < minimal) null else out
             } catch (e: Exception) { null }
+        }
+
+    /** Unduh APK penuh; [onProgress] 0..100. Mengembalikan file, atau null kalau gagal. */
+    suspend fun download(ctx: Context, url: String, onProgress: (Int) -> Unit): File? =
+        unduh(ctx, url, "REZO-update.apk", 1_000_000L, onProgress)
+
+    /**
+     * Unduh patch lalu gabungkan dengan APK yang terpasang menjadi APK baru.
+     * Hasilnya diperiksa sidik jarinya; kalau tidak cocok, file dibuang dan
+     * pemanggil memakai unduhan penuh.
+     */
+    suspend fun downloadPatch(ctx: Context, patch: Patch, onProgress: (Int) -> Unit): File? =
+        withContext(Dispatchers.IO) {
+            val berkas = unduh(ctx, patch.url, "patch.bin", 1024L, onProgress) ?: return@withContext null
+            try {
+                val dir = File(ctx.cacheDir, "update").apply { mkdirs() }
+                val hasil = File(dir, "REZO-patch.apk")
+                if (hasil.exists()) hasil.delete()
+                val lama = File(ctx.applicationInfo.sourceDir)
+                val r = BsPatch.terapkan(lama, berkas, hasil)
+                berkas.delete()
+                if (!r.ok || !hasil.exists()) {
+                    if (hasil.exists()) hasil.delete()
+                    return@withContext null
+                }
+                if (patch.sha256.isNotBlank() && sha256(hasil) != patch.sha256) {
+                    hasil.delete()
+                    return@withContext null
+                }
+                hasil
+            } catch (e: Exception) {
+                null
+            }
         }
 
     /** Buka pemasang Android. Kalau izin "pasang dari aplikasi ini" belum ada, arahkan ke pengaturan. */
@@ -204,6 +295,16 @@ fun UpdateGate() {
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
             )
+            val kecil = i.patch
+            if (kecil != null && kecil.ukuran > 0) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    tr("Unduhan kecil") + " ≈ " + "%.1f".format(kecil.ukuran / 1048576.0) + " MB",
+                    color = Color(0xFFFFC21A),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
             if (progress >= 0) {
                 Spacer(Modifier.height(16.dp))
                 LinearProgressIndicator(
@@ -270,7 +371,16 @@ fun UpdateGate() {
                             } else {
                                 progress = 0
                                 scope.launch {
-                                    val f = AppUpdate.download(ctx, i.url) { progress = it }
+                                    // Coba file selisih dulu (jauh lebih kecil). Kalau
+                                    // gagal atau tidak cocok, otomatis unduh APK penuh.
+                                    val kecil = i.patch
+                                    var f = if (kecil != null) {
+                                        AppUpdate.downloadPatch(ctx, kecil) { progress = it }
+                                    } else null
+                                    if (f == null) {
+                                        progress = 0
+                                        f = AppUpdate.download(ctx, i.url) { progress = it }
+                                    }
                                     if (f == null) {
                                         progress = -1
                                         error = tr("Unduhan gagal. Periksa internet lalu coba lagi.")

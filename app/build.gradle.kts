@@ -145,6 +145,8 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-database")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+    // Pembaca bzip2 untuk penggabung patch APK (tanpa library native).
+    implementation("org.apache.commons:commons-compress:1.26.2")
 }
 
 // Kirim log build ke branch buildlog bila build gagal, agar penyebabnya bisa dibaca.
