@@ -92,6 +92,7 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var formHp by remember { mutableStateOf(false) }
+    var formEmail by remember { mutableStateOf(false) }
     var nomor by remember { mutableStateOf("") }
     var kode by remember { mutableStateOf("") }
     var verifId by remember { mutableStateOf<String?>(null) }
@@ -153,24 +154,40 @@ fun LoginScreen(
                 .padding(horizontal = 26.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // ---------- Tautan login email di pojok kanan atas ----------
+            if (!formHp && !formEmail) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Text(
+                        "Login dengan email",
+                        color = HijauAksen,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable { formEmail = true }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    )
+                }
+            }
+
             // ---------- Logo + nama aplikasi ----------
-            Spacer(Modifier.weight(if (formHp) 0.06f else 0.16f))
+            Spacer(Modifier.weight(if (formHp || formEmail) 0.06f else 0.16f))
             Image(
                 painter = painterResource(R.drawable.ic_launcher_logo),
                 contentDescription = "Rezo Star",
                 modifier = Modifier
-                    .size(if (formHp) 76.dp else 104.dp)
+                    .size(if (formHp || formEmail) 76.dp else 104.dp)
                     .clip(RoundedCornerShape(26.dp)),
             )
-            Spacer(Modifier.height(if (formHp) 8.dp else 14.dp))
+            Spacer(Modifier.height(if (formHp || formEmail) 8.dp else 14.dp))
             Text(
                 "Rezo Star",
                 color = Color.White,
-                fontSize = if (formHp) 24.sp else 30.sp,
+                fontSize = if (formHp || formEmail) 24.sp else 30.sp,
                 fontWeight = FontWeight.Bold,
                 style = TextStyle(shadow = Shadow(Color(0x66000000), Offset(0f, 3f), 8f)),
             )
-            if (!formHp) {
+            if (!formHp && !formEmail) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "Suara, room, dan teman baru",
@@ -178,9 +195,85 @@ fun LoginScreen(
                     fontSize = 13.sp,
                 )
             }
-            Spacer(Modifier.weight(if (formHp) 0.04f else 0.12f))
+            Spacer(Modifier.weight(if (formHp || formEmail) 0.04f else 0.12f))
 
-            if (!formHp) {
+            if (formEmail) {
+                // ---------- Login email & password ----------
+                Text(
+                    "Login dengan email",
+                    color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it.trim().take(80) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("Email") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    shape = RoundedCornerShape(26.dp),
+                    colors = fieldColorsLogin(),
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it.take(40) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("Password") },
+                    trailingIcon = {
+                        Text(
+                            if (showPassword) "Sembunyi" else "Lihat",
+                            color = HijauAksen, fontSize = 12.sp,
+                            modifier = Modifier
+                                .clickable { showPassword = !showPassword }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    },
+                    visualTransformation = if (showPassword) VisualTransformation.None
+                    else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    shape = RoundedCornerShape(26.dp),
+                    colors = fieldColorsLogin(),
+                )
+                Spacer(Modifier.height(14.dp))
+                val bisaEmail = email.contains("@") && password.length >= 6 && !loading
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(if (bisaEmail) Color.White else Color.White.copy(alpha = 0.35f))
+                        .clickable(enabled = bisaEmail) { onEmailLogin(email, password) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (loading) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF10231C), strokeWidth = 2.4.dp,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    } else {
+                        Text("Login", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        "Kembali",
+                        color = HijauMuda, fontSize = 13.sp,
+                        modifier = Modifier
+                            .clickable { formEmail = false }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                    )
+                    Text(
+                        "Lupa password?",
+                        color = HijauAksen, fontSize = 13.sp,
+                        modifier = Modifier
+                            .clickable { onForgotPassword() }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                    )
+                }
+            } else if (!formHp) {
                 // ---------- Tiga tombol pil ----------
                 TombolPil(
                     teks = "Login dengan Google",
