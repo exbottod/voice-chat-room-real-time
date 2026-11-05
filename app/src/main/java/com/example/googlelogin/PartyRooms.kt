@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,8 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -197,14 +201,47 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                 (room.roomNo.isNotBlank() && OfficialRooms.ids.contains(room.roomNo)) ||
                 (room.ownerUid.isNotBlank() && OfficialRooms.ids.contains("owner_" + room.ownerUid))
             if (resmi) {
-                // Pita diagonal OFFICIAL di sudut kiri atas foto room.
+                // Pita OFFICIAL 3D melintang di sudut kiri atas. Diputar 45
+                // derajat, dengan lapisan gelap di bawah sebagai ketebalan dan
+                // bayangan supaya terlihat timbul, bukan sekadar kotak datar.
                 Box(
-                    Modifier.align(Alignment.TopStart).padding(top = 6.dp)
-                        .clip(RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp))
-                        .background(Brush.horizontalGradient(listOf(Color(0xFFFFD54F), Color(0xFFFFB300))))
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = (-46).dp, y = 14.dp)
+                        .graphicsLayer { rotationZ = -45f },
                 ) {
-                    Text("OFFICIAL", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                    // ketebalan pita (lapisan belakang)
+                    Box(
+                        Modifier
+                            .offset(y = 3.dp)
+                            .width(160.dp)
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Color(0xFF6B4E00)),
+                    )
+                    // muka pita
+                    Box(
+                        Modifier
+                            .width(160.dp)
+                            .height(20.dp)
+                            .shadow(6.dp, RoundedCornerShape(3.dp))
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color(0xFFFFF6C8), Color(0xFFFFC928), Color(0xFFD99B00)),
+                                ),
+                            )
+                            .border(1.dp, Color(0xFFFFF9E3), RoundedCornerShape(3.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "OFFICIAL",
+                            color = Color(0xFF3A2A00),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.2.sp,
+                        )
+                    }
                 }
             }
              if (rank in 1..3) {
@@ -216,7 +253,7 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                 Text(
                     "TOP$rank", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier
-                        .align(Alignment.TopStart)
+                        .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .clip(RoundedCornerShape(50))
                         .background(rb)
