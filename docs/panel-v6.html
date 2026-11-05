@@ -1996,14 +1996,16 @@ document.addEventListener("DOMContentLoaded", cbStartOnce);
 /* ---------- Catatan dialog pembaruan (rocketCfg/updateNote) ---------- */
 function upNoteMsg(t){ const e = $("upNoteStatus"); if (e) e.textContent = t; }
 /* Versi terbaru dari build-info; catatan disimpan per versi supaya tiap
-   pembaruan bisa punya teks sendiri. */
+   pembaruan bisa punya teks sendiri. Titik pada versi diganti "_" karena
+   Realtime Database tidak mengizinkan "." di nama key. */
+function upNoteKey(v){ return String(v || "").trim().replace(/\./g, "_"); }
 let upNoteVer = "";
 async function upNoteVersi(){
   if (upNoteVer) return upNoteVer;
   try {
     const r = await fetch("/voice-chat-room-real-time/build-info.json?t=" + Date.now(), { cache: "no-store" });
     const j = await r.json();
-    upNoteVer = String(j.versi || "").trim();
+    upNoteVer = upNoteKey(j.versi);
   } catch (e) { }
   return upNoteVer;
 }

@@ -201,9 +201,12 @@ object AppUpdate {
                     val db = com.google.firebase.database.FirebaseDatabase.getInstance()
                     // Catatan per versi: tiap pembaruan bisa punya teks sendiri.
                     // Kalau versi ini belum punya catatan, pakai catatan umum.
+                    // Titik pada nomor versi diganti "_" karena Realtime
+                    // Database tidak mengizinkan "." di nama key.
+                    val kunciVersi = latest.replace(".", "_")
                     val jalur = listOf(
-                        "pub/_rocketCfg/notes/$latest",
-                        "rocketCfg/notes/$latest",
+                        "pub/_rocketCfg/notes/$kunciVersi",
+                        "rocketCfg/notes/$kunciVersi",
                         "pub/_rocketCfg/updateNote",
                         "rocketCfg/updateNote",
                     )
