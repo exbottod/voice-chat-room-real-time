@@ -1,11 +1,11 @@
 {
   "status": "ok",
   "masalah": [],
-  "versi": "1.0.849",
+  "versi": "1.0.850",
   "ukuran_mb": 68.0,
-  "sha256": "2095514d67ddd9e60ed8747bd2936818730977fc90e302bbe9d54c1e2daf0e5f",
-  "commit": "dfb5b4a",
-  "waktu": "2026-11-05T13:25:49Z",
+  "sha256": "6e361ae50bb73f8ca35ed3b944c3be7396b98162809df102f3630d9a3e9e6549",
+  "commit": "79a2acc",
+  "waktu": "2026-11-05T13:36:26Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
   "aset_roket": 30,
   "aset_total": 118,
@@ -68,5 +68,6 @@
       "level": 5,
       "ada": true
     }
-  ]
+  ],
+  "catatan": "Fitur baru: Coin Seller, panel stok seller, dan halaman seller di Dompet."
 }
