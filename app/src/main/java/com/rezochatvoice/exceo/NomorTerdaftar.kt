@@ -1,6 +1,11 @@
 package com.rezochatvoice.exceo
 
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 /**
  * Penanda nomor yang sudah punya akun, supaya login nomor terdaftar
@@ -11,12 +16,23 @@ object NomorTerdaftar {
 
     private fun kunci(nomorE164: String) = nomorE164.filter { it.isDigit() }
 
+    /** true bila nomor sudah punya akun. Gagal baca = dianggap belum terdaftar. */
     suspend fun cek(nomorE164: String): Boolean {
         return try {
-            val snap = FirebaseDatabase.getInstance()
-                .getReference("phoneDir").child(kunci(nomorE164)).get()
-                .await()
-            snap.exists() && !snap.value.toString().isNullOrBlank()
+            suspendCancellableCoroutine { lanjut ->
+                FirebaseDatabase.getInstance()
+                    .getReference("phoneDir").child(kunci(nomorE164))
+                    .addListenerForSingleValueEvent(object : ValueEventListener {
+                        override fun onDataChange(snap: DataSnapshot) {
+                            val ada = snap.exists() && !snap.value.toString().isNullOrBlank()
+                            if (lanjut.isActive) lanjut.resume(ada)
+                        }
+
+                        override fun onCancelled(error: DatabaseError) {
+                            if (lanjut.isActive) lanjut.resume(false)
+                        }
+                    })
+            }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -24,14 +40,18 @@ object NomorTerdaftar {
         }
     }
 
+    /** Catat nomor setelah akun dibuat. Tidak fatal bila gagal. */
     suspend fun daftarkan(nomorE164: String, uid: String) {
         try {
-            FirebaseDatabase.getInstance()
-                .getReference("phoneDir").child(kunci(nomorE164)).setValue(uid).await()
+            suspendCancellableCoroutine { lanjut ->
+                FirebaseDatabase.getInstance()
+                    .getReference("phoneDir").child(kunci(nomorE164))
+                    .setValue(uid) { _, _ -> if (lanjut.isActive) lanjut.resume(Unit) }
+            }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            // Tidak fatal: hanya memengaruhi kenyamanan login berikutnya.
+            // Hanya memengaruhi kenyamanan login berikutnya.
         }
     }
 }
