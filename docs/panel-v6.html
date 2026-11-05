@@ -1995,12 +1995,37 @@ document.addEventListener("DOMContentLoaded", cbStartOnce);
 
 /* ---------- Catatan dialog pembaruan (rocketCfg/updateNote) ---------- */
 function upNoteMsg(t){ const e = $("upNoteStatus"); if (e) e.textContent = t; }
+/* Versi terbaru dari build-info; catatan disimpan per versi supaya tiap
+   pembaruan bisa punya teks sendiri. */
+let upNoteVer = "";
+async function upNoteVersi(){
+  if (upNoteVer) return upNoteVer;
+  try {
+    const r = await fetch("/voice-chat-room-real-time/build-info.json?t=" + Date.now(), { cache: "no-store" });
+    const j = await r.json();
+    upNoteVer = String(j.versi || "").trim();
+  } catch (e) { }
+  return upNoteVer;
+}
 async function upNoteLoad(){
   try {
-    const snap = await rtdb.ref("rocketCfg/updateNote").get();
-    const v = snap.val();
+    const ver = await upNoteVersi();
+    let v = null;
+    if (ver) {
+      const s1 = await rtdb.ref("rocketCfg/notes/" + ver).get();
+      v = s1.val();
+    }
+    if (typeof v !== "string" || !v) {
+      const s2 = await rtdb.ref("rocketCfg/updateNote").get();
+      const g = s2.val();
+      if (typeof g === "string") v = g;
+    }
     if ($("upNote")) $("upNote").value = typeof v === "string" ? v : "";
-    upNoteMsg(v ? "Catatan aktif dari panel ✅" : "Belum diatur: dialog memakai catatan build.");
+    upNoteMsg(
+      typeof v === "string" && v
+        ? "Catatan aktif" + (ver ? " untuk v" + ver : "") + " ✅"
+        : "Belum diatur" + (ver ? " untuk v" + ver : "") + ": dialog memakai catatan build."
+    );
   } catch (e) {
     upNoteMsg(/permission/i.test(e.message || "") ? "Ditolak rules (rocketCfg)." : "Gagal memuat: " + e.message);
   }
@@ -2008,14 +2033,25 @@ async function upNoteLoad(){
 async function upNoteSave(txt){
   try {
     const bersih = String(txt || "").trim();
-    if (bersih) await rtSet("rocketCfg/updateNote", bersih);
-    else await rtDel("rocketCfg/updateNote");
+    const ver = await upNoteVersi();
+    const jalur = ver ? "rocketCfg/notes/" + ver : "rocketCfg/updateNote";
+    if (bersih) await rtSet(jalur, bersih); else await rtDel(jalur);
+    // Cermin publik untuk dibaca semua akun; kalau rules menolak, tidak masalah.
     try {
-      if (bersih) await rtSet("pub/_rocketCfg/updateNote", bersih); else await rtDel("pub/_rocketCfg/updateNote");
+      const cermin = ver ? "pub/_rocketCfg/notes/" + ver : "pub/_rocketCfg/updateNote";
+      if (bersih) await rtSet(cermin, bersih); else await rtDel(cermin);
     } catch (e) { }
-    upNoteMsg(bersih ? "Catatan disimpan ✅" : "Catatan dihapus, dialog memakai catatan build.");
+    upNoteMsg(
+      bersih
+        ? "Catatan " + (ver ? "v" + ver + " " : "") + "disimpan ✅"
+        : "Catatan dihapus, dialog memakai catatan build."
+    );
   } catch (e) {
-    upNoteMsg("Gagal: " + e.message);
+    upNoteMsg(
+      /permission/i.test(e.message || "")
+        ? "Ditolak rules: publish dulu docs/db-rules.json di Firebase Console."
+        : "Gagal: " + e.message
+    );
   }
 }
 /* Bersihkan base64 foto/latar dari roomsPub (foto tetap ada di Firestore). */

@@ -199,7 +199,14 @@ object AppUpdate {
             val panelNote = try {
                 kotlinx.coroutines.withTimeoutOrNull(6000L) {
                     val db = com.google.firebase.database.FirebaseDatabase.getInstance()
-                    val jalur = listOf("pub/_rocketCfg/updateNote", "rocketCfg/updateNote")
+                    // Catatan per versi: tiap pembaruan bisa punya teks sendiri.
+                    // Kalau versi ini belum punya catatan, pakai catatan umum.
+                    val jalur = listOf(
+                        "pub/_rocketCfg/notes/$latest",
+                        "rocketCfg/notes/$latest",
+                        "pub/_rocketCfg/updateNote",
+                        "rocketCfg/updateNote",
+                    )
                     var hasil = ""
                     for (j in jalur) {
                         val v = try {

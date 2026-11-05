@@ -84,7 +84,10 @@
     },
     "rocketCfg": {
       ".read": "auth != null",
-      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+      ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')",
+      "notes": {
+        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+      }
     },
     "rocket": {
       "$roomId": {
