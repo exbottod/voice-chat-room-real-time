@@ -76,7 +76,7 @@ label{font-size:12px;color:var(--mut)}
   <div id="backbar">← Semua panel</div>
   <div id="secttitle"></div>
   <div id="home" class="homegrid"></div>
-  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div><div class="tab" data-t="staff">🛡️ Panel Staf</div><div class="tab" data-t="ann">📢 Pengumuman</div><div class="tab" data-t="room">🏠 Room</div></div>
+  <div class="tabs"><div class="tab on" data-t="banner">🖼️ Banner</div><div class="tab" data-t="ban">🚫 Banned</div><div class="tab" data-t="coin">🪙 Kirim Coin</div><div class="tab" data-t="user">👥 User</div><div class="tab" data-t="vip">👑 VIP</div><div class="tab" data-t="store">🛍️ Store</div><div class="tab" data-t="emote">😄 Emote</div><div class="tab" data-t="bg">🎨 Background</div><div class="tab" data-t="signin">📅 Cek in</div><div class="tab" data-t="bet">🎰 Bet Game</div><div class="tab" data-t="topup">💸 Topup Manual</div><div class="tab" data-t="gift">🎁 Gift</div><div class="tab" data-t="cb">💵 Gift CB</div><div class="tab" data-t="rocket">🚀 Hadiah Roket</div><div class="tab" data-t="staff">🛡️ Panel Staf</div><div class="tab" data-t="seller">🛒 Coin Seller</div><div class="tab" data-t="sstock">📦 Stok Seller</div><div class="tab" data-t="ann">📢 Pengumuman</div><div class="tab" data-t="room">🏠 Room</div></div>
   <div id="tab-banner">
 
   <div class="card">
@@ -558,6 +558,49 @@ label{font-size:12px;color:var(--mut)}
     <div class="card">
       <h2>Pengumuman aktif</h2>
       <div id="annList" class="muted">Memuat...</div>
+    </div>
+  </div>
+
+  <div id="tab-seller" class="hide">
+    <div class="card">
+      <h2>Tambah / ubah coin seller</h2>
+      <label>User ID (angka, mis. 100129)</label>
+      <input type="text" id="selId" inputmode="numeric" placeholder="100129">
+      <label>Nama toko</label>
+      <input type="text" id="selStore" maxlength="60" placeholder="Toko Coin Xerxrul">
+      <label>Nomor WhatsApp (tampil di bawah nama toko)</label>
+      <input type="text" id="selWa" maxlength="32" placeholder="+62 852-5265-6572">
+      <label>Link WhatsApp (dibuka oleh ikon WhatsApp)</label>
+      <input type="text" id="selLink" maxlength="300" placeholder="https://wa.me/6285252656572">
+      <div class="row">
+        <button class="btn" id="selSave">Simpan seller</button>
+        <button class="btn out" id="selReload">Muat ulang</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Foto diambil otomatis dari foto profil user. Setelah disimpan, kartu langsung muncul di halaman seller pada Dompet.</div>
+    </div>
+    <div class="card">
+      <h2>Daftar coin seller</h2>
+      <div id="selList" class="muted">Memuat...</div>
+    </div>
+  </div>
+
+  <div id="tab-sstock" class="hide">
+    <div class="card">
+      <h2>Isi stok coin seller</h2>
+      <label>User ID seller</label>
+      <input type="text" id="sstId" inputmode="numeric" placeholder="100129">
+      <label>Jumlah coin</label>
+      <input type="text" id="sstCoins" inputmode="numeric" placeholder="10000000">
+      <div class="row">
+        <button class="btn" id="sstAdd">Tambah stok</button>
+        <button class="btn out" id="sstSet">Set stok</button>
+        <button class="btn bad" id="sstCut">Kurangi stok</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Hanya developer yang bisa menisi stok. Seller tidak bisa menarik coin atau mengubah stok sendiri.</div>
+    </div>
+    <div class="card">
+      <h2>Stok tiap seller</h2>
+      <div id="sstList" class="muted">Memuat...</div>
     </div>
   </div>
 
@@ -1292,7 +1335,7 @@ document.getElementById("betSave").onclick = async () => {
 
 let unsubBan = null, foundBan = null, foundCoin = null;
 
-const TAB_KEYS = ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff", "ann", "room"];
+const TAB_KEYS = ["banner", "ban", "coin", "user", "vip", "store", "emote", "bg", "signin", "bet", "topup", "gift", "cb", "rocket", "staff", "seller", "sstock", "ann", "room"];
 const TAB_INFO = [
   ["banner", "\uD83D\uDDBC\uFE0F", "Banner", "Pasang banner di aplikasi"],
   ["ban", "\uD83D\uDEAB", "Ban / Unban", "Blokir user dari room"],
@@ -1309,6 +1352,8 @@ const TAB_INFO = [
   ["cb", "\uD83D\uDCB5", "Gift CB", "Gift cashback"],
   ["rocket", "\uD83D\uDE80", "Hadiah Roket", "Level & hadiah roket"],
   ["staff", "\uD83D\uDEE1\uFE0F", "Panel Staf", "Manager & admin"],
+  ["seller", "\uD83D\uDED2", "Coin Seller", "Daftar penjual coin resmi"],
+  ["sstock", "\uD83D\uDCE6", "Stok Seller", "Isi & atur stok coin seller"],
   ["ann", "\uD83D\uDCE2", "Pengumuman", "Pengumuman resmi di tab Pesan"],
   ["room", "\uD83C\uDFE0", "Room", "Sematkan, reset nama, bersihkan room"],
 ];
@@ -1519,6 +1564,8 @@ function pilihTab(k){
   if (key === "bet") gcStart();
   if (key === "topup") { payLoad(); manualLoad(false); }
   if (key === "staff") pstStart();
+  if (key === "seller") sellerStart();
+  if (key === "sstock") sstockStart();
   try { const fx = $("pstFixIds"); if (fx && !fx.onclick) fx.onclick = perbaikiSemuaId; const so = $("pstSetOwner"); if (so && !so.onclick) so.onclick = jadikanPemilik; } catch (e) {}
   if (key === "ann") annStart();
   if (key === "room") roomStart();
@@ -1527,6 +1574,139 @@ function pilihTab(k){
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => pilihTab(t.dataset.t));
 
 
+
+/* ---------- Coin seller: pendaftaran & stok ---------- */
+/* Server seller ada di VPS Helipod (Turso); Cloudflare hanya cadangan. */
+const SELLER_SERVERS = ["https://43-156-99-4.sslip.io/admin", "https://rezo-wallet.bangexx01.workers.dev/admin"];
+async function sellerAdmin(p){
+  const u = auth.currentUser;
+  if (!u) throw new Error("Belum login");
+  const idToken = await u.getIdToken(true);
+  let pesan = "Server seller tidak terjangkau";
+  for (let i = 0; i < SELLER_SERVERS.length; i++) {
+    const url = SELLER_SERVERS[i];
+    let res = null;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: WALLET_KEY },
+        body: JSON.stringify({ a: "admin", t: idToken, p: p })
+      });
+    } catch (e) { pesan = "Jaringan: " + (e.message || e); continue; }
+    const out = await res.json().catch(function(){ return {}; });
+    if (out && out.ok) return out;
+    if (res.status >= 400 && res.status < 500) throw new Error(out.e || ("HTTP " + res.status));
+    pesan = (out && out.e) || ("HTTP " + res.status);
+  }
+  throw new Error(pesan);
+}
+
+function selAngka(n){ return Number(n || 0).toLocaleString("id-ID"); }
+
+async function sellerMuat(){
+  const box = $("selList");
+  const box2 = $("sstList");
+  if (box) box.textContent = "Memuat...";
+  if (box2) box2.textContent = "Memuat...";
+  let rows = [];
+  try {
+    const out = await sellerAdmin({ op: "seller_list" });
+    rows = out.seller || [];
+  } catch (e) {
+    if (box) box.textContent = "Gagal memuat: " + (e.message || e);
+    if (box2) box2.textContent = "Gagal memuat: " + (e.message || e);
+    return;
+  }
+  if (box) {
+    box.innerHTML = rows.map(function(r){
+      const hidup = Number(r.active) ? 1 : 0;
+      return '<div style="border:1px solid var(--line);border-radius:12px;padding:10px;margin:8px 0">' +
+        '<div><b>' + escHtml(r.store || "-") + '</b> · ' + escHtml(r.wa || "-") + ' · <span class="muted">' + (hidup ? "Aktif" : "Nonaktif") + '</span></div>' +
+        '<div class="muted">UID: ' + escHtml(r.uid) + '</div>' +
+        '<div class="muted">Stok: ' + selAngka(r.stock) + ' · Pesanan 3 hari: ' + Number(r.pesanan || 0) + '</div>' +
+        '<div class="row" style="margin-top:6px">' +
+          '<button class="btn out" data-sel-tog="' + escHtml(r.uid) + '" data-aktif="' + (hidup ? 0 : 1) + '">' + (hidup ? "Nonaktifkan" : "Aktifkan") + '</button>' +
+          '<button class="btn out" data-sel-stok="' + escHtml(r.uid) + '">Isi stok</button>' +
+          '<button class="btn bad" data-sel-del="' + escHtml(r.uid) + '">Hapus</button>' +
+        '</div></div>';
+    }).join("") || '<div class="muted">Belum ada seller.</div>';
+  }
+  if (box2) {
+    box2.innerHTML = rows.map(function(r){
+      return '<div style="display:flex;gap:8px;justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0">' +
+        '<span>' + escHtml(r.store || r.uid) + '</span><b>' + selAngka(r.stock) + '</b></div>';
+    }).join("") || '<div class="muted">Belum ada seller.</div>';
+  }
+  document.querySelectorAll("[data-sel-tog]").forEach(function(b){
+    b.onclick = function(){ sellerToggle(b.dataset.selTog, Number(b.dataset.aktif)); };
+  });
+  document.querySelectorAll("[data-sel-del]").forEach(function(b){
+    b.onclick = async function(){
+      if (!confirm("Hapus seller ini? Kartunya langsung hilang dari Dompet.")) return;
+      try { await sellerAdmin({ op: "seller_del", uid: b.dataset.selDel }); toast("Seller dihapus"); await sellerMuat(); }
+      catch (e) { toast("Gagal: " + (e.message || e)); }
+    };
+  });
+  document.querySelectorAll("[data-sel-stok]").forEach(function(b){
+    b.onclick = function(){
+      const inp = $("sstId"); if (inp) inp.value = b.dataset.selStok;
+      const tab = document.querySelector('.tab[data-t="sstock"]'); if (tab) tab.click();
+    };
+  });
+}
+
+async function sellerToggle(uid, aktif){
+  try {
+    await sellerAdmin({ op: "seller_set_active", uid: uid, active: aktif });
+    toast(aktif ? "Seller diaktifkan" : "Seller dinonaktifkan");
+    await sellerMuat();
+  } catch (e) { toast("Gagal: " + (e.message || e)); }
+}
+
+async function sellerSimpan(){
+  const idRaw = ($("selId").value || "").trim();
+  const store = ($("selStore").value || "").trim();
+  const wa = ($("selWa").value || "").trim();
+  const link = ($("selLink").value || "").trim();
+  if (!idRaw) { toast("User ID wajib diisi"); return; }
+  if (!store) { toast("Nama toko wajib diisi"); return; }
+  if (!wa) { toast("Nomor WhatsApp wajib diisi"); return; }
+  const uid = /^[0-9]+$/.test(idRaw) ? await cariUidDariId(idRaw) : idRaw;
+  if (!uid) { toast("User ID tidak ditemukan. Pastikan user sudah pernah login."); return; }
+  try {
+    await sellerAdmin({ op: "seller_save", uid: uid, store: store, wa: wa, link: link, active: 1 });
+    toast("Seller disimpan. Kartunya sudah tampil di Dompet.");
+    $("selId").value = ""; $("selStore").value = ""; $("selWa").value = ""; $("selLink").value = "";
+    await sellerMuat();
+  } catch (e) { toast("Gagal: " + (e.message || e)); }
+}
+
+async function sellerStok(mode){
+  const idRaw = ($("sstId").value || "").trim();
+  const n = Number(($("sstCoins").value || "0").replace(/[^0-9]/g, ""));
+  if (!idRaw) { toast("User ID seller wajib diisi"); return; }
+  if (!n) { toast("Jumlah coin wajib diisi"); return; }
+  const uid = /^[0-9]+$/.test(idRaw) ? await cariUidDariId(idRaw) : idRaw;
+  if (!uid) { toast("User ID tidak ditemukan"); return; }
+  try {
+    const out = await sellerAdmin({ op: "seller_stock", uid: uid, mode: mode, coins: mode === "cut" ? -n : n });
+    toast("Stok sekarang " + selAngka(out && out.seller ? out.seller.stock : 0));
+    await sellerMuat();
+  } catch (e) { toast("Gagal: " + (e.message || e)); }
+}
+
+function sellerStart(){
+  if ($("selSave")) $("selSave").onclick = sellerSimpan;
+  if ($("selReload")) $("selReload").onclick = sellerMuat;
+  sellerMuat();
+}
+
+function sstockStart(){
+  if ($("sstAdd")) $("sstAdd").onclick = function(){ sellerStok("add"); };
+  if ($("sstSet")) $("sstSet").onclick = function(){ sellerStok("set"); };
+  if ($("sstCut")) $("sstCut").onclick = function(){ sellerStok("cut"); };
+  sellerMuat();
+}
 
 /* ---------- Kelola room (sematkan / reset nama / bersihkan / hapus) ---------- */
 let roomOff = null, roomData = {};

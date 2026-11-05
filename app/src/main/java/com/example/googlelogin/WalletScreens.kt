@@ -493,7 +493,13 @@ private fun PayDot(text: String, color: Color) {
 
 @Composable
 @androidx.compose.material3.ExperimentalMaterial3Api
-fun WalletScreen(uid: String, wallet: Wallet, onRefresh: () -> Unit = {}, onBack: () -> Unit) {
+fun WalletScreen(
+    uid: String,
+    wallet: Wallet,
+    onRefresh: () -> Unit = {},
+    onBack: () -> Unit,
+    onSellerClick: () -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var tab by remember { mutableStateOf(0) }
@@ -584,6 +590,33 @@ fun WalletScreen(uid: String, wallet: Wallet, onRefresh: () -> Unit = {}, onBack
                     0 -> {
                         WalletBalanceCard(gem = false, balance = wallet.coins, action = tr("Catatan topup")) {
                             toast("Belum ada catatan topup")
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        // Pintu masuk halaman Coin Seller: daftar penjual coin resmi.
+                        Row(
+                            Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(14.dp))
+                                .background(Brush.horizontalGradient(listOf(Color(0xFF123E56), Color(0xFF1F7AA8))))
+                                .border(1.5.dp, Color(0xFFE2B33C), RoundedCornerShape(14.dp))
+                                .clickable { onSellerClick() }
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("\uD83D\uDED2", fontSize = 22.sp)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "Coin Seller",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    "Beli coin dari penjual resmi",
+                                    color = Color(0xFFB8E2F5),
+                                    fontSize = 11.sp,
+                                )
+                            }
+                            Text("\u203A", color = Color.White, fontSize = 26.sp)
                         }
                         Spacer(Modifier.height(16.dp))
                         Box(

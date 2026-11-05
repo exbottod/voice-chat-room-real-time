@@ -154,6 +154,7 @@ fun ProfileTab(
     onFamilyClick: () -> Unit = {},
     onFansClick: () -> Unit = {},
     onFollowingClick: () -> Unit = {},
+    onSellerPanelClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -170,6 +171,17 @@ fun ProfileTab(
     // lewat panel developer. Hak dicek ke server, bukan disimpan di HP.
     var panelList by remember { mutableStateOf<List<PanelInfo>>(emptyList()) }
     var panelAktif by remember { mutableStateOf<PanelInfo?>(null) }
+    // Panel seller: hanya untuk akun yang didaftarkan developer sebagai coin seller.
+    var sellerAktif by remember { mutableStateOf(false) }
+    LaunchedEffect(userId) {
+        sellerAktif = try {
+            if (userId.isBlank()) false else SellerRepo.me() != null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
+    }
     LaunchedEffect(userId) {
         panelList = try {
             if (userId.isBlank()) emptyList() else PanelStaffRepo.panels()
@@ -381,6 +393,9 @@ fun ProfileTab(
                         if (pi.isManager) "\uD83E\uDDD1\u200D\uD83D\uDCBC" else "\uD83D\uDEE1",
                         if (pi.isManager) "Panel Manager" else "Panel Admin",
                     ) { panelAktif = pi }
+                }
+                if (sellerAktif) {
+                    MenuItem("\uD83D\uDCB0", "Panel Seller") { onSellerPanelClick() }
                 }
                 MenuItem("⚙", tr("Pengaturan"), icon = R.drawable.ic_settings) { onSettingsClick() }
                 MenuItem("❓", tr("Bantuan")) { soon(tr("Bantuan")) }

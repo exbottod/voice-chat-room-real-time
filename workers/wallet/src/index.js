@@ -214,6 +214,173 @@ async function pastikan(env, uid) {
   return rapikan(r2[0].rows[0]);
 }
 
+
+// ---------- Coin seller ----------
+// Penjual coin resmi: didaftarkan developer, punya stok sendiri, dan muncul di
+// halaman seller pada Dompet. Stok hanya bisa diisi developer.
+let siapSel = false;
+async function siapSeller(env) {
+  if (siapSel) return;
+  await pipe(env, [
+    { sql: `create table if not exists coin_seller (
+        uid text primary key,
+        store text not null default '',
+        wa text not null default '',
+        wa_link text not null default '',
+        photo text not null default '',
+        stock integer not null default 0,
+        active integer not null default 1,
+        urut integer not null default 0,
+        created_at integer not null default (unixepoch() * 1000),
+        updated_at integer not null default (unixepoch() * 1000))` },
+    { sql: `create table if not exists seller_tx (
+        id integer primary key autoincrement,
+        seller text not null,
+        buyer text not null,
+        coins integer not null default 0,
+        note text not null default '',
+        req text not null default '',
+        created_at integer not null default (unixepoch() * 1000))` },
+    { sql: `create unique index if not exists seller_tx_req on seller_tx(req)` },
+    { sql: `create table if not exists seller_req (req text primary key, at integer not null default 0)` },
+  ]);
+  siapSel = true;
+}
+
+const KOLOM_SELLER = `s.uid, s.store, s.wa, s.wa_link, s.stock, s.urut, s.active,
+  coalesce(nullif(s.photo, ''), (select avatar from wave_players w where w.uid = s.uid), '') as photo`;
+
+async function daftarSeller(env, hanyaAktif) {
+  await siapSeller(env);
+  const batas = Date.now() - 3 * 24 * 3600 * 1000;
+  const r = await pipe(env, [
+    {
+      sql: `select ${KOLOM_SELLER},
+                   (select count(*) from seller_tx t
+                     where t.seller = s.uid and t.created_at >= ?) as pesanan
+            from coin_seller s
+            ${hanyaAktif ? "where s.active = 1" : ""}
+            order by s.urut desc, s.created_at asc limit 200`,
+      args: [I(batas)],
+    },
+  ]);
+  return r[0].rows;
+}
+
+async function satuSeller(env, uid) {
+  await siapSeller(env);
+  const batas = Date.now() - 3 * 24 * 3600 * 1000;
+  const r = await pipe(env, [
+    {
+      sql: `select ${KOLOM_SELLER},
+                   (select count(*) from seller_tx t
+                     where t.seller = s.uid and t.created_at >= ?) as pesanan
+            from coin_seller s where s.uid = ?`,
+      args: [I(batas), T(uid)],
+    },
+  ]);
+  return r[0].rows[0] ?? null;
+}
+
+/** Seller mengirim coin ke user. Stok seller berkurang, saldo user bertambah. */
+async function sellerKirim(env, uid, p) {
+  await siapSeller(env);
+  const to = String(p.to ?? "").trim();
+  if (!/^[A-Za-z0-9_-]{6,64}$/.test(to)) return gagal("User ID tujuan tidak valid");
+  if (/^[0-9]+$/.test(to)) return gagal("Pakai UID akun, bukan ID angka");
+  if (to === uid) return gagal("Tidak bisa mengirim ke diri sendiri");
+  const coins = Math.trunc(Number(p.coins ?? 0));
+  if (!(coins > 0)) return gagal("Jumlah coin tidak valid");
+  if (coins > 100000000000) return gagal("Jumlah coin terlalu besar");
+  const req = String(p.req ?? `s-${uid}-${Date.now()}`);
+  const note = String(p.note ?? "").slice(0, 120);
+  const now = Date.now();
+
+  const r = await pipe(env, [
+    { sql: "begin immediate" },
+    { sql: "insert or ignore into wallets (uid) values (?)", args: [T(to)] },
+    {
+      sql: `update coin_seller set stock = stock - ?, updated_at = ?
+            where uid = ? and active = 1 and stock >= ?
+              and not exists (select 1 from seller_req where req = ?)`,
+      args: [I(coins), I(now), T(uid), I(coins), T(req)],
+    },
+    { sql: "insert into seller_req (req, at) select ?, ? where changes() > 0", args: [T(req), I(now)] },
+    {
+      sql: `insert into seller_tx (seller, buyer, coins, note, req, created_at)
+            select ?, ?, ?, ?, ?, ? where changes() > 0`,
+      args: [T(uid), T(to), I(coins), T(note), T(req), I(now)],
+    },
+    {
+      sql: `update wallets set coins = coins + ?, updated_at = ? where uid = ? and changes() > 0`,
+      args: [I(coins), I(now), T(to)],
+    },
+    {
+      sql: `insert into money_tx (uid, kind, amount, created_at)
+            select ?, 'seller_in', ?, ? where changes() > 0`,
+      args: [T(to), I(coins), I(now)],
+    },
+    { sql: "select stock from coin_seller where uid = ?", args: [T(uid)] },
+    { sql: "select coins from wallets where uid = ?", args: [T(to)] },
+    { sql: "commit" },
+  ]);
+  const sisa = Number(r[7].rows[0]?.stock ?? 0);
+  const saldoBaru = Number(r[8].rows[0]?.coins ?? 0);
+  if (Number(r[4].affected ?? 0) > 0) {
+    return json({ ok: 1, stok: sisa, coins: saldoBaru, terkirim: coins });
+  }
+  const cek = await pipe(env, [{ sql: "select 1 as ada from seller_req where req = ?", args: [T(req)] }]);
+  if (cek[0].rows.length) return json({ ok: 1, stok: sisa, coins: saldoBaru, terkirim: 0, ulang: 1 });
+  const s2 = await satuSeller(env, uid);
+  if (!s2 || !Number(s2.active)) return gagal("Akun ini bukan coin seller aktif");
+  return gagal(`Stok coin habis. Sisa ${Number(s2.stock ?? 0).toLocaleString("id-ID")} coin.`);
+}
+
+/** Endpoint /seller: halaman seller di Dompet dan panel seller di Profil. */
+async function sellerApi(env, sesi, body) {
+  const uid = sesi.uid;
+  const p = body.p ?? {};
+  const a = String(body.a ?? p.a ?? "");
+  if (a === "list") {
+    const rows = await daftarSeller(env, true);
+    return json({ ok: 1, seller: rows });
+  }
+  if (a === "me") {
+    const foto = String(p.photo ?? "").trim();
+    const nama = String(p.nama ?? "").trim();
+    if (foto || nama) {
+      try {
+        await pipe(env, [
+          {
+            sql: `update coin_seller set
+                    photo = case when ? <> '' then ? else photo end,
+                    store = case when ? <> '' then ? else store end,
+                    updated_at = ?
+                  where uid = ?`,
+            args: [T(foto), T(foto), T(nama), T(nama), I(Date.now()), T(uid)],
+          },
+        ]);
+      } catch { /* foto gagal disimpan tidak boleh menghalangi panel */ }
+    }
+    const me = await satuSeller(env, uid);
+    if (!me) return json({ ok: 0, e: "Bukan coin seller", seller: null });
+    return json({ ok: 1, seller: me });
+  }
+  if (a === "send") return await sellerKirim(env, uid, p);
+  if (a === "hist") {
+    await siapSeller(env);
+    const r = await pipe(env, [
+      {
+        sql: `select buyer, coins, note, created_at from seller_tx
+              where seller = ? order by created_at desc limit 50`,
+        args: [T(uid)],
+      },
+    ]);
+    return json({ ok: 1, riwayat: r[0].rows });
+  }
+  return gagal(`aksi seller ${a} tidak dikenal`);
+}
+
 // ---------- Aksi dompet ----------
 async function kirimGift(env, uid, p) {
   await pastikan(env, uid);
@@ -1161,6 +1328,81 @@ async function admin(env, body) {
   const op = String(p.op ?? "");
   const target = String(p.uid ?? "");
 
+  // ---- Coin seller: pendaftaran (khusus developer) ----
+  if (op === "seller_list") {
+    return json({ ok: 1, seller: await daftarSeller(env, false) });
+  }
+  if (op === "seller_save") {
+    const who = String(p.uid ?? "").trim();
+    if (!/^[A-Za-z0-9_-]{6,64}$/.test(who)) return gagal("UID tidak valid");
+    if (/^[0-9]+$/.test(who)) return gagal("Pakai UID akun, bukan ID angka");
+    const store = String(p.store ?? "").trim().slice(0, 60);
+    const wa = String(p.wa ?? "").trim().slice(0, 32);
+    const link = String(p.link ?? "").trim().slice(0, 300);
+    const aktif = p.active === undefined ? 1 : (Number(p.active) ? 1 : 0);
+    if (!store) return gagal("Nama toko wajib diisi");
+    if (!wa) return gagal("Nomor WhatsApp wajib diisi");
+    await siapSeller(env);
+    const now = Date.now();
+    await pipe(env, [
+      {
+        sql: `insert into coin_seller (uid, store, wa, wa_link, active, updated_at)
+              values (?, ?, ?, ?, ?, ?)
+              on conflict (uid) do update set
+                store = excluded.store, wa = excluded.wa,
+                wa_link = excluded.wa_link, active = excluded.active,
+                updated_at = excluded.updated_at`,
+        args: [T(who), T(store), T(wa), T(link), I(aktif), I(now)],
+      },
+    ]);
+    return json({ ok: 1, seller: await satuSeller(env, who) });
+  }
+  if (op === "seller_set_active") {
+    const who = String(p.uid ?? "").trim();
+    if (!who) return gagal("UID kosong");
+    await siapSeller(env);
+    const aktif = Number(p.active) ? 1 : 0;
+    const r = await pipe(env, [
+      { sql: "update coin_seller set active = ?, updated_at = ? where uid = ?", args: [I(aktif), I(Date.now()), T(who)] },
+    ]);
+    if (!r[0].affected) return gagal("Seller belum terdaftar");
+    return json({ ok: 1, seller: await satuSeller(env, who) });
+  }
+  if (op === "seller_del") {
+    const who = String(p.uid ?? "").trim();
+    if (!who) return gagal("UID kosong");
+    await siapSeller(env);
+    await pipe(env, [{ sql: "delete from coin_seller where uid = ?", args: [T(who)] }]);
+    return json({ ok: 1, uid: who });
+  }
+  // ---- Stok coin seller (tab terpisah, khusus developer) ----
+  if (op === "seller_stock") {
+    const who = String(p.uid ?? "").trim();
+    if (!who) return gagal("UID kosong");
+    await siapSeller(env);
+    const ada = await pipe(env, [{ sql: "select stock from coin_seller where uid = ?", args: [T(who)] }]);
+    if (!ada[0].rows.length) return gagal("Seller belum terdaftar");
+    const mode = String(p.mode ?? "add");
+    const n = Math.trunc(Number(p.coins ?? 0));
+    if (!Number.isFinite(n) || n === 0) return gagal("Jumlah coin tidak valid");
+    const now = Date.now();
+    if (mode === "set") {
+      if (n < 0) return gagal("Stok tidak boleh negatif");
+      await pipe(env, [
+        { sql: "update coin_seller set stock = ?, updated_at = ? where uid = ?", args: [I(n), I(now), T(who)] },
+      ]);
+    } else {
+      await pipe(env, [
+        {
+          sql: `update coin_seller set stock = case when stock + ? < 0 then 0 else stock + ? end,
+                  updated_at = ? where uid = ?`,
+          args: [I(n), I(n), I(now), T(who)],
+        },
+      ]);
+    }
+    return json({ ok: 1, seller: await satuSeller(env, who) });
+  }
+
   // ---- Panel developer: atur panel manager/admin ----
   if (op === "panel_grant") {
     const who = String(p.uid ?? "").trim();
@@ -1637,6 +1879,14 @@ export default {
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
       return await panel(env, b);
     }
+    if (url.pathname === "/seller") {
+      const b = await req.json().catch(() => null);
+      if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
+      const sesi = await sesiDariToken(b.t ?? "");
+      if (!sesi) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+      try { return await sellerApi(env, sesi, b); }
+      catch (e) { return gagal(String(e?.message ?? "Server seller sibuk")); }
+    }
     if (url.pathname === "/admin") {
       const b = await req.json().catch(() => null);
       if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
@@ -1652,9 +1902,9 @@ export default {
       // Sekaligus buktikan sambungan ke Turso hidup.
       try {
         await pipe(env, [{ sql: "select 1 as ok" }]);
-        return json({ ok: 1, v: "turso-2026-11-05-props", db: 1 });
+        return json({ ok: 1, v: "turso-2026-11-06-seller", db: 1 });
       } catch (e) {
-        return json({ ok: 0, v: "turso-2026-11-05-props", db: String(e?.message ?? e) }, 500);
+        return json({ ok: 0, v: "turso-2026-11-06-seller", db: String(e?.message ?? e) }, 500);
       }
     }
     if (req.method !== "POST") return gagal("Gunakan POST");

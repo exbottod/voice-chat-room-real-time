@@ -88,6 +88,9 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
     var fullProfileUid by remember { mutableStateOf<String?>(null) }
     var followList by remember { mutableStateOf<Pair<String, String>?>(null) }
     var chatWith by remember { mutableStateOf<PublicUser?>(null) }
+    // Coin seller: daftar penjual di Dompet dan panel seller di tab Profil.
+    var showSellers by remember { mutableStateOf(false) }
+    var showSellerPanel by remember { mutableStateOf(false) }
     var commentMoment by remember { mutableStateOf<Moment?>(null) }
     var wallet by remember { mutableStateOf(Wallet()) }
     // Tarik-ulang: dipakai tab Saya dan halaman Dompet. Semua data diambil
@@ -491,7 +494,8 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             coins = wallet.coins,
                             following = following,
                             fans = fans,
-                            onWalletClick = { showWallet = true },
+                            onWalletClick = { showWallet = true }
+                            onSellerPanelClick = { showSellerPanel = true },
                             onProfileClick = { fullProfileUid = uid },
                             wallet = wallet,
                             onVipClick = { showVip = true },
@@ -589,6 +593,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     wallet = wallet,
                     onRefresh = muatUlang,
                     onBack = { showWallet = false },
+                    onSellerClick = { showSellers = true },
                 )
             }
             if (showLevel) KecilkanKonten { LevelScreen(user = user, profile = profile, wallet = wallet, uid = uid, onBack = { showLevel = false }) }
@@ -598,6 +603,32 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 PropsScreen(
                     myUid = uid,
                     onBack = { showProps = false },
+                    onWalletChanged = { muatUlang() },
+                )
+            }
+            if (showSellers) {
+                SellerListScreen(
+                    onBack = { showSellers = false },
+                    onChat = { s ->
+                        showSellers = false
+                        chatWith = PublicUser(
+                            userId = "",
+                            uid = s.uid,
+                            name = s.store.ifBlank { "Coin Seller" },
+                            countryCode = "ID",
+                            bio = "",
+                            avatarB64 = null,
+                            photoUrl = s.photo.takeIf { it.startsWith("http") },
+                        )
+                    },
+                )
+            }
+            if (showSellerPanel) {
+                SellerPanelScreen(
+                    myUid = uid,
+                    myName = myName,
+                    myPhoto = user.photoUrl ?: "",
+                    onBack = { showSellerPanel = false },
                     onWalletChanged = { muatUlang() },
                 )
             }

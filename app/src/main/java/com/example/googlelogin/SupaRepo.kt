@@ -578,6 +578,59 @@ object SupaRepo {
             hasil ?: org.json.JSONObject().put("ok", 0).put("e", pesan)
         }
 
+    /**
+     * Panggilan ke endpoint /seller (halaman seller di Dompet dan panel seller
+     * di Profil). Urutannya VPS lebih dulu, lalu cadangan Cloudflare.
+     */
+    suspend fun sellerCall(action: String, params: org.json.JSONObject = org.json.JSONObject()): org.json.JSONObject =
+        withContext(Dispatchers.IO) {
+            val token = token() ?: return@withContext org.json.JSONObject().put("ok", 0).put("e", "Belum login")
+            val body = org.json.JSONObject()
+                .put("a", action)
+                .put("t", token)
+                .put("p", params)
+            val urls = listOf(VPS, WAL2, WAL)
+            var hasil: org.json.JSONObject? = null
+            var pesan = "Server seller tidak terjangkau, coba lagi"
+            var i = 0
+            while (i < urls.size && hasil == null) {
+                val base = urls[i]
+                i++
+                var conn: HttpURLConnection? = null
+                try {
+                    conn = (URL("$base/seller").openConnection() as HttpURLConnection).apply {
+                        requestMethod = "POST"
+                        connectTimeout = 12_000
+                        readTimeout = 25_000
+                        doOutput = true
+                        setRequestProperty("apikey", KEY)
+                        setRequestProperty("Content-Type", "application/json")
+                    }
+                    conn.outputStream.use { it.write(body.toString().toByteArray()) }
+                    val code = conn.responseCode
+                    val txt = (if (code in 200..299) conn.inputStream else conn.errorStream)
+                        ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    val o = try {
+                        if (txt.isBlank()) null else org.json.JSONObject(txt)
+                    } catch (e: Exception) { null }
+                    if (code in 200..299 && o != null) {
+                        hasil = o
+                    } else if (code in 400..498 && code != 429) {
+                        hasil = o ?: org.json.JSONObject().put("ok", 0).put("e", "Server seller error $code")
+                    } else {
+                        pesan = o?.optString("e")?.takeIf { it.isNotBlank() } ?: "Server seller error $code"
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    pesan = "Server seller lambat, coba lagi"
+                } finally {
+                    try { conn?.disconnect() } catch (e: Exception) { }
+                }
+            }
+            hasil ?: org.json.JSONObject().put("ok", 0).put("e", pesan)
+        }
+
     suspend fun signinClaim(uid: String, coins: Long, date: String): Res =
         call("signin_claim", uidJson(uid).put("coins", coins).put("date", date))
 
