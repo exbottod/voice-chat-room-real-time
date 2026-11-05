@@ -683,12 +683,12 @@ private fun TombolPil(
 /** Ikon "f" Facebook digambar sederhana (tanpa aset tambahan). */
 @Composable
 private fun IkonFacebook() {
-    Box(
-        Modifier.size(22.dp).clip(CircleShape).background(Color(0xFF1877F2)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("f", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-    }
+    // Logo resmi Facebook dari aset desain, bukan digambar manual.
+    Image(
+        painter = painterResource(R.drawable.ic_fb_logo),
+        contentDescription = "Facebook",
+        modifier = Modifier.size(22.dp),
+    )
 }
 
 @Composable
