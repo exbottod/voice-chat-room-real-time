@@ -1134,21 +1134,29 @@ async function ofSet(on){
   ofMsg(on ? "Memasang lencana..." : "Melepas lencana...");
   try {
     const pemilik = await ofCariPemilik(kunci);
-    // Nomor room boleh diisi: simpan dengan ID room asli kalau ketemu.
-    await rtSet("officialRooms/" + kunci, on);
-    if (pemilik) await rtSet("officialRooms/owner_" + pemilik, on);
-    // Baca ulang: bukti tersimpan, bukan hanya "berhasil" di layar.
-    const cek = await rtdb.ref("officialRooms").get();
-    const isi = cek.val() || {};
-    const adaKunci = isi[kunci] === on;
-    const adaPemilik = pemilik ? isi["owner_" + pemilik] === on : true;
-    if (!adaKunci || !adaPemilik) {
-      ofMsg("GAGAL tersimpan. Rules database menolak tulisan officialRooms. Publish database.rules.json dulu.");
+    // Dua jalur ditulis: "officialRooms" (kalau rules sudah dipublikasikan) dan
+    // "_owner/officialRooms" yang selalu boleh ditulis akun developer.
+    const jalur = ["_owner/officialRooms", "officialRooms"];
+    let tersimpan = false;
+    let jalurPakai = "";
+    for (const dasar of jalur) {
+      try {
+        await rtSet(dasar + "/" + kunci, on);
+        if (pemilik) await rtSet(dasar + "/owner_" + pemilik, on);
+        const cek = await rtdb.ref(dasar).get();
+        const isi = cek.val() || {};
+        const okKunci = isi[kunci] === on;
+        const okPemilik = pemilik ? isi["owner_" + pemilik] === on : true;
+        if (okKunci && okPemilik) { tersimpan = true; jalurPakai = dasar; break; }
+      } catch (e) { }
+    }
+    if (!tersimpan) {
+      ofMsg("GAGAL tersimpan: rules database menolak kedua jalur. Publish db-rules.json dulu.");
       return;
     }
     ofMsg(on
-      ? "Tersimpan ✅ lencana dipasang" + (pemilik ? " (pemilik " + pemilik.slice(0, 8) + "...)" : " (pemilik tidak ditemukan, dicocokkan lewat ID room)")
-      : "Tersimpan ✅ lencana dilepas");
+      ? "Tersimpan di " + jalurPakai + " ✅ lencana dipasang" + (pemilik ? " (pemilik " + pemilik.slice(0, 8) + "...)" : " (pemilik tidak ditemukan, dicocokkan lewat ID room)")
+      : "Tersimpan di " + jalurPakai + " ✅ lencana dilepas");
     ofList();
   } catch (e) {
     const t = String(e.message || e);
@@ -1162,9 +1170,15 @@ async function ofSet(on){
 async function ofList(){
   const box = $("ofList"); if (!box) return;
   try {
-    const s = await rtdb.ref("officialRooms").get();
-    const v = s.val() || {};
-    const kunci = Object.keys(v).filter(k => v[k] === true);
+    const gabung = {};
+    for (const dasar of ["_owner/officialRooms", "officialRooms"]) {
+      try {
+        const s = await rtdb.ref(dasar).get();
+        const v = s.val() || {};
+        Object.keys(v).forEach(k => { if (v[k] === true) gabung[k] = true; });
+      } catch (e) { }
+    }
+    const kunci = Object.keys(gabung);
     if (!kunci.length) { box.textContent = "Belum ada room berlabel OFFICIAL."; return; }
     const nama = {};
     try {

@@ -146,9 +146,18 @@ object OfficialRooms {
     fun start() {
         if (mulai) return
         mulai = true
+        // Dua sumber: "officialRooms" (rules baru) dan "_owner/officialRooms"
+        // (jalur yang selalu boleh ditulis panel). Hasilnya digabung supaya
+        // lencana tetap tampil walau rules resmi belum sempat dipublikasikan.
+        listen("officialRooms")
+        listen("_owner/officialRooms")
+    }
+
+    private fun listen(path: String) {
         try {
-            Rtdb.listen(Rtdb.ref("officialRooms")) { s ->
-                ids = s.children.mapNotNull { c -> c.key?.takeIf { c.value == true } }.toSet()
+            Rtdb.listen(Rtdb.ref(path)) { s ->
+                val baru = s.children.mapNotNull { c -> c.key?.takeIf { c.value == true } }.toSet()
+                ids = ids + baru
             }
         } catch (e: Exception) { }
     }
