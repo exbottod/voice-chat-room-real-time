@@ -516,6 +516,7 @@ label{font-size:12px;color:var(--mut)}
     <div class="card">
       <h2>Daftar staf</h2>
       <div id="pstList" class="muted">Memuat...</div>
+      <button class="btn out" id="pstToggleDead" style="margin-top:8px;width:100%">Tampilkan yang sudah dicabut</button>
     </div>
     <div class="card">
       <h2>Perbaiki semua ID user</h2>
@@ -2063,7 +2064,7 @@ function userCard(el, u, line2){
   row.append(av, box); el.appendChild(row);
 }
 
-const PANEL_BUILD = "2026-11-05d";
+const PANEL_BUILD = "2026-11-05e";
 (function stempelPanel(){
   const cek = () => {
     if (!document.body || document.getElementById("panelBuild")) return;
@@ -3942,31 +3943,95 @@ async function pstStart(){
   pstList();
 }
 
+let pstShowDead = false;
+const pstProfilCache = new Map();
+
+/* Nama, ID angka, dan foto profil seorang staf (dari ids/u dan pub/{uid}). */
+async function pstProfil(uid){
+  const k = String(uid || "");
+  if (pstProfilCache.has(k)) return pstProfilCache.get(k);
+  const out = { id: "", name: "", foto: null };
+  try {
+    const s = await rtdb.ref("ids/u/" + k).get();
+    if (s.exists()) {
+      const v = s.val();
+      out.id = String(typeof v === "object" ? ((v && v.id) || "") : (v || ""));
+    }
+  } catch (e) { }
+  try {
+    const s = await rtdb.ref("pub/" + k).get();
+    if (s.exists()) {
+      const v = s.val() || {};
+      if (v.id) out.id = String(v.id);
+      if (v.name) out.name = String(v.name);
+      out.foto = v.avatarB64 || v.avatar || v.photoUrl || null;
+    }
+  } catch (e) { }
+  pstProfilCache.set(k, out);
+  return out;
+}
+
+function pstFoto(u){
+  const src = String(u.foto || "");
+  let av;
+  if (src && /^https?:/i.test(src)) { av = document.createElement("img"); av.src = src; }
+  else if (src) { av = document.createElement("img"); av.src = "data:image/jpeg;base64," + src; }
+  else { av = document.createElement("div"); av.textContent = (u.name || "?").slice(0, 1).toUpperCase(); }
+  av.style.cssText = "width:44px;height:44px;border-radius:50%;object-fit:cover;flex:0 0 44px;background:#1b1b1b;border:1px solid #2a2a2a;display:flex;align-items:center;justify-content:center;font-weight:700;color:#c8a15a";
+  return av;
+}
+
 async function pstList(){
   const box = $("pstList");
+  if (!box) return;
+  const tombol = $("pstToggleDead");
+  if (tombol && !tombol.onclick) {
+    tombol.onclick = () => {
+      pstShowDead = !pstShowDead;
+      tombol.textContent = pstShowDead ? "Sembunyikan yang sudah dicabut" : "Tampilkan yang sudah dicabut";
+      pstList();
+    };
+  }
   try {
     const r = await walletAdmin({ op: "panel_list" });
     pstStaff = r.list || [];
-    if (!pstStaff.length) { box.textContent = "Belum ada staf. Kirim panel ke user di atas."; return; }
+    const tampil = pstStaff.filter(x => pstShowDead || x.active);
+    if (!tampil.length) {
+      box.textContent = pstStaff.length
+        ? "Semua staf sudah dicabut. Ketuk tombol di bawah untuk melihat riwayatnya."
+        : "Belum ada staf. Kirim panel ke user di atas.";
+      return;
+    }
+    const profil = await Promise.all(tampil.map(x => pstProfil(x.uid)));
     box.innerHTML = "";
-    pstStaff.forEach(x => {
+    tampil.forEach((x, n) => {
+      const p = profil[n] || { id: "", name: "", foto: null };
       const row = document.createElement("div"); row.className = "item";
       const info = document.createElement("div"); info.className = "info";
+      info.style.display = "flex"; info.style.alignItems = "center"; info.style.gap = "10px";
+      const teks = document.createElement("div");
       const t = document.createElement("b");
-      t.textContent = (x.role === "manager" ? "🧑‍💼 Manager" : "🛡 Admin") + " · " + x.uid.slice(0, 10) + "…";
-      const s = document.createElement("span"); s.className = "muted";
-      s.textContent = (x.active ? "aktif" : "dicabut") + " · " + (x.stok || 0) + " item · stok coin " + fmtKoin(x.coins || 0) + (x.manager ? " · manager: " + x.manager.slice(0, 8) + "…" : "");
-      info.append(t, s);
+      t.textContent = (p.name || "Pengguna tanpa nama") + "  ·  " + (x.role === "manager" ? "Manager" : "Admin");
+      const s2 = document.createElement("span"); s2.className = "muted";
+      s2.textContent = "ID " + (p.id || "-") + (x.active ? "" : " · dicabut") + " · " + (x.stok || 0) + " item · coin " + fmtKoin(x.coins || 0);
+      teks.append(t, s2);
+      if (!x.active) { teks.style.opacity = "0.6"; }
+      info.append(pstFoto(p), teks);
       const use = document.createElement("button"); use.className = "btn out"; use.textContent = "Stok";
       use.onclick = () => { $("pstStockId").value = ""; $("pstStockId").dataset.uid = x.uid; pstStockList(x.uid); };
       const off = document.createElement("button"); off.className = "btn bad"; off.textContent = "Cabut";
       off.onclick = async () => {
-        if (!confirm("Cabut panel " + x.role + " user ini?")) return;
+        const siapa = p.name ? (p.name + " (ID " + (p.id || "-") + ")") : x.uid;
+        if (!confirm("Cabut panel " + x.role + " milik " + siapa + "?")) return;
+        off.disabled = true;
         try {
           await walletAdmin({ op: "panel_revoke", uid: x.uid, role: x.role });
           toast("Panel " + x.role + " dicabut ✅");
-          pstList();
-        } catch (e) { toast("Gagal: " + e.message); }
+          // Baris langsung hilang dari daftar, tanpa menunggu muat ulang.
+          row.remove();
+          pstProfilCache.delete(String(x.uid));
+          if (!box.children.length) pstList();
+        } catch (e) { off.disabled = false; toast("Gagal: " + e.message); }
       };
       row.append(info, use, off); box.appendChild(row);
     });
