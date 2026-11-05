@@ -131,11 +131,11 @@ fun SettingsScreen(
             Column(
                 Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             ) {
-                SettingRow(tr("Akun"), user.email) {}
+                SettingRow(tr("Akun"), labelAkun(user.email)) {}
                 SettingRow(tr("ID pengguna"), userId) {}
                 SettingRow(
                     tr("Email & password"),
-                    if (hasPassword) (FirebaseSession.passwordEmail() ?: "Aktif") else "Belum diatur",
+                    if (hasPassword) labelAkun(FirebaseSession.passwordEmail() ?: "") else "Belum diatur",
                 ) {
                     if (hasPassword) {
                         Toast.makeText(context, tr("Login email & password sudah aktif"), Toast.LENGTH_SHORT).show()
@@ -366,4 +366,15 @@ fun PrivacyScreen(onBack: () -> Unit) {
             )
         }
     }
+}
+
+/**
+ * Email internal (@facebook.rezostar / @phone.rezostar) hanya penanda akun,
+ * bukan alamat asli, jadi ditampilkan sebagai cara login yang dipakai.
+ */
+private fun labelAkun(email: String): String = when {
+    email.isBlank() -> "Belum diatur"
+    email.endsWith("@facebook.rezostar") -> "Login dengan Facebook"
+    email.endsWith("@phone.rezostar") || email.endsWith("@phone.rezostar.app") -> "Login dengan nomor HP"
+    else -> email
 }
