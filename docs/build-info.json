@@ -1,17 +1,16 @@
 {
   "status": "gagal",
   "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/LoginScreen.kt:528:9 Unresolved reference 'pilihZona'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/LoginScreen.kt:530:32 Unresolved reference 'negaraIso'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/LoginScreen.kt:530:49 Unresolved reference 'pilihZona'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/LoginScreen.kt:531:27 Unresolved reference 'pilihZona'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainActivity.kt:321:13 Unresolved reference 'withContext'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/NomorTerdaftar.kt:18:18 Unresolved reference 'await'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/NomorTerdaftar.kt:30:81 Unresolved reference 'await'.",
     "* What went wrong:"
   ],
-  "versi": "1.0.879",
+  "versi": "1.0.881",
   "ukuran_mb": 0,
   "sha256": "",
-  "commit": "f41ca1f",
-  "waktu": "2026-11-05T19:44:27Z",
+  "commit": "37e4dd5",
+  "waktu": "2026-11-05T19:49:03Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
   "aset_roket": 0,
   "aset_total": 0,
