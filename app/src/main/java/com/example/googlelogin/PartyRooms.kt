@@ -172,10 +172,11 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     val bmp = remember(room.photoB64) { ProfileRepo.decodeB64(room.photoB64) }
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        // Box luar TIDAK dipotong supaya pita OFFICIAL bisa sedikit keluar dari tepi foto.
+        Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
+                .fillMaxSize()
                 .clip(shape)
                 .background(Brush.verticalGradient(listOf(Color(0xFF1E1E1E), Color(0xFF0E0E0E))))
                 .border(1.dp, Brush.linearGradient(listOf(GoldDark, GoldLight, GoldDark)), shape),
@@ -196,54 +197,6 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
             ) {
                 Text("● ${room.online}", color = Color(0xFF4CAF50), fontSize = 12.sp)
             }
-            OfficialRooms.start()
-            val resmi = OfficialRooms.ids.contains(room.id) ||
-                (room.roomNo.isNotBlank() && OfficialRooms.ids.contains(room.roomNo)) ||
-                (room.ownerUid.isNotBlank() && OfficialRooms.ids.contains("owner_" + room.ownerUid))
-            if (resmi) {
-                // Pita OFFICIAL 3D melintang di sudut kiri atas. Diputar 45
-                // derajat, dengan lapisan gelap di bawah sebagai ketebalan dan
-                // bayangan supaya terlihat timbul, bukan sekadar kotak datar.
-                Box(
-                    Modifier
-                        .align(Alignment.TopStart)
-                        .offset(x = (-46).dp, y = 14.dp)
-                        .graphicsLayer { rotationZ = -45f },
-                ) {
-                    // ketebalan pita (lapisan belakang)
-                    Box(
-                        Modifier
-                            .offset(y = 3.dp)
-                            .width(160.dp)
-                            .height(20.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(Color(0xFF6B4E00)),
-                    )
-                    // muka pita
-                    Box(
-                        Modifier
-                            .width(160.dp)
-                            .height(20.dp)
-                            .shadow(6.dp, RoundedCornerShape(3.dp))
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color(0xFFFFF6C8), Color(0xFFFFC928), Color(0xFFD99B00)),
-                                ),
-                            )
-                            .border(1.dp, Color(0xFFFFF9E3), RoundedCornerShape(3.dp)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "OFFICIAL",
-                            color = Color(0xFF3A2A00),
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.2.sp,
-                        )
-                    }
-                }
-            }
              if (rank in 1..3) {
                 val rb: Brush = when (rank) {
                     1 -> GoldBrush
@@ -260,6 +213,70 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                         .padding(horizontal = 8.dp, vertical = 2.dp),
                 )
                 }
+        }
+            OfficialRooms.start()
+            val resmi = OfficialRooms.ids.contains(room.id) ||
+                (room.roomNo.isNotBlank() && OfficialRooms.ids.contains(room.roomNo)) ||
+                (room.ownerUid.isNotBlank() && OfficialRooms.ids.contains("owner_" + room.ownerUid))
+            if (resmi) {
+                // Pita OFFICIAL meniru referensi: emas miring 45 derajat, ujung
+                // pita sedikit keluar dari tepi foto, ada lipatan gelap sebagai
+                // ketebalan dan bayangan supaya tampak 3D.
+                Box(
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = (-26).dp, y = 22.dp)
+                        .graphicsLayer {
+                            rotationZ = -45f
+                            clip = false
+                        },
+                ) {
+                    // lapisan tebal / bayangan pita
+                    Box(
+                        Modifier
+                            .offset(x = 1.dp, y = 4.dp)
+                            .width(128.dp)
+                            .height(24.dp)
+                            .background(Color(0xFF7A5600)),
+                    )
+                    // muka pita emas
+                    Box(
+                        Modifier
+                            .width(128.dp)
+                            .height(24.dp)
+                            .shadow(8.dp, RoundedCornerShape(1.dp))
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color(0xFFFFF2B8),
+                                        Color(0xFFF3C23A),
+                                        Color(0xFFD9A21B),
+                                        Color(0xFFB88308),
+                                    ),
+                                ),
+                            )
+                            .border(0.8.dp, Color(0xFFFFF7D6)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "\u2713",
+                                color = Color(0xFF3A2A00),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                "OFFICIAL",
+                                color = Color(0xFF3A2A00),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.8.sp,
+                            )
+                        }
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(6.dp))
         Text(room.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
