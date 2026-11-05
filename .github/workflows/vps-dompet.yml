@@ -1,0 +1,28 @@
+name: Perbarui kode dompet VPS
+on:
+  workflow_dispatch:
+jobs:
+  perbarui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sambung ke VPS dan jalankan update.sh
+        env:
+          PASS: ${{ secrets.VPS_PASSWORD || secrets.VPS_PASSWORDS || secrets.VPS_PASS || secrets.VPS_ROOT_PASSWORD }}
+        run: |
+          set -u
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ALAMAT=43.156.99.4
+          SKRIP=https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/update.sh
+          OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+          if [ -z "${PASS}" ]; then echo "::error::Secret password VPS belum ada."; exit 1; fi
+          echo "== Mencoba user root"
+          if sshpass -p "$PASS" ssh $OPSI root@$ALAMAT "bash -c 'curl -fsSL $SKRIP | bash'"; then
+            echo "Selesai sebagai root."; exit 0
+          fi
+          echo "::warning::Login root gagal, mencoba user ubuntu dengan sudo."
+          if printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@$ALAMAT "sudo -S -p '' bash -c 'curl -fsSL $SKRIP | bash'"; then
+            echo "Selesai sebagai ubuntu."; exit 0
+          fi
+          echo "::error::Kedua cara login gagal."
+          exit 1

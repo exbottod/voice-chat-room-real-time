@@ -1652,9 +1652,9 @@ export default {
       // Sekaligus buktikan sambungan ke Turso hidup.
       try {
         await pipe(env, [{ sql: "select 1 as ok" }]);
-        return json({ ok: 1, v: "turso-2026-11-03b", db: 1 });
+        return json({ ok: 1, v: "turso-2026-11-05-props", db: 1 });
       } catch (e) {
-        return json({ ok: 0, v: "turso-2026-11-03b", db: String(e?.message ?? e) }, 500);
+        return json({ ok: 0, v: "turso-2026-11-05-props", db: String(e?.message ?? e) }, 500);
       }
     }
     if (req.method !== "POST") return gagal("Gunakan POST");
