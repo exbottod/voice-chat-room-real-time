@@ -161,22 +161,26 @@ object RoomRepo {
         try {
             // Room lama yang sudah dihapus permanen tidak boleh dicerminkan ulang.
             if (r.id.isBlank()) return
-            val m = hashMapOf<String, Any?>(
-                "roomNo" to r.roomNo, "name" to r.name, "ownerUid" to r.ownerUid,
-                "ownerName" to r.ownerName, "photoB64" to r.photoB64,
-                "announcement" to r.announcement, "micCount" to r.micCount.toLong(),
-                "lockHash" to r.lockHash,
-            )
-            // PENTING: "pinned" dan "pinnedAt" sengaja TIDAK ditulis di sini.
-            // Sematan hanya diatur dari panel (ke RTDB). Dulu nilainya ikut
-            // ditimpa dari salinan Firestore yang lama, sehingga sematan room
-            // lepas sendiri tiap pemilik membuka app atau room.
-            // "createdAt" hanya diisi sekali supaya urutan room tidak berubah.
             val ref = Rtdb.ref("roomsPub/" + r.id)
-            ref.child("createdAt").get().addOnSuccessListener { snap ->
-                if (!snap.exists()) ref.child("createdAt").setValue(System.currentTimeMillis())
+            // RTDB adalah sumber kebenaran. Salinan Firestore sering lebih tua
+            // (panel hanya pasti menulis ke RTDB), jadi mirror TIDAK boleh
+            // menimpa apa pun yang sudah ada: nama baru dari panel, sematan,
+            // foto, dan pengumuman harus tetap seperti yang tersimpan.
+            // Mirror hanya mengisi kolom yang masih kosong (room baru / hilang).
+            ref.get().addOnSuccessListener { snap ->
+                val isi = hashMapOf<String, Any?>()
+                fun kosong(k: String) = snap.child(k).value.let { it == null || (it is String && it.isBlank()) }
+                if (kosong("roomNo")) isi["roomNo"] = r.roomNo
+                if (kosong("name")) isi["name"] = r.name
+                if (kosong("ownerUid")) isi["ownerUid"] = r.ownerUid
+                if (kosong("ownerName")) isi["ownerName"] = r.ownerName
+                if (kosong("photoB64") && !r.photoB64.isNullOrBlank()) isi["photoB64"] = r.photoB64
+                if (!snap.child("micCount").exists()) isi["micCount"] = r.micCount.toLong()
+                if (!snap.child("lockHash").exists()) isi["lockHash"] = r.lockHash
+                if (!snap.child("createdAt").exists()) isi["createdAt"] = System.currentTimeMillis()
+                // "pinned" / "pinnedAt" tidak pernah ditulis di sini.
+                if (isi.isNotEmpty()) ref.updateChildren(isi)
             }
-            ref.updateChildren(m)
         } catch (e: Exception) { }
     }
 
@@ -288,6 +292,17 @@ object RoomRepo {
     suspend fun cariByNomor(q: String): RoomInfo? {
         val kunci = q.trim()
         if (kunci.isEmpty()) return null
+        // ID user pemilik (mis. 100001) juga dianggap ID room: orang biasanya
+        // hanya hafal satu angka itu, sedangkan nomor room asli 8 digit acak.
+        var uidPemilik = ""
+        try {
+            val u = kotlinx.coroutines.withTimeoutOrNull(4000L) { Rtdb.ref("ids/i/$kunci").get().await() }
+            if (u != null && u.exists()) {
+                uidPemilik = u.child("uid").value as? String ?: ""
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
         try {
             val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
                 Rtdb.ref("roomsPub").get().await()
@@ -296,7 +311,8 @@ object RoomRepo {
                 for (c in snap.children) {
                     val id = c.key ?: continue
                     val no = c.child("roomNo").value?.toString().orEmpty()
-                    if (no == kunci || id == kunci) {
+                    val pemilik = c.child("ownerUid").value as? String ?: ""
+                    if (no == kunci || id == kunci || (uidPemilik.isNotEmpty() && pemilik == uidPemilik)) {
                         if (isHidden(id)) continue
                         pubToRoom(id, c)?.let { return it }
                     }
