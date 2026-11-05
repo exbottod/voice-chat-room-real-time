@@ -57,6 +57,7 @@ import java.net.URL
  */
 object AppUpdate {
     private const val INFO_URL = "https://exbottod.github.io/voice-chat-room-real-time/build-info.json"
+    private const val NOTE_URL = "https://exbottod.github.io/voice-chat-room-real-time/update-note.txt"
     private const val REL = "https://github.com/exbottod/voice-chat-room-real-time/releases/download/terbaru/"
     private const val PATCH_URL = "https://exbottod.github.io/voice-chat-room-real-time/patch-info.json"
 
@@ -213,7 +214,21 @@ object AppUpdate {
             // daripada daftar fitur otomatis. Jadi teks dialog bisa diatur
             // tanpa panel dan tanpa database.
             val catatanBuild = j.optString("catatan").trim()
-            val akhir = panelNote.ifBlank { catatanBuild.ifBlank { notes.ifBlank { "Perbaikan dan peningkatan untuk REZO." } } }
+            // Catatan langsung dari file (tanpa menunggu build baru): dibaca
+            // dari halaman repo. Kalau panel gagal menulis ke database karena
+            // rules, teks di file ini tetap tampil di dialog.
+            val catatanFile = try {
+                val c2 = URL(NOTE_URL + "?t=" + System.currentTimeMillis()).openConnection() as HttpURLConnection
+                c2.connectTimeout = 6000
+                c2.readTimeout = 6000
+                c2.setRequestProperty("Cache-Control", "no-cache")
+                c2.inputStream.bufferedReader().use { it.readText() }.trim()
+            } catch (e: Exception) { "" }
+            val akhir = panelNote.ifBlank {
+                catatanFile.ifBlank {
+                    catatanBuild.ifBlank { notes.ifBlank { "Perbaikan dan peningkatan untuk REZO." } }
+                }
+            }
             val terpasang = installedVersion(ctx)
             Info(latest, akhir, REL + apkName(), patchInfo(latest, terpasang))
         } catch (e: Exception) { null }

@@ -67,7 +67,8 @@
         ".read": true
       },
       "_rocketCfg": {
-        ".read": true
+        ".read": true,
+        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
       },
       "$uid": {
         ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'developerex100@gmail.com')"
