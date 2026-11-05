@@ -633,7 +633,7 @@ fun WalletScreen(
 
                         if (!showPacks) {
                             TopupMethodRow(
-                                title = "REZO CHAT VOICE",
+                                title = "Rezo Star",
                                 sub = "Agen Resmi",
                                 badge = "Penawaran terbaik",
                                 icon = { RezoMark() },
