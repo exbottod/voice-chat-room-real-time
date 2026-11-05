@@ -205,7 +205,14 @@ object MusicEngine {
 
     fun seekFraction(f: Float) {
         val d = AgoraVoice.musicDurationMs()
-        if (d > 0) AgoraVoice.seekMusic((f * d).toLong())
+        if (d <= 0) return
+        val target = (f * d).toLong()
+        if (tautanAktif.isNotBlank()) {
+            // Musik bersama: posisi baru disiarkan supaya semua HP ikut geser.
+            scope.launch { RoomMusicShare.geser(roomId, tautanAktif, judulAktif, playing, target) }
+        } else {
+            AgoraVoice.seekMusic(target)
+        }
     }
 }
 
@@ -333,6 +340,7 @@ fun MusicSheet(
                         onValueChange = {
                             MusicEngine.volume = (it * 100).toInt()
                             AgoraVoice.setMusicVolume(MusicEngine.volume)
+                            RoomMusicShare.setVolume(MusicEngine.volume)
                         },
                         colors = SliderDefaults.colors(
                             activeTrackColor = MusicGold,

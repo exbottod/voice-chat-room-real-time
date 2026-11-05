@@ -44,6 +44,21 @@ object RoomMusicShare {
 
     fun durasiMs(): Int = try { player?.duration ?: -1 } catch (e: Exception) { -1 }
 
+    private var volumeLokal = 80
+
+    /** Volume pemutar bersama (0..100). */
+    fun setVolume(v: Int) {
+        volumeLokal = v.coerceIn(0, 100)
+        val f = volumeLokal / 100f
+        try { player?.setVolume(f, f) } catch (e: Exception) { }
+    }
+
+    /** Geser posisi lagu bersama; semua HP ikut pindah ke posisi ini. */
+    suspend fun geser(room: String, url: String, judul: String, main: Boolean, pos: Long) {
+        try { player?.let { if (it.isPlaying) it.seekTo(pos.toInt()) } } catch (e: Exception) { }
+        siarkan(room, url, judul, main, pos)
+    }
+
     fun adaLagu(): Boolean = urlSekarang.isNotBlank()
 
     /** Unggah satu file lagu ke Supabase Storage, hasilnya tautan publik. */
@@ -156,6 +171,7 @@ object RoomMusicShare {
                 mp.setDataSource(url)
                 mp.setOnPreparedListener { p ->
                     siap = true
+                    try { p.setVolume(volumeLokal / 100f, volumeLokal / 100f) } catch (e: Exception) { }
                     try {
                         p.seekTo(targetMs(pos, at))
                         if (main) p.start() else p.pause()
