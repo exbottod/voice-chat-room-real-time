@@ -51,7 +51,7 @@ fun AboutScreen(onBack: () -> Unit) {
                     .padding(horizontal = 18.dp),
             )
             Text(
-                tr("Tentang Rezo Chat Voice"), color = Color(0xFF222222), fontSize = 19.sp,
+                tr("Tentang Rezo Star"), color = Color(0xFF222222), fontSize = 19.sp,
                 fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.Center),
             )
         }
@@ -66,7 +66,7 @@ fun AboutScreen(onBack: () -> Unit) {
                 contentScale = ContentScale.Fit,
             )
             Spacer(Modifier.height(22.dp))
-            Text("REZO CHAT VOICE", color = Color(0xFF444444), fontSize = 24.sp)
+            Text("Rezo Star", color = Color(0xFF444444), fontSize = 24.sp)
             Spacer(Modifier.height(6.dp))
             Text("Version ${appVersionName()}", color = Color(0xFF8A86A0), fontSize = 18.sp)
         }

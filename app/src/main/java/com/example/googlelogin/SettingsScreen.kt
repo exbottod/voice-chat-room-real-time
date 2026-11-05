@@ -147,7 +147,7 @@ fun SettingsScreen(
                 SettingRow(tr("Kebijakan privasi")) { showPrivacy = true }
                 SettingRow(tr("Bahasa"), AppLang.label()) { showLang = true }
                 SettingRow(tr("SVIP Settings")) { showSvip = true }
-                SettingRow(tr("Tentang Rezo Chat Voice"), appVersionName()) { showAbout = true }
+                SettingRow(tr("Tentang Rezo Star"), appVersionName()) { showAbout = true }
                 if (isDeveloper) {
                     SettingRow(tr("Background Tab")) { showDevBg = true }
                 }
