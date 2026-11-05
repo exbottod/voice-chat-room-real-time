@@ -554,6 +554,17 @@ label{font-size:12px;color:var(--mut)}
         <button class="btn" id="upNoteClear">Kosongkan</button>
       </div>
       <div id="upNoteStatus" class="muted" style="min-height:18px;margin-top:6px"></div>
+
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
+        <div style="color:#fff;font-size:15px;margin-bottom:6px">Ukuran database</div>
+        <div class="muted" style="margin-bottom:10px">
+          Foto dan latar room versi lama ikut tersimpan di daftar room Realtime Database.
+          Karena semua HP mengunduh daftar itu, kuota unduhan bisa meledak. Tombol ini
+          menghapus gambar dari daftar room; fotonya tetap aman di Firestore.
+        </div>
+        <button class="btn" id="bersihGambar">Bersihkan gambar besar di daftar room</button>
+        <div id="bersihStatus" class="muted" style="min-height:18px;margin-top:6px"></div>
+      </div>
     </div>
     <div class="card">
       <h2>Pengumuman aktif</h2>
@@ -2007,6 +2018,28 @@ async function upNoteSave(txt){
     upNoteMsg("Gagal: " + e.message);
   }
 }
+/* Bersihkan base64 foto/latar dari roomsPub (foto tetap ada di Firestore). */
+if ($("bersihGambar")) $("bersihGambar").onclick = async () => {
+  const st = $("bersihStatus");
+  st.textContent = "Membaca daftar room...";
+  try {
+    const snap = await rtdb.ref("roomsPub").once("value");
+    const kerja = [];
+    let byte = 0, room = 0;
+    snap.forEach(c => {
+      room++;
+      const p = c.child("photoB64"), b = c.child("backgroundB64");
+      if (p.exists()) { byte += String(p.val() || "").length; kerja.push(rtdb.ref("roomsPub/" + c.key + "/photoB64").remove()); }
+      if (b.exists()) { byte += String(b.val() || "").length; kerja.push(rtdb.ref("roomsPub/" + c.key + "/backgroundB64").remove()); }
+    });
+    if (!kerja.length) { st.textContent = "Daftar room sudah bersih (" + room + " room)."; return; }
+    st.textContent = "Menghapus " + kerja.length + " gambar dari " + room + " room (\u00b1" + (byte / 1048576).toFixed(1) + " MB)...";
+    await Promise.all(kerja);
+    st.textContent = "Selesai. " + kerja.length + " gambar dihapus dari daftar room. Foto tetap tersimpan di Firestore.";
+  } catch (e) {
+    st.textContent = /permission/i.test(e.message || "") ? "Ditolak rules (roomsPub)." : "Gagal: " + e.message;
+  }
+};
 if ($("upNoteSave")) $("upNoteSave").onclick = () => upNoteSave($("upNote").value);
 if ($("upNoteClear")) $("upNoteClear").onclick = () => { $("upNote").value = ""; upNoteSave(""); };
 // Muat setelah akun developer benar-benar masuk (rules rocketCfg butuh login).

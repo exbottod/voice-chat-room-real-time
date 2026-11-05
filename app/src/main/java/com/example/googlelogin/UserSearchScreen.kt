@@ -194,7 +194,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit, onEnterRoom: (RoomInf
                     Text("ROOM", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        val fotoR = remember(r.photoB64) { ProfileRepo.decodeB64(r.photoB64) }
+                        val fotoR = rememberRoomPhoto(r)
                         val baseR = Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)).border(2.dp, Gold, RoundedCornerShape(14.dp))
                         if (fotoR != null) Image(fotoR, "Room", baseR, contentScale = ContentScale.Crop)
                         else androidx.compose.foundation.layout.Box(

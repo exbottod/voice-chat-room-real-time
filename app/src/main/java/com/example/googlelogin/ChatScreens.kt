@@ -258,7 +258,9 @@ object ChatRepo {
             merged.values.sortedBy { it.at }.forEach { if (!unik.containsKey(it.id)) unik[it.id] = it }
             onChange(unik.values.sortedBy { it.at })
         }
-        val rt = Rtdb.listen(Rtdb.ref("chats/$chatId/messages")) { s ->
+        // Dibatasi 150 pesan terakhir: dulu seluruh riwayat diunduh ulang
+        // setiap chat dibuka, dan itu memakan kuota database besar-besaran.
+        val rt = Rtdb.listen(Rtdb.ref("chats/$chatId/messages").limitToLast(150)) { s ->
             merged.keys.removeAll { it.startsWith("rt_") }
             s.children.forEach { c ->
                 val from = c.child("from").getValue(String::class.java) ?: return@forEach

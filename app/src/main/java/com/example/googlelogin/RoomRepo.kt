@@ -174,7 +174,6 @@ object RoomRepo {
                 if (kosong("name")) isi["name"] = r.name
                 if (kosong("ownerUid")) isi["ownerUid"] = r.ownerUid
                 if (kosong("ownerName")) isi["ownerName"] = r.ownerName
-                if (kosong("photoB64") && !r.photoB64.isNullOrBlank()) isi["photoB64"] = r.photoB64
                 if (!snap.child("micCount").exists()) isi["micCount"] = r.micCount.toLong()
                 if (!snap.child("lockHash").exists()) isi["lockHash"] = r.lockHash
                 if (!snap.child("createdAt").exists()) isi["createdAt"] = System.currentTimeMillis()
@@ -280,8 +279,9 @@ object RoomRepo {
             name = str("name").ifBlank { "Room" },
             ownerUid = str("ownerUid"),
             ownerName = str("ownerName"),
-            photoB64 = str("photoB64").ifBlank { null },
-            backgroundB64 = str("backgroundB64").ifBlank { null },
+            // Gambar tidak dibaca dari daftar room (lihat RoomImg).
+            photoB64 = null,
+            backgroundB64 = null,
             announcement = str("announcement"),
             micCount = ((s.child("micCount").value as? Long) ?: 8L).toInt(),
             lockHash = str("lockHash"),
@@ -690,9 +690,9 @@ object RoomRepo {
             if (bgB64 != null) m["backgroundB64"] = bgB64
             // RTDB tidak ditunggu (kirim lalu lanjut), hanya Firestore yang ditunggu.
             // Dulu keduanya berurutan sehingga menyimpan background terasa lama.
+            // Gambar sengaja TIDAK ikut ke roomsPub: base64 di daftar room
+            // membuat semua HP mengunduh gambar setiap kali daftar berubah.
             val rm = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
-            if (photoB64 != null) rm["photoB64"] = photoB64
-            if (bgB64 != null) rm["backgroundB64"] = bgB64
             // RTDB adalah sumber data layar room, jadi ditunggu dulu supaya
             // latar/nama langsung berubah. Firestore hanya cermin.
             try {
@@ -705,6 +705,8 @@ object RoomRepo {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) { }
+            // Layar langsung memakai gambar baru tanpa mengunduh ulang.
+            RoomImg.simpan(roomId, photoB64, bgB64)
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e

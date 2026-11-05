@@ -326,7 +326,7 @@ fun RoomScreen(
             )
             return@Box
         }
-        val bg = remember(r.backgroundB64) { ProfileRepo.decodeB64(r.backgroundB64) }
+        val bg = rememberRoomBg(r)
         if (bg != null) {
             Image(bitmap = bg, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Color(0x88000000)))
@@ -387,7 +387,7 @@ fun RoomScreen(
             }
         }
         val mySeat = seats.values.firstOrNull { it.uid == myUid }
-        val roomBmp = remember(r.photoB64) { ProfileRepo.decodeB64(r.photoB64) }
+        val roomBmp = rememberRoomPhoto(r)
         val cols = micColumns(r.micCount)
         val rows = (r.micCount + cols - 1) / cols
         val seatSize = if (cols == 4) 54.dp else 48.dp
@@ -1649,8 +1649,9 @@ private fun RmSettings(r: RoomInfo, onClose: () -> Unit) {
     var photo by remember { mutableStateOf<String?>(null) }
     var bg by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
-    val photoBmp = remember(photo, r.photoB64) { ProfileRepo.decodeB64(photo ?: r.photoB64) }
-    val bgBmp = remember(bg, r.backgroundB64) { ProfileRepo.decodeB64(bg ?: r.backgroundB64) }
+    LaunchedEffect(r.id) { RoomImg.muat(r.id) }
+    val photoBmp = remember(photo, RoomImg.foto[r.id]) { ProfileRepo.decodeB64(photo ?: RoomImg.foto[r.id]) }
+    val bgBmp = remember(bg, RoomImg.latar[r.id]) { ProfileRepo.decodeB64(bg ?: RoomImg.latar[r.id]) }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             scope.launch {
@@ -1829,7 +1830,7 @@ fun FloatingRoomBubble(room: RoomInfo, onClick: () -> Unit) {
         val x = (geserX ?: (batasKanan - tepiPx * 2f)).coerceIn(tepiPx, batasKanan)
         val y = (geserY ?: (batasAtas + (batasBawah - batasAtas) * 0.55f)).coerceIn(batasAtas, batasBawah)
 
-        val bmp = remember(room.photoB64) { ProfileRepo.decodeB64(room.photoB64) }
+        val bmp = rememberRoomPhoto(room)
         Box(
             Modifier
                 .offset { IntOffset(x.roundToInt(), y.roundToInt()) }

@@ -332,26 +332,10 @@ object UserDirectory {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) { }
-        // Cadangan 2: profil publik yang belum punya catatan ids/i.
-        try {
-            val snap = kotlinx.coroutines.withTimeoutOrNull(7000L) { Rtdb.ref("pub").get().await() }
-            if (snap != null && snap.exists()) {
-                var hit: String? = null
-                snap.children.forEach { c ->
-                    val v = c.value
-                    if (v is Map<*, *>) {
-                        val cand = (v["id"] ?: v["uid8"] ?: v["no"])?.toString()?.trim()
-                        if (cand == n || (cand != null && cand.toLongOrNull() != null && cand.toLongOrNull() == n.toLongOrNull())) hit = c.key
-                    }
-                }
-                if (hit != null) {
-                    try { Rtdb.ref("ids/i/$n/uid").setValue(hit).await() } catch (e: Exception) { }
-                    return hit
-                }
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) { }
+        // Cadangan 2 dulu membaca SELURUH node "pub" hanya untuk mencari satu
+        // ID. Node pub menyimpan foto profil base64 semua user, jadi satu
+        // pencarian bisa mengunduh ratusan MB dan menghabiskan kuota database.
+        // Pencarian sekarang cukup lewat ids/u dan Firestore.
         // Cadangan terakhir: data lama di Firestore.
         try {
             val d = kotlinx.coroutines.withTimeoutOrNull(4000L) { db().collection("userIds").document(n).get().await() }

@@ -170,7 +170,7 @@ object OfficialRooms {
 @Composable
 fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
-    val bmp = remember(room.photoB64) { ProfileRepo.decodeB64(room.photoB64) }
+    val bmp = rememberRoomPhoto(room)
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         // Box luar TIDAK dipotong supaya pita OFFICIAL bisa sedikit keluar dari tepi foto.
         Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
