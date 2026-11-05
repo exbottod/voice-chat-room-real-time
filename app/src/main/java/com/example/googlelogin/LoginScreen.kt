@@ -1,8 +1,11 @@
 package com.example.googlelogin
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,19 +14,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -36,10 +38,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -48,6 +53,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.cos
+import kotlin.math.sin
+
+/*
+ * Layar login gaya baru (mengikuti desain: latar hijau bokeh, logo kelinci,
+ * judul Rezo Star, tiga tombol pil, dan baris persetujuan di bawah).
+ *
+ * Sengaja TIDAK memakai scroll: seluruh isi dipatok memenuhi layar supaya
+ * halaman tidak bisa digeser naik-turun. Ukuran memakai bobot (weight) dan
+ * skala ikon agar tetap rapi di layar kecil maupun besar.
+ */
+
+private val HijauGelap = Color(0xFF0A2A21)
+private val HijauLebih = Color(0xFF061712)
+private val HijauAksen = Color(0xFF2ED573)
+private val HijauMuda = Color(0xFFB9F5D0)
 
 @Composable
 fun LoginScreen(
@@ -60,208 +81,312 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
+    var formHp by remember { mutableStateOf(false) }
+    var lihatSyarat by remember { mutableStateOf(false) }
 
-    Box(Modifier.fillMaxSize()) {
-        RoyalBackground()
+    // Halaman Persyaratan Pengguna (privacy.html) di atas layar login.
+    if (lihatSyarat) {
+        BackHandler { lihatSyarat = false }
+        Box(Modifier.fillMaxSize()) {
+            PrivacyScreen(onBack = { lihatSyarat = false })
+        }
+        return
+    }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    Box(Modifier.fillMaxSize().background(HijauLebih)) {
+        LatarBokeh()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .systemBarsPadding()
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = 26.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Crown(Modifier.size(width = 150.dp, height = 105.dp))
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = "REZO CHAT\nVOICE",
-                textAlign = TextAlign.Center,
-                style = TextStyle(
-                    brush = Brush.verticalGradient(listOf(GoldLight, Gold, GoldDark)),
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 38.sp,
-                    lineHeight = 44.sp,
-                    letterSpacing = 1.sp,
-                ),
-            )
-            Spacer(Modifier.height(10.dp))
-            OrnamentDivider(Modifier.padding(horizontal = 24.dp))
-            Spacer(Modifier.height(24.dp))
-
-            Column(
+            // ---------- Logo + nama aplikasi ----------
+            Spacer(Modifier.weight(if (formHp) 0.06f else 0.16f))
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_logo),
+                contentDescription = "Rezo Star",
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(CardBlack.copy(alpha = 0.92f))
-                    .border(
-                        1.dp,
-                        Brush.linearGradient(listOf(GoldDark, GoldLight, GoldDark)),
-                        RoundedCornerShape(18.dp),
-                    )
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
+                    .size(if (formHp) 76.dp else 104.dp)
+                    .clip(RoundedCornerShape(26.dp)),
+            )
+            Spacer(Modifier.height(if (formHp) 8.dp else 14.dp))
+            Text(
+                "Rezo Star",
+                color = Color.White,
+                fontSize = if (formHp) 24.sp else 30.sp,
+                fontWeight = FontWeight.Bold,
+                style = TextStyle(shadow = Shadow(Color(0x66000000), Offset(0f, 3f), 8f)),
+            )
+            if (!formHp) {
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    "Welcome Back",
-                    color = GoldLight,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
+                    "Suara, room, dan teman baru",
+                    color = HijauMuda.copy(alpha = 0.75f),
+                    fontSize = 13.sp,
                 )
-                Spacer(Modifier.height(16.dp))
+            }
+            Spacer(Modifier.weight(if (formHp) 0.04f else 0.12f))
 
-                FieldLabel("Email")
-                GoldField(
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholder = "email@example.com",
-                    leading = { Icon(Icons.Default.Email, null) },
-                    keyboardType = KeyboardType.Email,
-                )
-                Spacer(Modifier.height(16.dp))
-
-                FieldLabel("Password")
-                GoldField(
-                    value = password,
-                    onValueChange = { password = it },
-                    placeholder = "Password",
-                    leading = { Icon(Icons.Default.Lock, null) },
-                    trailing = {
-                        Box(
-                            Modifier
-                                .clickable { showPassword = !showPassword }
-                                .padding(4.dp)
-                        ) { EyeIcon(visible = showPassword) }
-                    },
-                    keyboardType = KeyboardType.Password,
-                    visualTransformation = if (showPassword) VisualTransformation.None
-                    else PasswordVisualTransformation(),
-                )
-                Spacer(Modifier.height(12.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    HorizontalDivider(Modifier.weight(1f), color = Gold.copy(alpha = 0.4f))
-                    Text(
-                        "Forgot password?",
-                        color = GoldLight,
-                        fontSize = 12.sp,
-                        modifier = Modifier
-                            .clickable(onClick = onForgotPassword)
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                    )
-                    HorizontalDivider(Modifier.weight(1f), color = Gold.copy(alpha = 0.4f))
-                }
-                Spacer(Modifier.height(14.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.55f)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(GoldBrush)
-                        .clickable { onEmailLogin(email, password) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        "LOGIN",
-                        color = Color.Black,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 18.sp,
-                    )
-                }
-                Spacer(Modifier.height(14.dp))
-                Text(tr("or continue with"), color = Color(0xFF9A9A9A), fontSize = 13.sp)
-                Spacer(Modifier.height(12.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFF7F7F7))
-                        .clickable(enabled = !loading, onClick = onGoogleClick),
-                    contentAlignment = Alignment.Center,
+            if (!formHp) {
+                // ---------- Tiga tombol pil ----------
+                TombolPil(
+                    teks = "Login dengan Google",
+                    onClick = { if (!loading) onGoogleClick() },
                 ) {
                     if (loading) {
                         CircularProgressIndicator(
-                            color = GoldDark,
-                            strokeWidth = 2.5.dp,
-                            modifier = Modifier.size(24.dp),
+                            color = Color(0xFF1F1F1F), strokeWidth = 2.4.dp,
+                            modifier = Modifier.size(22.dp),
                         )
                     } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            GoogleLogo()
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                "Continue with Google",
-                                color = Color(0xFF1F1F1F),
-                                fontSize = 17.sp,
-                            )
-                        }
+                        GoogleLogo(Modifier.size(22.dp))
                     }
+                }
+                Spacer(Modifier.height(12.dp))
+                TombolPil(
+                    teks = "Login dengan Facebook",
+                    onClick = {
+                        android.widget.Toast.makeText(
+                            context, "Login Facebook segera hadir, pakai Google dulu",
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    },
+                ) { IkonFacebook() }
+                Spacer(Modifier.height(12.dp))
+                TombolPil(
+                    teks = "Login dengan HP",
+                    onClick = { formHp = true },
+                ) {
+                    Icon(
+                        Icons.Default.Phone, null,
+                        tint = Color(0xFF1F1F1F), modifier = Modifier.size(21.dp),
+                    )
+                }
+            } else {
+                // ---------- Form email / HP + password ----------
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("Email atau nomor HP") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColorsLogin(),
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("Password") },
+                    leadingIcon = { Icon(Icons.Default.Lock, null, tint = HijauMuda) },
+                    trailingIcon = {
+                        Text(
+                            if (showPassword) "Sembunyi" else "Lihat",
+                            color = HijauAksen, fontSize = 12.sp,
+                            modifier = Modifier
+                                .clickable { showPassword = !showPassword }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    },
+                    visualTransformation = if (showPassword) VisualTransformation.None
+                    else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColorsLogin(),
+                )
+                Spacer(Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(Color.White)
+                        .clickable {
+                            if (email.isNotBlank() && password.isNotBlank()) {
+                                onEmailLogin(email.trim(), password)
+                            } else {
+                                android.widget.Toast.makeText(
+                                    context, "Isi email/HP dan password dulu",
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Login", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        "Lupa password?", color = HijauMuda, fontSize = 13.sp,
+                        modifier = Modifier
+                            .clickable(onClick = onForgotPassword)
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                    )
+                    Text(
+                        "Kembali", color = HijauMuda, fontSize = 13.sp,
+                        modifier = Modifier
+                            .clickable { formHp = false }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                    )
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
-            Text(tr("Don't have an account?"), color = Color(0xFFBDBDBD), fontSize = 14.sp)
-            Text(
-                "Sign Up",
-                color = GoldLight,
-                fontWeight = FontWeight.SemiBold,
-                textDecoration = TextDecoration.Underline,
-                modifier = Modifier
-                    .clickable(onClick = onSignUp)
-                    .padding(8.dp),
-            )
+            Spacer(Modifier.weight(0.10f))
+
+            // ---------- Baris persetujuan (bisa diklik) ----------
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    "Setujui Rezo Star ",
+                    color = Color(0xFF9FC3B4),
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    "\u300APersyaratan Pengguna\u300B",
+                    color = HijauAksen,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier
+                        .clickable { lihatSyarat = true }
+                        .padding(vertical = 2.dp),
+                )
+                Text(
+                    " dan login",
+                    color = Color(0xFF9FC3B4),
+                    fontSize = 12.sp,
+                )
+            }
+
+            if (!formHp) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "Belum punya akun? ",
+                    color = Color(0xFF9FC3B4),
+                    fontSize = 12.sp,
+                    modifier = Modifier.clickable(onClick = onSignUp).padding(6.dp),
+                )
+            }
+            Spacer(Modifier.height(6.dp))
         }
     }
 }
 
+/** Latar hijau gelap dengan bulatan bokeh dan butiran cahaya, seperti desain. */
 @Composable
-private fun FieldLabel(text: String) {
-    Text(
-        text,
-        color = GoldLight,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Medium,
+private fun LatarBokeh() {
+    Canvas(Modifier.fillMaxSize()) {
+        drawRect(
+            Brush.verticalGradient(
+                listOf(Color(0xFF12483A), HijauGelap, HijauLebih),
+            ),
+        )
+        // Bulatan bokeh lembut, posisi tetap supaya tidak berkedip saat recompose.
+        val bokeh = listOf(
+            Triple(0.16f, 0.14f, 0.30f),
+            Triple(0.86f, 0.10f, 0.24f),
+            Triple(0.52f, 0.34f, 0.40f),
+            Triple(0.10f, 0.62f, 0.34f),
+            Triple(0.92f, 0.56f, 0.30f),
+            Triple(0.40f, 0.86f, 0.36f),
+            Triple(0.74f, 0.78f, 0.26f),
+        )
+        for ((fx, fy, fr) in bokeh) {
+            val r = size.minDimension * fr * 0.5f
+            drawCircle(
+                brush = Brush.radialGradient(
+                    listOf(Color(0xFF3FE08C).copy(alpha = 0.10f), Color.Transparent),
+                    center = Offset(size.width * fx, size.height * fy),
+                    radius = r,
+                ),
+                radius = r,
+                center = Offset(size.width * fx, size.height * fy),
+            )
+        }
+        // Butiran cahaya kecil.
+        for (i in 0 until 60) {
+            val sudut = i * 2.399963f
+            val rad = (0.10f + ((i * 37) % 90) / 100f)
+            val x = size.width * (0.5f + rad * 0.5f * cos(sudut))
+            val y = size.height * (0.5f + rad * 0.5f * sin(sudut))
+            val r = if (i % 7 == 0) 2.4f else 1.3f
+            drawCircle(
+                Color.White.copy(alpha = if (i % 5 == 0) 0.55f else 0.28f),
+                radius = r, center = Offset(x, y),
+            )
+        }
+        // Cahaya hijau di pojok atas.
+        drawRect(
+            Brush.radialGradient(
+                listOf(HijauAksen.copy(alpha = 0.16f), Color.Transparent),
+                center = Offset(size.width * 0.5f, 0f),
+                radius = size.width * 0.9f,
+            ),
+            size = Size(size.width, size.height),
+        )
+    }
+}
+
+/** Tombol pil putih dengan ikon di kiri dan teks di tengah. */
+@Composable
+private fun TombolPil(
+    teks: String,
+    onClick: () -> Unit,
+    ikon: @Composable () -> Unit,
+) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 6.dp),
-    )
+            .height(54.dp)
+            .clip(RoundedCornerShape(30.dp))
+            .background(Color(0xFFF7F7F7))
+            .clickable(onClick = onClick),
+    ) {
+        Box(Modifier.fillMaxSize().padding(start = 18.dp), contentAlignment = Alignment.CenterStart) {
+            ikon()
+        }
+        Text(
+            teks,
+            color = Color(0xFF1F1F1F),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.align(Alignment.Center),
+        )
+    }
+}
+
+/** Ikon "f" Facebook digambar sederhana (tanpa aset tambahan). */
+@Composable
+private fun IkonFacebook() {
+    Box(
+        Modifier.size(22.dp).clip(CircleShape).background(Color(0xFF1877F2)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("f", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+    }
 }
 
 @Composable
-private fun GoldField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    leading: @Composable () -> Unit,
-    keyboardType: KeyboardType,
-    trailing: (@Composable () -> Unit)? = null,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        placeholder = { Text(placeholder) },
-        leadingIcon = leading,
-        trailingIcon = trailing,
-        visualTransformation = visualTransformation,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            cursorColor = Gold,
-            focusedBorderColor = Gold,
-            unfocusedBorderColor = Gold.copy(alpha = 0.6f),
-            focusedLeadingIconColor = GoldLight,
-            unfocusedLeadingIconColor = GoldLight,
-            focusedPlaceholderColor = Color(0xFF8A8A8A),
-            unfocusedPlaceholderColor = Color(0xFF8A8A8A),
-        ),
-    )
-}
+private fun fieldColorsLogin() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White,
+    cursorColor = HijauAksen,
+    focusedBorderColor = HijauAksen,
+    unfocusedBorderColor = Color.White.copy(alpha = 0.35f),
+    focusedPlaceholderColor = Color(0xFF8FB3A6),
+    unfocusedPlaceholderColor = Color(0xFF8FB3A6),
+)
