@@ -113,6 +113,30 @@ object TabBgs {
                     d?.get("c2") as? String ?: "",
                 )
             }
+            // Kalau Firestore kosong (mis. penyimpanan lewat RTDB saja),
+            // lengkapi dari node tabBg di Realtime Database.
+            if (m.values.all { it.mode == "default" && it.url.isBlank() && it.c1.isBlank() }) {
+                try {
+                    val snap = kotlinx.coroutines.withTimeoutOrNull(8_000L) {
+                        com.google.firebase.database.FirebaseDatabase.getInstance()
+                            .getReference("tabBg").get().await()
+                    }
+                    if (snap != null) for (k in TAB_KEYS) {
+                        val d = snap.child(k)
+                        val mode = d.child("mode").getValue(String::class.java)
+                        if (!mode.isNullOrBlank()) {
+                            m[k] = TabBg(
+                                mode,
+                                d.child("url").getValue(String::class.java) ?: "",
+                                d.child("c1").getValue(String::class.java) ?: "",
+                                d.child("c2").getValue(String::class.java) ?: "",
+                            )
+                        }
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) { }
+            }
             current = m
             loadedAt = System.currentTimeMillis()
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -131,25 +155,49 @@ object TabBgs {
     }
 }
 
-/** Simpan config satu tab ke Firestore (vipConfig/tabbg). Return null kalau sukses. */
-suspend fun tabBgSaveRemote(tab: String, bg: TabBg): String? = try {
-    FirebaseFirestore.getInstance().collection("vipConfig").document("tabbg").set(
-        mapOf(
-            tab to mapOf(
-                "mode" to bg.mode,
-                "url" to bg.url,
-                "c1" to bg.c1,
-                "c2" to bg.c2,
-                "ts" to System.currentTimeMillis(),
-            )
-        ),
-        SetOptions.merge(),
-    ).await()
-    null
-} catch (e: kotlinx.coroutines.CancellationException) {
-    throw e
-} catch (e: Exception) {
-    e.message ?: "Gagal menyimpan ke server"
+/**
+ * Simpan config satu tab ke server. Return null kalau sukses.
+ *
+ * Dua jalur: Firestore (vipConfig/tabbg) lalu Realtime Database (tabBg/<tab>).
+ * Semua langkah dibatasi waktu supaya tombol SIMPAN tidak pernah menggantung
+ * di tulisan "Menyimpan ke server...".
+ */
+suspend fun tabBgSaveRemote(tab: String, bg: TabBg): String? {
+    val isi = mapOf(
+        "mode" to bg.mode,
+        "url" to bg.url,
+        "c1" to bg.c1,
+        "c2" to bg.c2,
+        "ts" to System.currentTimeMillis(),
+    )
+    var err: String? = null
+    val fs = try {
+        kotlinx.coroutines.withTimeoutOrNull(12_000L) {
+            FirebaseFirestore.getInstance().collection("vipConfig").document("tabbg")
+                .set(mapOf(tab to isi), SetOptions.merge()).await()
+            true
+        }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        err = e.message ?: "Firestore menolak"
+        false
+    }
+    // Cermin di Realtime Database: dipakai kalau Firestore lambat/diblokir.
+    val rt = try {
+        kotlinx.coroutines.withTimeoutOrNull(12_000L) {
+            com.google.firebase.database.FirebaseDatabase.getInstance()
+                .getReference("tabBg/$tab").setValue(isi).await()
+            true
+        }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        if (err == null) err = e.message ?: "Realtime Database menolak"
+        false
+    }
+    if (fs == true || rt == true) return null
+    return err ?: "Server tidak merespons, coba SIMPAN lagi"
 }
 
 /**
@@ -229,7 +277,14 @@ private fun TabBgEditor(tab: String) {
             busy = true
             msg = "Mengupload..."
             scope.launch {
-                val (u, err) = GiftFx.uploadMedia(context, uri)
+                val hasil = try {
+                    kotlinx.coroutines.withTimeoutOrNull(150_000L) { GiftFx.uploadMedia(context, uri) }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+                val (u, err) = hasil ?: (null to "Upload kehabisan waktu, coba lagi")
                 if (u != null) {
                     url = u
                     msg = "Gambar terupload. Tekan SIMPAN."
@@ -315,8 +370,23 @@ private fun TabBgEditor(tab: String) {
                 busy = true
                 msg = "Menyimpan ke server..."
                 scope.launch {
-                    val err = tabBgSaveRemote(tab, bg)
-                    msg = err ?: "Tersimpan. Semua user akan melihat perubahan."
+                    // Hasil dibungkus Pair supaya "sukses" (null) tidak tertukar
+                    // dengan "kehabisan waktu" (null dari withTimeoutOrNull).
+                    val err = try {
+                        val r = kotlinx.coroutines.withTimeoutOrNull(30_000L) {
+                            tabBgSaveRemote(tab, bg) to true
+                        }
+                        if (r == null) "Server tidak merespons" else r.first
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        e.message ?: "Gagal menyimpan"
+                    }
+                    msg = if (err == null) {
+                        "Tersimpan. Semua user akan melihat perubahan."
+                    } else {
+                        "Tersimpan di HP ini, tapi server menolak: $err. Tekan SIMPAN lagi untuk kirim ulang."
+                    }
                     busy = false
                 }
             },
