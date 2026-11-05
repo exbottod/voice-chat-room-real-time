@@ -99,7 +99,7 @@ object AppUpdate {
         c.connectTimeout = 8000
         c.readTimeout = 8000
         c.setRequestProperty("Cache-Control", "no-cache")
-        val j = JSONObject(c.inputStream().bufferedReader().use { it.readText() })
+        val j = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
         val dari = j.optString("versi_lama")
         val ke = j.optString("versi_baru")
         val entri = j.optJSONObject(kunci())
