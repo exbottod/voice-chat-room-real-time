@@ -321,7 +321,10 @@ fun AppRoot() {
                     val profil = UserProfile(
                         name = fbUser.displayName?.takeIf { it.isNotBlank() }
                             ?: fbUser.phoneNumber ?: "Pengguna",
-                        email = fbUser.email ?: "",
+                        // Akun nomor tidak punya email: pakai nomor sebagai pengenal unik
+                        // supaya profil lokal tidak bercampur antar akun.
+                        email = fbUser.email?.takeIf { it.isNotBlank() }
+                            ?: ((fbUser.phoneNumber ?: fbUser.uid) + "@phone.rezostar"),
                         photoUrl = fbUser.photoUrl?.toString(),
                         idToken = "",
                     )
