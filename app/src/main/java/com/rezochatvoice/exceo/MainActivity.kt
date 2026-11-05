@@ -325,6 +325,15 @@ fun AppRoot() {
         }
     }
 
+    fun kirimUlangKodeHp(nomor: String, hasil: (String?, String?) -> Unit) {
+        val activity = context as? android.app.Activity
+        if (activity == null) {
+            hasil(null, "Hanya bisa dari layar aplikasi")
+            return
+        }
+        PhoneAuthLogin.kirimUlang(activity, nomor, hasil)
+    }
+
     fun masukkanSesiNomor(fbUser: com.google.firebase.auth.FirebaseUser) {
         scope.launch {
             try {
@@ -465,6 +474,7 @@ fun AppRoot() {
             onGoogleClick = ::signIn,
             onFacebookClick = ::facebookLogin,
             onKirimKode = ::kirimKodeHp,
+            onKirimUlang = ::kirimUlangKodeHp,
             onVerifikasiKode = ::verifikasiKodeHp,
             perluPassword = perluPasswordHp,
             modePasswordHp = nomorPasswordHp != null,

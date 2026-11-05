@@ -79,6 +79,7 @@ fun LoginScreen(
         cb(null, "Login nomor belum siap")
     },
     onVerifikasiKode: (String, String) -> Unit = { _, _ -> },
+    onKirimUlang: (String, (String?, String?) -> Unit) -> Unit = { _, cb -> cb(null, null) },
     perluPassword: Boolean = false,
     modePasswordHp: Boolean = false,
     onLengkapiPendaftaran: (String, String) -> Unit = { _, _ -> },
@@ -539,13 +540,24 @@ fun LoginScreen(
                     )
                     if (verifId != null) {
                         Text(
-                            if (sisaDetik > 0) "Kirim ulang($sisaDetik)" else "Kirim ulang",
-                            color = if (sisaDetik > 0) HijauMuda.copy(alpha = 0.5f) else HijauAksen,
+                            if (menunggu) "Mengirim..." else if (sisaDetik > 0) "Kirim ulang($sisaDetik)" else "Kirim ulang",
+                            color = if (sisaDetik > 0 || menunggu) HijauMuda.copy(alpha = 0.5f) else HijauAksen,
                             fontSize = 13.sp,
                             modifier = Modifier
-                                .clickable(enabled = sisaDetik == 0) {
-                                    verifId = null
-                                    kode = ""
+                                .clickable(enabled = sisaDetik == 0 && !menunggu) {
+                                    // Pakai ForceResendingToken dari Firebase, bukan minta kode baru.
+                                    menunggu = true
+                                    onKirimUlang(nomorLengkap) { vid, err ->
+                                        menunggu = false
+                                        if (vid != null) {
+                                            verifId = vid
+                                            kode = ""
+                                        } else if (err != null) {
+                                            android.widget.Toast.makeText(
+                                                context, err, android.widget.Toast.LENGTH_LONG,
+                                            ).show()
+                                        }
+                                    }
                                 }
                                 .padding(vertical = 8.dp, horizontal = 4.dp),
                         )
