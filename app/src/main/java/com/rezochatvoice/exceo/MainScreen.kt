@@ -1,6 +1,11 @@
 package com.rezochatvoice.exceo
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
@@ -434,11 +439,38 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             Scaffold(
                 containerColor = Color.Transparent,
                 bottomBar = {
-                    // Tab Saya (index 4): bilah bawah transparan supaya latar profil
-                    // terlihat sampai ke bawah. Tab lain tetap hitam.
-                    NavigationBar(
-                        containerColor = if (selected == 4 && activeRoom == null) Color.Transparent else Color(0xFF0B0B0B),
+                    // Latar bilah bawah diatur dari Panel Developer: default (hitam),
+                    // transparan (latar tab ikut terlihat), gambar upload, atau gradien.
+                    val navCfg = TabBgs.current[NAV_KEY] ?: TabBg()
+                    val navMode = navCfg.mode
+                    Box(
+                        Modifier.fillMaxWidth().then(
+                            when (navMode) {
+                                "image" -> if (navCfg.url.isBlank()) Modifier.background(Color(0xFF0B0B0B)) else Modifier
+                                "gradient" -> Modifier.background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            parseHexColor(navCfg.c1, Color(0xFF1A0B2E)),
+                                            parseHexColor(navCfg.c2, Color(0xFF0B0B0B)),
+                                        )
+                                    )
+                                )
+                                "transparan" -> Modifier.background(Color(0x44000000))
+                                else -> if (selected == 4 && activeRoom == null) Modifier else Modifier.background(Color(0xFF0B0B0B))
+                            }
+                        ),
                     ) {
+                        if (navMode == "image" && navCfg.url.isNotBlank()) {
+                            AsyncImage(
+                                model = navCfg.url,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.matchParentSize(),
+                            )
+                            // Lapisan gelap tipis supaya ikon dan tulisan tetap terbaca.
+                            Box(Modifier.matchParentSize().background(Color(0x66000000)))
+                        }
+                        NavigationBar(containerColor = Color.Transparent) {
                         items.forEachIndexed { index, item ->
                             NavigationBarItem(
                                 selected = selected == index,
@@ -453,6 +485,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                                     unselectedTextColor = Color(0xFF9A9A9A),
                                 ),
                             )
+                        }
                         }
                     }
                 },

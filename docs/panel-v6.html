@@ -3682,7 +3682,7 @@ $("userLoad").onclick = async () => {
 <script>
 
 // ===== Background tab =====
-const BG_TABS = [["party","Tab Party"],["moment","Tab Moment"],["family","Tab Family"],["pesan","Tab Pesan"],["saya","Tab Saya"]];
+const BG_TABS = [["party","Tab Party"],["moment","Tab Moment"],["family","Tab Family"],["pesan","Tab Pesan"],["saya","Tab Saya"],["nav","Bilah Bawah (tab bar)"]];
 let bgState = {};
 function bgHex(v, def){ return /^#[0-9a-fA-F]{6}$/.test(v||"") ? v : def; }
 function bgRender(){
@@ -3696,7 +3696,8 @@ function bgRender(){
       "<label>Mode</label><select id='bgMode_" + k + "'>" +
       "<option value='default'>Default (kerajaan)</option>" +
       "<option value='image'>Gambar upload</option>" +
-      "<option value='gradient'>Gradien 2 warna</option></select>" +
+      "<option value='gradient'>Gradien 2 warna</option>" +
+      (k === "nav" ? "<option value='transparan'>Transparan (latar tab terlihat)</option>" : "") + "</select>" +
       "<div id='bgImg_" + k + "'><label>URL gambar (png/jpg/webp/gif)</label>" +
       "<input type='text' id='bgUrl_" + k + "' placeholder='https://...'>" +
       "<label>atau upload file dari HP</label><input type='file' id='bgFile_" + k + "' accept='image/*'>" +

@@ -61,11 +61,18 @@ data class TabBg(
 
 val TAB_KEYS = listOf("party", "moment", "family", "pesan", "saya")
 
+/** Kunci khusus untuk latar bilah tab bawah (nav bar). */
+const val NAV_KEY = "nav"
+
+/** Semua kunci yang bisa diatur dari panel, termasuk bilah bawah. */
+val BG_ALL_KEYS = TAB_KEYS + NAV_KEY
+
 fun tabBgTitle(k: String): String = when (k) {
     "party" -> "Tab Party"
     "moment" -> "Tab Moment"
     "family" -> "Tab Family"
     "pesan" -> "Tab Pesan"
+    NAV_KEY -> "Bilah Bawah"
     else -> "Tab Saya"
 }
 
@@ -91,7 +98,7 @@ object TabBgs {
     fun loadLocal(ctx: Context) {
         if (current.isNotEmpty()) return
         val p = prefs(ctx)
-        current = TAB_KEYS.associateWith { k ->
+        current = BG_ALL_KEYS.associateWith { k ->
             val parts = p.getString(k, null)?.split('|')
             if (parts != null && parts.size >= 4) TabBg(parts[0], parts[1], parts[2], parts[3]) else TabBg()
         }
@@ -104,7 +111,7 @@ object TabBgs {
             val doc = FirebaseFirestore.getInstance().collection("vipConfig")
                 .document("tabbg").get().await()
             val m = mutableMapOf<String, TabBg>()
-            for (k in TAB_KEYS) {
+            for (k in BG_ALL_KEYS) {
                 val d = doc.get(k) as? Map<*, *>
                 m[k] = TabBg(
                     d?.get("mode") as? String ?: "default",
@@ -121,7 +128,7 @@ object TabBgs {
                         com.google.firebase.database.FirebaseDatabase.getInstance()
                             .getReference("tabBg").get().await()
                     }
-                    if (snap != null) for (k in TAB_KEYS) {
+                    if (snap != null) for (k in BG_ALL_KEYS) {
                         val d = snap.child(k)
                         val mode = d.child("mode").getValue(String::class.java)
                         if (!mode.isNullOrBlank()) {
