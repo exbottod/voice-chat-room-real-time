@@ -577,15 +577,6 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 }
             }
 
-            chatWith?.let {
-                ChatScreen(
-                    myUid = uid,
-                    myName = myName,
-                    myId = userId,
-                    other = it,
-                    onBack = { chatWith = null },
-                )
-            }
             // Dompet, Level Center, dan VIP Center diperkecil 86% supaya rapi di semua device.
             if (showWallet) KecilkanKonten {
                 WalletScreen(
@@ -610,7 +601,6 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 SellerListScreen(
                     onBack = { showSellers = false },
                     onChat = { s ->
-                        showSellers = false
                         chatWith = PublicUser(
                             userId = "",
                             uid = s.uid,
@@ -753,6 +743,15 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             }
                         }
                     },
+                )
+            }
+            chatWith?.let {
+                ChatScreen(
+                    myUid = uid,
+                    myName = myName,
+                    myId = userId,
+                    other = it,
+                    onBack = { chatWith = null },
                 )
             }
             BanGate(uid = uid, onSignOut = onSignOutClick, onBanned = { if (activeRoom != null) exitRoom() })
