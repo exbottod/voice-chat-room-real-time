@@ -449,6 +449,7 @@ object RocketRepo {
                 d.child("stage").value = st
                 d.child("seq").value = seq
                 d.child("lastBy").value = name
+                d.child("lastUid").value = u
                 d.child("ts").value = System.currentTimeMillis()
                 null
             }
@@ -1221,6 +1222,8 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
     LaunchedEffect(Unit) { RocketCfg.start() }
 
     val seen = remember(roomId) { mutableSetOf<String>() }
+    var seenSeq by remember(roomId) { mutableStateOf<Long?>(null) }
+    var seenStage by remember(roomId) { mutableStateOf(1) }
     var pending by remember(roomId) { mutableStateOf(listOf<LaunchEv>()) }
     var tertunda by remember(roomId) { mutableStateOf(listOf<Pair<LaunchEv, String>>()) }
     var ev by remember(roomId) { mutableStateOf<LaunchEv?>(null) }
@@ -1230,13 +1233,47 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
     var rise by remember(ev?.id) { mutableStateOf(0f) }
 
     DisposableEffect(roomId) {
-        val reg = Rtdb.listen(Rtdb.ref("rocketFx/$roomId").limitToLast(4)) { s ->
+        // Peluncuran sungguhan dipicu nomor urut di rocket/$roomId/seq. Dulu
+        // animasi hanya diputar kalau node rocketFx berhasil ditulis, sehingga
+        // gift yang mengisi energi sampai penuh tidak pernah menampilkan roket.
+        val regEnergi = Rtdb.listen(Rtdb.ref("rocket/$roomId")) { s ->
+            val seq = s.child("seq").getValue(Long::class.java) ?: 0L
+            val stageNow = (s.child("stage").getValue(Int::class.java) ?: 1).coerceIn(1, 5)
+            val by = s.child("lastBy").getValue(String::class.java) ?: ""
+            val byUid = s.child("lastUid").getValue(String::class.java) ?: ""
+            val prev = seenSeq
+            seenSeq = seq
+            if (prev == null || seq <= prev) {
+                seenStage = stageNow
+                return@listen
+            }
+            val jumlah = (seq - prev).toInt().coerceAtMost(5)
+            val now = System.currentTimeMillis()
+            val tambah = (1..jumlah).map { i ->
+                // Tahap yang sedang diisi saat itu = roket yang baru penuh.
+                val lv = ((((seenStage - 1) + (i - 1)) % 5) + 1).coerceIn(1, 5)
+                LaunchEv(
+                    id = "energi-$roomId-$prev-$i",
+                    uid = byUid,
+                    name = by,
+                    lv = lv,
+                    url = RocketCfg.flyFor(lv),
+                    end = now + RocketCfg.flyDurMs,
+                )
+            }
+            seenStage = stageNow
+            pending = (pending + tambah).sortedBy { it.end }.take(5)
+        }
+        // Tombol "Tes luncur roket" tetap memakai node rocketFx.
+        val regTes = Rtdb.listen(Rtdb.ref("rocketFx/$roomId").limitToLast(4)) { s ->
             val tambah = mutableListOf<LaunchEv>()
             val now = System.currentTimeMillis()
             for (c in s.children) {
                 val id = c.key ?: continue
                 if (seen.contains(id)) continue
                 seen.add(id)
+                // Peluncuran nyata sudah ditangani lewat nomor urut di atas.
+                if (c.child("test").getValue(Boolean::class.java) != true) continue
                 val ts = c.child("ts").getValue(Long::class.java) ?: continue
                 val dur = c.child("dur").getValue(Long::class.java) ?: RocketCfg.flyDurMs
                 // Kejadian yang sudah lewat tidak diputar lagi.
@@ -1256,7 +1293,10 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
             // Antrean dibatasi supaya combo gift tidak menumpuk dialog.
             if (tambah.isNotEmpty()) pending = (pending + tambah).sortedBy { it.end }.take(5)
         }
-        onDispose { reg.remove() }
+        onDispose {
+            regTes.remove()
+            regEnergi.remove()
+        }
     }
 
     // Peluncuran cadangan dari perangkat sendiri (database menolak tulisan).
