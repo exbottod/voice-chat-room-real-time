@@ -36,6 +36,27 @@ object FirebaseSession {
         return result.user ?: error("User kosong")
     }
 
+    /** Email tersembunyi untuk akun nomor HP, dipakai untuk login nomor + password. */
+    fun emailDariNomor(nomorE164: String): String =
+        nomorE164.filter { it.isDigit() } + "@phone.rezostar.app"
+
+    /**
+     * Setelah akun nomor dibuat lewat kode SMS, tautkan password agar login
+     * berikutnya cukup nomor + password tanpa menunggu SMS lagi.
+     */
+    suspend fun tautkanPassword(nomorE164: String, password: String): Throwable? {
+        return try {
+            val user = FirebaseAuth.getInstance().currentUser ?: return IllegalStateException("Belum login")
+            val cred = EmailAuthProvider.getCredential(emailDariNomor(nomorE164), password)
+            user.linkWithCredential(cred).await()
+            null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e
+        }
+    }
+
     /** Login dengan email & password (harus sudah ditambahkan lewat Pengaturan). */
     suspend fun signInEmail(email: String, password: String): FirebaseUser {
         val r = FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password).await()

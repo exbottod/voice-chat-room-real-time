@@ -79,6 +79,9 @@ fun LoginScreen(
         cb(null, "Login nomor belum siap")
     },
     onVerifikasiKode: (String, String) -> Unit = { _, _ -> },
+    perluPassword: Boolean = false,
+    onLengkapiPendaftaran: (String, String) -> Unit = { _, _ -> },
+    onLoginNomorPassword: (String, String) -> Unit = { _, _ -> },
     onEmailLogin: (String, String) -> Unit,
     onForgotPassword: () -> Unit,
     onSignUp: () -> Unit,
@@ -91,6 +94,19 @@ fun LoginScreen(
     var kode by remember { mutableStateOf("") }
     var verifId by remember { mutableStateOf<String?>(null) }
     var menunggu by remember { mutableStateOf(false) }
+    var sisaDetik by remember { mutableStateOf(0) }
+    var passwordHp by remember { mutableStateOf("") }
+    var lihatPassHp by remember { mutableStateOf(false) }
+    var modePassword by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(verifId) {
+        if (verifId != null) {
+            sisaDetik = 60
+            while (sisaDetik > 0) {
+                kotlinx.coroutines.delay(1000L)
+                sisaDetik -= 1
+            }
+        }
+    }
     var lihatSyarat by remember { mutableStateOf(false) }
 
     // Halaman Persyaratan Pengguna (privacy.html) di atas layar login.
@@ -195,7 +211,63 @@ fun LoginScreen(
                 val nomorLengkap = "+62" + digit.removePrefix("62")
                 val nomorValid = digit.removePrefix("62").length in 8..13
 
-                if (verifId == null) {
+                if (perluPassword) {
+                    // ---------- Tahap Mendaftar: buat password ----------
+                    Text(
+                        "Mendaftar", color = Color.White, fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(nomorLengkap, color = HijauMuda, fontSize = 14.sp)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = passwordHp,
+                        onValueChange = { passwordHp = it.take(40) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        placeholder = { Text("Buat password (min. 6 karakter)") },
+                        trailingIcon = {
+                            Text(
+                                if (lihatPassHp) "Sembunyi" else "Lihat",
+                                color = HijauAksen, fontSize = 12.sp,
+                                modifier = Modifier
+                                    .clickable { lihatPassHp = !lihatPassHp }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                        },
+                        visualTransformation = if (lihatPassHp) VisualTransformation.None
+                        else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = fieldColorsLogin(),
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    val siap = passwordHp.length >= 6 && !loading
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .clip(RoundedCornerShape(26.dp))
+                            .background(
+                                if (siap) Brush.horizontalGradient(listOf(Color(0xFF2FB500), Color(0xFF008A12)))
+                                else Brush.horizontalGradient(listOf(Color(0x552FB500), Color(0x55008A12))),
+                            )
+                            .clickable(enabled = siap) { onLengkapiPendaftaran(nomorLengkap, passwordHp) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (loading) {
+                            CircularProgressIndicator(
+                                color = Color.White, strokeWidth = 2.4.dp,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        } else {
+                            Text(
+                                "LENGKAPI PENDAFTARAN",
+                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                            )
+                        }
+                    }
+                } else if (verifId == null) {
                     // Baris kode zona (tetap Indonesia +62, bisa diperluas nanti).
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
@@ -304,10 +376,11 @@ fun LoginScreen(
                     )
                     if (verifId != null) {
                         Text(
-                            "Tidak menerima kode? Kirim ulang",
-                            color = HijauAksen, fontSize = 13.sp,
+                            if (sisaDetik > 0) "Kirim ulang($sisaDetik)" else "Kirim ulang",
+                            color = if (sisaDetik > 0) HijauMuda.copy(alpha = 0.5f) else HijauAksen,
+                            fontSize = 13.sp,
                             modifier = Modifier
-                                .clickable {
+                                .clickable(enabled = sisaDetik == 0) {
                                     verifId = null
                                     kode = ""
                                 }

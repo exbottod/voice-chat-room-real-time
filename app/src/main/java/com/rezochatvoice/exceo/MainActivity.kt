@@ -1,5 +1,6 @@
 package com.rezochatvoice.exceo
 
+import com.google.firebase.auth.FirebaseAuth
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -194,6 +195,9 @@ fun AppRoot() {
 
     var user by remember { mutableStateOf(if (FirebaseSession.isSignedIn()) store.load() else null) }
     var loading by remember { mutableStateOf(false) }
+    // Akun nomor baru: setelah kode SMS benar, minta password dulu sebelum masuk.
+    var perluPasswordHp by remember { mutableStateOf(false) }
+    var nomorBaruHp by remember { mutableStateOf("") }
 
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
@@ -308,6 +312,32 @@ fun AppRoot() {
         PhoneAuthLogin.mintaKode(activity, nomor, hasil)
     }
 
+    fun masukkanSesiNomor(fbUser: com.google.firebase.auth.FirebaseUser) {
+        scope.launch {
+            try {
+                val profil = UserProfile(
+                    name = fbUser.displayName?.takeIf { it.isNotBlank() }
+                        ?: fbUser.phoneNumber ?: "Pengguna",
+                    email = fbUser.email?.takeIf { it.isNotBlank() && !it.endsWith("@phone.rezostar.app") }
+                        ?: ((fbUser.phoneNumber ?: fbUser.uid) + "@phone.rezostar"),
+                    photoUrl = fbUser.photoUrl?.toString(),
+                    idToken = "",
+                )
+                store.save(profil)
+                user = profil
+                FirebaseSession.saveProfile(fbUser.uid, profil)?.let {
+                    toast("Profil belum tersimpan di server: ${it.message}")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                toast("Gagal menyimpan sesi: ${e.message}")
+            } finally {
+                loading = false
+            }
+        }
+    }
+
     fun verifikasiKodeHp(verificationId: String, kode: String) {
         loading = true
         PhoneAuthLogin.verifikasi(verificationId, kode) { fbUser, err ->
@@ -316,30 +346,50 @@ fun AppRoot() {
                 toast("Login gagal: ${err ?: "kode tidak valid"}")
                 return@verifikasi
             }
-            scope.launch {
-                try {
-                    val profil = UserProfile(
-                        name = fbUser.displayName?.takeIf { it.isNotBlank() }
-                            ?: fbUser.phoneNumber ?: "Pengguna",
-                        // Akun nomor tidak punya email: pakai nomor sebagai pengenal unik
-                        // supaya profil lokal tidak bercampur antar akun.
-                        email = fbUser.email?.takeIf { it.isNotBlank() }
-                            ?: ((fbUser.phoneNumber ?: fbUser.uid) + "@phone.rezostar"),
-                        photoUrl = fbUser.photoUrl?.toString(),
-                        idToken = "",
-                    )
-                    store.save(profil)
-                    user = profil
-                    FirebaseSession.saveProfile(fbUser.uid, profil)?.let {
-                        toast("Profil belum tersimpan di server: ${it.message}")
-                    }
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    toast("Gagal menyimpan sesi: ${e.message}")
-                } finally {
-                    loading = false
-                }
+            // Akun lama sudah punya password tertaut: langsung masuk.
+            // Akun baru: minta buat password dulu (Lengkapi Pendaftaran).
+            val sudahAdaPassword = fbUser.providerData.any { it.providerId == "password" }
+            if (sudahAdaPassword) {
+                masukkanSesiNomor(fbUser)
+            } else {
+                nomorBaruHp = fbUser.phoneNumber ?: ""
+                perluPasswordHp = true
+                loading = false
+            }
+        }
+    }
+
+    fun lengkapiPendaftaranHp(nomor: String, password: String) {
+        loading = true
+        scope.launch {
+            val err = FirebaseSession.tautkanPassword(nomor.ifBlank { nomorBaruHp }, password)
+            if (err != null && err !is com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                loading = false
+                toast("Gagal menyimpan password: ${err.message}")
+                return@launch
+            }
+            val fbUser = FirebaseAuth.getInstance().currentUser
+            if (fbUser == null) {
+                loading = false
+                toast("Sesi login hilang, ulangi dari awal")
+                return@launch
+            }
+            perluPasswordHp = false
+            masukkanSesiNomor(fbUser)
+        }
+    }
+
+    fun loginNomorPassword(nomor: String, password: String) {
+        loading = true
+        scope.launch {
+            try {
+                val fb = FirebaseSession.signInEmail(FirebaseSession.emailDariNomor(nomor), password)
+                masukkanSesiNomor(fb)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                loading = false
+                toast("Nomor atau password salah")
             }
         }
     }
@@ -401,6 +451,9 @@ fun AppRoot() {
             onFacebookClick = ::facebookLogin,
             onKirimKode = ::kirimKodeHp,
             onVerifikasiKode = ::verifikasiKodeHp,
+            perluPassword = perluPasswordHp,
+            onLengkapiPendaftaran = ::lengkapiPendaftaranHp,
+            onLoginNomorPassword = ::loginNomorPassword,
             onEmailLogin = { e, p -> emailLogin(e, p) },
             onForgotPassword = { toast("Lupa password belum tersedia") },
             onSignUp = { toast("Pendaftaran belum tersedia") },
