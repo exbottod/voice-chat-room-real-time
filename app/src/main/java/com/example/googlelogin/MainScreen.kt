@@ -494,7 +494,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                             coins = wallet.coins,
                             following = following,
                             fans = fans,
-                            onWalletClick = { showWallet = true }
+                            onWalletClick = { showWallet = true },
                             onSellerPanelClick = { showSellerPanel = true },
                             onProfileClick = { fullProfileUid = uid },
                             wallet = wallet,
