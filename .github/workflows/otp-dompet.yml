@@ -1,0 +1,18 @@
+name: Sambungkan OTP WhatsApp ke dompet VPS
+on:
+  workflow_dispatch:
+jobs:
+  pasang:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Jalankan skrip di VPS (lewat user ubuntu + sudo)
+        env:
+          PASS: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          HOST=43.156.99.4
+          URL=https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/pasang-otp-dompet.sh
+          OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+          printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@$HOST \
+            "curl -fsSL $URL -o /tmp/otp.sh && sudo -S -p '' bash /tmp/otp.sh"
