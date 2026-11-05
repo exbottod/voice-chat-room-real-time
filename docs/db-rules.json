@@ -106,10 +106,11 @@
     "rocketRank": {
       "$roomId": {
         ".read": "auth != null",
-        "$season": {
+        "$stage": {
           "$uid": {
             ".write": "auth != null"
-          }
+          },
+          ".write": "auth != null"
         }
       }
     },
@@ -392,6 +393,22 @@
       "$roomId": {
         ".read": "auth != null",
         ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com')"
+      }
+    },
+    "rocketWin": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$launchId": {
+          ".write": "auth != null"
+        }
+      }
+    },
+    "rocketRankClaim": {
+      "$launchId": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
       }
     }
   }

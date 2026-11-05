@@ -300,6 +300,27 @@ object RocketRepo {
         return true
     }
 
+    /**
+     * Hadiah peringkat boleh diambil sekali per peluncuran. Mengembalikan
+     * peringkat saya (1..n) kalau berhak dan belum diambil, 0 kalau tidak.
+     */
+    suspend fun bolehRank(roomId: String, idLuncur: String): Int {
+        val u = uid()
+        if (u.isBlank() || idLuncur.isBlank()) return 0
+        val rk = peringkatSaya(roomId, idLuncur)
+        if (rk <= 0) return 0
+        val mark = Rtdb.ref("rocketRankClaim/$idLuncur/$u")
+        try {
+            val sudah = kotlinx.coroutines.withTimeoutOrNull(4000L) { mark.get().await() }
+            if (sudah?.exists() == true) return 0
+            mark.setValue(true).await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
+        return rk
+    }
+
     private var launching = false
 
     /**
@@ -341,6 +362,28 @@ object RocketRepo {
 
     private val regs = mutableListOf<Reg>()
 
+    private var regPeringkat: Reg? = null
+
+    /** Pasang pendengar peringkat untuk roket (tahap) yang sedang diisi. */
+    private fun pasangPeringkat(roomId: String) {
+        try { regPeringkat?.remove() } catch (e: Exception) { }
+        regPeringkat = null
+        rankRows = emptyList()
+        try {
+            regPeringkat = Rtdb.listen(Rtdb.ref("rocketRank/$roomId/s$stage")) { s ->
+                rankRows = s.children.mapNotNull { c ->
+                    val id = c.key ?: return@mapNotNull null
+                    RocketRankRow(
+                        uid = id,
+                        name = c.child("name").getValue(String::class.java) ?: "Player",
+                        coins = c.child("coins").getValue(Long::class.java) ?: 0L,
+                        photo = c.child("photo").getValue(String::class.java).orEmpty(),
+                    )
+                }.sortedByDescending { it.coins }.take(20)
+            }
+        } catch (e: Exception) { }
+    }
+
     /** Pindah konteks ke room lain: EXP dan peringkat dimuat ulang untuk room itu. */
     fun room(roomId: String) {
         if (roomId.isBlank() || roomId == liveRoom) return
@@ -348,6 +391,8 @@ object RocketRepo {
         exp = 0L
         stage = 1
         rankRows = emptyList()
+        try { regPeringkat?.remove() } catch (e: Exception) { }
+        regPeringkat = null
         for (r in regs) {
             try {
                 r.remove()
@@ -366,7 +411,12 @@ object RocketRepo {
                 val st = s.child("stage").getValue(Int::class.java) ?: 1
                 if (day == dayKey()) {
                     exp = v
-                    stage = st.coerceIn(1, 5)
+                    val baru = st.coerceIn(1, 5)
+                    val berubah = baru != stage
+                    stage = baru
+                    // Tahap berganti = roket sebelumnya meluncur: pasang ulang
+                    // pendengar peringkat untuk roket yang baru (mulai dari nol).
+                    if (berubah) pasangPeringkat(roomId)
                 } else {
                     exp = 0L
                     stage = 1
@@ -375,7 +425,9 @@ object RocketRepo {
         } catch (e: Exception) {
         }
         try {
-            regs += Rtdb.listen(Rtdb.ref("rocketRank/$roomId/${season()}")) { s ->
+            // Peringkat PER ROKET: hanya kontribusi untuk roket yang sedang diisi.
+            // Begitu roket itu meluncur, data tahapnya dikosongkan dan mulai lagi.
+            regs += Rtdb.listen(Rtdb.ref("rocketRank/$roomId/s$stage")) { s ->
                 rankRows = s.children.mapNotNull { c ->
                     val id = c.key ?: return@mapNotNull null
                     RocketRankRow(
@@ -407,6 +459,7 @@ object RocketRepo {
         var txErr: String? = null
         var hasilExp = -1L
         var hasilStage = 0
+        var tahapAwal = 1
         try {
             txErr = Rtdb.tx(Rtdb.ref("rocket/$roomId")) { d ->
                 // Setiap percobaan mulai dari daftar kosong supaya tidak dobel.
@@ -420,6 +473,7 @@ object RocketRepo {
                     st = 1
                 }
                 st = st.coerceIn(1, 5)
+                tahapAwal = st
                 var seq = d.child("seq").getValue(Long::class.java) ?: 0L
                 d.child("day").value = today
                 var left = cur + coins
@@ -467,9 +521,16 @@ object RocketRepo {
         } else {
             "masuk ${ringkas(coins)}: ${launches.size} luncur, stage $hasilStage, energi ${ringkas(hasilExp.coerceAtLeast(0L))}"
         }
-        // Peringkat: siapa paling banyak kirim gift di room ini pekan ini.
+        // Peringkat PER ROKET: kontribusi dicatat ke roket yang sedang diisi saat
+        // gift dikirim. Kalau gift itu membuat roket penuh, kontribusinya tetap
+        // masuk ke roket yang baru meluncur (tahap sebelum naik), jadi pengirim
+        // gift pemungkas ikut dihitung di roket tersebut.
+        // Gift pemungkas dihitung di roket yang diisinya (tahap awal transaksi).
+        val tahapKontribusi = tahapAwal.coerceIn(1, 5)
         try {
-            Rtdb.ref("rocketRank/$roomId/${season()}/$u").setValue(
+            val baris = Rtdb.ref("rocketRank/$roomId/s$tahapKontribusi/$u")
+            // updateChildren + increment: menambah tanpa menimpa isi lain.
+            baris.updateChildren(
                 hashMapOf<String, Any?>(
                     "name" to name,
                     "photo" to (FirebaseAuth.getInstance().currentUser?.photoUrl?.toString().orEmpty()),
@@ -525,6 +586,50 @@ object RocketRepo {
      * Catat satu peluncuran roket ke room. Semua orang membaca node ini lalu
      * memutar animasi roket sesuai levelnya, satu per satu.
      */
+    /**
+     * Roket tahap [lv] meluncur: peringkat tahap itu dibekukan sebagai daftar
+     * pemenang peluncuran ini (rocketWin/{room}/{peluncuran}/{uid} = peringkat),
+     * lalu peringkat tahap dikosongkan supaya roket berikutnya mulai dari nol.
+     * Mengembalikan true kalau pembekuan berhasil.
+     */
+    private suspend fun bekukanPemenang(roomId: String, lv: Int, idLuncur: String) {
+        try {
+            val node = Rtdb.ref("rocketRank/$roomId/s$lv")
+            val snap = kotlinx.coroutines.withTimeoutOrNull(5000L) { node.get().await() } ?: return
+            if (!snap.exists()) return
+            val urut = snap.children.mapNotNull { c ->
+                val id = c.key ?: return@mapNotNull null
+                id to (c.child("coins").getValue(Long::class.java) ?: 0L)
+            }.filter { it.second > 0L }.sortedByDescending { it.second }
+            val hasil = hashMapOf<String, Any?>()
+            urut.forEachIndexed { i, (id, _) -> hasil[id] = i + 1 }
+            if (hasil.isNotEmpty()) {
+                Rtdb.ref("rocketWin/$roomId/$idLuncur").updateChildren(hasil).await()
+            }
+            // Kosongkan setelah daftar pemenang tersimpan.
+            node.removeValue().await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+        }
+    }
+
+    /** Peringkat saya pada satu peluncuran (1 = Top 1), atau 0 kalau tidak masuk. */
+    suspend fun peringkatSaya(roomId: String, idLuncur: String): Int {
+        val u = uid()
+        if (u.isBlank() || roomId.isBlank() || idLuncur.isBlank()) return 0
+        return try {
+            val v = kotlinx.coroutines.withTimeoutOrNull(5000L) {
+                Rtdb.ref("rocketWin/$roomId/$idLuncur/$u").get().await()
+            }
+            (v?.value as? Number)?.toInt() ?: 0
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            0
+        }
+    }
+
     private suspend fun publishLaunch(roomId: String, name: String, lv: Int, seq: Long) {
         val u = uid()
         if (u.isBlank()) return
@@ -546,6 +651,9 @@ object RocketRepo {
             // kejadian lama yang sudah pernah dilihat aplikasi, dan animasinya
             // tidak pernah diputar lagi.
             val id = Rtdb.ref("rocketFx/$roomId").push().key ?: ("rk" + seq)
+            // Pemenang roket ini dibekukan SEBELUM animasi, supaya dialog hadiah
+            // di semua HP bisa langsung membaca peringkatnya.
+            bekukanPemenang(roomId, lv, id)
             Rtdb.ref("rocketFx/$roomId/$id").setValue(
                 hashMapOf<String, Any?>(
                     "uid" to u,
@@ -720,7 +828,6 @@ fun RocketScreen(
     // Roket yang sedang diisi energinya (1..5), bukan level menurut total EXP.
     val lv = RocketRepo.stage.coerceIn(1, 5)
     val myUid = remember { RocketRepo.uid() }
-    var prizeRank by remember { mutableStateOf(-1) }
     var showRules by remember { mutableStateOf(false) }
     var showRank by remember { mutableStateOf(false) }
     var showPrizes by remember { mutableStateOf(false) }
@@ -1040,16 +1147,8 @@ fun RocketScreen(
         }
 
         if (showRules) RocketRulesDialog { showRules = false }
-        if (showRank) RocketRankDialog(myUid, onClaim = { prizeRank = it }) { showRank = false }
+        if (showRank) RocketRankDialog(myUid) { showRank = false }
         if (showPrizes) RocketRankPrizeDialog { showPrizes = false }
-        if (prizeRank >= 0) {
-            RocketPrizeDialog(
-                myUid = myUid,
-                mode = "rank",
-                rank = prizeRank,
-                onClose = { prizeRank = -1 },
-            )
-        }
     }
 }
 
@@ -1135,11 +1234,14 @@ fun RocketRulesDialog(onClose: () -> Unit) {
 
 /** Peringkat roket room ini (tombol piala) + tombol klaim hadiah peringkat. */
 @Composable
-fun RocketRankDialog(myUid: String, onClaim: (Int) -> Unit, onClose: () -> Unit) {
+fun RocketRankDialog(myUid: String, onClose: () -> Unit) {
     val rows = RocketRepo.rankRows
-    val myRank = RocketRepo.myRank()
     RocketSheet("Peringkat roket", onClose) {
-        Text("Pengirim gift terbanyak di room ini pekan ini", color = Color(0xFF9FB6D9), fontSize = 12.sp)
+        Text(
+            "Pengirim gift terbanyak untuk roket Lv.${RocketRepo.stage} yang sedang diisi. " +
+                "Setelah roket meluncur, peringkat mulai dari awal lagi.",
+            color = Color(0xFF9FB6D9), fontSize = 12.sp,
+        )
         Spacer(Modifier.height(10.dp))
         if (rows.isEmpty()) {
             Text("Belum ada yang mengirim gift.", color = Color(0xFF9FB6D9), fontSize = 13.sp)
@@ -1161,17 +1263,11 @@ fun RocketRankDialog(myUid: String, onClaim: (Int) -> Unit, onClose: () -> Unit)
                 }
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Box(
-            Modifier
-                .fillMaxWidth().height(44.dp)
-                .clip(RoundedCornerShape(50))
-                .background(Brush.horizontalGradient(listOf(Color(0xFFFFD54F), Color(0xFFB8860B))))
-                .clickable { onClaim(myRank); onClose() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("Klaim hadiah peringkat (#$myRank)", color = Color(0xFF2A1B00), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Hadiah peringkat muncul otomatis di dialog setelah roket meluncur.",
+            color = Color(0xFF9FB6D9), fontSize = 11.sp,
+        )
     }
 }
 
@@ -1249,6 +1345,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
     var ev by remember(roomId) { mutableStateOf<LaunchEv?>(null) }
     var step by remember(roomId) { mutableStateOf(0) }
     var dialogMode by remember(ev?.id) { mutableStateOf("") }
+    var rankDialog by remember(ev?.id) { mutableStateOf(0) }
     var playCount by remember(ev?.id) { mutableStateOf(0) }
     var rise by remember(ev?.id) { mutableStateOf(0f) }
 
@@ -1476,7 +1573,12 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
     LaunchedEffect(e?.id, step) {
         val cur = e ?: return@LaunchedEffect
         if (step != 2 || dialogMode.isNotBlank()) return@LaunchedEffect
-        val mode = if (cur.uid == myUid) {
+        // Urutan prioritas dialog: peringkat (Top) > pemicu peluncuran > keberuntungan.
+        val rk = RocketRepo.bolehRank(roomId, cur.id)
+        if (rk > 0) rankDialog = rk
+        val mode = if (rk > 0) {
+            "rank"
+        } else if (cur.uid == myUid) {
             "launch"
         } else if (RocketRepo.canLucky(myUid, cur.id)) {
             "lucky"
@@ -1505,7 +1607,7 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
         RocketPrizeDialog(
             myUid = myUid,
             mode = dialogMode,
-            rank = 0,
+            rank = if (dialogMode == "rank") rankDialog else 0,
             launchId = e.id,
             lv = e.lv,
             onClose = {
@@ -1657,7 +1759,7 @@ fun RocketPrizeDialog(
             Spacer(Modifier.height(8.dp))
             Text(
                 when (mode) {
-                    "rank" -> "Peringkat kamu #$rank pekan ini"
+                    "rank" -> "Kamu peringkat #$rank untuk Roket Lv.$lv"
                     "lucky" -> "Roket Lv.$lv di room meluncur, kamu kebagian!"
                     else -> "Roket Lv.$lv sudah meluncur!"
                 },
