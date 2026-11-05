@@ -50,10 +50,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 @Composable
-fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
+fun UserSearchScreen(myUserId: String, onBack: () -> Unit, onEnterRoom: (RoomInfo) -> Unit = {}) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val focus = LocalFocusManager.current
@@ -63,6 +64,9 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
     var loading by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<PublicUser?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
+    // Tab pencarian: 0 = semua (user + room), 1 = hanya user, 2 = hanya room.
+    var tab by remember { mutableStateOf(0) }
+    var roomHasil by remember { mutableStateOf<RoomInfo?>(null) }
 
     BackHandler(onBack = onBack)
 
@@ -72,16 +76,30 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
         if (!q.all { it.isDigit() }) {
             message = "ID hanya berisi angka"
             result = null
+            roomHasil = null
             return
         }
         focus.clearFocus()
         loading = true
         message = null
         result = null
+        roomHasil = null
         scope.launch {
             try {
-                val u = UserDirectory.find(q)
-                if (u == null) message = "ID $q tidak ditemukan" else { result = u; actions.openProfile(u.uid) }
+                // User dan room dicari bersamaan; tab menentukan apa yang ditampilkan.
+                val cariUser = tab != 2
+                val cariRoom = tab != 1
+                val ju = if (cariUser) async { try { UserDirectory.find(q) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null } } else null
+                val jr = if (cariRoom) async { try { RoomRepo.cariByNomor(q) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null } } else null
+                result = ju?.await()
+                roomHasil = jr?.await()
+                if (result == null && roomHasil == null) {
+                    message = when (tab) {
+                        1 -> "User dengan ID $q tidak ditemukan"
+                        2 -> "Room dengan ID $q tidak ditemukan"
+                        else -> "ID $q tidak ditemukan sebagai user maupun room"
+                    }
+                }
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 message = "Gagal mencari: ${e.message}"
             } finally {
@@ -90,9 +108,43 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
         }
     }
 
+    // Ketik ID -> hasil muncul sendiri setelah jeda singkat (min. 3 digit).
+    androidx.compose.runtime.LaunchedEffect(query, tab) {
+        if (query.trim().length >= 3) {
+            kotlinx.coroutines.delay(450)
+            search()
+        } else {
+            result = null; roomHasil = null; message = null
+        }
+    }
+
     OverlayBox {
         Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
-            GoldTopBar(tr("Cari pengguna"), onBack)
+            GoldTopBar(tr("Cari ID"), onBack)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+            ) {
+                listOf("Semua", "Cari ID User", "Cari ID Room").forEachIndexed { i, label ->
+                    val on = tab == i
+                    Text(
+                        label,
+                        color = if (on) Color.Black else GoldLight,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (on) Gold else Color(0x22FFFFFF))
+                            .border(1.dp, Gold.copy(alpha = 0.6f), RoundedCornerShape(50))
+                            .clickable {
+                                tab = i
+                                result = null; roomHasil = null; message = null
+                                if (query.isNotBlank()) search()
+                            }
+                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                    )
+                }
+            }
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -102,7 +154,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
                     onValueChange = { query = it.filter { c -> c.isDigit() }.take(12) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
-                    placeholder = { Text(tr("Masukkan ID pengguna"), color = Color(0xFF8A8A8A)) },
+                    placeholder = { Text(tr(when (tab) { 1 -> "Masukkan ID pengguna"; 2 -> "Masukkan ID room"; else -> "Masukkan ID user atau room" }), color = Color(0xFF8A8A8A)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { search() }),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -126,6 +178,44 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit) {
             }
             message?.let {
                 Text(it, color = Color(0xFFBDBDBD), modifier = Modifier.padding(horizontal = 20.dp))
+            }
+            roomHasil?.let { r ->
+                val shapeR = RoundedCornerShape(16.dp)
+                Column(
+                    Modifier
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .fillMaxWidth()
+                        .clip(shapeR)
+                        .background(CardBlack.copy(alpha = 0.9f))
+                        .border(1.dp, Gold.copy(alpha = 0.4f), shapeR)
+                        .clickable { onEnterRoom(r) }
+                        .padding(16.dp),
+                ) {
+                    Text("ROOM", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val fotoR = remember(r.photoB64) { ProfileRepo.decodeB64(r.photoB64) }
+                        val baseR = Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)).border(2.dp, Gold, RoundedCornerShape(14.dp))
+                        if (fotoR != null) Image(fotoR, "Room", baseR, contentScale = ContentScale.Crop)
+                        else androidx.compose.foundation.layout.Box(
+                            baseR.background(Color(0xFF263238)),
+                            contentAlignment = Alignment.Center,
+                        ) { Text(r.name.take(1).uppercase(), color = GoldLight, fontSize = 22.sp) }
+                        Spacer(Modifier.width(14.dp))
+                        Column {
+                            Text(r.name, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            Text("ID Room: ${r.roomNo}", color = Color(0xFFBDBDBD), fontSize = 14.sp)
+                            if (r.ownerName.isNotBlank()) Text("Pemilik: ${r.ownerName}", color = Color(0xFF9E9E9E), fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { onEnterRoom(r) },
+                        modifier = Modifier.fillMaxWidth(),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Gold),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldLight),
+                    ) { Text(tr("Masuk room")) }
+                }
             }
             result?.let { u ->
                 val bmp = remember(u.avatarB64) { ProfileRepo.decodeB64(u.avatarB64) }

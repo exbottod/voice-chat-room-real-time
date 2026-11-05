@@ -490,6 +490,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                 OV_SEARCH -> UserSearchScreen(
                     myUserId = userId,
                     onBack = { overlay = OV_NONE },
+                    onEnterRoom = { r -> overlay = OV_NONE; enterRoom(r) },
                 )
                 OV_POST -> PostMomentScreen(
                     uid = uid,

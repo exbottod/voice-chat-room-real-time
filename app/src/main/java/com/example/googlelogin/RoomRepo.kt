@@ -165,10 +165,18 @@ object RoomRepo {
                 "roomNo" to r.roomNo, "name" to r.name, "ownerUid" to r.ownerUid,
                 "ownerName" to r.ownerName, "photoB64" to r.photoB64,
                 "announcement" to r.announcement, "micCount" to r.micCount.toLong(),
-                "lockHash" to r.lockHash, "pinned" to r.pinned, "pinnedAt" to r.pinnedAt,
-                "createdAt" to (System.currentTimeMillis()),
+                "lockHash" to r.lockHash,
             )
-            Rtdb.ref("roomsPub/" + r.id).updateChildren(m)
+            // PENTING: "pinned" dan "pinnedAt" sengaja TIDAK ditulis di sini.
+            // Sematan hanya diatur dari panel (ke RTDB). Dulu nilainya ikut
+            // ditimpa dari salinan Firestore yang lama, sehingga sematan room
+            // lepas sendiri tiap pemilik membuka app atau room.
+            // "createdAt" hanya diisi sekali supaya urutan room tidak berubah.
+            val ref = Rtdb.ref("roomsPub/" + r.id)
+            ref.child("createdAt").get().addOnSuccessListener { snap ->
+                if (!snap.exists()) ref.child("createdAt").setValue(System.currentTimeMillis())
+            }
+            ref.updateChildren(m)
         } catch (e: Exception) { }
     }
 
@@ -270,6 +278,34 @@ object RoomRepo {
             pinned = s.child("pinned").value as? Boolean ?: false,
             pinnedAt = (s.child("pinnedAt").value as? Long) ?: 0L,
         )
+    }
+
+    /**
+     * Cari room lewat nomor room (angka yang tampil di aplikasi) atau id dokumen.
+     * Memakai Realtime Database (roomsPub) supaya tidak kena kuota Firestore.
+     * Room yang disembunyikan dari panel tidak ikut muncul.
+     */
+    suspend fun cariByNomor(q: String): RoomInfo? {
+        val kunci = q.trim()
+        if (kunci.isEmpty()) return null
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(6000L) {
+                Rtdb.ref("roomsPub").get().await()
+            }
+            if (snap != null) {
+                for (c in snap.children) {
+                    val id = c.key ?: continue
+                    val no = c.child("roomNo").value?.toString().orEmpty()
+                    if (no == kunci || id == kunci) {
+                        if (isHidden(id)) continue
+                        pubToRoom(id, c)?.let { return it }
+                    }
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        return null
     }
 
     suspend fun getRoom(id: String, abaikanSembunyi: Boolean = false): RoomInfo? {
