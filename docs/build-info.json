@@ -1,28 +1,72 @@
 {
-  "status": "gagal",
-  "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:30 Cannot infer type for this parameter. Please specify it ex",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:41 No value passed for parameter 'value'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:44 Overload resolution ambiguity between candidates:",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:61 Cannot infer type for this parameter. Please specify it ex",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:61 Unresolved reference. None of the following candidates is ",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:65 Cannot infer type for this parameter. Please specify it ex",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:102:70 Overload resolution ambiguity between candidates:",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:103:22 Unresolved reference 'optString'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:104:20 Unresolved reference 'optString'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:105:23 Unresolved reference 'optJSONObject'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:107:30 Unresolved reference 'optString'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:109:41 Unresolved reference 'optLong'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/example/googlelogin/AppUpdate.kt:109:66 Unresolved reference 'optString'.",
-    "* What went wrong:"
-  ],
-  "versi": "1.0.824",
-  "ukuran_mb": 0,
-  "sha256": "",
-  "commit": "8df6d89",
-  "waktu": "2026-11-05T02:29:47Z",
+  "status": "ok",
+  "masalah": [],
+  "versi": "1.0.825",
+  "ukuran_mb": 67.9,
+  "sha256": "aedaf8d25e28f922c61c3b3db455e3759930eabaf5e429991c58a7b75ae53445",
+  "commit": "e305b5c",
+  "waktu": "2026-11-05T02:36:06Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 0,
-  "aset_total": 0,
-  "fitur": []
+  "aset_roket": 30,
+  "aset_total": 118,
+  "fitur": [
+    {
+      "nama": "Banner cashback terpisah",
+      "ada": true
+    },
+    {
+      "nama": "Banner gift biasa",
+      "ada": true
+    },
+    {
+      "nama": "Animasi cashback di avatar",
+      "ada": true
+    },
+    {
+      "nama": "Tombol kombo cashback",
+      "ada": true
+    },
+    {
+      "nama": "Roket level 1-5 di room",
+      "ada": true
+    },
+    {
+      "nama": "Peluncuran roket cadangan",
+      "ada": true
+    },
+    {
+      "nama": "Sambung ulang suara otomatis",
+      "ada": true
+    },
+    {
+      "nama": "Tukar diamond nominal sendiri",
+      "ada": true
+    },
+    {
+      "nama": "Papan peringkat roket",
+      "ada": true
+    }
+  ],
+  "roket_level": [
+    {
+      "level": 1,
+      "ada": true
+    },
+    {
+      "level": 2,
+      "ada": true
+    },
+    {
+      "level": 3,
+      "ada": true
+    },
+    {
+      "level": 4,
+      "ada": true
+    },
+    {
+      "level": 5,
+      "ada": true
+    }
+  ]
 }
