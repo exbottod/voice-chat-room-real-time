@@ -36,8 +36,9 @@ object PhoneAuthLogin {
                 .setActivity(activity)
                 .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
                     override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                        // Verifikasi otomatis (misalnya kode diambil sendiri oleh HP).
-                        masukDengan(credential, hasil)
+                        // Verifikasi otomatis: HP membaca kode sendiri. Sesi Firebase
+                        // langsung dibuat; layar login akan berpindah lewat status login.
+                        FirebaseAuth.getInstance().signInWithCredential(credential)
                     }
 
                     override fun onVerificationFailed(e: FirebaseException) {
