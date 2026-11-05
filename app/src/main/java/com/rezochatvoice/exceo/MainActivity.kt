@@ -200,6 +200,10 @@ fun AppRoot() {
     var nomorBaruHp by remember { mutableStateOf("") }
     // Nomor sudah terdaftar: langsung minta password, tanpa SMS.
     var nomorPasswordHp by remember { mutableStateOf<String?>(null) }
+    /** Nomor yang sedang menunggu kode WhatsApp. */
+    var nomorKodeHp by remember { mutableStateOf("") }
+    /** true bila layar login sedang menampilkan isian password nomor. */
+    var modePasswordHp by remember { mutableStateOf(false) }
 
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
@@ -319,8 +323,19 @@ fun AppRoot() {
                 hasil("@password", null)
                 return@launch
             }
+            // Jalur gratis: kode dikirim lewat WhatsApp dari server VPS.
+            val galatWa = OtpWhatsApp.minta(nomor)
+            if (galatWa == null) {
+                nomorKodeHp = nomor
+                hasil(OtpWhatsApp.ID_WA, null)
+                return@launch
+            }
+            // Kalau gateway WhatsApp belum siap, kembali ke SMS Firebase.
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                PhoneAuthLogin.mintaKode(activity, nomor, hasil)
+                PhoneAuthLogin.mintaKode(activity, nomor) { vid, err ->
+                    if (vid != null) nomorKodeHp = nomor
+                    hasil(vid, err ?: galatWa)
+                }
             }
         }
     }
@@ -361,6 +376,10 @@ fun AppRoot() {
     }
 
     fun verifikasiKodeHp(verificationId: String, kode: String) {
+        if (verificationId == OtpWhatsApp.ID_WA) {
+            verifikasiKodeWa(kode)
+            return
+        }
         loading = true
         PhoneAuthLogin.verifikasi(verificationId, kode) { fbUser, err ->
             if (fbUser == null) {
@@ -381,6 +400,34 @@ fun AppRoot() {
         }
     }
 
+    /** Kode WhatsApp benar: lanjut ke tahap buat password. */
+    fun verifikasiKodeWa(kode: String) {
+        val nomor = nomorKodeHp
+        if (nomor.isBlank()) {
+            toast("Nomor hilang, ulangi dari awal")
+            return
+        }
+        loading = true
+        scope.launch {
+            val galat = OtpWhatsApp.cek(nomor, kode)
+            if (galat != null) {
+                loading = false
+                toast(galat)
+                return@launch
+            }
+            // Nomor sudah punya akun (pernah daftar lewat WhatsApp): langsung password.
+            if (NomorTerdaftar.cek(nomor)) {
+                loading = false
+                nomorPasswordHp = nomor
+                modePasswordHp = true
+                return@launch
+            }
+            nomorBaruHp = nomor
+            perluPasswordHp = true
+            loading = false
+        }
+    }
+
     fun lengkapiPendaftaranHp(nomor: String, password: String) {
         if (password.trim().length < 6) {
             toast("Password minimal 6 karakter")
@@ -397,11 +444,24 @@ fun AppRoot() {
                     toast("Gagal menyimpan password: ${err.message}")
                     return@launch
                 }
-                val fbUser = FirebaseAuth.getInstance().currentUser
+                var fbUser = FirebaseAuth.getInstance().currentUser
                 if (fbUser == null) {
-                    loading = false
-                    toast("Sesi login hilang, ulangi dari awal")
-                    return@launch
+                    // Akun baru dari kode WhatsApp: belum ada sesi Firebase,
+                    // jadi akun email+password tersembunyinya dibuat sekarang.
+                    fbUser = try {
+                        FirebaseSession.buatAkunNomor(nomor.ifBlank { nomorBaruHp }, password.trim())
+                    } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                        loading = false
+                        toast("Nomor ini sudah terdaftar, masuk dengan password")
+                        nomorPasswordHp = nomor.ifBlank { nomorBaruHp }
+                        modePasswordHp = true
+                        perluPasswordHp = false
+                        return@launch
+                    } catch (e: Exception) {
+                        loading = false
+                        toast("Gagal membuat akun: ${e.message ?: "coba lagi"}")
+                        return@launch
+                    }
                 }
                 perluPasswordHp = false
                 kotlinx.coroutines.withTimeoutOrNull(15_000L) {
@@ -493,7 +553,7 @@ fun AppRoot() {
             onKirimUlang = ::kirimUlangKodeHp,
             onVerifikasiKode = ::verifikasiKodeHp,
             perluPassword = perluPasswordHp,
-            modePasswordHp = nomorPasswordHp != null,
+            modePasswordHp = modePasswordHp || nomorPasswordHp != null,
             onGantiNomor = { nomorPasswordHp = null },
             onLengkapiPendaftaran = ::lengkapiPendaftaranHp,
             onLoginNomorPassword = ::loginNomorPassword,

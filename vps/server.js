@@ -11,6 +11,9 @@ import worker from "./index.js";
 const env = {
   TURSO_URL: process.env.TURSO_URL || "",
   TURSO_TOKEN: process.env.TURSO_TOKEN || "",
+  // Gateway WhatsApp OTP yang berjalan di mesin ini.
+  WA_OTP_URL: process.env.WA_OTP_URL || "http://127.0.0.1:8099",
+  WA_OTP_SECRET: process.env.WA_OTP_SECRET || "",
 };
 if (!env.TURSO_URL || !env.TURSO_TOKEN) {
   console.error("TURSO_URL / TURSO_TOKEN belum diisi");

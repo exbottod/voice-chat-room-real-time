@@ -1870,6 +1870,89 @@ async function hiveKatalog() {
   });
 }
 
+// ---------- OTP lewat WhatsApp (gateway di VPS Helipod) ----------
+// Login nomor tanpa biaya SMS: server membuat 6 angka, mengirimnya lewat
+// WhatsApp, lalu app menukarnya dengan membuat/masuk akun email+password
+// Firebase yang memakai nomor sebagai nama akun.
+const OTP_MASA = 5 * 60 * 1000;      // kode berlaku 5 menit
+const OTP_JEDA = 60 * 1000;          // jarak minimal antar kirim
+const OTP_MAKS_KIRIM = 5;            // maksimal kirim per nomor per 15 menit
+const OTP_MAKS_COBA = 5;             // maksimal salah kode
+
+let siapTabelOtp = false;
+async function pastikanTabelOtp(env) {
+  if (siapTabelOtp) return;
+  await pipe(env, [{
+    sql: "create table if not exists otp (nomor text primary key, kode text, exp integer, kirim integer, coba integer, at integer)",
+  }]);
+  siapTabelOtp = true;
+}
+
+function nomorRapi(v) {
+  let n = String(v ?? "").replace(/[^0-9]/g, "");
+  if (n.startsWith("0")) n = "62" + n.slice(1);
+  return n;
+}
+
+async function kirimWa(env, nomor, pesan) {
+  const url = String(env.WA_OTP_URL || "http://127.0.0.1:8099");
+  const secret = String(env.WA_OTP_SECRET || "");
+  if (!secret) throw new Error("WA_OTP_SECRET belum diisi di server");
+  const r = await fetch(url.replace(/\/$/, "") + "/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-secret": secret },
+    body: JSON.stringify({ nomor, pesan }),
+    signal: AbortSignal.timeout(20000),
+  });
+  const j = await r.json().catch(() => null);
+  if (!r.ok || !j?.ok) throw new Error("Gateway WhatsApp: " + String(j?.e || r.status));
+  return true;
+}
+
+async function otpMinta(env, b) {
+  const nomor = nomorRapi(b?.nomor);
+  if (nomor.length < 9 || nomor.length > 15) return json({ ok: 0, e: "Nomor tidak valid" }, 400);
+  await pastikanTabelOtp(env);
+  const now = Date.now();
+  const lama = (await pipe(env, [{ sql: "select kode, exp, kirim, coba, at from otp where nomor = ?", args: [T(nomor)] }]))[0]?.rows?.[0];
+  if (lama) {
+    const sejak = now - Number(lama.at || 0);
+    if (sejak < OTP_JEDA) {
+      return json({ ok: 0, e: "Tunggu " + Math.ceil((OTP_JEDA - sejak) / 1000) + " detik sebelum minta kode lagi", tunggu: Math.ceil((OTP_JEDA - sejak) / 1000) }, 429);
+    }
+    if (sejak < 15 * 60 * 1000 && Number(lama.kirim || 0) >= OTP_MAKS_KIRIM) {
+      return json({ ok: 0, e: "Terlalu sering minta kode, coba lagi nanti" }, 429);
+    }
+  }
+  const kirimKe = lama && now - Number(lama.at || 0) < 15 * 60 * 1000 ? Number(lama.kirim || 0) + 1 : 1;
+  const kode = String(Math.floor(100000 + Math.random() * 900000));
+  const exp = now + OTP_MASA;
+  await kirimWa(env, nomor, "REZO Star\n\nKode masuk Anda: " + kode + "\nBerlaku 5 menit. Jangan beri kode ini ke siapa pun.");
+  await pipe(env, [{
+    sql: "insert into otp (nomor, kode, exp, kirim, coba, at) values (?,?,?,?,0,?) on conflict(nomor) do update set kode=excluded.kode, exp=excluded.exp, kirim=excluded.kirim, coba=0, at=excluded.at",
+    args: [T(nomor), T(kode), I(exp), I(kirimKe), I(now)],
+  }]);
+  return json({ ok: 1, kirim: kirimKe });
+}
+
+async function otpCek(env, b) {
+  const nomor = nomorRapi(b?.nomor);
+  const kode = String(b?.kode ?? "").replace(/[^0-9]/g, "");
+  if (!nomor || kode.length !== 6) return json({ ok: 0, e: "Kode harus 6 angka" }, 400);
+  await pastikanTabelOtp(env);
+  const now = Date.now();
+  const row = (await pipe(env, [{ sql: "select kode, exp, coba from otp where nomor = ?", args: [T(nomor)] }]))[0]?.rows?.[0];
+  if (!row) return json({ ok: 0, e: "Minta kode dulu" }, 404);
+  if (now > Number(row.exp || 0)) return json({ ok: 0, e: "Kode sudah kedaluwarsa" }, 410);
+  if (Number(row.coba || 0) >= OTP_MAKS_COBA) return json({ ok: 0, e: "Terlalu banyak salah, minta kode baru" }, 429);
+  if (String(row.kode) !== kode) {
+    await pipe(env, [{ sql: "update otp set coba = coba + 1 where nomor = ?", args: [T(nomor)] }]);
+    return json({ ok: 0, e: "Kode salah" }, 401);
+  }
+  await pipe(env, [{ sql: "delete from otp where nomor = ?", args: [T(nomor)] }]);
+  return json({ ok: 1, nomor });
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -1898,11 +1981,23 @@ export default {
     if (url.pathname.toLowerCase().startsWith("/hive/")) {
       return await hivePlay(req, env);
     }
+    if (url.pathname === "/otp/minta") {
+      const b = await req.json().catch(() => null);
+      if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
+      try { return await otpMinta(env, b); }
+      catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 502); }
+    }
+    if (url.pathname === "/otp/cek") {
+      const b = await req.json().catch(() => null);
+      if (!b) return json({ ok: 0, e: "Body tidak valid" }, 400);
+      try { return await otpCek(env, b); }
+      catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 502); }
+    }
     if (url.pathname === "/health") {
       // Sekaligus buktikan sambungan ke Turso hidup.
       try {
         await pipe(env, [{ sql: "select 1 as ok" }]);
-        return json({ ok: 1, v: "turso-2026-11-06-seller", db: 1 });
+        return json({ ok: 1, v: "turso-2026-11-06-otpwa", db: 1 });
       } catch (e) {
         return json({ ok: 0, v: "turso-2026-11-06-seller", db: String(e?.message ?? e) }, 500);
       }

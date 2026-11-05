@@ -61,6 +61,23 @@ object FirebaseSession {
         }
     }
 
+    /** Buat akun email+password tersembunyi untuk nomor yang lolos kode WhatsApp. */
+    suspend fun buatAkunNomor(nomorE164: String, password: String): com.google.firebase.auth.FirebaseUser {
+        val r = kotlinx.coroutines.withTimeout(TIMEOUT_MS) {
+            FirebaseAuth.getInstance()
+                .createUserWithEmailAndPassword(emailDariNomor(nomorE164), password).await()
+        }
+        return r.user ?: error("User kosong")
+    }
+
+    /**
+     * Akun nomor lama (dibuat lewat SMS) tidak punya email+password. Saat user
+     * itu sudah masuk dan mau dipindah ke kode WhatsApp, password ditautkan.
+     */
+    suspend fun sudahPunyaPassword(): Boolean =
+        FirebaseAuth.getInstance().currentUser?.providerData
+            ?.any { it.providerId == "password" } == true
+
     /** Login dengan email & password (harus sudah ditambahkan lewat Pengaturan). */
     suspend fun signInEmail(email: String, password: String): FirebaseUser {
         val r = kotlinx.coroutines.withTimeout(TIMEOUT_MS) {
