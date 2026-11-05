@@ -2349,7 +2349,7 @@ function userCard(el, u, line2){
   row.append(av, box); el.appendChild(row);
 }
 
-const PANEL_BUILD = "2026-11-05f";
+const PANEL_BUILD = "2026-11-06a";
 (function stempelPanel(){
   const cek = () => {
     if (!document.body || document.getElementById("panelBuild")) return;
@@ -2367,12 +2367,41 @@ function logAction(obj){
 }
 
 /* ---------- Banned ---------- */
+/* Ban disimpan di server dompet (tabel panel_ban), tempat yang sama yang dicek
+   aplikasi saat user membuka app. Firestore tidak lagi dipakai untuk ban. */
+async function banApi(aksi, p){
+  const u = auth.currentUser;
+  if (!u) throw new Error("Belum login");
+  const idToken = await u.getIdToken(true);
+  const urls = BAN_API_URLS;
+  let out = null, err = "Server tidak terjangkau, coba lagi";
+  for (const base of urls) {
+    try {
+      const res = await fetch(base + "/panel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: WALLET_KEY },
+        body: JSON.stringify({ a: aksi, t: idToken, p: p || {} })
+      });
+      const o = await res.json().catch(() => ({}));
+      if (o && o.ok) { out = o; break; }
+      err = (o && o.e) || ("HTTP " + res.status);
+      if (res.status >= 400 && res.status < 500 && res.status !== 429) break;
+    } catch (e) { err = e.message || err; }
+  }
+  if (!out) throw new Error(err);
+  return out;
+}
+async function banStatus(uid){
+  const o = await banApi("bans");
+  const hit = (o.list || []).find(r => String(r.uid) === String(uid));
+  return hit || null;
+}
 $("banFind").onclick = async () => {
   foundBan = null; $("banActs").style.display = "none"; $("banUser").textContent = "";
   try {
     const u = await lookup($("banId").value);
-    const b = await db.collection("banned").doc(u.uid).get();
-    userCard($("banUser"), u, b.exists ? "Status: BANNED" + (b.data().reason ? " (" + b.data().reason + ")" : "") : "Status: aktif");
+    const b = await banStatus(u.uid);
+    userCard($("banUser"), u, b ? "Status: BANNED" + (b.reason ? " (" + b.reason + ")" : "") : "Status: aktif");
     foundBan = u; $("banActs").style.display = "flex";
   } catch (e) { toast(e.message); }
 };
@@ -2381,34 +2410,52 @@ $("banDo").onclick = async () => {
   if (foundBan.uid === auth.currentUser.uid) return toast("Tidak bisa banned akun sendiri");
   if (!confirm("Banned " + foundBan.name + " (ID " + foundBan.id + ")?")) return;
   try {
-    await db.collection("banned").doc(foundBan.uid).set({ userId: foundBan.id, name: foundBan.name, reason: $("banReason").value.trim(), at: Date.now(), by: auth.currentUser.email });
+    await banApi("ban", { to: foundBan.uid, reason: $("banReason").value.trim() });
+    // Tetap tulis ke Firestore sebagai cadangan; gagal di sini tidak masalah.
+    db.collection("banned").doc(foundBan.uid).set({ userId: foundBan.id, name: foundBan.name, reason: $("banReason").value.trim(), at: Date.now(), by: auth.currentUser.email }).catch(() => {});
     logAction({ type: "ban", targetId: foundBan.id, uid: foundBan.uid });
-    toast("User dibanned ✅"); $("banFind").click();
+    toast("User dibanned ✅"); $("banFind").click(); startBan();
   } catch (e) { toast("Gagal: " + e.message); }
 };
 $("banUndo").onclick = async () => {
   if (!foundBan) return;
   try {
-    await db.collection("banned").doc(foundBan.uid).delete();
+    await banApi("unban", { to: foundBan.uid });
+    db.collection("banned").doc(foundBan.uid).delete().catch(() => {});
     logAction({ type: "unban", targetId: foundBan.id, uid: foundBan.uid });
-    toast("Banned dibuka ✅"); $("banFind").click();
+    toast("Banned dibuka ✅"); $("banFind").click(); startBan();
   } catch (e) { toast("Gagal: " + e.message); }
 };
-function startBan(){
-  unsubBan = db.collection("banned").orderBy("at", "desc").onSnapshot(snap => {
-    const box = $("banList"); box.textContent = "";
-    if (snap.empty) { box.textContent = "Belum ada user yang dibanned."; return; }
-    snap.forEach(d => {
-      const b = d.data(), row = document.createElement("div"); row.className = "item";
+async function startBan(){
+  const box = $("banList");
+  try {
+    const o = await banApi("bans");
+    const list = o.list || [];
+    box.textContent = "";
+    if (!list.length) { box.textContent = "Belum ada user yang dibanned."; return; }
+    // Nama & ID diambil dari profil publik supaya daftar mudah dibaca.
+    let pub = {};
+    try { const sn = await rtdb.ref("pub").get(); if (sn.exists()) pub = sn.val() || {}; } catch (e) {}
+    list.forEach(b => {
+      const pr = pub[b.uid] || {};
+      const row = document.createElement("div"); row.className = "item";
       const info = document.createElement("div"); info.className = "info";
-      const t = document.createElement("b"); t.textContent = (b.name || "?") + " (ID " + (b.userId || "?") + ")";
+      const t = document.createElement("b"); t.textContent = (pr.name || "?") + " (ID " + (pr.id || b.uid) + ")";
       const s = document.createElement("span"); s.className = "muted"; s.textContent = b.reason || "tanpa alasan";
       info.append(t, s);
       const un = document.createElement("button"); un.className = "btn out"; un.textContent = "Buka";
-      un.onclick = () => { if (confirm("Buka banned user ini?")) d.ref.delete().then(() => logAction({ type: "unban", targetId: b.userId, uid: d.id })).catch(e => toast(e.message)); };
+      un.onclick = async () => {
+        if (!confirm("Buka banned user ini?")) return;
+        try {
+          await banApi("unban", { to: b.uid });
+          db.collection("banned").doc(b.uid).delete().catch(() => {});
+          logAction({ type: "unban", targetId: pr.id || "", uid: b.uid });
+          startBan();
+        } catch (e) { toast(e.message); }
+      };
       row.append(info, un); box.appendChild(row);
     });
-  }, e => { $("banList").textContent = e.code === "permission-denied" ? "Ditolak rules Firestore. Pastikan rules sudah di-Publish dan isAdmin() memakai email Anda." : "Gagal memuat: " + e.message; });
+  } catch (e) { box.textContent = "Gagal memuat: " + e.message; }
 }
 
 /* ---------- Reset coin ---------- */
@@ -3007,6 +3054,7 @@ const WALLET_CADANGAN = "https://rezo-wallet.bangexx01.workers.dev/admin";
    "add" dan "vip" ke Supabase lama yang sudah mati, jadi tombol kirim coin
    tidak pernah memberi jawaban. */
 const OPS_NEW = new Set(["pay_get","pay_set","manual_pending","manual_all","manual_decide","get","topup","add","vip","reset_all","reset_gem_all","panel_grant","panel_revoke","panel_list","panel_stock_add","panel_stock_del","panel_stock_list","panel_coin_add","panel_coin_set","reset","reset_gem","delete_user","delete_users","reset_user","reset_all_assets"]);
+const BAN_API_URLS = ["https://43-156-99-4.sslip.io", "https://rezo-wallet.pages.dev", "https://rezo-wallet.bangexx01.workers.dev"];
 const WALLET_KEY = "sb_publishable_4PxD2LedOsBgIJyHLkM47A_bImSQI2W";
 /* Operasi massal tidak butuh uid. Versi server lama tetap menolak kalau uid
    kosong ("uid kosong"), jadi uid netral dikirim supaya tidak error. */
