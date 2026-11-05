@@ -1,0 +1,24 @@
+name: Pasang gateway WhatsApp OTP
+on:
+  workflow_dispatch:
+jobs:
+  pasang:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pasang di VPS (secret tidak dicetak ke log)
+        env:
+          PASS: ${{ secrets.VPS_PASSWORD || secrets.VPS_PASSWORDS || secrets.VPS_PASS || secrets.VPS_ROOT_PASSWORD }}
+        run: |
+          set -u
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          ALAMAT=43.156.99.4
+          SKRIP=https://raw.githubusercontent.com/exbottod/voice-chat-room-real-time/main/vps/wa-otp/pasang.sh
+          OPSI="-o StrictHostKeyChecking=no -o ConnectTimeout=25 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+          CMD="curl -fsSL $SKRIP -o /tmp/wa.sh && bash /tmp/wa.sh > /tmp/wa-pasang.log 2>&1; echo '--- status ---'; systemctl is-active wa-otp; grep -c . /etc/systemd/system/wa-otp.service 2>/dev/null; curl -s --max-time 6 http://127.0.0.1:8099/health || echo '(gateway belum menjawab, normal sebelum WhatsApp ditautkan)'"
+          if sshpass -p "$PASS" ssh $OPSI root@$ALAMAT "$CMD"; then
+            echo "Selesai sebagai root."; exit 0
+          fi
+          echo "::warning::root gagal, coba ubuntu + sudo"
+          printf '%s\n' "$PASS" | sshpass -p "$PASS" ssh $OPSI ubuntu@$ALAMAT \
+            "sudo -S -p '' bash -c '$CMD'"
