@@ -67,7 +67,13 @@ object AppUpdate {
      * terpasang sama persis dengan versi dasar patch; kalau tidak cocok,
      * aplikasi otomatis unduh APK penuh.
      */
-    class Patch(val url: String, val ukuran: Long, val sha256: String)
+    class Patch(val langkah: List<Langkah>) {
+        /** Total ukuran semua langkah, untuk tulisan di dialog. */
+        val ukuran: Long = langkah.sumOf { it.ukuran }
+    }
+
+    /** Satu bagian rantai: patch dari versi A ke versi B. */
+    class Langkah(val url: String, val ukuran: Long, val sha256: String)
 
     /** "1.0.683" -> 683. Nomor terakhir dipakai sebagai urutan build. */
     fun build(v: String): Int = v.trim().substringAfterLast('.').toIntOrNull() ?: 0
@@ -99,22 +105,56 @@ object AppUpdate {
         }
     }
 
-    /** Info patch untuk versi ini, atau null kalau tidak tersedia / tidak cocok. */
+    /**
+     * Info patch untuk versi ini, atau null kalau tidak tersedia / tidak cocok.
+     *
+     * Manifest boleh memuat beberapa pasangan versi (dari -> ke). Kalau
+     * pengguna melewatkan satu atau dua versi, aplikasi merangkai patch
+     * berurutan sepanjang tersambung, jadi tetap unduh kecil, bukan APK penuh.
+     */
     private fun patchInfo(versiBaru: String, versiTerpasang: String): Patch? = try {
         val c = URL(PATCH_URL + "?t=" + System.currentTimeMillis()).openConnection() as HttpURLConnection
         c.connectTimeout = 8000
         c.readTimeout = 8000
         c.setRequestProperty("Cache-Control", "no-cache")
         val j = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
-        val dari = j.optString("versi_lama")
-        val ke = j.optString("versi_baru")
-        val entri = j.optJSONObject(kunci())
-        if (dari == versiTerpasang && ke == versiBaru && entri != null) {
+        val kunciHp = kunci()
+
+        // Kumpulan pasangan: kunci = versi tujuan, nilai = objek pasangannya.
+        val peta = LinkedHashMap<String, JSONObject>()
+        val arr = j.optJSONArray("patch")
+        if (arr != null && arr.length() > 0) {
+            for (i in 0 until arr.length()) {
+                val e = arr.optJSONObject(i) ?: continue
+                val dari = e.optString("dari")
+                val ke = e.optString("ke")
+                if (dari.isNotBlank() && ke.isNotBlank()) peta[ke] = e
+            }
+        } else {
+            // Manifest bentuk lama: satu pasangan di level atas.
+            val dari = j.optString("versi_lama")
+            val ke = j.optString("versi_baru")
+            if (dari.isNotBlank() && ke.isNotBlank()) peta[ke] = j
+        }
+
+        var kini = versiTerpasang
+        val langkah = ArrayList<Langkah>()
+        var putaran = 0
+        while (kini != versiBaru && putaran < 4) {
+            // Ambil lompatan terdekat dari versi yang sedang dipegang.
+            val tujuan = peta.values
+                .filter { it.optString("dari") == kini }
+                .map { it.optString("ke") }
+                .filter { build(it) > build(kini) && build(it) <= build(versiBaru) }
+                .minByOrNull { build(it) } ?: break
+            val entri = peta[tujuan]?.optJSONObject(kunciHp) ?: break
             val nama = entri.optString("file")
-            if (nama.isNotBlank()) {
-                Patch(REL + nama, entri.optLong("ukuran"), entri.optString("sha256"))
-            } else null
-        } else null
+            if (nama.isBlank()) break
+            langkah.add(Langkah(REL + nama, entri.optLong("ukuran"), entri.optString("sha256")))
+            kini = tujuan
+            putaran++
+        }
+        if (kini != versiBaru || langkah.isEmpty()) null else Patch(langkah)
     } catch (e: Exception) { null }
 
     /** File APK yang cocok dengan HP ini (arm64, armv7, atau universal). */
@@ -209,31 +249,48 @@ object AppUpdate {
 
     /**
      * Unduh patch lalu gabungkan dengan APK yang terpasang menjadi APK baru.
-     * Hasilnya diperiksa sidik jarinya; kalau tidak cocok, file dibuang dan
-     * pemanggil memakai unduhan penuh.
+     * Kalau patch terdiri dari beberapa bagian, tiap bagian diterapkan
+     * berurutan dan hasil tiap tahap diperiksa sidik jarinya. Gagal di tahap
+     * mana pun -> file dibuang dan pemanggil memakai unduhan penuh.
      */
     suspend fun downloadPatch(ctx: Context, patch: Patch, onProgress: (Int) -> Unit): File? =
         withContext(Dispatchers.IO) {
-            val berkas = unduh(ctx, patch.url, "patch.bin", 1024L, onProgress) ?: return@withContext null
-            try {
-                val dir = File(ctx.cacheDir, "update").apply { mkdirs() }
-                val hasil = File(dir, "REZO-patch.apk")
+            if (patch.langkah.isEmpty()) return@withContext null
+            val dir = File(ctx.cacheDir, "update").apply { mkdirs() }
+            val asli = File(ctx.applicationInfo.sourceDir)
+            val total = patch.ukuran.coerceAtLeast(1L)
+            var sudah = 0L
+            var lama = asli
+            for ((idx, step) in patch.langkah.withIndex()) {
+                val mulai = sudah
+                val berkas = unduh(ctx, step.url, "patch$idx.bin", 1024L) { p ->
+                    val jalan = mulai + step.ukuran * p / 100L
+                    onProgress((jalan * 100L / total).toInt().coerceIn(0, 99))
+                } ?: return@withContext null
+                val hasil = File(dir, "REZO-patch-$idx.apk")
                 if (hasil.exists()) hasil.delete()
-                val lama = File(ctx.applicationInfo.sourceDir)
-                val r = BsPatch.terapkan(lama, berkas, hasil)
-                berkas.delete()
-                if (!r.ok || !hasil.exists()) {
+                val r = try {
+                    BsPatch.terapkan(lama, berkas, hasil)
+                } catch (e: Exception) {
+                    null
+                }
+                try { berkas.delete() } catch (e: Exception) { }
+                if (r == null || !r.ok || !hasil.exists()) {
                     if (hasil.exists()) hasil.delete()
                     return@withContext null
                 }
-                if (patch.sha256.isNotBlank() && sha256(hasil) != patch.sha256) {
+                if (step.sha256.isNotBlank() && sha256(hasil) != step.sha256) {
                     hasil.delete()
                     return@withContext null
                 }
-                hasil
-            } catch (e: Exception) {
-                null
+                // Hasil tahap sebelumnya dibuang supaya ruang tidak menumpuk.
+                if (lama.absolutePath != asli.absolutePath) {
+                    try { lama.delete() } catch (e: Exception) { }
+                }
+                lama = hasil
+                sudah += step.ukuran
             }
+            lama
         }
 
     /** Buka pemasang Android. Kalau izin "pasang dari aplikasi ini" belum ada, arahkan ke pengaturan. */
@@ -305,7 +362,8 @@ fun UpdateGate() {
             if (kecil != null && kecil.ukuran > 0) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    tr("Unduhan kecil") + " ≈ " + "%.1f".format(kecil.ukuran / 1048576.0) + " MB",
+                    tr("Unduhan kecil") + " ≈ " + "%.1f".format(kecil.ukuran / 1048576.0) + " MB" +
+                        if (kecil.langkah.size > 1) " • " + kecil.langkah.size + " " + tr("bagian") else "",
                     color = Color(0xFFFFC21A),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,

@@ -153,8 +153,11 @@ jobs:
           pip install --quiet bsdiff4
           D=app/build/outputs/apk/release
           VLAMA=$(cat lama/versi.txt 2>/dev/null || echo "")
-          python3 scripts/buat_patch.py --lama lama/arm64.apk --baru "$D/app-arm64-v8a-release.apk"             --kunci arm64 --keluaran patch-arm64.bin             --versi-lama "$VLAMA" --versi-baru "$VERSION_NAME" --json docs/patch-info.json || true
-          python3 scripts/buat_patch.py --lama lama/armv7.apk --baru "$D/app-armeabi-v7a-release.apk"             --kunci armv7 --keluaran patch-armv7.bin             --versi-lama "$VLAMA" --versi-baru "$VERSION_NAME" --json docs/patch-info.json || true
+          # Nama file patch memuat kedua versi supaya beberapa pasangan bisa
+          # disimpan sekaligus (pengguna yang melewatkan versi tetap dapat
+          # unduhan kecil lewat rangkaian patch).
+          python3 scripts/buat_patch.py --lama lama/arm64.apk --baru "$D/app-arm64-v8a-release.apk"             --kunci arm64 --keluaran "patch-${VLAMA}-to-${VERSION_NAME}-arm64.bin"             --versi-lama "$VLAMA" --versi-baru "$VERSION_NAME" --json docs/patch-info.json || true
+          python3 scripts/buat_patch.py --lama lama/armv7.apk --baru "$D/app-armeabi-v7a-release.apk"             --kunci armv7 --keluaran "patch-${VLAMA}-to-${VERSION_NAME}-armv7.bin"             --versi-lama "$VLAMA" --versi-baru "$VERSION_NAME" --json docs/patch-info.json || true
           ls -l patch-*.bin 2>/dev/null || echo "Tidak ada patch yang dibuat."
           shopt -s nullglob
           BERKAS=(patch-*.bin)
