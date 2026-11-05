@@ -90,7 +90,13 @@ def main():
     args = ap.parse_args()
 
     daftar = muat_manifest(args.json)
-    daftar = [e for e in daftar if not (e.get("dari") == args.versi_lama and e.get("ke") == args.versi_baru)]
+    # Hanya entri kunci INI yang dibuang. Dulu seluruh pasangan dibuang, jadi
+    # saat armv7 diproses setelah arm64, entri arm64 hilang dari manifest dan
+    # HP arm64 tidak pernah mendapat update kecil (harus unduh APK penuh).
+    for e in daftar:
+        if e.get("dari") == args.versi_lama and e.get("ke") == args.versi_baru:
+            e.pop(args.kunci, None)
+    daftar = [e for e in daftar if any(k in e for k in ("arm64", "armv7", "universal"))]
 
     if args.versi_lama and args.versi_lama == args.versi_baru:
         print("Versi lama sama dengan versi baru, patch dilewati.")

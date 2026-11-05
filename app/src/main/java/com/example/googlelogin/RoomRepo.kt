@@ -194,7 +194,9 @@ object RoomRepo {
             ownerUid = owner,
             ownerName = child("ownerName").getValue(String::class.java) ?: "",
             photoB64 = child("photoB64").getValue(String::class.java),
-            backgroundB64 = null,
+            // Latar room dulu selalu null di jalur ini, jadi latar yang disimpan
+            // pemilik tidak pernah tampil walau sudah tersimpan di Firestore.
+            backgroundB64 = child("backgroundB64").getValue(String::class.java),
             announcement = child("announcement").getValue(String::class.java) ?: "",
             micCount = (child("micCount").value as? Number)?.toInt() ?: 8,
             lockHash = child("lockHash").getValue(String::class.java) ?: "",
@@ -273,7 +275,7 @@ object RoomRepo {
             ownerUid = str("ownerUid"),
             ownerName = str("ownerName"),
             photoB64 = str("photoB64").ifBlank { null },
-            backgroundB64 = null,
+            backgroundB64 = str("backgroundB64").ifBlank { null },
             announcement = str("announcement"),
             micCount = ((s.child("micCount").value as? Long) ?: 8L).toInt(),
             lockHash = str("lockHash"),
@@ -682,12 +684,21 @@ object RoomRepo {
             if (bgB64 != null) m["backgroundB64"] = bgB64
             // RTDB tidak ditunggu (kirim lalu lanjut), hanya Firestore yang ditunggu.
             // Dulu keduanya berurutan sehingga menyimpan background terasa lama.
+            val rm = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
+            if (photoB64 != null) rm["photoB64"] = photoB64
+            if (bgB64 != null) rm["backgroundB64"] = bgB64
+            // RTDB adalah sumber data layar room, jadi ditunggu dulu supaya
+            // latar/nama langsung berubah. Firestore hanya cermin.
             try {
-                val rm = hashMapOf<String, Any?>("name" to name, "announcement" to announcement)
-                if (photoB64 != null) rm["photoB64"] = photoB64
-                Rtdb.ref("roomsPub/$roomId").updateChildren(rm)
+                Rtdb.ref("roomsPub/$roomId").updateChildren(rm).await()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) { }
-            roomRef(roomId).update(m).await()
+            try {
+                roomRef(roomId).update(m).await()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
