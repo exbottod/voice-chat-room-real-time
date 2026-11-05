@@ -44,11 +44,15 @@ object FirebaseSession {
      * Setelah akun nomor dibuat lewat kode SMS, tautkan password agar login
      * berikutnya cukup nomor + password tanpa menunggu SMS lagi.
      */
+    /** Batas waktu tiap permintaan ke Firebase Auth, supaya layar tidak
+     *  menggantung kalau jaringan putus (mis. app pindah ke WhatsApp lalu kembali). */
+    private const val TIMEOUT_MS = 30_000L
+
     suspend fun tautkanPassword(nomorE164: String, password: String): Throwable? {
         return try {
             val user = FirebaseAuth.getInstance().currentUser ?: return IllegalStateException("Belum login")
             val cred = EmailAuthProvider.getCredential(emailDariNomor(nomorE164), password)
-            user.linkWithCredential(cred).await()
+            kotlinx.coroutines.withTimeout(TIMEOUT_MS) { user.linkWithCredential(cred).await() }
             null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
@@ -59,7 +63,9 @@ object FirebaseSession {
 
     /** Login dengan email & password (harus sudah ditambahkan lewat Pengaturan). */
     suspend fun signInEmail(email: String, password: String): FirebaseUser {
-        val r = FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password).await()
+        val r = kotlinx.coroutines.withTimeout(TIMEOUT_MS) {
+            FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password).await()
+        }
         return r.user ?: error("User kosong")
     }
 

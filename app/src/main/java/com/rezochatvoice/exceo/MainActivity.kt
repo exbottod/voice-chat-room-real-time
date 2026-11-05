@@ -382,23 +382,39 @@ fun AppRoot() {
     }
 
     fun lengkapiPendaftaranHp(nomor: String, password: String) {
+        if (password.trim().length < 6) {
+            toast("Password minimal 6 karakter")
+            return
+        }
         loading = true
         scope.launch {
-            val err = FirebaseSession.tautkanPassword(nomor.ifBlank { nomorBaruHp }, password)
-            if (err != null && err !is com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+            // loading WAJIB dilepas di semua jalur, kalau tidak tombol
+            // "Lengkapi Pendaftaran" terkunci dan layar terasa macet.
+            try {
+                val err = FirebaseSession.tautkanPassword(nomor.ifBlank { nomorBaruHp }, password.trim())
+                if (err != null && err !is com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                    loading = false
+                    toast("Gagal menyimpan password: ${err.message}")
+                    return@launch
+                }
+                val fbUser = FirebaseAuth.getInstance().currentUser
+                if (fbUser == null) {
+                    loading = false
+                    toast("Sesi login hilang, ulangi dari awal")
+                    return@launch
+                }
+                perluPasswordHp = false
+                kotlinx.coroutines.withTimeoutOrNull(15_000L) {
+                    NomorTerdaftar.daftarkan(nomor.ifBlank { nomorBaruHp }, fbUser.uid)
+                }
+                masukkanSesiNomor(fbUser)
+            } catch (e: kotlinx.coroutines.CancellationException) {
                 loading = false
-                toast("Gagal menyimpan password: ${err.message}")
-                return@launch
-            }
-            val fbUser = FirebaseAuth.getInstance().currentUser
-            if (fbUser == null) {
+                throw e
+            } catch (e: Exception) {
                 loading = false
-                toast("Sesi login hilang, ulangi dari awal")
-                return@launch
+                toast("Gagal mendaftar: ${e.message ?: "coba lagi"}")
             }
-            perluPasswordHp = false
-            NomorTerdaftar.daftarkan(nomor.ifBlank { nomorBaruHp }, fbUser.uid)
-            masukkanSesiNomor(fbUser)
         }
     }
 
