@@ -162,6 +162,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        FbLogin.hasil(requestCode, resultCode, data)
+    }
+
     override fun onResume() {
         super.onResume()
         AppAktif.ya = true
@@ -253,6 +258,47 @@ fun AppRoot() {
         }
     }
 
+    fun facebookLogin() {
+        if (!FbLogin.terkonfigurasi(context)) {
+            toast("App ID Facebook belum diisi di app. Kirim App ID & Client Token dari Facebook Developer Console.")
+            return
+        }
+        loading = true
+        scope.launch {
+            try {
+                val activity = context as? android.app.Activity
+                if (activity == null) {
+                    toast("Facebook hanya bisa dibuka dari layar aplikasi")
+                    return@launch
+                }
+                val token = FbLogin.mintaToken(activity)
+                val fbUser = FirebaseSession.signInFacebook(token)
+                val profil = UserProfile(
+                    name = fbUser.displayName?.takeIf { it.isNotBlank() } ?: "Pengguna Facebook",
+                    email = fbUser.email ?: "",
+                    photoUrl = fbUser.photoUrl?.toString(),
+                    idToken = token,
+                )
+                store.save(profil)
+                user = profil
+                FirebaseSession.saveProfile(fbUser.uid, profil)?.let {
+                    toast("Profil belum tersimpan di server: ${it.message}")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("FbLogin", "Login Facebook gagal", e)
+                val pesan = e.message ?: "Gagal login Facebook"
+                toast(
+                    if (pesan.contains("App ID")) pesan
+                    else "Login Facebook gagal: $pesan"
+                )
+            } finally {
+                loading = false
+            }
+        }
+    }
+
     fun emailLogin(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
             toast("Isi email dan password")
@@ -283,6 +329,7 @@ fun AppRoot() {
                 Log.w("GoogleLogin", "clearCredentialState gagal", e)
             }
             FirebaseSession.signOut()
+            FbLogin.keluar()
             store.clear()
             user = null
         }
@@ -306,6 +353,7 @@ fun AppRoot() {
         LoginScreen(
             loading = loading,
             onGoogleClick = ::signIn,
+            onFacebookClick = ::facebookLogin,
             onEmailLogin = { e, p -> emailLogin(e, p) },
             onForgotPassword = { toast("Lupa password belum tersedia") },
             onSignUp = { toast("Pendaftaran belum tersedia") },

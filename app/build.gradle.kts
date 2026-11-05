@@ -145,6 +145,8 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-database")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+    // Login Facebook (token ditukar ke Firebase Auth).
+    implementation("com.facebook.android:facebook-login:17.0.0")
     // Pembaca bzip2 untuk penggabung patch APK (tanpa library native).
     implementation("org.apache.commons:commons-compress:1.26.2")
 }

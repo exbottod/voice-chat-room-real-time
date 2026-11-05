@@ -74,6 +74,7 @@ private val HijauMuda = Color(0xFFB9F5D0)
 fun LoginScreen(
     loading: Boolean,
     onGoogleClick: () -> Unit,
+    onFacebookClick: () -> Unit = {},
     onEmailLogin: (String, String) -> Unit,
     onForgotPassword: () -> Unit,
     onSignUp: () -> Unit,
@@ -159,13 +160,17 @@ fun LoginScreen(
                 Spacer(Modifier.height(12.dp))
                 TombolPil(
                     teks = "Login dengan Facebook",
-                    onClick = {
-                        android.widget.Toast.makeText(
-                            context, "Login Facebook segera hadir, pakai Google dulu",
-                            android.widget.Toast.LENGTH_SHORT,
-                        ).show()
-                    },
-                ) { IkonFacebook() }
+                    onClick = { if (!loading) onFacebookClick() },
+                ) {
+                    if (loading) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF1F1F1F), strokeWidth = 2.4.dp,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    } else {
+                        IkonFacebook()
+                    }
+                }
                 Spacer(Modifier.height(12.dp))
                 TombolPil(
                     teks = "Login dengan HP",

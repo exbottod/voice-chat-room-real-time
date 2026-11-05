@@ -25,6 +25,17 @@ object FirebaseSession {
         return result.user?.uid ?: error("UID kosong")
     }
 
+    /**
+     * Masuk ke Firebase memakai access token Facebook.
+     * Provider Facebook harus sudah diaktifkan di Firebase Authentication,
+     * dan App ID/Secret Facebook sudah ditempel di sana.
+     */
+    suspend fun signInFacebook(accessToken: String): FirebaseUser {
+        val credential = com.google.firebase.auth.FacebookAuthProvider.getCredential(accessToken)
+        val result = FirebaseAuth.getInstance().signInWithCredential(credential).await()
+        return result.user ?: error("User kosong")
+    }
+
     /** Login dengan email & password (harus sudah ditambahkan lewat Pengaturan). */
     suspend fun signInEmail(email: String, password: String): FirebaseUser {
         val r = FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password).await()
