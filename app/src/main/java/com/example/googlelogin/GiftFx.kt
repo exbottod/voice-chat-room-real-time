@@ -706,6 +706,7 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (RoomInfo) -> Unit) {
     ) {
         Box(
             Modifier
+                .geserTutup(d.ts) { data = null }
                 .clip(RoundedCornerShape(50))
                 .background(
                     Brush.horizontalGradient(
@@ -797,6 +798,7 @@ fun GlobalCashbackBanner(currentRoomId: String?, onOpenRoom: (RoomInfo) -> Unit)
     ) {
         Box(
             Modifier
+                .geserTutup(d.third + d.second) { data = null }
                 .clip(RoundedCornerShape(50))
                 .background(Brush.horizontalGradient(listOf(Color(0xFF0E8F62), Color(0xFF1FBF7A), Color(0xFFD4AF37))))
                 .border(1.dp, Color(0xFFFFE082), RoundedCornerShape(50))

@@ -1350,6 +1350,15 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
     }
 
     val e = ev
+    // Tombol kembali HP saat roket meluncur: hentikan animasi dan video
+    // seketika supaya tidak terasa nyangkut. Hadiah sudah tercatat di
+    // server, jadi tidak ada yang hilang.
+    BackHandler(enabled = e != null && step < 2) {
+        pending = emptyList()
+        playCount = 0
+        step = 0
+        ev = null
+    }
     val tinggiNaik = with(LocalDensity.current) { 420.dp.toPx() }
     // Roket yang punya video bawaan diputar satu kali saja (tanpa diulang),
     // lalu langsung ke tahap berikutnya. Roket tanpa video bawaan memakai
