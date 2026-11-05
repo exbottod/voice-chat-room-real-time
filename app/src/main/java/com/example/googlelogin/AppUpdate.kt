@@ -49,6 +49,12 @@ import java.net.URL
  * versi terpasang; kalau lebih baru, muncul dialog "Perbarui sekarang / Nanti".
  * Unduhan diambil dari link rilis terbaru, sesuai arsitektur HP.
  */
+/**
+ * Pemeriksa versi + pemasang pembaruan.
+ *
+ * Pembaruan kecil: unduh file selisih (~4 MB), gabung dengan APK terpasang,
+ * periksa sidik jari, lalu pasang. Gagal di tengah jalan -> unduh APK penuh.
+ */
 object AppUpdate {
     private const val INFO_URL = "https://exbottod.github.io/voice-chat-room-real-time/build-info.json"
     private const val REL = "https://github.com/exbottod/voice-chat-room-real-time/releases/download/terbaru/"
