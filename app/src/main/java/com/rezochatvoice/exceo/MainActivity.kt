@@ -375,31 +375,6 @@ fun AppRoot() {
         }
     }
 
-    fun verifikasiKodeHp(verificationId: String, kode: String) {
-        if (verificationId == OtpWhatsApp.ID_WA) {
-            verifikasiKodeWa(kode)
-            return
-        }
-        loading = true
-        PhoneAuthLogin.verifikasi(verificationId, kode) { fbUser, err ->
-            if (fbUser == null) {
-                loading = false
-                toast("Login gagal: ${err ?: "kode tidak valid"}")
-                return@verifikasi
-            }
-            // Akun lama sudah punya password tertaut: langsung masuk.
-            // Akun baru: minta buat password dulu (Lengkapi Pendaftaran).
-            val sudahAdaPassword = fbUser.providerData.any { it.providerId == "password" }
-            if (sudahAdaPassword) {
-                masukkanSesiNomor(fbUser)
-            } else {
-                nomorBaruHp = fbUser.phoneNumber ?: ""
-                perluPasswordHp = true
-                loading = false
-            }
-        }
-    }
-
     /** Kode WhatsApp benar: lanjut ke tahap buat password. */
     fun verifikasiKodeWa(kode: String) {
         val nomor = nomorKodeHp
@@ -425,6 +400,31 @@ fun AppRoot() {
             nomorBaruHp = nomor
             perluPasswordHp = true
             loading = false
+        }
+    }
+
+    fun verifikasiKodeHp(verificationId: String, kode: String) {
+        if (verificationId == OtpWhatsApp.ID_WA) {
+            verifikasiKodeWa(kode)
+            return
+        }
+        loading = true
+        PhoneAuthLogin.verifikasi(verificationId, kode) { fbUser, err ->
+            if (fbUser == null) {
+                loading = false
+                toast("Login gagal: ${err ?: "kode tidak valid"}")
+                return@verifikasi
+            }
+            // Akun lama sudah punya password tertaut: langsung masuk.
+            // Akun baru: minta buat password dulu (Lengkapi Pendaftaran).
+            val sudahAdaPassword = fbUser.providerData.any { it.providerId == "password" }
+            if (sudahAdaPassword) {
+                masukkanSesiNomor(fbUser)
+            } else {
+                nomorBaruHp = fbUser.phoneNumber ?: ""
+                perluPasswordHp = true
+                loading = false
+            }
         }
     }
 
