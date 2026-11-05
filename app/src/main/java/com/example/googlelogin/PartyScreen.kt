@@ -318,6 +318,24 @@ private fun BannerPager() {
     }
     val count = if (remote.isNotEmpty()) remote.size else defaults.size
     val state = rememberPagerState(pageCount = { count })
+    // Banner bergeser sendiri ke kanan supaya tab Party terlihat lebih hidup.
+    // Berhenti sebentar kalau user sedang menggeser manual.
+    LaunchedEffect(count) {
+        if (count <= 1) return@LaunchedEffect
+        while (true) {
+            delay(4000)
+            if (state.isScrollInProgress) continue
+            val next = (state.currentPage + 1) % count
+            try {
+                state.animateScrollToPage(
+                    next,
+                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 800),
+                )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+        }
+    }
     val frame = RoundedCornerShape(18.dp)
     val goldBorder = Brush.linearGradient(listOf(GoldDark, GoldLight, GoldDark))
     Column(Modifier.fillMaxWidth()) {
