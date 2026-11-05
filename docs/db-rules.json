@@ -410,6 +410,12 @@
           ".write": "auth != null && auth.uid === $uid"
         }
       }
+    },
+    "roomMusic": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     }
   }
 }
