@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -33,7 +34,7 @@ object RoomMusicShare {
     private var urlSekarang = ""
     private var siap = false
     private var roomId = ""
-    @Volatile private var reg: Rtdb.Reg? = null
+    @Volatile private var reg: Reg? = null
 
     /** Posisi musik saat ini (ms) untuk semua HP. */
     fun posisiMs(): Int {
