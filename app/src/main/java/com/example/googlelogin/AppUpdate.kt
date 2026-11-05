@@ -102,7 +102,7 @@ object AppUpdate {
         val j = JSONObject(c.inputStream().bufferedReader().use { it.readText() })
         val dari = j.optString("versi_lama")
         val ke = j.optString("versi_baru")
-        val entri = j.optJSONObject(kunci)
+        val entri = j.optJSONObject(kunci())
         if (dari == versiTerpasang && ke == versiBaru && entri != null) {
             val nama = entri.optString("file")
             if (nama.isNotBlank()) {
