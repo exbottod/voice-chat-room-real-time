@@ -340,12 +340,26 @@ fun UpdateGate() {
 
     LaunchedEffect(Unit) {
         val prefs = ctx.getSharedPreferences("app_update", Context.MODE_PRIVATE)
-        val found = AppUpdate.check(ctx) ?: return@LaunchedEffect
-        // "Nanti" hanya menunda untuk versi yang sama selama 6 jam.
-        val skipV = prefs.getString("skip_v", "") ?: ""
-        val skipAt = prefs.getLong("skip_at", 0L)
-        if (skipV == found.version && System.currentTimeMillis() - skipAt < 6 * 3600_000L) return@LaunchedEffect
-        info = found
+        // Dialog hanya muncul kalau patch kecil sudah siap. Selama patch belum
+        // jadi (build masih membuat file selisih) atau tidak ada jalur patch
+        // dari versi yang terpasang, dialog ditahan dan dicek ulang tiap
+        // 2 menit, jadi pengguna tidak pernah disuruh unduh APK penuh 50 MB.
+        var percobaan = 0
+        while (percobaan < 30) {
+            val found = AppUpdate.check(ctx)
+            if (found == null) return@LaunchedEffect
+            val kecil = found.patch
+            if (kecil != null && kecil.ukuran > 0) {
+                // "Nanti" hanya menunda untuk versi yang sama selama 6 jam.
+                val skipV = prefs.getString("skip_v", "") ?: ""
+                val skipAt = prefs.getLong("skip_at", 0L)
+                if (skipV == found.version && System.currentTimeMillis() - skipAt < 6 * 3600_000L) return@LaunchedEffect
+                info = found
+                return@LaunchedEffect
+            }
+            percobaan++
+            kotlinx.coroutines.delay(120_000L)
+        }
     }
 
     val i = info ?: return
