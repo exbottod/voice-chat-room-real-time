@@ -143,6 +143,16 @@ jobs:
           json.dump(info, open("docs/build-info.json", "w"), indent=2, ensure_ascii=False)
           PYEOF
 
+      - name: Unduh APK dasar lama (beberapa versi)
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dasar
+          # APK dasar disimpan per versi supaya pengguna yang melewatkan satu
+          # versi tetap dapat patch kecil, bukan APK penuh.
+          gh release download terbaru -p 'base-*.apk' -D dasar --clobber >/dev/null 2>&1 || true
+
       - name: Buat file selisih (patch) update kecil
         if: success()
         env:
@@ -153,17 +163,69 @@ jobs:
           pip install --quiet bsdiff4
           D=app/build/outputs/apk/release
           VLAMA=$(cat lama/versi.txt 2>/dev/null || echo "")
-          # Nama file patch memuat kedua versi supaya beberapa pasangan bisa
-          # disimpan sekaligus (pengguna yang melewatkan versi tetap dapat
-          # unduhan kecil lewat rangkaian patch).
-          python3 scripts/buat_patch.py --lama lama/arm64.apk --baru "$D/app-arm64-v8a-release.apk"             --kunci arm64 --keluaran "patch-${VLAMA}-to-${VERSION_NAME}-arm64.bin"             --versi-lama "$VLAMA" --versi-baru "$VERSION_NAME" --json docs/patch-info.json || true
-          python3 scripts/buat_patch.py --lama lama/armv7.apk --baru "$D/app-armeabi-v7a-release.apk"             --kunci armv7 --keluaran "patch-${VLAMA}-to-${VERSION_NAME}-armv7.bin"             --versi-lama "$VLAMA" --versi-baru "$VERSION_NAME" --json docs/patch-info.json || true
+          buat() {  # $1=arch $2=berkas lama $3=versi lama
+            [ -f "$2" ] || return 0
+            [ "$3" = "$VERSION_NAME" ] && return 0
+            case "$1" in
+              arm64) BARU="$D/app-arm64-v8a-release.apk" ;;
+              armv7) BARU="$D/app-armeabi-v7a-release.apk" ;;
+            esac
+            python3 scripts/buat_patch.py --lama "$2" --baru "$BARU" --kunci "$1" \
+              --keluaran "patch-${3}-to-${VERSION_NAME}-${1}.bin" \
+              --versi-lama "$3" --versi-baru "$VERSION_NAME" --json docs/patch-info.json || true
+          }
+          for ARCH in arm64 armv7; do
+            # 1) versi tepat sebelum ini (paling sering dipakai)
+            buat "$ARCH" "lama/${ARCH}.apk" "$VLAMA"
+            # 2) versi-versi dasar lain yang masih disimpan
+            for F in dasar/base-*-${ARCH}.apk; do
+              [ -f "$F" ] || continue
+              V=$(basename "$F" | sed -E 's/^base-(.+)-'"$ARCH"'\.apk$/\1/')
+              buat "$ARCH" "$F" "$V"
+            done
+          done
           ls -l patch-*.bin 2>/dev/null || echo "Tidak ada patch yang dibuat."
           shopt -s nullglob
           BERKAS=(patch-*.bin)
           if [ ${#BERKAS[@]} -gt 0 ]; then
             gh release upload terbaru "${BERKAS[@]}" --clobber
           fi
+
+      - name: Simpan APK dasar versi ini
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
+        run: |
+          D=app/build/outputs/apk/release
+          cp "$D/app-arm64-v8a-release.apk" "base-${VERSION_NAME}-arm64.apk" 2>/dev/null || true
+          cp "$D/app-armeabi-v7a-release.apk" "base-${VERSION_NAME}-armv7.apk" 2>/dev/null || true
+          shopt -s nullglob
+          SIMPAN=(base-${VERSION_NAME}-*.apk)
+          if [ ${#SIMPAN[@]} -gt 0 ]; then
+            gh release upload terbaru "${SIMPAN[@]}" --clobber >/dev/null 2>&1 || true
+          fi
+          # Simpan hanya 3 versi dasar terbaru supaya rilis tidak membengkak.
+          python3 - <<'PYBASE'
+          import json, os, re, subprocess
+          keluar = subprocess.run(["gh", "release", "view", "terbaru", "--json", "assets"],
+                                  capture_output=True, text=True)
+          try:
+              aset = [a["name"] for a in json.loads(keluar.stdout or "{}").get("assets", [])]
+          except Exception:
+              aset = []
+          versi = sorted({m.group(1) for n in aset for m in [re.match(r"^base-(.+)-(arm64|armv7)\.apk$", n)] if m},
+                         key=lambda v: int(str(v).split(".")[-1]) if str(v).split(".")[-1].isdigit() else 0,
+                         reverse=True)
+          buang = versi[3:]
+          for v in buang:
+              for arch in ("arm64", "armv7"):
+                  nama = "base-%s-%s.apk" % (v, arch)
+                  if nama in aset:
+                      subprocess.run(["gh", "release", "delete-asset", "terbaru", nama, "--yes"],
+                                     capture_output=True)
+          print("APK dasar disimpan:", versi[:3])
+          PYBASE
 
       - name: Simpan hasil cek ke halaman web
         if: always()

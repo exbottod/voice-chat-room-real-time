@@ -120,36 +120,39 @@ object AppUpdate {
         val j = JSONObject(c.inputStream.bufferedReader().use { it.readText() })
         val kunciHp = kunci()
 
-        // Kumpulan pasangan: kunci = versi tujuan, nilai = objek pasangannya.
-        val peta = LinkedHashMap<String, JSONObject>()
+        // Semua pasangan disimpan sebagai daftar. Satu versi tujuan boleh
+        // punya beberapa pasangan (dari versi dasar berbeda), jadi jangan
+        // disimpan dalam peta berkunci versi tujuan: entri bisa saling menimpa
+        // dan pengguna kehilangan unduhan kecil.
+        val pasangan = ArrayList<JSONObject>()
         val arr = j.optJSONArray("patch")
         if (arr != null && arr.length() > 0) {
             for (i in 0 until arr.length()) {
                 val e = arr.optJSONObject(i) ?: continue
-                val dari = e.optString("dari")
-                val ke = e.optString("ke")
-                if (dari.isNotBlank() && ke.isNotBlank()) peta[ke] = e
+                if (e.optString("dari").isNotBlank() && e.optString("ke").isNotBlank()) pasangan.add(e)
             }
         } else {
             // Manifest bentuk lama: satu pasangan di level atas.
             val dari = j.optString("versi_lama")
             val ke = j.optString("versi_baru")
-            if (dari.isNotBlank() && ke.isNotBlank()) peta[ke] = j
+            if (dari.isNotBlank() && ke.isNotBlank()) pasangan.add(j)
         }
 
         var kini = versiTerpasang
         val langkah = ArrayList<Langkah>()
         var putaran = 0
         while (kini != versiBaru && putaran < 4) {
-            // Ambil lompatan terdekat dari versi yang sedang dipegang.
-            val tujuan = peta.values
+            // Ambil lompatan terdekat dari versi yang sedang dipegang, yang
+            // benar-benar punya berkas patch untuk HP ini.
+            val calon = pasangan
                 .filter { it.optString("dari") == kini }
-                .map { it.optString("ke") }
-                .filter { build(it) > build(kini) && build(it) <= build(versiBaru) }
-                .minByOrNull { build(it) } ?: break
-            val entri = peta[tujuan]?.optJSONObject(kunciHp) ?: break
+                .filter { it.optString("ke").let { k -> build(k) > build(kini) && build(k) <= build(versiBaru) } }
+                .filter { it.optJSONObject(kunciHp)?.optString("file")?.isNotBlank() == true }
+                .minByOrNull { build(it.optString("ke")) } ?: break
+            val entri = calon.optJSONObject(kunciHp) ?: break
             val nama = entri.optString("file")
             if (nama.isBlank()) break
+            val tujuan = calon.optString("ke")
             langkah.add(Langkah(REL + nama, entri.optLong("ukuran"), entri.optString("sha256")))
             kini = tujuan
             putaran++
