@@ -98,6 +98,10 @@ fun LoginScreen(
     var passwordHp by remember { mutableStateOf("") }
     var lihatPassHp by remember { mutableStateOf(false) }
     var modePassword by remember { mutableStateOf(false) }
+    var negaraIso by remember { mutableStateOf("ID") }
+    var pilihZona by remember { mutableStateOf(false) }
+    val namaNegara = remember(negaraIso) { ProfileRepo.countryName(negaraIso) }
+    val kodeDial = remember(negaraIso) { KodeArea.dial(negaraIso) }
     androidx.compose.runtime.LaunchedEffect(verifId) {
         if (verifId != null) {
             sisaDetik = 60
@@ -207,9 +211,9 @@ fun LoginScreen(
                 }
             } else {
                 // ---------- Login nomor HP: kode zona + nomor, lalu kode SMS ----------
-                val digit = nomor.filter { it.isDigit() }.trimStart('0')
-                val nomorLengkap = "+62" + digit.removePrefix("62")
-                val nomorValid = digit.removePrefix("62").length in 8..13
+                val digit = KodeArea.tanpaKode(negaraIso, nomor)
+                val nomorLengkap = KodeArea.gabung(negaraIso, nomor)
+                val nomorValid = digit.length in 6..14
 
                 if (perluPassword) {
                     // ---------- Tahap Mendaftar: buat password ----------
@@ -272,11 +276,12 @@ fun LoginScreen(
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
                             .background(Color.White.copy(alpha = 0.10f))
+                            .clickable { pilihZona = true }
                             .padding(horizontal = 18.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Indonesia", color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                        Text("(+62)", color = HijauMuda, fontSize = 15.sp)
+                        Text(namaNegara, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                        Text("($kodeDial)", color = HijauMuda, fontSize = 15.sp)
                     }
                     Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
@@ -520,6 +525,14 @@ private fun TombolPil(
 /** Ikon "f" Facebook digambar sederhana (tanpa aset tambahan). */
 @Composable
 private fun IkonFacebook() {
+    if (pilihZona) {
+        CountryPickerScreen(
+            onPilih = { iso -> negaraIso = iso; pilihZona = false },
+            onKembali = { pilihZona = false },
+        )
+        return
+    }
+
     Box(
         Modifier.size(22.dp).clip(CircleShape).background(Color(0xFF1877F2)),
         contentAlignment = Alignment.Center,
