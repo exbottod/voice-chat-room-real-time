@@ -84,7 +84,7 @@ object AppUpdate {
         md.digest().joinToString("") { "%02x".format(it.toInt() and 0xFF) }
     } catch (e: Exception) { "" }
 
-    private fun kunci: String {
+    private fun kunci(): String {
         val abis = Build.SUPPORTED_ABIS.toList()
         return when {
             abis.any { it == "arm64-v8a" } -> "arm64"
