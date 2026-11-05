@@ -178,7 +178,13 @@ object RoomRepo {
                 if (!snap.child("micCount").exists()) isi["micCount"] = r.micCount.toLong()
                 if (!snap.child("lockHash").exists()) isi["lockHash"] = r.lockHash
                 if (!snap.child("createdAt").exists()) isi["createdAt"] = System.currentTimeMillis()
-                // "pinned" / "pinnedAt" tidak pernah ditulis di sini.
+                // Sematan berasal dari panel. Jangan pernah menimpanya, tapi
+                // pulihkan kalau hilang dari roomsPub (mis. room disembunyikan
+                // lalu dibuat lagi) selama salinan Firestore masih menyimpannya.
+                if (!snap.child("pinned").exists() && r.pinned) {
+                    isi["pinned"] = true
+                    if (r.pinnedAt > 0) isi["pinnedAt"] = r.pinnedAt
+                }
                 if (isi.isNotEmpty()) ref.updateChildren(isi)
             }
         } catch (e: Exception) { }

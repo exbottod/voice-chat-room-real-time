@@ -1558,7 +1558,7 @@ function roomRender(){
     return '<div class="rowcard" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)">' +
       '<div style="min-width:150px">' +
         '<div style="font-weight:700">' + (semat ? "📌 " : "") + roomBersihNama(r.name || "Room") + '</div>' +
-        '<div class="muted" style="font-size:12px">No ' + roomBersihNama(r.roomNo || "-") + ' · pemilik ' + roomBersihNama(r.ownerName || "-") + '</div>' +
+        '<div class="muted" style="font-size:12px">No ' + roomBersihNama(r.roomNo || "-") + ' · pemilik ' + roomBersihNama(r.ownerName || "-") + (semat && r.pinnedAt ? " · disematkan " + new Date(r.pinnedAt).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "") + '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
         '<button class="btn" style="padding:6px 10px;font-size:12px" data-room-semat="' + r.id + '">' + (semat ? "Lepas" : "Sematkan") + '</button>' +
@@ -1581,10 +1581,28 @@ async function roomTulis(id, obj){
 async function roomSemat(id){
   const r = roomData[id] || {};
   const jadi = !r.pinned;
+  const isi = { pinned: jadi, pinnedAt: jadi ? Date.now() : 0 };
   try {
-    await roomTulis(id, { pinned: jadi, pinnedAt: jadi ? Date.now() : 0 });
+    await rtdb.ref("roomsPub/" + id).update(isi);
+    // Cermin ke Firestore: kalau roomsPub hilang (mis. room disembunyikan lalu
+    // dibuat lagi), sematan masih bisa dipulihkan dari salinan ini.
+    try { await db.collection("rooms").doc(id).update(isi); } catch (e) { }
+    // Baca ulang dari Realtime Database: jangan bilang berhasil kalau ternyata
+    // tulisan ditolak aturan database.
+    let kini = null;
+    try {
+      const cek = await rtdb.ref("roomsPub/" + id + "/pinned").get();
+      kini = cek.exists() ? !!cek.val() : false;
+    } catch (e) { }
+    if (kini !== null && kini !== jadi) {
+      toast("Sematan tidak tersimpan. Aturan database menolak tulisan roomsPub.");
+      return;
+    }
     toast(jadi ? "Room disematkan 📌" : "Semat dicabut");
-  } catch (e) { toast("Gagal: " + (e.message || e)); }
+  } catch (e) {
+    const m = String(e.message || e);
+    toast("Gagal menyematkan: " + (/permission/i.test(m) ? "ditolak aturan database (publish db-rules.json)" : m));
+  }
 }
 
 async function roomGantiNama(id){
@@ -2064,7 +2082,7 @@ function userCard(el, u, line2){
   row.append(av, box); el.appendChild(row);
 }
 
-const PANEL_BUILD = "2026-11-05e";
+const PANEL_BUILD = "2026-11-05f";
 (function stempelPanel(){
   const cek = () => {
     if (!document.body || document.getElementById("panelBuild")) return;
