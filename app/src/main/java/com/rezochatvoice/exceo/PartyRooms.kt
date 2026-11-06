@@ -228,10 +228,7 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                     Modifier
                         .fillMaxSize()
                         .scale(1.02f)
-                        .graphicsLayer {
-                            clip = true
-                            shape = RoundedCornerShape(16.dp)
-                        },
+                        .clip(RoundedCornerShape(16.dp)),
                 ) {
                 Box(
                     Modifier

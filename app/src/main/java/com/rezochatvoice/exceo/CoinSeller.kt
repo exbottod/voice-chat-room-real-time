@@ -64,6 +64,8 @@ data class SellerInfo(
     val nama: String = "",
     val avatarUrl: String = "",
     val avatarB64: String? = null,
+    /** Kode negara dari profil akun (untuk bendera di kartu). */
+    val negara: String = "ID",
 ) {
     /** Nama yang tampil: nama akun aplikasi, cadangan nama toko. */
     val namaTampil: String get() = nama.ifBlank { store }.ifBlank { "Coin Seller" }
@@ -101,6 +103,7 @@ object SellerRepo {
                     nama = pu.name,
                     avatarUrl = pu.photoUrl ?: "",
                     avatarB64 = pu.avatarB64,
+                    negara = pu.countryCode.ifBlank { "ID" },
                 )
             )
         }
@@ -275,7 +278,7 @@ fun SellerListScreen(
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     )
                                     Spacer(Modifier.width(6.dp))
-                                    Text("🇮🇩", fontSize = 13.sp)
+                                    Text(flagEmoji(s.negara), fontSize = 13.sp)
                                 }
                                 if (s.store.isNotBlank() && s.store != s.namaTampil) {
                                     Text(
