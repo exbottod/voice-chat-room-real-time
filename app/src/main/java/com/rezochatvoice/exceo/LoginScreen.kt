@@ -645,7 +645,7 @@ private fun IkonGlobe() {
 /** Dialog pilihan bahasa aplikasi. */
 @Composable
 private fun DialogBahasa(tutup: () -> Unit) {
-    val ctx = LocalContext.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     androidx.compose.material3.AlertDialog(
         onDismissRequest = tutup,
         confirmButton = {},
