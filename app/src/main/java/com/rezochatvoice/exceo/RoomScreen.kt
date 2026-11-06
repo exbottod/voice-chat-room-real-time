@@ -127,8 +127,6 @@ private val Teal = Color(0xFF2BD9C4)
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun RoomScreen(
-    // Waktu (ms) dompet terakhir disegarkan karena gift masuk.
-    var segarGift by remember { mutableLongStateOf(0L) }
     roomId: String,
     myUid: String,
     myName: String,
@@ -136,6 +134,9 @@ fun RoomScreen(
     onExit: () -> Unit,
     onMinimize: () -> Unit,
 ) {
+    // Waktu (ms) dompet terakhir disegarkan karena gift masuk.
+    var segarGift by remember { mutableLongStateOf(0L) }
+
     val context = LocalContext.current
     var myFam by remember(myUid) { mutableStateOf("") }
     LaunchedEffect(myUid) {
