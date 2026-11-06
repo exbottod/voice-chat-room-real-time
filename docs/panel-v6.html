@@ -428,6 +428,17 @@ label{font-size:12px;color:var(--mut)}
 
 <div id="tab-topup" class="hide">
   <div class="card">
+    <h2>Daftar harga topup coin</h2>
+    <p class="muted">Paket coin dan harga yang tampil di Dompet user. Ubah angka lalu tekan Simpan; aplikasi memuat daftar baru otomatis. Harga ditulis apa adanya (contoh: Rp 6.000).</p>
+    <div id="tpList" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn out" id="tpAdd">+ Tambah paket</button>
+      <button class="btn out" id="tpReset">Kembalikan bawaan</button>
+      <button class="btn" id="tpSave">Simpan daftar</button>
+    </div>
+    <div class="muted" id="tpMsg" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
     <h2>Nomor DANA untuk topup</h2>
     <div id="payStatusTop" style="display:none;margin:8px 0;padding:10px;border-radius:10px;font-weight:800;font-size:15px"></div>
     <p class="muted">Nomor ini yang tampil di aplikasi saat user mau topup coin. Coin baru masuk setelah pengajuan disetujui di bawah.</p>
@@ -1573,7 +1584,7 @@ function pilihTab(k){
   if (key === "cb") cbStart();
   if (key === "rocket") rocketStart();
   if (key === "bet") gcStart();
-  if (key === "topup") { payLoad(); manualLoad(false); }
+  if (key === "topup") { tpLoad(); payLoad(); manualLoad(false); }
   if (key === "staff") pstStart();
   if (key === "seller") sellerStart();
   if (key === "sstock") sstockStart();
@@ -3750,6 +3761,57 @@ function bgStart(){
 </script>
 <script src="rooms.js"></script>
 <script>
+
+// ============ Daftar harga topup coin ============
+const TP_DEFAULT = [
+  { coins: 1000000, price: "Rp 6.000" },
+  { coins: 3000000, price: "Rp 18.000" },
+  { coins: 10000000, price: "Rp 58.000" },
+  { coins: 30000000, price: "Rp 170.000" },
+];
+let tpRows = TP_DEFAULT.map(x => ({ ...x }));
+function tpRender() {
+  const box = $("tpList"); box.innerHTML = "";
+  tpRows.forEach((r, i) => {
+    const row = document.createElement("div");
+    row.className = "row"; row.style.cssText = "margin-top:8px;align-items:center";
+    row.innerHTML =
+      '<span style="width:26px;color:#aaa">' + (i + 1) + '.</span>' +
+      '<input type="number" min="1" placeholder="Jumlah coin" value="' + r.coins + '" style="flex:1;min-width:130px;padding:10px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">' +
+      '<input type="text" placeholder="Rp 6.000" value="' + String(r.price).replace(/"/g, "&quot;") + '" style="flex:1;min-width:110px;padding:10px;border-radius:10px;border:1px solid var(--line);background:#111;color:#fff">' +
+      '<button class="btn out" style="padding:8px 12px">Hapus</button>';
+    const [, c, pr, del] = row.children;
+    c.oninput = () => { tpRows[i].coins = Math.floor(Number(c.value) || 0); };
+    pr.oninput = () => { tpRows[i].price = pr.value; };
+    del.onclick = () => { tpRows.splice(i, 1); tpRender(); };
+    box.appendChild(row);
+  });
+}
+async function tpLoad() {
+  try {
+    const d = await db.collection("vipConfig").doc("topupPacks").get();
+    const arr = d.exists && Array.isArray(d.data().packs) ? d.data().packs : null;
+    if (arr && arr.length) tpRows = arr.map(x => ({ coins: Number(x.coins) || 0, price: String(x.price || "") }));
+  } catch (e) { $("tpMsg").textContent = "Gagal memuat: " + e.message; }
+  tpRender();
+}
+$("tpAdd").onclick = () => { tpRows.push({ coins: 0, price: "" }); tpRender(); };
+$("tpReset").onclick = () => { tpRows = TP_DEFAULT.map(x => ({ ...x })); tpRender(); $("tpMsg").textContent = "Daftar bawaan dimuat. Tekan Simpan untuk menerapkan."; };
+$("tpSave").onclick = async () => {
+  const bersih = tpRows
+    .map(r => ({ coins: Math.floor(Number(r.coins) || 0), price: String(r.price || "").trim() }))
+    .filter(r => r.coins > 0 && r.price);
+  if (!bersih.length) { $("tpMsg").textContent = "Isi minimal satu paket (coin dan harga)."; return; }
+  const btn = $("tpSave"); btn.disabled = true;
+  try {
+    await db.collection("vipConfig").doc("topupPacks").set({ packs: bersih, ts: Date.now() });
+    tpRows = bersih; tpRender();
+    $("tpMsg").textContent = "Tersimpan ✅ (" + bersih.length + " paket). Aplikasi memuat daftar baru otomatis.";
+    toast("Daftar topup tersimpan ✅");
+  } catch (e) { $("tpMsg").textContent = "Gagal: " + e.message; }
+  btn.disabled = false;
+};
+
 // ============ Topup manual DANA ============
 async function adminCall(p) {
   try {

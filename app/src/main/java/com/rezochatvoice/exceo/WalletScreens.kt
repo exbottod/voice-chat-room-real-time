@@ -283,13 +283,45 @@ private val DIAMOND_PACKS = listOf(
     21_937_500L to 43_875_000L,
 )
 
-/** Paket topup coin: jumlah coin dan label harga. */
-private val TOPUP_PACKS = listOf(
+/** Paket bawaan, dipakai bila daftar dari panel developer belum ada / gagal dimuat. */
+private val TOPUP_PACKS_DEFAULT = listOf(
     1_000_000L to "Rp 6.000",
     3_000_000L to "Rp 18.000",
     10_000_000L to "Rp 58.000",
     30_000_000L to "Rp 170.000",
 )
+
+/**
+ * Paket topup coin: jumlah coin dan label harga. Diatur dari Panel Developer
+ * (Firestore vipConfig/topupPacks). State Compose, jadi layar Dompet langsung
+ * ikut berubah begitu daftar baru termuat.
+ */
+private object TopupPacks {
+    var list by mutableStateOf(TOPUP_PACKS_DEFAULT)
+        private set
+    private var loadedAt = 0L
+
+    suspend fun refresh(force: Boolean = false) {
+        if (!force && System.currentTimeMillis() - loadedAt < 60_000L) return
+        try {
+            val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("vipConfig").document("topupPacks").get().await()
+            val arr = doc.get("packs") as? List<*> ?: return
+            val out = ArrayList<Pair<Long, String>>()
+            for (e in arr) {
+                val m = e as? Map<*, *> ?: continue
+                val c = (m["coins"] as? Number)?.toLong() ?: continue
+                val pr = (m["price"] as? String)?.trim().orEmpty()
+                if (c > 0L && pr.isNotBlank()) out.add(c to pr)
+            }
+            if (out.isNotEmpty()) list = out
+            loadedAt = System.currentTimeMillis()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+    }
+}
+private val TOPUP_PACKS: List<Pair<Long, String>> get() = TopupPacks.list
 
 @Composable
 private fun CoinDot(size: Int = 28) {
@@ -502,6 +534,8 @@ fun WalletScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Muat daftar harga topup terbaru dari Panel Developer setiap Dompet dibuka.
+    LaunchedEffect(Unit) { TopupPacks.refresh(force = true) }
     var tab by remember { mutableStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var showPacks by remember { mutableStateOf(false) }
