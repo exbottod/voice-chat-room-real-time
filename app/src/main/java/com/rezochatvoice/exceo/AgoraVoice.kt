@@ -45,6 +45,24 @@ import java.net.URL
 object AgoraVoice {
     private const val TAG = "LiveKitVoice"
     private const val TOKEN_URL = "https://43-156-99-4.sslip.io/lktoken"
+
+    /**
+     * Penyetelan suara: peredam derau (noise suppression) dan filter nada
+     * rendah dimatikan, karena keduanya memotong musik yang diputar user di
+     * room sehingga terdengar gepeng dan tidak jelas. Peredam gema tetap
+     * hidup supaya tidak terjadi lengkingan.
+     */
+    private val ROOM_OPSI = io.livekit.android.RoomOptions(
+        adaptiveStream = true,
+        dynacast = true,
+        audioTrackCaptureDefaults = io.livekit.android.room.track.LocalAudioTrackOptions(
+            echoCancellation = true,
+            noiseSuppression = false,
+            autoGainControl = true,
+            highPassFilter = false,
+            typingNoiseDetection = false,
+        ),
+    )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -70,6 +88,14 @@ object AgoraVoice {
     var levels by androidx.compose.runtime.mutableStateOf<Map<String, Float>>(emptyMap())
         private set
 
+    /**
+     * UID yang benar-benar sedang bersuara menurut LiveKit. Dipakai untuk
+     * gelembung/gelombang di kursi mic, karena level suara peserta lain
+     * tidak selalu dikirim lewat angka.
+     */
+    var bicara by androidx.compose.runtime.mutableStateOf<Set<String>>(emptySet())
+        private set
+
     private var levelJob: Job? = null
 
     private fun mulaiPantauLevel() {
@@ -82,9 +108,13 @@ object AgoraVoice {
                 try {
                     val uidSaya = r.localParticipant.identity?.value
                     if (uidSaya != null) m[uidSaya] = r.localParticipant.audioLevel
+                    // Peserta lain: ambil dari daftar pembicara aktif LiveKit,
+                    // angkanya punya nilai bawaan supaya gelombang tetap muncul.
+                    val aktif = bicara
                     for ((_, p) in r.remoteParticipants) {
                         val id = p.identity?.value ?: continue
-                        m[id] = p.audioLevel
+                        val lv = p.audioLevel
+                        m[id] = if (lv > 0.01f) lv else if (aktif.contains(id)) 0.55f else 0f
                     }
                 } catch (e: Exception) { }
                 levels = m
@@ -97,6 +127,7 @@ object AgoraVoice {
     private fun hentikanPantauLevel() {
         levelJob?.cancel(); levelJob = null
         levels = emptyMap()
+        bicara = emptySet()
     }
 
     @Volatile var onProblem: ((String) -> Unit)? = null
@@ -260,12 +291,17 @@ object AgoraVoice {
                                     }
                                 }
                                 is RoomEvent.FailedToConnect -> problem("Suara gagal tersambung: ${ev.error.message}".take(140))
+                                is RoomEvent.ActiveSpeakersChanged -> {
+                                    val ids = HashSet<String>()
+                                    for (p in ev.speakers) p.identity?.value?.let { ids.add(it) }
+                                    bicara = ids
+                                }
                                 is RoomEvent.TrackSubscribed -> applyMute()
                                 else -> {}
                             }
                         }
                     }
-                    r.connect(t.url, t.token)
+                    r.connect(t.url, t.token, ROOM_OPSI)
                     joined = true
                     try { tuneAudioRoute(app) } catch (e: Exception) { }
                     lastStatus = "OK tersambung"
