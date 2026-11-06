@@ -438,7 +438,7 @@ private fun PanelField(label: String, value: String, onChange: (String) -> Unit,
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text(label, color = PanelMuted, fontSize = 12.sp) },
+        label = { Text(tr(label), color = PanelMuted, fontSize = 12.sp) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(
             keyboardType = if (angka) KeyboardType.Number else KeyboardType.Text,
@@ -464,7 +464,7 @@ private fun PanelSection(title: String, isi: @Composable () -> Unit) {
             .border(1.dp, Color(0xFF2C3648), RoundedCornerShape(14.dp))
             .padding(12.dp),
     ) {
-        Text(title, color = PanelGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(tr(title), color = PanelGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         isi()
     }
@@ -480,7 +480,7 @@ private fun PanelAction(text: String, enabled: Boolean = true, warna: Color = Pa
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = if (enabled) Color.Black else Color(0xFF8A8A8A), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(tr(text), color = if (enabled) Color.Black else Color(0xFF8A8A8A), fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
 }
 
@@ -542,7 +542,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (info.isManager) "\uD83E\uDDD1\u200D\uD83D\uDCBC Panel Manager" else "\uD83D\uDEE1 Panel Admin",
+                    if (info.isManager) "\uD83E\uDDD1\u200D\uD83D\uDCBC Manager Panel" else "\uD83D\uDEE1 Admin Panel",
                     color = PanelGold,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
@@ -551,8 +551,8 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                 Text(tr("Tutup"), color = PanelMuted, fontSize = 14.sp, modifier = Modifier.clickable { onClose() })
             }
             Text(
-                if (info.isAdmin) "Hak admin: VIP, frame/efek, dan blokir user biasa."
-                else "Hak manager: coin, VIP, frame/efek, blokir, reset nama.",
+                tr(if (info.isAdmin) "Hak admin: VIP, frame/efek, dan blokir user biasa."
+                else "Hak manager: coin, VIP, frame/efek, blokir, reset nama."),
                 color = PanelMuted,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(vertical = 4.dp),
@@ -566,7 +566,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
             if (info.isManager) {
                 PanelSection("Kirim coin") {
                     Text(
-                        tr("Sisa stok coin Anda: ${fmtNum(sisaCoin)}"),
+                        trPesan("Sisa stok coin Anda: ${fmtNum(sisaCoin)}"),
                         color = if (sisaCoin > 0L) PanelGold else Color(0xFFFF9E9E),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
@@ -607,9 +607,9 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                                 val nama = PanelStaffRepo.namaTarget(uidT)
                                 val diri = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
                                 konfirmasi = idUser.trim() + "|" + n
-                                pesan = "Penerima: " + nama + " (ID " + idUser.trim() + ")" +
-                                    (if (uidT == diri) " - INI AKUN ANDA SENDIRI!" else "") +
-                                    ". Tekan \"Kirim coin\" sekali lagi untuk mengirim " + fmtNum(n) + " coin."
+                                pesan = tr("Penerima:") + " " + nama + " (ID " + idUser.trim() + ")" +
+                                    (if (uidT == diri) " - " + tr("INI AKUN ANDA SENDIRI!") else "") +
+                                    ". " + tr("Tekan \"Kirim coin\" sekali lagi untuk mengirim") + " " + fmtNum(n) + " coin."
                                 sibuk = false
                             }
                         } else {
@@ -680,7 +680,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                                     fontSize = 12.sp,
                                     modifier = Modifier.weight(1f),
                                 )
-                                Text(tr("${s.days} hari"), color = PanelGold, fontSize = 11.sp)
+                                Text(trPesan("${s.days} hari"), color = PanelGold, fontSize = 11.sp)
                             }
                         }
                     }
@@ -784,7 +784,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
             if (pesan.isNotBlank()) {
                 val jelek = pesan.contains("Gagal", true) || pesan.contains("tidak", true)
                 Text(
-                    pesan,
+                    trPesan(pesan),
                     color = if (jelek) Color(0xFFFF9E9E) else Color(0xFF8FD7A8),
                     fontSize = 13.sp,
                     modifier = Modifier.padding(vertical = 8.dp),

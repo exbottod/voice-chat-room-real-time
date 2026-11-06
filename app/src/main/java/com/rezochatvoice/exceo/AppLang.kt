@@ -60,7 +60,7 @@ object AppLang {
 fun tr(s: String): String {
     val c = AppLang.code
     if (c == AppLang.ID) return s
-    val en = TR_MAP[s]?.first ?: TR_EXTRA_EN[s] ?: autoEn(s)
+    val en = TR_MAP[s]?.first ?: TR_EXTRA_EN[s] ?: dinamisEn(s) ?: autoEn(s)
     return when (c) {
         AppLang.EN -> en
         AppLang.ZH -> TR_MAP[s]?.second ?: en
@@ -508,4 +508,43 @@ val TR_EXTRA_EN: Map<String, String> by lazy {
     m.putAll(TR_EXTRA_ADMIN)
     m.putAll(TR_EXTRA_PROFILE)
     m
+}
+
+
+/**
+ * Terjemahan kalimat yang mengandung nilai dinamis (angka, nama, ID).
+ * Kalimat dicocokkan per pola; bagian dinamis dipertahankan.
+ */
+private val POLA_DINAMIS: List<Pair<Regex, String>> = listOf(
+    Regex("^Sisa stok coin Anda: (.+)$") to "Your remaining coin stock: $1",
+    Regex("^Sisa Coin stock Anda: (.+)$") to "Your remaining coin stock: $1",
+    Regex("^Stok coin tidak cukup\\. Sisa (.+) coin\\.$") to "Not enough coin stock. $1 coins left.",
+    Regex("^Gagal: (.+)$") to "Failed: $1",
+    Regex("^Penerima: (.+) \\(ID (.+)\\)\\. Tekan \"Kirim coin\" sekali lagi untuk mengirim (.+) coin\\.$") to "Recipient: $1 (ID $2). Press \"Send coins\" once more to send $3 coins.",
+    Regex("^(\\d+) hari$") to "$1 days",
+    Regex("^(\\d+) hari lagi$") to "$1 days left",
+    Regex("^Sisa (.+)$") to "Remaining $1",
+)
+
+fun trPesan(s: String): String {
+    if (AppLang.code == AppLang.ID) return s
+    val langsung = tr(s)
+    if (langsung != s) return langsung
+    for ((re, hasil) in POLA_DINAMIS) {
+        val m = re.matchEntire(s) ?: continue
+        var out = hasil
+        for (i in 1 until m.groupValues.size) out = out.replace("$" + i, m.groupValues[i])
+        return out
+    }
+    return s
+}
+
+private fun dinamisEn(s: String): String? {
+    for ((re, hasil) in POLA_DINAMIS) {
+        val m = re.matchEntire(s) ?: continue
+        var out = hasil
+        for (i in 1 until m.groupValues.size) out = out.replace("$" + i, m.groupValues[i])
+        return out
+    }
+    return null
 }
