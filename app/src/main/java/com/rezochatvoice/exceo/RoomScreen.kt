@@ -56,6 +56,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -126,6 +127,8 @@ private val Teal = Color(0xFF2BD9C4)
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun RoomScreen(
+    // Waktu (ms) dompet terakhir disegarkan karena gift masuk.
+    var segarGift by remember { mutableLongStateOf(0L) }
     roomId: String,
     myUid: String,
     myName: String,
@@ -265,7 +268,30 @@ fun RoomScreen(
                 (c.key?.toIntOrNull() ?: -1) to (c.getValue(Long::class.java) ?: 0L)
             }
         }
-        val c = RoomRepo.observeMessages(roomId) { messages = it }
+        val c = RoomRepo.observeMessages(roomId) { baru ->
+            // Gift masuk: berlian penerima ditambahkan di server, jadi dompet
+            // di HP penerima harus langsung disegarkan. Tanpa ini pemain harus
+            // menunggu putaran dompet berikutnya dan merasa tidak menerima apa pun.
+            val adaGift = baru.any { m ->
+                val t = m.text
+                (t.startsWith("\uD83C\uDF81") || t.startsWith("\uD83D\uDC8E")) &&
+                    t.contains(myName, true)
+            }
+            messages = baru
+            if (adaGift) {
+                val kini = System.currentTimeMillis()
+                if (kini - segarGift > 3000L) {
+                    segarGift = kini
+                    AppScope.scope.launch {
+                        try {
+                            SupaRepo.get(myUid).wallet?.let { WalletRepo.emitBackup(myUid, it) }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) { }
+                    }
+                }
+            }
+        }
         val d = RoomExtras.observeEmotes(roomId) { emotes = it }
         val e1 = RoomRepo.observeMembers(roomId) { members = it }
         val e2 = RoomRepo.observeLocks(roomId) { locks = it }
