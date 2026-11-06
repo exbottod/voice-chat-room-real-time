@@ -773,7 +773,7 @@ fun RocketRail(roomId: String, onOpen: () -> Unit, modifier: Modifier = Modifier
     val pct = (frac * 100).toInt()
 
     Column(
-        modifier = modifier.width(52.dp),
+        modifier = modifier.width(58.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -803,7 +803,7 @@ fun RocketRail(roomId: String, onOpen: () -> Unit, modifier: Modifier = Modifier
                     .background(Brush.horizontalGradient(listOf(Color(0xFF4FC3F7), Color(0xFF00AAFF)))),
             )
         }
-        Text(tr("$pct%"), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Text(tr("$pct%"), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
     }
 }
 

@@ -70,6 +70,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import coil.compose.AsyncImage
@@ -655,12 +660,17 @@ fun RoomScreen(
             }
 
                 // Panel melayang sisi kanan: ikon roket + persen menuju level berikutnya.
+                // Ikon digeser masuk dari tepi kanan (aman untuk layar berlekuk /
+                // gesture tepi) dan digambar paling atas supaya tidak tertutup
+                // daftar chat atau terpotong di HP user lain.
                 if (ROCKET_ROOM_UI && fxRocketOn) RocketRail(
                     roomId = r.id,
                     onOpen = { rocketOpen = true },
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .padding(end = 4.dp, bottom = 10.dp),
+                        .zIndex(10f)
+                        .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.End))
+                        .padding(end = 14.dp, bottom = 10.dp),
                 )
             }
 
