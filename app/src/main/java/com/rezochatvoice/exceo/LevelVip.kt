@@ -221,6 +221,16 @@ object LvRepo {
 
     /** Pasang / lepas item ke slot (frame, bubble, badge, entry, banner, medals, ...). */
     suspend fun equip(uid: String, slot: String, id: String): String? {
+        // ID custom (Unique ID): nomornya didaftarkan supaya bisa dicari di app.
+        if (slot == "uid") {
+            if (id.isBlank()) {
+                UidAlias.lepas(uid)
+            } else {
+                val nomor = StoreCatalog.find(id)?.customId.orEmpty()
+                val salah = if (nomor.isBlank()) null else UidAlias.klaim(nomor, uid, id)
+                if (salah != null) return salah
+            }
+        }
         val r = SupaRepo.equip(uid, slot, id)
         r.wallet?.let { WalletRepo.emitBackup(uid, it) }
         // Lencana/medal/frame yang baru dipasang langsung dikirim ke profil
@@ -1152,6 +1162,7 @@ object PublicSync {
                 m["bubble"] = activeEquip(w2, "bubble")
                 m["badge"] = activeEquip(w2, "badge")
                 m["medals"] = activeMedalIds(w2).joinToString(",")
+                m["uidItem"] = activeEquip(w2, "uid")
                 m["exp"] = w2.exp
                 m["vip"] = w2.vip.toLong()
                 m["vipUntil"] = w2.vipUntil

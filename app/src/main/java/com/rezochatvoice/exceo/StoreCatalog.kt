@@ -33,6 +33,8 @@ data class CatalogItem(
     val asset: VipAsset,
     /** Diisi kalau item Unique ID dikunci ke satu akun (ID angka pemilik). */
     val targetUid: String = "",
+    /** Nomor ID custom yang dibawa item ini (mis. "1000"), bisa dicari di app. */
+    val customId: String = "",
 ) {
     fun toStoreItem() = StoreItem("sx_$id", slot, name, "\uD83C\uDF81", price, days, Color(0xFFD4AF37), 0, asset)
 }
@@ -125,6 +127,7 @@ object StoreCatalog {
                     c.child("order").getValue(Long::class.java) ?: 0L,
                     asset,
                     c.child("targetUid").getValue(String::class.java) ?: "",
+                    c.child("customId").getValue(String::class.java) ?: "",
                 )
             }
             apply()
@@ -158,6 +161,7 @@ object StoreCatalog {
                             d.getLong("order") ?: 0L,
                             asset,
                             d.getString("targetUid") ?: "",
+                            d.getString("customId") ?: "",
                         )
                     }
                     fsMap.clear()

@@ -237,6 +237,11 @@ label{font-size:12px;color:var(--mut)}
       <input type="text" id="stUidCari" placeholder="Ketik ID, mis. 1000" inputmode="numeric" autocomplete="off">
       <div id="stUidHasil" style="margin-top:6px"></div>
       <div class="muted" id="stUidInfo" style="font-size:12px">Kalau diisi, item langsung dipasang ke akun itu otomatis.</div>
+    <div id="stCustomWrap" style="display:none;margin-top:10px">
+      <label>Nomor ID custom yang tertulis di gambar (mis. 1000)</label>
+      <input id="stCustomId" inputmode="numeric" placeholder="1000" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 6px">
+      <div class="muted" style="font-size:12px">Pembeli item ini otomatis memakai nomor ini, dan nomor itu bisa dicari di app.</div>
+    </div>
     </div>
     <label>Nama item</label><input type="text" id="stName" placeholder="Contoh: Bingkai Vietnam">
     <label>Harga (koin)</label><input type="number" id="stPrice" value="1000000" min="0">
@@ -3514,6 +3519,7 @@ async function storeSave(c, el, btn){
   const base = { store: true, meta: false, id: id, slot: slot, name: name, price: price, days: days, order: order };
   // Item Unique ID boleh dikunci ke satu akun lewat pencarian ID di atas.
   const pakaiSlot = (slot === "uid" || slot === "badge");
+  const customId = slot === "uid" ? String($("stCustomId").value || "").replace(/[^0-9]/g, "") : "";
   const targetUid = (!c && pakaiSlot && stUidFb) ? stUidFb : "";
   if (btn) btn.disabled = true;
   try {
@@ -3533,9 +3539,9 @@ async function storeSave(c, el, btn){
       const e = vipExt(finalUrl);
       if (e && !sl.accept.includes("." + e)) { toast("Format URL harus " + sl.accept.join(" ")); return; }
       // Realtime Database: kuota terpisah, tidak lagi tergantung Firestore.
-      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() }, targetUid ? { targetUid: targetUid } : {}));
+      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() }, targetUid ? { targetUid: targetUid } : {}, customId ? { customId: customId } : {}));
     } else {
-      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: c.kind, url: c.url || "", hasData: !!c.hasData, chunks: c.chunks || 0, updatedAt: c.updatedAt || Date.now() }));
+      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: c.kind, url: c.url || "", hasData: !!c.hasData, chunks: c.chunks || 0, updatedAt: c.updatedAt || Date.now() }, customId ? { customId: customId } : {}));
     }
     logAction({ type: "storeItem", id: id, slot: slot });
     if (c) delete pendingFiles[c.id];

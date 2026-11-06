@@ -377,7 +377,13 @@
     "uidCustom": {
       ".read": "auth != null",
       "$cid": {
-        ".write": "auth != null && auth.token.email === 'developerex100@gmail.com'"
+        ".write": "auth != null && (auth.token.email === 'developerex100@gmail.com' || !data.exists() || data.child('uid').val() === auth.uid)"
+      }
+    },
+    "uidAliasOf": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
       }
     }
   }

@@ -683,3 +683,52 @@ object UserDirectory {
         }
     }
 }
+
+/**
+ * ID custom (item Unique ID) dipetakan ke akun lewat RTDB:
+ *   uidCustom/{nomorID} = { uid, itemId }  -> dipakai pencarian & profil
+ *   uidAliasOf/{uid}    = nomorID          -> supaya bisa dilepas lagi
+ * Satu nomor hanya boleh dipakai satu akun; akun lain ditolak.
+ */
+object UidAlias {
+    suspend fun klaim(customId: String, uid: String, itemId: String): String? {
+        val nomor = customId.trim()
+        if (nomor.isBlank() || uid.isBlank()) return "Nomor ID custom kosong"
+        val ref = Rtdb.ref("uidCustom/$nomor")
+        var pemilik = ""
+        try {
+            val hasil = ref.runTransaction(object : com.google.firebase.database.Transaction.Handler {
+                override fun doTransaction(mut: com.google.firebase.database.MutableData): com.google.firebase.database.Transaction.Result {
+                    val lama = mut.child("uid").getValue(String::class.java).orEmpty()
+                    if (lama.isNotBlank() && lama != uid) {
+                        pemilik = lama
+                        return com.google.firebase.database.Transaction.abort()
+                    }
+                    mut.child("uid").value = uid
+                    mut.child("itemId").value = itemId
+                    mut.child("at").value = System.currentTimeMillis()
+                    return com.google.firebase.database.Transaction.success(mut)
+                }
+                override fun onComplete(error: com.google.firebase.database.DatabaseError?, committed: Boolean, snap: com.google.firebase.database.DataSnapshot?) { }
+            }).await()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return "ID $nomor sedang dipakai akun lain"
+        }
+        if (pemilik.isNotBlank() && pemilik != uid) return "ID $nomor sedang dipakai akun lain"
+        try { Rtdb.ref("uidAliasOf/$uid").setValue(nomor).await() } catch (e: Exception) { }
+        return null
+    }
+
+    suspend fun lepas(uid: String) {
+        try {
+            val nomor = Rtdb.ref("uidAliasOf/$uid").get().await().getValue(String::class.java).orEmpty()
+            if (nomor.isNotBlank()) {
+                val pemilik = Rtdb.ref("uidCustom/$nomor/uid").get().await().getValue(String::class.java).orEmpty()
+                if (pemilik == uid) Rtdb.ref("uidCustom/$nomor").removeValue().await()
+            }
+            Rtdb.ref("uidAliasOf/$uid").removeValue().await()
+        } catch (e: Exception) { }
+    }
+}
