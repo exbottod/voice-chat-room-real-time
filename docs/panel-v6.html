@@ -437,6 +437,7 @@ label{font-size:12px;color:var(--mut)}
       <button class="btn" id="tpSave">Simpan daftar</button>
     </div>
     <div class="muted" id="tpMsg" style="margin-top:8px"></div>
+    <div class="muted" style="margin-top:6px;font-size:11px">Versi panel: 2026-11-06c</div>
   </div>
   <div class="card">
     <h2>Nomor DANA untuk topup</h2>
@@ -1007,6 +1008,7 @@ function renderBanners(){
     row.append(im, info, lk, ord, act, del);
     box.appendChild(row);
   });
+  tpBind();
 }
 
 
@@ -1584,7 +1586,7 @@ function pilihTab(k){
   if (key === "cb") cbStart();
   if (key === "rocket") rocketStart();
   if (key === "bet") gcStart();
-  if (key === "topup") { tpLoad(); payLoad(); manualLoad(false); }
+  if (key === "topup") { tpBind(); tpLoad(); payLoad(); manualLoad(false); }
   if (key === "staff") pstStart();
   if (key === "seller") sellerStart();
   if (key === "sstock") sstockStart();
@@ -3806,14 +3808,21 @@ async function tpLoad() {
   }
   tpRender();
 }
-$("tpAdd").onclick = () => { tpRows.push({ coins: 0, price: "" }); tpRender(); };
-$("tpReset").onclick = () => { tpRows = TP_DEFAULT.map(x => ({ ...x })); tpRender(); $("tpMsg").textContent = "Daftar bawaan dimuat. Tekan Simpan untuk menerapkan."; };
-$("tpSave").onclick = async () => {
+function tpBind() {
+  const a = $("tpAdd"), r = $("tpReset"), sv = $("tpSave");
+  if (a) a.onclick = () => { tpRows.push({ coins: 0, price: "" }); tpRender(); };
+  if (r) r.onclick = () => {
+    tpRows = TP_DEFAULT.map(x => ({ ...x })); tpRender();
+    const m = $("tpMsg"); if (m) m.textContent = "Daftar bawaan dimuat. Tekan Simpan untuk menerapkan.";
+  };
+  if (sv) sv.onclick = tpSimpan;
+}
+async function tpSimpan() {
   const bersih = tpRows
     .map(r => ({ coins: Math.floor(Number(r.coins) || 0), price: String(r.price || "").trim() }))
     .filter(r => r.coins > 0 && r.price);
   if (!bersih.length) { $("tpMsg").textContent = "Isi minimal satu paket (coin dan harga)."; return; }
-  const btn = $("tpSave"); btn.disabled = true;
+  const btn = $("tpSave"); if (btn) btn.disabled = true;
   let cara = "", galat = [];
   try {
     await db.collection("vipConfig").doc("topupPacks").set({ packs: bersih, ts: Date.now() });
@@ -3826,14 +3835,19 @@ $("tpSave").onclick = async () => {
   } catch (e) { galat.push("RTDB: " + (e.message || "")); }
   if (cara) {
     tpRows = bersih; tpRender();
-    $("tpMsg").textContent = "Tersimpan di " + cara + " ✅ (" + bersih.length + " paket). Aplikasi memuat daftar baru otomatis.";
-    toast("Daftar topup tersimpan ✅");
+    const m1 = "Tersimpan di " + cara + " (" + bersih.length + " paket).\nDaftar baru langsung dipakai aplikasi saat Dompet dibuka.";
+    $("tpMsg").textContent = m1.replace("\n", " ");
+    toast("Daftar topup tersimpan");
+    alert(m1);
   } else {
     const u = auth.currentUser || {};
-    $("tpMsg").textContent = "Gagal simpan. " + galat.join(" | ") +
-      " | akun: " + (u.email || "-") + " provider: " + ((u.providerData && u.providerData[0] && u.providerData[0].providerId) || "-");
+    const m2 = "Gagal simpan.\n" + galat.join("\n") +
+      "\nAkun: " + (u.email || "belum login") +
+      " | provider: " + ((u.providerData && u.providerData[0] && u.providerData[0].providerId) || "-");
+    $("tpMsg").textContent = m2.replace(/\n/g, " ");
+    alert(m2);
   }
-  btn.disabled = false;
+  if (btn) btn.disabled = false;
 };
 
 // ============ Topup manual DANA ============
