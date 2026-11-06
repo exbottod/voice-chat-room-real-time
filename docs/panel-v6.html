@@ -3445,20 +3445,18 @@ async function stUidCariJalan(teks){
   stUidFb = "";
   $("stUidInfo").textContent = "Kalau diisi, item langsung dipasang ke akun itu otomatis.";
   if (q.length < 2) { box.innerHTML = ""; return; }
-  box.innerHTML = '<div class="muted" style="font-size:12px">Mencari…</div>';
-  try {
-    const semua = await stIdIndex();
-    const cocok = semua.filter(x => x.id.startsWith(q)).slice(0, 8);
-    if (!cocok.length) { box.innerHTML = '<div class="muted" style="font-size:12px">ID tidak ditemukan</div>'; return; }
+  box.innerHTML = '<div class="muted" style="font-size:12px">Mencari akun dengan ID ' + q + '…</div>';
+  const tampil = async (daftar) => {
+    if (!daftar.length) { box.innerHTML = '<div class="muted" style="font-size:12px">ID ' + q + ' belum terdaftar. Pastikan akun sudah pernah membuka app versi terbaru.</div>'; return; }
     const nama = {};
-    await Promise.all(cocok.map(async x => {
+    await Promise.all(daftar.map(async x => {
       if (!x.uid) return;
       try {
         const sn = await rtdb.ref("pub/" + x.uid).get();
         if (sn.exists()) { const v = sn.val() || {}; nama[x.id] = { n: v.name || v.nama || "", p: v.photoUrl || v.photo || v.avatar || "" }; }
       } catch (e) {}
     }));
-    box.innerHTML = cocok.map(x => {
+    box.innerHTML = daftar.map(x => {
       const m = nama[x.id] || {};
       const foto = m.p ? '<img src="' + m.p + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover">' : '<div style="width:34px;height:34px;border-radius:50%;background:#222"></div>';
       return '<div class="row-uid" data-id="' + x.id + '" data-uid="' + (x.uid || "") + '" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;cursor:pointer">'
@@ -3471,10 +3469,29 @@ async function stUidCariJalan(teks){
       el.style.background = "rgba(255,215,110,.14)";
       $("stUidInfo").textContent = "Dipilih: ID " + stUidPilih + ". Gambar langsung dipasang ke akun ini setelah disimpan.";
     });
+  };
+  try {
+    // 1) ID persis: satu pembacaan cepat, tidak perlu memuat seluruh daftar.
+    const tepat = await rtdb.ref("ids/i/" + q).get();
+    if (tepat.exists()) {
+      const v = tepat.val() || {};
+      const uid = (typeof v === "object" ? (v.uid || v.u || "") : String(v || ""));
+      await tampil([{ id: q, uid: uid }]);
+      return;
+    }
+    // 2) Sebagian ID: pindai daftar (dibatasi 6 detik supaya tidak menggantung).
+    const pindai = (async () => {
+      const semua = await stIdIndex();
+      return semua.filter(x => x.id.startsWith(q)).slice(0, 8);
+    })();
+    const cocok = await Promise.race([pindai, new Promise(r => setTimeout(() => r(null), 6000))]);
+    if (cocok === null) { box.innerHTML = '<div class="muted" style="font-size:12px">Pencarian lambat. Ketik ID lengkap (mis. 100374) supaya langsung ketemu.</div>'; return; }
+    await tampil(cocok);
   } catch (e) {
     box.innerHTML = '<div class="muted" style="font-size:12px">Gagal mencari: ' + (e.message || e) + '</div>';
   }
 }
+
 async function storeSave(c, el, btn){
   const name = el.name.value.trim(), price = parseInt(el.price.value, 10), days = parseInt(el.days.value, 10), order = parseInt(el.order.value, 10) || 0;
   if (!name) return toast("Isi nama item");
