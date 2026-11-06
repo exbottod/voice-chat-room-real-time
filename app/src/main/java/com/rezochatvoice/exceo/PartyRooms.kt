@@ -341,15 +341,18 @@ fun CreateRoomDialog(ownerUid: String, ownerName: String, onDismiss: () -> Unit,
                 colors = goldFieldColors(),
             )
             Spacer(Modifier.height(18.dp))
-            GoldButton(tr("Buat"), enabled = name.isNotBlank() && !busy) {
+            GoldButton(if (busy) tr("Membuat room...") else tr("Buat"), enabled = name.isNotBlank() && !busy) {
+                if (busy) return@GoldButton
                 scope.launch {
                     busy = true
                     try {
-                        onCreated(RoomRepo.createRoom(ownerUid, ownerName, name.trim(), photo))
+                        val r = RoomRepo.createRoom(ownerUid, ownerName, name.trim(), photo)
+                        busy = false
+                        onCreated(r)
                     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+                        busy = false
                         Toast.makeText(context, tr("Gagal membuat room: ${e.message}"), Toast.LENGTH_LONG).show()
                     }
-                    busy = false
                 }
             }
         }

@@ -44,4 +44,5 @@ val TR_EXTRA_ADMIN: Map<String, String> = mapOf(
     "Berhasil" to "Success",
     "Gagal" to "Failed",
     "Tutup" to "Close",
+    "Membuat room..." to "Creating room...",
 )

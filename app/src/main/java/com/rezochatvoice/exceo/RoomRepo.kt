@@ -132,9 +132,67 @@ object RoomRepo {
     }
 
     suspend fun createRoom(ownerUid: String, ownerName: String, name: String, photoB64: String?): RoomInfo {
-        findOwned(ownerUid)?.let { return it }
+        // Cek room milik sendiri dengan batas waktu: kalau Firestore lambat/kuota habis,
+        // jangan membuat pengguna menunggu. Cukup 3 detik, lalu lanjut membuat.
+        try {
+            kotlinx.coroutines.withTimeoutOrNull(3000L) { findOwned(ownerUid) }?.let { return it }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+        // Room lama milik sendiri yang ada di Realtime Database (tanpa Firestore).
+        try {
+            val snap = kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                Rtdb.ref("roomsPub").orderByChild("ownerUid").equalTo(ownerUid).limitToFirst(1).get().await()
+            }
+            val ada = snap?.children?.firstOrNull()
+            if (ada != null) {
+                val id = ada.key
+                if (id != null && !isHidden(id)) pubToRoom(id, ada)?.let { return it }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+
         val ref = db().collection("rooms").document()
         val no = (10000000..99999999).random().toString()
+        val created = RoomInfo(ref.id, no, name, ownerUid, ownerName, photoB64, null, "", 8, "", 0)
+        val now = System.currentTimeMillis()
+
+        // 1) REALTIME DATABASE = sumber utama. Ditulis lengkap dan DITUNGGU,
+        //    supaya room benar-benar tersimpan sebelum pemilik masuk.
+        val pub = hashMapOf<String, Any?>(
+            "roomNo" to no,
+            "name" to name,
+            "ownerUid" to ownerUid,
+            "ownerName" to ownerName,
+            "announcement" to "",
+            "micCount" to 8L,
+            "lockHash" to "",
+            "createdAt" to now,
+        )
+        var rtdbOk = false
+        try {
+            rtdbOk = kotlinx.coroutines.withTimeoutOrNull(12_000L) {
+                Rtdb.ref("roomsPub/" + ref.id).updateChildren(pub).await(); true
+            } == true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
+
+        // 2) Foto room disimpan di node sendiri (roomsBg), sama seperti saat edit pengaturan.
+        if (!photoB64.isNullOrBlank()) {
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(12_000L) {
+                    Rtdb.ref("roomsBg/" + ref.id)
+                        .updateChildren(hashMapOf<String, Any?>("at" to now, "photo" to photoB64)).await()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) { }
+            RoomImg.simpan(ref.id, photoB64, null)
+        }
+
+        // 3) Firestore = cadangan. Tidak boleh menahan pemilik masuk room.
         val data = hashMapOf<String, Any?>(
             "roomNo" to no,
             "name" to name,
@@ -146,12 +204,20 @@ object RoomRepo {
             "micCount" to 8,
             "lockHash" to "",
             "online" to 0,
-            "createdAt" to System.currentTimeMillis(),
+            "createdAt" to now,
         )
-        val created = RoomInfo(ref.id, no, name, ownerUid, ownerName, photoB64, null, "", 8, "", 0)
-        // RTDB dulu (tidak kena kuota Firestore), lalu Firestore.
-        mirrorRoom(created)
-        ref.set(data).await()
+        val fsOk = try {
+            kotlinx.coroutines.withTimeoutOrNull(6000L) { ref.set(data).await(); true } == true
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { false }
+        if (!fsOk) {
+            // Teruskan penulisan Firestore di latar belakang (tidak menahan layar).
+            ref.set(data)
+        }
+        if (!rtdbOk && !fsOk) {
+            throw Exception("koneksi lambat, coba lagi")
+        }
         return created
     }
 
