@@ -80,9 +80,11 @@ object AgoraVoice {
                 if (r == null) { delay(300); continue }
                 val m = HashMap<String, Float>()
                 try {
-                    m[r.localParticipant.identity.value] = r.localParticipant.audioLevel
+                    val uidSaya = r.localParticipant.identity?.value
+                    if (uidSaya != null) m[uidSaya] = r.localParticipant.audioLevel
                     for ((_, p) in r.remoteParticipants) {
-                        m[p.identity.value] = p.audioLevel
+                        val id = p.identity?.value ?: continue
+                        m[id] = p.audioLevel
                     }
                 } catch (e: Exception) { }
                 levels = m
@@ -96,7 +98,7 @@ object AgoraVoice {
         levelJob?.cancel(); levelJob = null
         levels = emptyMap()
     }
-        private set
+
     @Volatile var onProblem: ((String) -> Unit)? = null
 
     // ===== Volume & rute suara =====
