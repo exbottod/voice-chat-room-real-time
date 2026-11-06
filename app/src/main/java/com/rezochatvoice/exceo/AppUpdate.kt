@@ -79,6 +79,17 @@ object AppUpdate {
     /** "1.0.683" -> 683. Nomor terakhir dipakai sebagai urutan build. */
     fun build(v: String): Int = v.trim().substringAfterLast('.').toIntOrNull() ?: 0
 
+    /**
+     * Versi terpasang pada HP ini.
+     */
+    /**
+     * Versi dasar tertua yang masih punya jalur unduhan kecil. Pengguna dengan
+     * versi lebih tua dari ini tidak akan pernah mendapat patch, jadi dialog
+     * pembaruan harus menawarkan APK penuh supaya mereka tidak tertinggal.
+     */
+    @Volatile
+    var versiDasar: String = ""
+
     fun installedVersion(ctx: Context): String = try {
         ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
     } catch (e: Exception) { "" }
@@ -138,6 +149,11 @@ object AppUpdate {
             val ke = j.optString("versi_baru")
             if (dari.isNotBlank() && ke.isNotBlank()) pasangan.add(j)
         }
+
+        versiDasar = pasangan
+            .map { it.optString("dari") }
+            .filter { it.isNotBlank() }
+            .minByOrNull { build(it) } ?: ""
 
         var kini = versiTerpasang
         val langkah = ArrayList<Langkah>()
@@ -378,7 +394,13 @@ fun UpdateGate() {
             val found = AppUpdate.check(ctx)
             if (found == null) return@LaunchedEffect
             val kecil = found.patch
-            if (kecil != null && kecil.ukuran > 0) {
+            // Versi terpasang lebih tua dari rantai patch yang tersedia:
+            // tidak akan pernah ada unduhan kecil, jadi tawarkan APK penuh.
+            // Tanpa ini pengguna lama tidak pernah melihat dialog pembaruan
+            // dan selamanya memakai versi lama.
+            val terlaluLama = AppUpdate.versiDasar.isNotBlank() &&
+                AppUpdate.build(AppUpdate.installedVersion(ctx)) < AppUpdate.build(AppUpdate.versiDasar)
+            if ((kecil != null && kecil.ukuran > 0) || terlaluLama) {
                 // "Nanti" hanya menunda untuk versi yang sama selama 6 jam.
                 val skipV = prefs.getString("skip_v", "") ?: ""
                 val skipAt = prefs.getLong("skip_at", 0L)
@@ -415,6 +437,10 @@ fun UpdateGate() {
                 lineHeight = 19.sp,
             )
             val kecil = i.patch
+            if (kecil == null && i.patch == null) {
+                Spacer(Modifier.height(8.dp))
+                Text(tr("Unduhan penuh (sekali saja)"), color = Color(0xFFFFC21A), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
             if (kecil != null && kecil.ukuran > 0) {
                 Spacer(Modifier.height(8.dp))
                 Text(
