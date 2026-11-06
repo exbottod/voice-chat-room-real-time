@@ -808,6 +808,7 @@ private fun ItemPreview(item: StoreItem, size: Dp = 70.dp) {
 }
 
 private fun slotLabel(slot: String) = when (slot) {
+    "uid" -> "Unique ID"
     "frame" -> "Bingkai"
     "bubble" -> "Gelembung"
     "badge" -> "Lencana"
@@ -832,6 +833,8 @@ private fun fmtShort(n: Long): String {
 
 private val STORE_CATS = listOf(
     Triple("frame", "Bingkai avatar", "\u2B55"),
+    // Tab baru: gambar ID unik yang menggantikan teks ID bawaan.
+    Triple("uid", "Unique ID", "\uD83C\uDD94"),
     Triple("entry", "Efek masuk", "\u2728"),
     Triple("banner", "Banner masuk", "\uD83D\uDEA9"),
     Triple("badge", "Lencana", "\uD83C\uDF96\uFE0F"),

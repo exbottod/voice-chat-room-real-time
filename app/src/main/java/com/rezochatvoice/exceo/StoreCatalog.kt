@@ -206,6 +206,20 @@ fun entryAssetOf(m: RoomMsg): VipAsset? {
  * jadi lencana panjang (mis. SVIP9) tampil utuh tanpa mengecil tergencet.
  */
 @Composable
+/**
+ * ID unik (slot "uid") yang sedang dipakai: tingginya sama seperti teks ID
+ * bawaan, lebarnya mengikuti rasio gambar sehingga pas di semua ukuran HP.
+ */
+@Composable
+fun UidUnikId(a: VipAsset, tinggi: Dp = 20.dp) {
+    var ratio by remember(a.n, a.slot, a.updatedAt) { mutableStateOf(3f) }
+    val ctx = LocalContext.current
+    LaunchedEffect(a.n, a.slot, a.updatedAt) {
+        ratio = runCatching { measureAssetRatio(ctx, a) }.getOrNull() ?: 3f
+    }
+    VipMedia(a, Modifier.height(tinggi).width((tinggi.value * ratio).dp), loop = true)
+}
+
 fun StoreBadgeIcon(item: StoreItem, size: Dp = 24.dp) {
     val a = item.asset
     if (a == null) {

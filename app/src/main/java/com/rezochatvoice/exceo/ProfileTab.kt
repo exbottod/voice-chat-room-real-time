@@ -274,7 +274,15 @@ fun ProfileTab(
                                 },
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text(tr("UID:$userId"), color = ink.copy(alpha = 0.75f), fontSize = 13.sp)
+                                // ID unik: kalau user sudah beli & pasang, teks ID
+                                // diganti gambarnya dengan tinggi sama seperti teks.
+                                val uidIdUnik = wallet.equip["uid"].orEmpty()
+                                val uidAset = StoreCatalog.find(uidIdUnik.ifBlank { null })?.asset
+                                if (uidAset != null) {
+                                    UidUnikId(uidAset, 20.dp)
+                                } else {
+                                    Text(tr("UID:$userId"), color = ink.copy(alpha = 0.75f), fontSize = 13.sp)
+                                }
                                 Spacer(Modifier.width(6.dp))
                                 Text("📋", fontSize = 14.sp)
                             }
