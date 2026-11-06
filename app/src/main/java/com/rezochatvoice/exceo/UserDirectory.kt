@@ -694,31 +694,25 @@ object UidAlias {
     suspend fun klaim(customId: String, uid: String, itemId: String): String? {
         val nomor = customId.trim()
         if (nomor.isBlank() || uid.isBlank()) return "Nomor ID custom kosong"
-        val ref = Rtdb.ref("uidCustom/$nomor")
-        var pemilik = ""
-        try {
-            val hasil = ref.runTransaction(object : com.google.firebase.database.Transaction.Handler {
-                override fun doTransaction(mut: com.google.firebase.database.MutableData): com.google.firebase.database.Transaction.Result {
-                    val lama = mut.child("uid").getValue(String::class.java).orEmpty()
-                    if (lama.isNotBlank() && lama != uid) {
-                        pemilik = lama
-                        return com.google.firebase.database.Transaction.abort()
-                    }
-                    mut.child("uid").value = uid
-                    mut.child("itemId").value = itemId
-                    mut.child("at").value = System.currentTimeMillis()
-                    return com.google.firebase.database.Transaction.success(mut)
-                }
-                override fun onComplete(error: com.google.firebase.database.DatabaseError?, committed: Boolean, snap: com.google.firebase.database.DataSnapshot?) { }
-            }).await()
+        return try {
+            val lama = Rtdb.ref("uidCustom/$nomor/uid").get().await().getValue(String::class.java).orEmpty()
+            if (lama.isNotBlank() && lama != uid) return "ID $nomor sedang dipakai akun lain"
+            // Nomor lama milik akun ini dilepas supaya tidak dobel.
+            val bekas = Rtdb.ref("uidAliasOf/$uid").get().await().getValue(String::class.java).orEmpty()
+            if (bekas.isNotBlank() && bekas != nomor) {
+                val pemilikBekas = Rtdb.ref("uidCustom/$bekas/uid").get().await().getValue(String::class.java).orEmpty()
+                if (pemilikBekas == uid) Rtdb.ref("uidCustom/$bekas").removeValue().await()
+            }
+            Rtdb.ref("uidCustom/$nomor").setValue(
+                hashMapOf<String, Any?>("uid" to uid, "itemId" to itemId, "at" to System.currentTimeMillis()),
+            ).await()
+            Rtdb.ref("uidAliasOf/$uid").setValue(nomor).await()
+            null
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            return "ID $nomor sedang dipakai akun lain"
+            "ID $nomor belum bisa dipakai, coba lagi"
         }
-        if (pemilik.isNotBlank() && pemilik != uid) return "ID $nomor sedang dipakai akun lain"
-        try { Rtdb.ref("uidAliasOf/$uid").setValue(nomor).await() } catch (e: Exception) { }
-        return null
     }
 
     suspend fun lepas(uid: String) {
