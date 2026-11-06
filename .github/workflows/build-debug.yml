@@ -99,8 +99,14 @@ jobs:
           cp "$D/app-arm64-v8a-release.apk" REZO-CHAT-VOICE-arm64.apk
           cp "$D/app-armeabi-v7a-release.apk" REZO-CHAT-VOICE-armv7.apk
           cp "$D/app-universal-release.apk" REZO-CHAT-VOICE-universal.apk
-          NOTES="Build otomatis dari commit ${GITHUB_SHA::7}. Link utama REZO-CHAT-VOICE.apk = arm64 (HP baru). Untuk HP lama 32-bit pakai armv7, universal kalau ragu."
-          BERKAS="REZO-CHAT-VOICE.apk REZO-CHAT-VOICE-arm64.apk REZO-CHAT-VOICE-armv7.apk REZO-CHAT-VOICE-universal.apk"
+          # Nama berversi: file tidak pernah ditimpa build lain, jadi unduhan
+          # tidak bisa terpotong di tengah jalan ("gagal mengurai paket").
+          VER="1.0.${GITHUB_RUN_NUMBER}"
+          cp "$D/app-arm64-v8a-release.apk" "REZO-CHAT-VOICE-$VER-arm64.apk"
+          cp "$D/app-armeabi-v7a-release.apk" "REZO-CHAT-VOICE-$VER-armv7.apk"
+          cp "$D/app-universal-release.apk" "REZO-CHAT-VOICE-$VER-universal.apk"
+          NOTES="Versi $VER (commit ${GITHUB_SHA::7}). Pakai REZO-CHAT-VOICE-$VER-arm64.apk untuk HP baru, $VER-armv7 untuk HP lama 32-bit, $VER-universal kalau ragu. Kalau pemasangan gagal, hapus APK lama di folder Download lalu unduh ulang."
+          BERKAS="REZO-CHAT-VOICE.apk REZO-CHAT-VOICE-arm64.apk REZO-CHAT-VOICE-armv7.apk REZO-CHAT-VOICE-universal.apk REZO-CHAT-VOICE-$VER-arm64.apk REZO-CHAT-VOICE-$VER-armv7.apk REZO-CHAT-VOICE-$VER-universal.apk"
           if gh release view terbaru >/dev/null 2>&1; then
             gh release upload terbaru $BERKAS --clobber
             gh release edit terbaru --notes "$NOTES" --latest
