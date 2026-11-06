@@ -234,7 +234,7 @@ fun AppRoot() {
                     store.save(profile)
                     user = profile
                     FirebaseSession.saveProfile(uid, profile)?.let {
-                        toast("Profil belum tersimpan di server: ${it.message}")
+                        toast(tr("Profil belum tersimpan di server: ${it.message}"))
                     }
                 } else {
                     toast(tr("Tipe kredensial tidak dikenal"))
@@ -248,20 +248,20 @@ fun AppRoot() {
                 if (tipe.contains("USER_CANCELED") || tipe.contains("CANCELED")) {
                     toast(tr("Login Google dibatalkan."))
                 } else {
-                    toast("Google menolak login [${tipe.ifBlank { "tanpa tipe" }}]. Periksa SHA-1, package, dan provider Google di Firebase.")
+                    toast(tr("Google menolak login [${tipe.ifBlank { "tanpa tipe" }}]. Periksa SHA-1, package, dan provider Google di Firebase."))
                 }
             } catch (e: NoCredentialException) {
                 Log.e("GoogleLogin", "Tidak ada akun Google di perangkat", e)
                 toast(tr("Tidak ada akun Google di perangkat. Tambahkan akun Google di Pengaturan lalu coba lagi."))
             } catch (e: GetCredentialException) {
                 Log.e("GoogleLogin", "Login gagal", e)
-                toast("Login gagal [${e.type}]: ${e.message}")
+                toast(tr("Login gagal [${e.type}]: ${e.message}"))
             } catch (e: GoogleIdTokenParsingException) {
                 Log.e("GoogleLogin", "Token tidak valid", e)
                 toast(tr("Token Google tidak valid"))
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 Log.e("GoogleLogin", "Gagal masuk Firebase", e)
-                toast("Gagal masuk: ${e.message}")
+                toast(tr("Gagal masuk: ${e.message}"))
             } finally {
                 loading = false
             }
@@ -293,7 +293,7 @@ fun AppRoot() {
                 store.save(profil)
                 user = profil
                 FirebaseSession.saveProfile(fbUser.uid, profil)?.let {
-                    toast("Profil belum tersimpan di server: ${it.message}")
+                    toast(tr("Profil belum tersimpan di server: ${it.message}"))
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -363,12 +363,12 @@ fun AppRoot() {
                 store.save(profil)
                 user = profil
                 FirebaseSession.saveProfile(fbUser.uid, profil)?.let {
-                    toast("Profil belum tersimpan di server: ${it.message}")
+                    toast(tr("Profil belum tersimpan di server: ${it.message}"))
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                toast("Gagal menyimpan sesi: ${e.message}")
+                toast(tr("Gagal menyimpan sesi: ${e.message}"))
             } finally {
                 loading = false
             }
@@ -412,7 +412,7 @@ fun AppRoot() {
         PhoneAuthLogin.verifikasi(verificationId, kode) { fbUser, err ->
             if (fbUser == null) {
                 loading = false
-                toast("Login gagal: ${err ?: "kode tidak valid"}")
+                toast(tr("Login gagal: ${err ?: "kode tidak valid"}"))
                 return@verifikasi
             }
             // Akun lama sudah punya password tertaut: langsung masuk.
@@ -446,7 +446,7 @@ fun AppRoot() {
                     val err = FirebaseSession.tautkanPassword(nomor.ifBlank { nomorBaruHp }, password.trim())
                     if (err != null && err !is com.google.firebase.auth.FirebaseAuthUserCollisionException) {
                         loading = false
-                        toast("Gagal menyimpan password: ${err.message}")
+                        toast(tr("Gagal menyimpan password: ${err.message}"))
                         return@launch
                     }
                 }
@@ -465,7 +465,7 @@ fun AppRoot() {
                         return@launch
                     } catch (e: Exception) {
                         loading = false
-                        toast("Gagal membuat akun: ${e.message ?: "coba lagi"}")
+                        toast(tr("Gagal membuat akun: ${e.message ?: "coba lagi"}"))
                         return@launch
                     }
                 }
@@ -479,7 +479,7 @@ fun AppRoot() {
                 throw e
             } catch (e: Exception) {
                 loading = false
-                toast("Gagal mendaftar: ${e.message ?: "coba lagi"}")
+                toast(tr("Gagal mendaftar: ${e.message ?: "coba lagi"}"))
             }
         }
     }

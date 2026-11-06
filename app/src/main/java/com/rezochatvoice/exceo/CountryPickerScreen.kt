@@ -57,7 +57,8 @@ fun CountryPickerScreen(
                     imageVector = Icons.Default.ArrowBack, contentDescription = tr("Kembali"),
                     tint = Color.White, modifier = Modifier.size(24.dp).clickable { onKembali() },
                 )
-                Text(tr("Pilih kode area ponsel"),
+                Text(
+                    tr("Pilih kode area ponsel"),
                     color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
                 )

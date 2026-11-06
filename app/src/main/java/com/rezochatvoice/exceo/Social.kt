@@ -469,7 +469,8 @@ fun LevelBadge(level: Int, modifier: Modifier = Modifier, height: Dp = 18.dp) {
         }
         val kepadatan = androidx.compose.ui.platform.LocalDensity.current
         val ukuranSp = with(kepadatan) { (height * skala).toSp() }
-        Text(tr("$level"),
+        Text(
+            tr("$level"),
             color = Color.White,
             fontSize = ukuranSp,
             fontWeight = FontWeight.Bold,
@@ -500,10 +501,10 @@ fun MedalRow(medals: List<String> = emptyList(), slots: Int = 8) {
 fun GenderBadge(gender: String) {
     when (gender) {
         "M" -> Box(Modifier.size(22.dp).clip(CircleShape).background(Color(0xFF1E88E5)), Alignment.Center) {
-            Text(tr("♂"), color = Color.White, fontSize = 13.sp)
+            Text("♂", color = Color.White, fontSize = 13.sp)
         }
         "F" -> Box(Modifier.size(22.dp).clip(CircleShape).background(Color(0xFFEC407A)), Alignment.Center) {
-            Text(tr("♀"), color = Color.White, fontSize = 13.sp)
+            Text("♀", color = Color.White, fontSize = 13.sp)
         }
     }
 }
@@ -601,7 +602,7 @@ fun UserProfileSheet(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Toast.makeText(context, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, tr("Gagal: ${e.message}"), Toast.LENGTH_LONG).show()
             }
             busy = false
         }
@@ -804,7 +805,8 @@ fun FollowListScreen(
             Modifier.fillMaxWidth().height(56.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(tr("\u2039"), color = Color.Black, fontSize = 30.sp,
+            Text(
+                "\u2039", color = Color.Black, fontSize = 30.sp,
                 modifier = Modifier.clickable(onClick = onBack).padding(horizontal = 16.dp),
             )
             Text(

@@ -320,7 +320,7 @@ fun DragonTigerScreen(
                 ) {
                     Text(tr("Saldo koin saya:"), color = Color(0xFFFFE082), fontSize = 12.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(tr("🪙 ") + balance.toString(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("🪙 " + balance.toString(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.weight(1f))
                         Box(
                             Modifier.padding(start = 6.dp).size(46.dp).clip(CircleShape)
@@ -333,7 +333,7 @@ fun DragonTigerScreen(
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(tr("x2"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("x2", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                         chips.forEachIndexed { i, v ->
                             val c = DT_CHIP_COLORS[i % DT_CHIP_COLORS.size]
@@ -386,7 +386,7 @@ fun DragonTigerScreen(
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     Text(row.first, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                    Text(tr("+") + fmt(row.third), color = Color(0xFF69F0AE), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text("+" + fmt(row.third), color = Color(0xFF69F0AE), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -408,7 +408,7 @@ private fun MiniCard(card: Card?, back: Color) {
         contentAlignment = Alignment.Center,
     ) {
         if (card == null) {
-            Text(tr("♦"), color = Color(0xFFFFE082), fontSize = 22.sp)
+            Text("♦", color = Color(0xFFFFE082), fontSize = 22.sp)
         } else {
             Text(
                 card.rank + card.suit,
@@ -460,7 +460,7 @@ private fun CardBox(mod: Modifier, card: Card?, label: String, tint: Color) {
             contentAlignment = Alignment.Center,
         ) {
             if (card == null) {
-                Text(tr("🂠"), color = Color(0xFF4A4A55), fontSize = 34.sp)
+                Text("🂠", color = Color(0xFF4A4A55), fontSize = 34.sp)
             } else {
                 Text(
                     card.rank + card.suit,

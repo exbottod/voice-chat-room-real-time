@@ -90,7 +90,7 @@ private fun EditRow(
         content()
         if (chevron) {
             Spacer(Modifier.width(8.dp))
-            Text(tr("›"), color = Color(0xFFB0B7C6), fontSize = 24.sp)
+            Text("›", color = Color(0xFFB0B7C6), fontSize = 24.sp)
         }
     }
     Box(Modifier.padding(horizontal = 20.dp).fillMaxWidth().height(1.dp).background(Line))
@@ -195,10 +195,10 @@ fun EditProfileScreen(
                 EditRow("Jenis kelamin", onClick = { dialog = EditDialog.Gender }) {
                     when (profile.gender) {
                         "M" -> Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFF1E88E5)), Alignment.Center) {
-                            Text(tr("♂"), color = Color.White, fontSize = 20.sp)
+                            Text("♂", color = Color.White, fontSize = 20.sp)
                         }
                         "F" -> Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFEC407A)), Alignment.Center) {
-                            Text(tr("♀"), color = Color.White, fontSize = 20.sp)
+                            Text("♀", color = Color.White, fontSize = 20.sp)
                         }
                         else -> Text(tr("Belum diatur"), color = Hint, fontSize = 16.sp)
                     }
@@ -229,7 +229,7 @@ fun EditProfileScreen(
                                         toast(tr("Latar belakang dihapus"))
                                     },
                                 contentAlignment = Alignment.Center,
-                            ) { Text(tr("✕"), color = Color.White, fontSize = 11.sp) }
+                            ) { Text("✕", color = Color.White, fontSize = 11.sp) }
                         } else {
                             Icon(Icons.Default.Add, "Tambah", tint = Hint, modifier = Modifier.size(32.dp))
                         }
@@ -247,7 +247,7 @@ fun EditProfileScreen(
                 }
                 // Birthday
                 EditRow("Tanggal lahir", onClick = { showDatePicker() }) {
-                    Text(tr("🗓"), fontSize = 18.sp)
+                    Text("🗓", fontSize = 18.sp)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         profile.birthday.ifBlank { "Belum diatur" },
@@ -258,7 +258,8 @@ fun EditProfileScreen(
 
                 // Bio
                 Spacer(Modifier.height(28.dp))
-                Text(tr("Perkenalkan diri saya"),
+                Text(
+                    tr("Perkenalkan diri saya"),
                     color = Ink,
                     fontSize = 17.sp,
                     textAlign = TextAlign.Center,

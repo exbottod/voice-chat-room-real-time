@@ -127,7 +127,7 @@ private fun MenuItem(emoji: String, label: String, trailing: String? = null, ico
             Text(trailing, color = Color(0xFF8A93A6), fontSize = 11.sp, maxLines = 1)
             Spacer(Modifier.width(8.dp))
         }
-        Text(tr("›"), color = Color(0xFFB0B7C6), fontSize = 20.sp)
+        Text("›", color = Color(0xFFB0B7C6), fontSize = 20.sp)
     }
 }
 
@@ -165,7 +165,7 @@ fun ProfileTab(
     val vipOn = vipActive(wallet.vip, wallet.vipUntil)
 
     fun soon(label: String) =
-        Toast.makeText(context, "$label segera hadir", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, tr("$label segera hadir"), Toast.LENGTH_SHORT).show()
 
     // Panel manager/admin: hanya muncul kalau akun ini memang diberi hak
     // lewat panel developer. Hak dicek ke server, bukan disimpan di HP.
@@ -276,7 +276,7 @@ fun ProfileTab(
                             ) {
                                 Text(tr("UID:$userId"), color = ink.copy(alpha = 0.75f), fontSize = 13.sp)
                                 Spacer(Modifier.width(6.dp))
-                                Text(tr("📋"), fontSize = 14.sp)
+                                Text("📋", fontSize = 14.sp)
                             }
                             Spacer(Modifier.width(10.dp))
                             LevelBadge(level)
@@ -323,12 +323,13 @@ fun ProfileTab(
                     .border(2.dp, Color(0xFFB8860B), goldShape)
                     .clickable { onWalletClick() },
             ) {
-                Text(tr("💰"), fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
+                Text("💰", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                 Column(
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 18.dp),
                     horizontalAlignment = Alignment.End,
                 ) {
-                    Text(tr("Dompet"),
+                    Text(
+                        tr("Dompet"),
                         color = Color(0xFF7A4A00),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
@@ -354,7 +355,7 @@ fun ProfileTab(
                         Text(tr("VIP"), color = Color(0xFFFFD54F), fontSize = 11.sp, maxLines = 1)
                         Text(if (vipOn) "VIP${wallet.vip}" else "VIP", color = Color(0xFFFFD54F), fontSize = 17.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text(tr("👑"), fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text("👑", fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
                 Box(
                     modifier = Modifier
@@ -370,7 +371,7 @@ fun ProfileTab(
                         Text(tr("Level user"), color = Color(0xFFB8F5EC), fontSize = 11.sp, maxLines = 1)
                         Text(tr("LV.$level"), color = Color(0xFFFFE082), fontSize = 17.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text(tr("🛡"), fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text("🛡", fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
             }
             // ---------- Menu ----------

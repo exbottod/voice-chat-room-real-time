@@ -295,7 +295,8 @@ fun AnnouncementScreen(list: List<AnnRepo.Ann>, onBack: () -> Unit) {
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (a.pinned) {
-                                Text(tr("📌"),
+                                Text(
+                                    "📌",
                                     fontSize = 12.sp,
                                     modifier = Modifier.padding(end = 4.dp),
                                 )

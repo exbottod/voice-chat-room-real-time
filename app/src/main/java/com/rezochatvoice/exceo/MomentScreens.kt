@@ -243,7 +243,7 @@ private fun MomentCard(m: Moment, myUid: String, onComments: (Moment) -> Unit) {
                 Modifier.clip(RoundedCornerShape(50)).clickable { onComments(m) }.padding(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(tr("💬"), fontSize = 20.sp)
+                Text("💬", fontSize = 20.sp)
                 Spacer(Modifier.width(4.dp))
                 Text(tr("${m.comments}"), color = Color(0xFFD0D0D0), fontSize = 14.sp)
             }

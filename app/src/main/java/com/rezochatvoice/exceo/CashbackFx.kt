@@ -217,7 +217,8 @@ private fun GiftFlyOnce(
                 .padding(vertical = 6.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(tr("+${fmtNum(f.cb)}"),
+            Text(
+                tr("+${fmtNum(f.cb)}"),
                 color = Color(0xFFFFD54F),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
@@ -233,7 +234,8 @@ private fun GiftFlyOnce(
                     .background(Color(0xE64A148C), RoundedCornerShape(14.dp))
                     .padding(horizontal = 18.dp, vertical = 10.dp),
             ) {
-                Text(tr("💥 JP ${f.from} +${fmtNum(f.cb)}"),
+                Text(
+                    tr("💥 JP ${f.from} +${fmtNum(f.cb)}"),
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
@@ -371,15 +373,17 @@ private fun MultBall(mult: Int, total: Long, center: Offset) {
                     .background(Color(0x66FFFFFF), androidx.compose.foundation.shape.CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(tr("🪙"), fontSize = 18.sp)
+                Text("🪙", fontSize = 18.sp)
             }
             Spacer(Modifier.height(3.dp))
-            Text(tr("win ${fmtNum(total)}"),
+            Text(
+                tr("win ${fmtNum(total)}"),
                 color = Color(0xFF4A2600),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Black,
             )
-            Text(tr("$mult Times"),
+            Text(
+                tr("$mult Times"),
                 color = Color(0xFF7A3E00),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -418,7 +422,8 @@ private fun ComboBanner(f: GiftFly) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(f.from, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(tr("ke ${f.toName.ifBlank { ")semua" }}",
+                Text(
+                    tr("ke ${f.toName.ifBlank { "semua" }}"),
                     color = Color(0xFFE3E9FF),
                     fontSize = 11.sp,
                     maxLines = 1,
@@ -426,7 +431,8 @@ private fun ComboBanner(f: GiftFly) {
             }
             Text(f.emoji.ifBlank { "🎁" }, fontSize = 22.sp)
             Spacer(Modifier.width(6.dp))
-            Text(tr("x${f.combo}"),
+            Text(
+                tr("x${f.combo}"),
                 color = Color(0xFFFFE082),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Black,
@@ -452,7 +458,8 @@ private fun ComboBanner(f: GiftFly) {
             }
         }
         if (f.combo >= 2) {
-            Text(tr("${f.combo}"),
+            Text(
+                tr("${f.combo}"),
                 color = Color(0xFFFFC107),
                 fontSize = 96.sp,
                 fontWeight = FontWeight.Black,

@@ -175,7 +175,7 @@ private fun MedalSlot(id: String?, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         if (id != null) MedalIcon(id, 46.dp, Modifier.scale(0.8f))
-        else Text(tr("?"), color = Gold, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        else Text("?", color = Gold, fontSize = 26.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -204,7 +204,8 @@ private fun MedalGrid(list: List<MedalEntry>, worn: List<String>, onTap: (MedalE
                         }
                         if (!e.owned) Text(tr("\uD83D\uDD12"), fontSize = 34.sp)
                         if (on) {
-                            Text(tr("\u2713"), color = Gold, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold,
+                            Text(
+                                "\u2713", color = Gold, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold,
                                 modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
                             )
                         }
@@ -296,7 +297,8 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp)) {
-                Text(tr("\u2039"), color = Color.White, fontSize = 34.sp,
+                Text(
+                    "\u2039", color = Color.White, fontSize = 34.sp,
                     modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 8.dp),
                 )
                 // Icon lencana glory kustom di header tab page.
@@ -332,7 +334,8 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text(tr("Terpasang ${worn.size}/$MAX_MEDALS \u00B7 ketuk medal untuk memasang / melepas"),
+                Text(
+                    tr("Terpasang ${worn.size}/$MAX_MEDALS \u00B7 ketuk medal untuk memasang / melepas"),
                     color = Color(0xFFE9D3B0), fontSize = 12.sp, textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -360,14 +363,16 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 Spacer(Modifier.height(14.dp))
 
                 if (tab != 0) {
-                    Text(tr("Segera hadir"), color = Color(0xFFE9D3B0), fontSize = 15.sp, textAlign = TextAlign.Center,
+                    Text(
+                        tr("Segera hadir"), color = Color(0xFFE9D3B0), fontSize = 15.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
                     )
                 } else {
                     Text(tr("Medali saya"), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
                     if (mine.isEmpty()) {
-                        Text(tr("Belum punya medali. Beli medali di Store atau aktifkan VIP. Lencana dipasang di Store \u2192 Saya."),
+                        Text(
+                            tr("Belum punya medali. Beli medali di Store atau aktifkan VIP. Lencana dipasang di Store \u2192 Saya."),
                             color = Color(0xFFE9D3B0), fontSize = 13.sp,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                         )

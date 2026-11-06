@@ -166,7 +166,7 @@ fun Lucky77WheelScreen(myUid: String, onClose: () -> Unit) {
                 Spacer(Modifier.weight(1f))
                 Text(tr("LUCKY 77"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                Text(tr("🪙 ") + fmtW(balance), color = GoldW, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("🪙 " + fmtW(balance), color = GoldW, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
 
             // ---- Roda
@@ -228,7 +228,7 @@ fun Lucky77WheelScreen(myUid: String, onClose: () -> Unit) {
                 }
                 // penunjuk
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                    Text(tr("▼"), color = Color(0xFFFF5252), fontSize = 26.sp)
+                    Text("▼", color = Color(0xFFFF5252), fontSize = 26.sp)
                 }
             }
 
@@ -284,7 +284,7 @@ fun Lucky77WheelScreen(myUid: String, onClose: () -> Unit) {
                     Modifier.clip(RoundedCornerShape(50)).background(Color(0xFF3A2255))
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 ) {
-                    Text(tr("⭐ ") + fmtW(balance), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("⭐ " + fmtW(balance), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.weight(1f))
                 CHIPS.forEach { (v, c) ->

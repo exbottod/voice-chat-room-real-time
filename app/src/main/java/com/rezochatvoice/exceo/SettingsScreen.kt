@@ -69,7 +69,7 @@ private fun SettingRow(label: String, value: String? = null, onClick: () -> Unit
             Text(value, color = Color(0xFF9A9A9A), fontSize = 13.sp, maxLines = 1)
             Spacer(Modifier.width(8.dp))
         }
-        Text(tr("›"), color = GoldLight, fontSize = 20.sp)
+        Text("›", color = GoldLight, fontSize = 20.sp)
     }
 }
 

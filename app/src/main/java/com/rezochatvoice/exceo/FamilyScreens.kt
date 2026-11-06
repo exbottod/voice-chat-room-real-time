@@ -46,7 +46,7 @@ fun FamilyLogo(b64: String?, size: Dp, modifier: Modifier = Modifier) {
         Image(bmp, null, modifier.size(size).clip(shape), contentScale = ContentScale.Crop)
     } else {
         Box(modifier.size(size).clip(shape).background(Brush.verticalGradient(listOf(Color(0xFF1FA89A), Color(0xFF0E7C86)))), contentAlignment = Alignment.Center) {
-            Text(tr("🏰"), fontSize = (size.value * 0.5f).sp)
+            Text("🏰", fontSize = (size.value * 0.5f).sp)
         }
     }
 }
@@ -82,7 +82,7 @@ private fun NoFamilyPage(onCreate: () -> Unit, onSearch: () -> Unit) {
     Column(Modifier.fillMaxSize().statusBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(tr("Family"), color = Gold, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp).align(Alignment.Start))
         Spacer(Modifier.height(40.dp))
-        Text(tr("🏰"), fontSize = 72.sp)
+        Text("🏰", fontSize = 72.sp)
         Spacer(Modifier.height(12.dp))
         Text(tr("Kamu belum bergabung dengan family"), color = Color.White, fontSize = 16.sp)
         Text(tr("Buat family sendiri atau cari family untuk bergabung"), color = Color(0xFF8A8A8A), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
@@ -126,7 +126,7 @@ fun FamilySettingsScreen(
     Box(Modifier.fillMaxSize().blockTouches().background(Color(0xFF14100C))) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Box(Modifier.fillMaxWidth().height(56.dp)) {
-                Text(tr("‹"), color = Color.White, fontSize = 36.sp, modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 16.dp))
+                Text("‹", color = Color.White, fontSize = 36.sp, modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 16.dp))
                 Text(if (existing == null) "Buat family" else "Pengaturan family", color = Color.White, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -265,10 +265,10 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
             Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.verticalGradient(listOf(Color(0xFF1B5E55), Color(0xFF0E3A35), Color(0xFF07201D))))) {
                 Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
                     Spacer(Modifier.weight(1f))
-                    Text(tr("✉"), fontSize = 26.sp, modifier = Modifier.clickable { showInbox = true }.padding(8.dp))
+                    Text("✉", fontSize = 26.sp, modifier = Modifier.clickable { showInbox = true }.padding(8.dp))
                     if (isAdmin && requests.isNotEmpty()) Text(tr("${requests.size}"), color = Color.White, fontSize = 11.sp, modifier = Modifier.clip(CircleShape).background(Color.Red).padding(horizontal = 6.dp, vertical = 2.dp))
                     Box {
-                        Text(tr("⋮"), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { menu = true }.padding(horizontal = 12.dp, vertical = 4.dp))
+                        Text("⋮", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { menu = true }.padding(horizontal = 12.dp, vertical = 4.dp))
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Color(0xFF1E1A16)) {
                             if (isAdmin) DropdownMenuItem(text = { Text(tr("Atur family"), color = Color.White) }, onClick = { menu = false; showSettings = true })
                             DropdownMenuItem(text = { Text(tr("Daftar anggota"), color = Color.White) }, onClick = { menu = false; showMembers = true })
@@ -290,7 +290,7 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
                     Text(tr("ID:${f.numId}"), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp).clickable(enabled = isAdmin) { editSlogan = true }) {
                         Text(f.slogan.ifBlank { "welcome to family ${f.name}" }, color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        if (isAdmin) Text(tr(" ✎"), color = Color.White, fontSize = 16.sp)
+                        if (isAdmin) Text(" ✎", color = Color.White, fontSize = 16.sp)
                     }
                 }
             }
@@ -301,7 +301,7 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
                     .border(2.dp, Color(0xFF2FB9A8), RoundedCornerShape(12.dp)).padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(tr("🛡"), fontSize = 54.sp, modifier = Modifier.clickable { showClass = true })
+                Text("🛡", fontSize = 54.sp, modifier = Modifier.clickable { showClass = true })
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -419,7 +419,7 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
         text = {
             Column {
                 FAMILY_CLASSES.forEach {
-                    Text(tr("${it.name} ${it.roman}: butuh ${fmtNum(it.need)} EXP${if (it == cls) ") ◀ sekarang" else ""}", modifier = Modifier.padding(vertical = 3.dp))
+                    Text(tr("${it.name} ${it.roman}: butuh ${fmtNum(it.need)} EXP${if (it == cls) " ◀ sekarang" else ""}"), modifier = Modifier.padding(vertical = 3.dp))
                 }
             }
         },
@@ -440,19 +440,22 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
             title = { Text(m.name) },
             text = {
                 Column {
-                    if (isOwner && m.role != "admin") Text(tr("Jadikan admin"),
+                    if (isOwner && m.role != "admin") Text(
+                        tr("Jadikan admin"),
                         Modifier.fillMaxWidth().clickable {
                             memberAction = null
                             scope.launch { toast(FamilyRepo.setRole(f.id, m.uid, "admin") ?: "${m.name} jadi admin") }
                         }.padding(vertical = 10.dp),
                     )
-                    if (isOwner && m.role == "admin") Text(tr("Cabut admin"),
+                    if (isOwner && m.role == "admin") Text(
+                        tr("Cabut admin"),
                         Modifier.fillMaxWidth().clickable {
                             memberAction = null
                             scope.launch { toast(FamilyRepo.setRole(f.id, m.uid, "member") ?: "Admin ${m.name} dicabut") }
                         }.padding(vertical = 10.dp),
                     )
-                    Text(tr("Keluarkan dari family"),
+                    Text(
+                        tr("Keluarkan dari family"),
                         Modifier.fillMaxWidth().clickable {
                             memberAction = null
                             scope.launch { toast(FamilyRepo.kick(f.id, m.uid) ?: "${m.name} dikeluarkan") }
@@ -491,7 +494,7 @@ private fun HomeTab(
 
         Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tr("Pengumuman family"), color = Color.White, fontSize = 20.sp, modifier = Modifier.weight(1f))
-            if (isAdmin) Text(tr("✎"), color = Color(0xFFB8D8D3), fontSize = 22.sp, modifier = Modifier.clickable(onClick = onEditAnn).padding(4.dp))
+            if (isAdmin) Text("✎", color = Color(0xFFB8D8D3), fontSize = 22.sp, modifier = Modifier.clickable(onClick = onEditAnn).padding(4.dp))
         }
         Text(
             f.announcement.ifBlank { "welcome ${f.name}" },
@@ -507,7 +510,7 @@ private fun HomeTab(
         ) {
             Text(tr("Peringkat saat ini: ${cls.name} ${cls.roman}"), color = Color(0xFFFFB74D), fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Text(tr("🛡"), fontSize = 56.sp)
+                Text("🛡", fontSize = 56.sp)
                 PerkBox("💵", cls.perk1); PerkBox("🏅", cls.perk2); PerkBox("⭕", cls.perk3)
             }
             val need = cls.need / 1000
@@ -516,7 +519,7 @@ private fun HomeTab(
 
         Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp).clickable(onClick = onMembers), verticalAlignment = Alignment.CenterVertically) {
             Text(tr("Member TOP"), color = Color.White, fontSize = 18.sp, modifier = Modifier.weight(1f))
-            Text(tr("›"), color = Color(0xFFB8D8D3), fontSize = 28.sp)
+            Text("›", color = Color(0xFFB8D8D3), fontSize = 28.sp)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val colors = listOf(Color(0xFF7B2FBE), Color(0xFFC62828), Color(0xFF1565C0))
@@ -595,7 +598,7 @@ private fun PostList(list: List<FamilyEvent>, empty: String, btn: String, canPos
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(e.byName, color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Text(timeAgo(e.createdAt), color = Color(0xFF9AB5B0), fontSize = 12.sp)
-                    if (canPost) Text(tr(" 🗑 "), modifier = Modifier.clickable { onDelete(e.id) })
+                    if (canPost) Text(" 🗑 ", modifier = Modifier.clickable { onDelete(e.id) })
                 }
                 Text(e.text, color = Color.White, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
             }

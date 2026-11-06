@@ -39,7 +39,8 @@ private const val FamLogoFallback = "https://i.ibb.co.com/XrswkKVX/b685f30b9384c
 /** Teks label family versi lama (emas kecil). */
 @Composable
 fun FamTagText(fam: String, modifier: Modifier = Modifier) {
-    Text(tr("🫡 $fam"),
+    Text(
+        tr("🫡 $fam"),
         color = GoldLight,
         fontSize = 10.sp,
         fontWeight = FontWeight.Bold,

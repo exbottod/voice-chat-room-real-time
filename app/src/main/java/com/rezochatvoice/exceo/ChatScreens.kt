@@ -348,7 +348,8 @@ fun ChatListTab(myUid: String) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        Text(tr("Pesan"), color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+        Text(
+            tr("Pesan"), color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )
         // Pengumuman Resmi: hanya baca, tidak bisa dibalas.
@@ -362,11 +363,12 @@ fun ChatListTab(myUid: String) {
             Box(
                 Modifier.size(52.dp).clip(CircleShape).background(Color(0xFF2A2113)),
                 contentAlignment = Alignment.Center,
-            ) { Text(tr("📢"), fontSize = 26.sp) }
+            ) { Text("📢", fontSize = 26.sp) }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(tr("Pengumuman Resmi"), color = GoldLight, fontWeight = FontWeight.Bold,
+                    Text(
+                        tr("Pengumuman Resmi"), color = GoldLight, fontWeight = FontWeight.Bold,
                         fontSize = 16.sp, maxLines = 1, modifier = Modifier.weight(1f, fill = false),
                     )
                     if (annUnread > 0) {
@@ -561,7 +563,8 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
             }
             // Personal Ads (SVIP1): iklan pribadi pemilik profil tampil di kotak masuk.
             if (other.ad.isNotBlank()) {
-                Text(tr("📢 ${other.ad}"),
+                Text(
+                    tr("📢 ${other.ad}"),
                     color = Color(0xFFFFE082),
                     fontSize = 13.sp,
                     maxLines = 2,

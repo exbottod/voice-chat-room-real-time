@@ -70,7 +70,8 @@ fun CrashReportOverlay(text: String, onClose: () -> Unit) {
         ) {
             Text(tr("Aplikasi sempat berhenti"), color = Color(0xFFFF8A80), fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            Text(tr("Kirim tulisan di bawah ini ke pengembang supaya bisa diperbaiki."),
+            Text(
+                tr("Kirim tulisan di bawah ini ke pengembang supaya bisa diperbaiki."),
                 color = Color(0xFFBDBDBD), fontSize = 12.sp,
             )
             Spacer(Modifier.height(10.dp))

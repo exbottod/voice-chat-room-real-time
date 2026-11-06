@@ -222,12 +222,14 @@ fun SellerListScreen(
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().height(54.dp)) {
-                Text(tr("‹"),
+                Text(
+                    "‹",
                     color = Color.White,
                     fontSize = 40.sp,
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 14.dp).clickable { onBack() },
                 )
-                Text(tr("Coin Seller"),
+                Text(
+                    tr("Coin Seller"),
                     color = Color.White,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
@@ -296,7 +298,8 @@ fun SellerListScreen(
                                         fontSize = 12.sp,
                                     )
                                     Spacer(Modifier.width(6.dp))
-                                    Text(tr("⧉"),
+                                    Text(
+                                        "⧉",
                                         color = Color(0xFF3B7A9E),
                                         fontSize = 13.sp,
                                         modifier = Modifier.clickable {
@@ -306,7 +309,8 @@ fun SellerListScreen(
                                     )
                                 }
                                 Spacer(Modifier.height(2.dp))
-                                Text(tr("Pesanan 3 hari: ") + s.pesanan,
+                                Text(
+                                    tr("Pesanan 3 hari: ") + s.pesanan,
                                     color = Color(0xFF7A8B99),
                                     fontSize = 11.sp,
                                 )
@@ -316,7 +320,7 @@ fun SellerListScreen(
                                 Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF25D366))
                                     .clickable { bukaWa(ctx, s) },
                                 contentAlignment = Alignment.Center,
-                            ) { Text(tr("✆"), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                            ) { Text("✆", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                         }
                         Spacer(Modifier.height(10.dp))
                         Row(
@@ -326,7 +330,7 @@ fun SellerListScreen(
                                 .padding(horizontal = 10.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(tr("💰"), fontSize = 14.sp)
+                            Text("💰", fontSize = 14.sp)
                             Spacer(Modifier.width(6.dp))
                             Text(tr("Stok"), color = Color(0xFF8A6A17), fontSize = 12.sp)
                             Spacer(Modifier.weight(1f))
@@ -395,12 +399,14 @@ fun SellerPanelScreen(
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().height(54.dp)) {
-                Text(tr("‹"),
+                Text(
+                    "‹",
                     color = Color.White,
                     fontSize = 40.sp,
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 14.dp).clickable { onBack() },
                 )
-                Text(tr("Panel Seller"),
+                Text(
+                    tr("Panel Seller"),
                     color = Color.White,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
@@ -432,7 +438,8 @@ fun SellerPanelScreen(
                         Text(me.store.ifBlank { myName }, color = Color(0xFF12324A), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
                         Text(tr("Stok coin"), color = Color(0xFF7A8B99), fontSize = 12.sp)
-                        Text(tr("💰 ") + String.format("%,d", me.stock),
+                        Text(
+                            "💰 " + String.format("%,d", me.stock),
                             color = Color(0xFF8A6A17),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
@@ -529,7 +536,7 @@ fun SellerPanelScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(tr("Ke ") + buyer, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                        Text(tr("+") + String.format("%,d", coins), color = Color(0xFF7FE3A1), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("+" + String.format("%,d", coins), color = Color(0xFF7FE3A1), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 item { Spacer(Modifier.height(20.dp)) }

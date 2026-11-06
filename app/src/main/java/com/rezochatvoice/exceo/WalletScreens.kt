@@ -299,13 +299,13 @@ private fun CoinDot(size: Int = 28) {
             .border(1.5.dp, Color(0xFFFFF1B0), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(tr("★"), color = Color(0xFFFFF6D0), fontSize = (size * 0.5f).sp, fontWeight = FontWeight.Bold)
+        Text("★", color = Color(0xFFFFF6D0), fontSize = (size * 0.5f).sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 private fun GemDot(size: Int = 22) {
-    Text(tr("💎"), fontSize = size.sp)
+    Text("💎", fontSize = size.sp)
 }
 
 @Composable
@@ -553,7 +553,8 @@ fun WalletScreen(
                         }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
-                    Text(tr("Saldo gagal dimuat: ") + galatSaldo + ". Ketuk untuk coba lagi.",
+                    Text(
+                        tr("Saldo gagal dimuat: ") + galatSaldo + ". Ketuk untuk coba lagi.",
                         color = Color(0xFF8A1F1F),
                         fontSize = 12.sp,
                     )
@@ -561,7 +562,8 @@ fun WalletScreen(
             }
             // ---- bar judul ----
             Box(Modifier.fillMaxWidth().height(54.dp)) {
-                Text(tr("‹"),
+                Text(
+                    "‹",
                     color = WalNavy,
                     fontSize = 40.sp,
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 14.dp)
@@ -600,7 +602,8 @@ fun WalletScreen(
                                 .border(2.dp, Color(0xFFE2B33C), RoundedCornerShape(14.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(tr("Manfaat Top Up"),
+                            Text(
+                                tr("Manfaat Top Up"),
                                 color = Color(0xFFFFD45A),
                                 fontSize = 30.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -621,9 +624,9 @@ fun WalletScreen(
                                     .padding(horizontal = 14.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text(tr("📍"), fontSize = 16.sp)
+                                Text("📍", fontSize = 16.sp)
                                 Spacer(Modifier.width(8.dp))
-                                Text(tr("🇮🇩"), fontSize = 18.sp)
+                                Text("🇮🇩", fontSize = 18.sp)
                             }
                         }
                         Spacer(Modifier.height(8.dp))
@@ -791,7 +794,7 @@ fun WalletScreen(
                                             busy = false
                                             if (e == null) {
                                                 custom = ""
-                                                toast("Berhasil menukar ${fmtNum(gemNeed)} berlian")
+                                                toast(tr("Berhasil menukar ${fmtNum(gemNeed)} berlian"))
                                             } else {
                                                 toast(e)
                                             }
@@ -806,7 +809,8 @@ fun WalletScreen(
                                 )
                             }
                             if (coinIn > 0L && gemNeed > wallet.diamonds) {
-                                Text(tr("Berlian tidak cukup"),
+                                Text(
+                                    tr("Berlian tidak cukup"),
                                     color = Color(0xFFD0312D), fontSize = 12.sp,
                                     modifier = Modifier.padding(top = 6.dp),
                                 )
@@ -856,7 +860,8 @@ fun WalletScreen(
                     // ===================== CASH =====================
                     else -> {
                         Spacer(Modifier.height(80.dp))
-                        Text(tr("Fitur Cash belum tersedia"),
+                        Text(
+                            tr("Fitur Cash belum tersedia"),
                             color = WalGrey,
                             fontSize = 16.sp,
                             textAlign = TextAlign.Center,
@@ -913,7 +918,8 @@ fun WalletScreen(
                                 Spacer(Modifier.height(6.dp))
                                 Text(payDana, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF118EEA))
                                 Spacer(Modifier.height(12.dp))
-                                Text(tr("Tekan tombol ini, aplikasi DANA terbuka sendiri, lalu masukkan nominal $harga."),
+                                Text(
+                                    tr("Tekan tombol ini, aplikasi DANA terbuka sendiri, lalu masukkan nominal $harga."),
                                     fontSize = 12.sp,
                                     color = WalGrey,
                                 )
@@ -1116,7 +1122,7 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
                         .border(1.dp, Color(0xFFFFC94D), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(tr("⚡"), fontSize = 10.sp)
+                    Text("⚡", fontSize = 10.sp)
                 }
             }
         }
@@ -1127,7 +1133,8 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
             CoinDot(12.dp)
             if (g.cbRate > 0) {
                 Spacer(Modifier.width(4.dp))
-                Text(tr("+${g.cbRate}% CB"),
+                Text(
+                    tr("+${g.cbRate}% CB"),
                     color = Color(0xFF2BD9C4),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
@@ -1386,7 +1393,7 @@ fun GiftPanel(
                         ) {
                             Text(tr("$count"), color = Color.White, fontSize = 14.sp)
                             Spacer(Modifier.width(6.dp))
-                            Text(tr("▲"), color = Color(0xFFBDBDBD), fontSize = 11.sp)
+                            Text("▲", color = Color(0xFFBDBDBD), fontSize = 11.sp)
                         }
                         DropdownMenu(expanded = countMenu, onDismissRequest = { countMenu = false }) {
                             listOf(1, 10, 66, 188, 520).forEach { c ->
@@ -1445,7 +1452,7 @@ fun GiftPanel(
                                     // jangan menunggu ranking/pesan/fx yang bisa lambat atau gagal.
                                     Toast.makeText(
                                         context,
-                                        "Gift terkirim! +${fmtNum(total)} diamond",
+                                        tr("Gift terkirim! +${fmtNum(total)} diamond"),
                                         Toast.LENGTH_SHORT,
                                     ).show()
                                     try { RoomExtras.sendGiftMessage(roomId, myName, g, count, toText) } catch (e: Exception) { }
@@ -1463,14 +1470,14 @@ fun GiftPanel(
                                     if (jp > 0) {
                                         Toast.makeText(
                                             context,
-                                            "🎉 JP!! +${fmtNum(jp)} koin masuk dompet!",
+                                            tr("🎉 JP!! +${fmtNum(jp)} koin masuk dompet!"),
                                             Toast.LENGTH_LONG,
                                         ).show()
                                     }
                                     if (cb > 0) {
                                         Toast.makeText(
                                             context,
-                                            "💵 Cashback +${fmtNum(cb)} koin!",
+                                            tr("💵 Cashback +${fmtNum(cb)} koin!"),
                                             Toast.LENGTH_LONG,
                                         ).show()
                                     }
@@ -1491,7 +1498,7 @@ fun GiftPanel(
                                         } ?: run { rerr = "ranking lambat" }
                                     } catch (e: Exception) { rerr = "gagal mencatat ranking" }
                                     if (rerr != null) {
-                                        Toast.makeText(context, "Ranking gagal: $rerr", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, tr("Ranking gagal: $rerr"), Toast.LENGTH_LONG).show()
                                     }
                                     // EXP FAMILY dari gift: nilai gift menambah exp family pengirim.
                                     AppScope.scope.launch {

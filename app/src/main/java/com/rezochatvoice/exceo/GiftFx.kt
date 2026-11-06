@@ -602,10 +602,11 @@ private fun RocketFly(from: String) {
         val x = startX + (endX - startX) * p.value
         val y = startY + (endY - startY) * p.value
         // ekor api
-        Text(tr("🔥"), fontSize = 38.sp, modifier = Modifier.offset(x = x - 26.dp, y = y + 16.dp).alpha(0.9f))
-        Text(tr("💨"), fontSize = 30.sp, modifier = Modifier.offset(x = x - 62.dp, y = y + 24.dp).alpha(0.5f))
-        Text(tr("🚀"), fontSize = 60.sp, modifier = Modifier.offset(x = x, y = y))
-        Text(tr("$from meluncurkan roket"),
+        Text("🔥", fontSize = 38.sp, modifier = Modifier.offset(x = x - 26.dp, y = y + 16.dp).alpha(0.9f))
+        Text("💨", fontSize = 30.sp, modifier = Modifier.offset(x = x - 62.dp, y = y + 24.dp).alpha(0.5f))
+        Text("🚀", fontSize = 60.sp, modifier = Modifier.offset(x = x, y = y))
+        Text(
+            tr("$from meluncurkan roket"),
             color = GoldLight,
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp,

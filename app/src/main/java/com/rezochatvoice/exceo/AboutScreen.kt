@@ -45,7 +45,8 @@ fun AboutScreen(onBack: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.White)) {
         // Top bar putih: tombol back + judul di tengah
         Box(Modifier.fillMaxWidth().statusBarsPadding().height(56.dp)) {
-            Text(tr("‹"), color = Color(0xFF222222), fontSize = 38.sp,
+            Text(
+                "‹", color = Color(0xFF222222), fontSize = 38.sp,
                 modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack)
                     .padding(horizontal = 18.dp),
             )

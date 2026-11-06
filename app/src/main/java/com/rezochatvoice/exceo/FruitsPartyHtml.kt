@@ -171,7 +171,8 @@ fun FruitsPartyHtmlScreen(myUid: String, myName: String = "Player", onClose: () 
                             )
                         }
                         CircularProgressIndicator(color = Color(0xFFF5C542), strokeWidth = 3.dp)
-                        Text(tr("Menyiapkan Fruits Party..."),
+                        Text(
+                            tr("Menyiapkan Fruits Party..."),
                             color = Color(0xFFFFE9A8),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -194,7 +195,7 @@ fun FruitsPartyHtmlScreen(myUid: String, myName: String = "Player", onClose: () 
                     .background(Color(0xCC000000), CircleShape)
                     .clickable { onClose() },
                 contentAlignment = Alignment.Center,
-            ) { Text(tr("✕"), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+            ) { Text("✕", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }

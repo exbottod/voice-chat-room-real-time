@@ -324,7 +324,7 @@ private fun RkAvatarInner(col: String, e: RankEntry, size: Dp, ring: Color) {
 @Composable
 private fun RkCoin(total: Long, size: TextUnit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(tr("🪙"), fontSize = size)
+        Text("🪙", fontSize = size)
         Spacer(Modifier.width(4.dp))
         Text(fmtRank(total), color = GoldLight, fontSize = size, fontWeight = FontWeight.Bold, maxLines = 1)
     }
@@ -339,7 +339,7 @@ private fun RkTopOne(col: String, e: RankEntry, onOpenRoom: (String) -> Unit = {
             .clickable { if (col == GiftRankRepo.COL_ROOM) onOpenRoom(e.id) else actions.openFullProfile(e.id) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(tr("👑"), fontSize = 32.sp)
+        Text("👑", fontSize = 32.sp)
         RkAvatar(col, e, 84.dp, Gold, 1)
         Spacer(Modifier.height(10.dp))
         Column(
@@ -499,7 +499,7 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (Str
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             // tab atas: Kamar | Sawer | Pesona
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("‹"), color = Color.White, fontSize = 32.sp, modifier = Modifier.width(48.dp).clickable(onClick = onBack).padding(horizontal = 14.dp))
+                Text("‹", color = Color.White, fontSize = 32.sp, modifier = Modifier.width(48.dp).clickable(onClick = onBack).padding(horizontal = 14.dp))
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                     listOf("Kamar", "Sawer", "Pesona").forEachIndexed { i, label ->
                         val on = tab == i
@@ -539,7 +539,8 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (Str
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Text(tr("${tr(")Hitung mundur")}(UTC+7): $countdown",
+            Text(
+                tr("${tr("Hitung mundur")}(UTC+7): $countdown"),
                 color = GoldLight, fontSize = 13.sp, textAlign = TextAlign.Center, maxLines = 1,
                 modifier = Modifier.fillMaxWidth(),
             )

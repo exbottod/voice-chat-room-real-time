@@ -158,18 +158,18 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                 ) {
                     // hiasan puncak sheet
                     Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
-                        Text(tr("◆"), color = Color(0xFFE0553A), fontSize = 12.sp)
+                        Text("◆", color = Color(0xFFE0553A), fontSize = 12.sp)
                     }
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 8.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(tr("〰"), color = Color(0xFFB08A5A), fontSize = 14.sp)
+                        Text("〰", color = Color(0xFFB08A5A), fontSize = 14.sp)
                         Spacer(Modifier.width(10.dp))
                         Text(tr("Game Center"), color = Color(0xFFF0DDBF), fontSize = 17.sp)
                         Spacer(Modifier.width(10.dp))
-                        Text(tr("〰"), color = Color(0xFFB08A5A), fontSize = 14.sp)
+                        Text("〰", color = Color(0xFFB08A5A), fontSize = 14.sp)
                     }
                     // Kalau daftar dari server gagal, munculkan tombol muat ulang
                     // supaya game baru dari console Hive tetap bisa ditarik.
@@ -179,7 +179,8 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                 .clickable { muatUlang++ },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(tr("Daftar game belum dari server · ketuk untuk muat ulang"),
+                            Text(
+                                tr("Daftar game belum dari server · ketuk untuk muat ulang"),
                                 color = Color(0xFFFFC46B), fontSize = 11.sp,
                             )
                         }
@@ -241,7 +242,8 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                 .background(Brush.horizontalGradient(listOf(Color(0xFF9EE0E8), Color(0xFFB9A8F0), Color(0xFFA8E6C8)))),
                             contentAlignment = Alignment.CenterStart,
                         ) {
-                            Text(tr("Daftar peringkat"), color = Color.White.copy(alpha = 0.9f),
+                            Text(
+                                tr("Daftar peringkat"), color = Color.White.copy(alpha = 0.9f),
                                 fontSize = 13.sp, modifier = Modifier.padding(start = 12.dp, bottom = 28.dp),
                             )
                             Row(Modifier.padding(start = 90.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -603,7 +605,7 @@ private fun BackCard(small: Boolean = false) {
             .border(1.dp, Color(0xFF44445A), RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        Text(tr("🂠"), color = Color(0xFF6A6A80), fontSize = if (small) 16.sp else 24.sp)
+        Text("🂠", color = Color(0xFF6A6A80), fontSize = if (small) 16.sp else 24.sp)
     }
 }
 

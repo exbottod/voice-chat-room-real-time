@@ -68,12 +68,14 @@ fun PropsScreen(myUid: String, onBack: () -> Unit, onWalletChanged: () -> Unit =
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(tr("‹"), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
+            Text(
+                "‹", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.clickable { onBack() }.padding(end = 12.dp),
             )
             Text(tr("Props"), color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         }
-        Text(tr("Kartu VIP dari roket. Tekan Pakai untuk mulai menghitung masa aktifnya."),
+        Text(
+            tr("Kartu VIP dari roket. Tekan Pakai untuk mulai menghitung masa aktifnya."),
             color = Color(0xFF9AA4B2), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp),
         )
         Spacer(Modifier.height(10.dp))
@@ -87,7 +89,8 @@ fun PropsScreen(myUid: String, onBack: () -> Unit, onWalletChanged: () -> Unit =
             }
         } else if (daftar.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) {
-                Text(tr("Belum ada kartu. Menangkan roket untuk mendapat kartu VIP."),
+                Text(
+                    tr("Belum ada kartu. Menangkan roket untuk mendapat kartu VIP."),
                     color = Color(0xFF9AA4B2), fontSize = 13.sp,
                 )
             }

@@ -233,7 +233,7 @@ fun OtherProfileScreen(
                     counts = counts.first to counts.second + 1
                 }
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-                Toast.makeText(context, "Gagal: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, tr("Gagal: ${e.message}"), Toast.LENGTH_LONG).show()
             }
             busy = false
         }
@@ -349,7 +349,7 @@ fun OtherProfileScreen(
                     ) {
                         Text(tr("UID:${shownId}"), color = Muted, fontSize = 16.sp)
                         Spacer(Modifier.width(8.dp))
-                        Text(tr("📋"), fontSize = 14.sp)
+                        Text("📋", fontSize = 14.sp)
                     }
                     Spacer(Modifier.height(14.dp))
                     if (!hidden) {
@@ -455,7 +455,8 @@ fun OtherProfileScreen(
                             ) {
                                 if (m.text.isNotBlank()) Text(m.text, color = Color.White, fontSize = 15.sp)
                                 Spacer(Modifier.height(6.dp))
-                                Text(tr("${timeAgo(m.createdAt)}  ·  ❤ ${m.likes}  ·  💬 ${m.comments}"),
+                                Text(
+                                    tr("${timeAgo(m.createdAt)}  ·  ❤ ${m.likes}  ·  💬 ${m.comments}"),
                                     color = Muted, fontSize = 12.sp,
                                 )
                             }
@@ -572,7 +573,7 @@ private fun SectionTitle(text: String) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text, color = GoldLight, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-        Text(tr("›"), color = Muted, fontSize = 22.sp)
+        Text("›", color = Muted, fontSize = 22.sp)
     }
 }
 
@@ -599,7 +600,7 @@ private fun FamCard(fam: String) {
             Modifier.size(56.dp).clip(RoundedCornerShape(14.dp))
                 .background(Brush.horizontalGradient(listOf(Gold, GoldDark))),
             contentAlignment = Alignment.Center,
-        ) { Text(tr("🏰"), fontSize = 26.sp) }
+        ) { Text("🏰", fontSize = 26.sp) }
         Spacer(Modifier.width(12.dp))
         Column {
             Text(fam, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)

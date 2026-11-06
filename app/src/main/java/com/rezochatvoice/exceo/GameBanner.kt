@@ -128,8 +128,9 @@ fun GameWinBanner(modifier: Modifier = Modifier) {
             Box(
                 Modifier.size(26.dp).clip(RoundedCornerShape(50)).background(Color(0x55000000)),
                 contentAlignment = Alignment.Center,
-            ) { Text(tr("🏆"), fontSize = 14.sp) }
-            Text(tr("${e.name} menang ${e.game} 🪙 ${fmtBanner(e.amount)}"),
+            ) { Text("🏆", fontSize = 14.sp) }
+            Text(
+                tr("${e.name} menang ${e.game} 🪙 ${fmtBanner(e.amount)}"),
                 color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )

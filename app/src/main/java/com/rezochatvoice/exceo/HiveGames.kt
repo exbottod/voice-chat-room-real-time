@@ -353,13 +353,15 @@ fun HiveHubScreen(uid: String, onClose: () -> Unit) {
                         Modifier.fillMaxWidth().background(Color(0xFF141414)).padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(tr("Tutup"),
+                        Text(
+                            tr("Tutup"),
                             color = Gold,
                             fontSize = 15.sp,
                             modifier = Modifier.clickable { onClose() }.padding(6.dp),
                         )
                         Spacer(Modifier.width(10.dp))
-                        Text(tr("🎰 Hive Play"),
+                        Text(
+                            tr("🎰 Hive Play"),
                             color = Color.White,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
@@ -410,7 +412,7 @@ fun HiveHubScreen(uid: String, onClose: () -> Unit) {
                                                 modifier = Modifier.fillMaxSize(),
                                             )
                                         } else {
-                                            Text(tr("🎲"), fontSize = 34.sp)
+                                            Text("🎲", fontSize = 34.sp)
                                         }
                                     }
                                     Spacer(Modifier.height(6.dp))
@@ -803,7 +805,7 @@ fun HivePlayScreen(uid: String, game: HiveGames.Game, onClose: () -> Unit) {
                 .background(Color(0x99000000))
                 .clickable { muatTop3(buka = true) },
             contentAlignment = Alignment.Center,
-        ) { Text(tr("🏆"), fontSize = 14.sp) }
+        ) { Text("🏆", fontSize = 14.sp) }
 
         if (showTop) {
             Box(Modifier.fillMaxSize().background(Color(0xCC000000)).clickable { showTop = false })
@@ -884,7 +886,7 @@ private fun TopThreeCard(
                         Box(
                             Modifier.size(26.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFF2A2135)),
                             contentAlignment = Alignment.Center,
-                        ) { Text(tr("👤"), fontSize = 12.sp) }
+                        ) { Text("👤", fontSize = 12.sp) }
                     }
                     Spacer(Modifier.width(8.dp))
                     Text(
@@ -892,7 +894,7 @@ private fun TopThreeCard(
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    Text(tr("🪙 ") + fmtWin(t.win), color = Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text("🪙 " + fmtWin(t.win), color = Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

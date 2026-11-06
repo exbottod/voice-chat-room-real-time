@@ -247,7 +247,8 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit, onEnterRoom: (RoomInf
                                 Spacer(Modifier.width(8.dp))
                                 Text(flagEmoji(u.countryCode), fontSize = 18.sp)
                             }
-                            Text(tr("ID: ${u.userId}") + if (u.userId == myUserId) "  (kamu)" else "",
+                            Text(
+                                tr("ID: ${u.userId}") + if (u.userId == myUserId) "  (kamu)" else "",
                                 color = Color(0xFFBDBDBD),
                                 fontSize = 14.sp,
                             )

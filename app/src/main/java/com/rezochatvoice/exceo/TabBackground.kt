@@ -253,7 +253,8 @@ fun TabBgPanel(onBack: () -> Unit) {
     ) {
         GoldTopBar("Panel Developer: Background Tab", onBack)
         Spacer(Modifier.height(12.dp))
-        Text(tr("Atur latar belakang tiap tab home. Pilih Default (kerajaan), Gambar (upload dari perangkat), ") +
+        Text(
+            tr("Atur latar belakang tiap tab home. Pilih Default (kerajaan), Gambar (upload dari perangkat), ") +
                 "atau Gradien (2 warna hex, contoh #1A0B2E). Perubahan tampil di semua user.",
             color = Color(0xFFBDBDBD),
             fontSize = 12.sp,

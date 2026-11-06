@@ -482,11 +482,12 @@ private fun PrizeBar(onClick: () -> Unit) {
                 .clip(CircleShape)
                 .background(Brush.verticalGradient(listOf(GoldLight, GoldDark))),
             contentAlignment = Alignment.Center,
-        ) { Text(tr("★"), color = Color.Black, fontSize = 16.sp) }
+        ) { Text("★", color = Color.Black, fontSize = 16.sp) }
         Spacer(Modifier.width(10.dp))
-        Text(tr("0"), color = GoldLight, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("0", color = GoldLight, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
-        Text(tr("total hadiah undian\nberhadiah  ›"),
+        Text(
+            tr("total hadiah undian\nberhadiah  ›"),
             color = Color(0xFFD9D9D9),
             fontSize = 12.sp,
             textAlign = TextAlign.End,

@@ -873,7 +873,8 @@ fun RocketScreen(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 RocketRoundBtn("?") { showRules = true }
                 Spacer(Modifier.weight(1f))
-                Text(tr("Rocket"),
+                Text(
+                    tr("Rocket"),
                     color = Color(0xFFFFD86B),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
@@ -891,7 +892,8 @@ fun RocketScreen(
             val ctxTes = androidx.compose.ui.platform.LocalContext.current
             if (devTes) {
             // Uji cepat: putar video roket sekarang juga, tanpa menunggu energi.
-            Text(tr("Tes luncur roket"),
+            Text(
+                tr("Tes luncur roket"),
                 color = Color(0xFFFFD86B), fontSize = 12.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 6.dp)
                     .clip(RoundedCornerShape(50))
@@ -939,7 +941,8 @@ fun RocketScreen(
                 Text(tr("Terakhir: $it"), color = Color(0xFFB0BEC5), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
             }
             // Tambah energi langsung (khusus developer) untuk menguji ambang roket.
-            Text(tr("Tambah 1 miliar energi"),
+            Text(
+                tr("Tambah 1 miliar energi"),
                 color = Color(0xFFA5D6A7), fontSize = 12.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 4.dp)
                     .clip(RoundedCornerShape(50))
@@ -963,7 +966,8 @@ fun RocketScreen(
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             )
             // Uji penulisan energi: memastikan database menerima, bukan hanya tampilan.
-            Text(tr("Tes energi roket"),
+            Text(
+                tr("Tes energi roket"),
                 color = Color(0xFF80D8FF), fontSize = 12.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 4.dp)
                     .clip(RoundedCornerShape(50))
@@ -1002,11 +1006,13 @@ fun RocketScreen(
                         .padding(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(tr("Efek roket sedang DIMATIKAN di menu Blok Efek HP ini, jadi animasi tidak diputar."),
+                    Text(
+                        tr("Efek roket sedang DIMATIKAN di menu Blok Efek HP ini, jadi animasi tidak diputar."),
                         color = Color(0xFFFFCDD2), fontSize = 11.sp, textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(6.dp))
-                    Text(tr("Nyalakan sekarang"),
+                    Text(
+                        tr("Nyalakan sekarang"),
                         color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold,
                         modifier = Modifier.clip(RoundedCornerShape(50))
                             .background(Color(0xFFFFD54F))
@@ -1016,7 +1022,8 @@ fun RocketScreen(
                 }
             }
             if (RocketCfg.uiOff) {
-                Text(tr("Roket juga sedang dimatikan global dari panel dev."),
+                Text(
+                    tr("Roket juga sedang dimatikan global dari panel dev."),
                     color = Color(0xFFFF8A80), fontSize = 11.sp,
                     modifier = Modifier.padding(top = 6.dp), textAlign = TextAlign.Center,
                 )
@@ -1031,7 +1038,7 @@ fun RocketScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 for (i in 1..5) {
-                    if (i > 1) Text(tr(">"), color = Color(0xFFE8C489), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    if (i > 1) Text(">", color = Color(0xFFE8C489), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     val active = i == lv
                     val unlocked = i <= lv
                     Box(
@@ -1192,7 +1199,7 @@ private fun RocketSheet(title: String, onClose: () -> Unit, body: @Composable Co
                 Box(
                     Modifier.size(30.dp).clip(CircleShape).background(Color(0x33FFFFFF)).clickable { onClose() },
                     contentAlignment = Alignment.Center,
-                ) { Text(tr("\u2039"), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                ) { Text("\u2039", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                 Spacer(Modifier.weight(1f))
                 Text(title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
@@ -1230,7 +1237,8 @@ fun RocketRulesDialog(onClose: () -> Unit) {
 fun RocketRankDialog(myUid: String, onClose: () -> Unit) {
     val rows = RocketRepo.rankRows
     RocketSheet("Peringkat roket", onClose) {
-        Text(tr("Pengirim gift terbanyak untuk roket Lv.${RocketRepo.stage} yang sedang diisi. ") +
+        Text(
+            tr("Pengirim gift terbanyak untuk roket Lv.${RocketRepo.stage} yang sedang diisi. ") +
                 "Setelah roket meluncur, peringkat mulai dari awal lagi.",
             color = Color(0xFF9FB6D9), fontSize = 12.sp,
         )
@@ -1256,7 +1264,8 @@ fun RocketRankDialog(myUid: String, onClose: () -> Unit) {
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text(tr("Hadiah peringkat muncul otomatis di dialog setelah roket meluncur."),
+        Text(
+            tr("Hadiah peringkat muncul otomatis di dialog setelah roket meluncur."),
             color = Color(0xFF9FB6D9), fontSize = 11.sp,
         )
     }
@@ -1295,7 +1304,8 @@ fun RocketRankPrizeDialog(onClose: () -> Unit) {
             }
         }
         Spacer(Modifier.height(6.dp))
-        Text(tr("Hadiah diberikan saat roket meluncur. Pengguna lain juga berkesempatan mendapat hadiah keberuntungan."),
+        Text(
+            tr("Hadiah diberikan saat roket meluncur. Pengguna lain juga berkesempatan mendapat hadiah keberuntungan."),
             color = Color(0xFF9FB6D9), fontSize = 11.sp,
         )
     }
@@ -1511,7 +1521,8 @@ fun RocketLaunchOverlay(roomId: String, myUid: String) {
                     .background(Color(0xCC101010))
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Text(tr("\uD83D\uDE80 Roket Lv.${e.lv} ${e.name} meluncur!"),
+                Text(
+                    tr("\uD83D\uDE80 Roket Lv.${e.lv} ${e.name} meluncur!"),
                     color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.Bold,
                 )
             }
@@ -1675,7 +1686,8 @@ fun RocketLiveBanner(currentRoomId: String?, onOpen: (String) -> Unit, modifier:
         Text(tr("\uD83D\uDE80"), fontSize = 20.sp)
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
-            Text(tr("Roket Lv.${live.lv} sedang meluncur"),
+            Text(
+                tr("Roket Lv.${live.lv} sedang meluncur"),
                 color = GoldLight, fontSize = 13.sp, fontWeight = FontWeight.Bold,
             )
             Text(
@@ -1759,7 +1771,8 @@ fun RocketPrizeDialog(
                 err != null -> Text(err ?: "", color = Color(0xFFFF8A80), fontSize = 14.sp, textAlign = TextAlign.Center)
                 else -> {
                     if (vip > 0) Text(tr("👑 VIP$vip $days hari"), color = Color(0xFFFFD54F), fontSize = 22.sp, fontWeight = FontWeight.Black)
-                    if (vip > 0 && kartu) Text(tr("Kartu masuk ke Props. Buka Profil › Alat peraga untuk mengaktifkannya."),
+                    if (vip > 0 && kartu) Text(
+                        tr("Kartu masuk ke Props. Buka Profil › Alat peraga untuk mengaktifkannya."),
                         color = Color(0xFF9FB6D9), fontSize = 11.sp, textAlign = TextAlign.Center,
                     )
                     if (coins > 0) Text(tr("+${ringkas(coins)} coin"), color = Color(0xFFFFD54F), fontSize = 22.sp, fontWeight = FontWeight.Black)

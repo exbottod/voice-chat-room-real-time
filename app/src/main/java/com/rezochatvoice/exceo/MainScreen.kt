@@ -372,7 +372,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (attempt == 5) Toast.makeText(context, "Gagal membuat ID: ${e.message}", Toast.LENGTH_LONG).show()
+                if (attempt == 5) Toast.makeText(context, tr("Gagal membuat ID: ${e.message}"), Toast.LENGTH_LONG).show()
                 else kotlinx.coroutines.delay(1500L)
             }
         }
@@ -412,7 +412,7 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
         }
         scope.launch {
             ProfileRepo.saveRemote(new)?.let {
-                Toast.makeText(context, "Tersimpan di perangkat, gagal sinkron: ${it.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, tr("Tersimpan di perangkat, gagal sinkron: ${it.message}"), Toast.LENGTH_LONG).show()
             }
             UserDirectory.publish(context, user, new)
             // Nama di bawah nama room ikut berganti saat profil disimpan.

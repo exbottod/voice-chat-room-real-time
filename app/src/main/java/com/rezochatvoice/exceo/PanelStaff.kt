@@ -565,12 +565,14 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
 
             if (info.isManager) {
                 PanelSection("Kirim coin") {
-                    Text(tr("Sisa stok coin Anda: ${fmtNum(sisaCoin)}"),
+                    Text(
+                        tr("Sisa stok coin Anda: ${fmtNum(sisaCoin)}"),
                         color = if (sisaCoin > 0L) PanelGold else Color(0xFFFF9E9E),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                     )
-                    Text(tr("Coin diambil dari stok yang dikirim developer. Kalau habis, kirim coin terkunci."),
+                    Text(
+                        tr("Coin diambil dari stok yang dikirim developer. Kalau habis, kirim coin terkunci."),
                         color = PanelMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
@@ -672,7 +674,8 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(if (s.kind == "frame") "\u2B55" else "\u2728", fontSize = 14.sp)
-                                Text(tr(" ") + s.name.ifBlank { s.id } + " ",
+                                Text(
+                                    " " + s.name.ifBlank { s.id } + " ",
                                     color = PanelInk,
                                     fontSize = 12.sp,
                                     modifier = Modifier.weight(1f),
@@ -711,7 +714,8 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                     else jalankan("unban", org.json.JSONObject().put("to", idUser))
                 }
                 if (info.isAdmin) {
-                    Text(tr("Admin hanya bisa memblokir user biasa. Staf dan manager tidak bisa diblokir dari sini."),
+                    Text(
+                        tr("Admin hanya bisa memblokir user biasa. Staf dan manager tidak bisa diblokir dari sini."),
                         color = PanelMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(top = 6.dp),
@@ -721,7 +725,8 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
 
             if (info.isManager) {
                 PanelSection("Reset nama user") {
-                    Text(tr("Nama akun langsung diganti menjadi \"Unknown\" (berlaku sekarang, tanpa menunggu HP pemilik akun)."),
+                    Text(
+                        tr("Nama akun langsung diganti menjadi \"Unknown\" (berlaku sekarang, tanpa menunggu HP pemilik akun)."),
                         color = PanelMuted,
                         fontSize = 11.sp,
                     )
@@ -749,7 +754,8 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                 }
 
                 PanelSection("Reset foto profil user") {
-                    Text(tr("Foto kembali ke ikon bawaan pria atau wanita sesuai akunnya. Nama tidak diubah."),
+                    Text(
+                        tr("Foto kembali ke ikon bawaan pria atau wanita sesuai akunnya. Nama tidak diubah."),
                         color = PanelMuted,
                         fontSize = 11.sp,
                     )

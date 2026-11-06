@@ -185,7 +185,7 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
             if (bmp != null) {
                 Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             } else {
-                Text(tr("🎙️"), fontSize = 40.sp, modifier = Modifier.align(Alignment.Center))
+                Text("🎙️", fontSize = 40.sp, modifier = Modifier.align(Alignment.Center))
             }
             Row(
                 modifier = Modifier
@@ -204,7 +204,8 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                     2 -> Brush.horizontalGradient(listOf(Color(0xFFE0E0E0), Color(0xFF9E9E9E)))
                     else -> Brush.horizontalGradient(listOf(Color(0xFFE8A064), Color(0xFFA65A2A)))
                 }
-                Text(tr("TOP$rank"), color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                Text(
+                    tr("TOP$rank"), color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
@@ -266,13 +267,15 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                         contentAlignment = Alignment.Center,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(tr("\u2713"),
+                            Text(
+                                "\u2713",
                                 color = Color(0xFF3A2A00),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
                             )
                             Spacer(Modifier.width(4.dp))
-                            Text(tr("OFFICIAL"),
+                            Text(
+                                tr("OFFICIAL"),
                                 color = Color(0xFF3A2A00),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -323,7 +326,7 @@ fun CreateRoomDialog(ownerUid: String, ownerName: String, onDismiss: () -> Unit,
                 contentAlignment = Alignment.Center,
             ) {
                 if (bmp != null) Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                else Text(tr("📷"), fontSize = 30.sp)
+                else Text("📷", fontSize = 30.sp)
             }
             Spacer(Modifier.height(6.dp))
             Text(tr("Foto room"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
@@ -344,7 +347,7 @@ fun CreateRoomDialog(ownerUid: String, ownerName: String, onDismiss: () -> Unit,
                     try {
                         onCreated(RoomRepo.createRoom(ownerUid, ownerName, name.trim(), photo))
                     } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
-                        Toast.makeText(context, "Gagal membuat room: ${e.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, tr("Gagal membuat room: ${e.message}"), Toast.LENGTH_LONG).show()
                     }
                     busy = false
                 }

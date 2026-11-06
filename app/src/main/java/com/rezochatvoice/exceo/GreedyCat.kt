@@ -321,7 +321,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                         Modifier.size(30.dp).clip(CircleShape).background(Color.White)
                             .border(2.dp, Color(0xFFFF7A00), CircleShape).clickable { onClose() },
                         contentAlignment = Alignment.Center,
-                    ) { Text(tr("↩"), color = Color(0xFFC44A00), fontSize = 14.sp) }
+                    ) { Text("↩", color = Color(0xFFC44A00), fontSize = 14.sp) }
                     Spacer(Modifier.width(8.dp))
                     Text(tr("GREEDY CAT"), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.weight(1f))
@@ -342,13 +342,13 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                         Modifier.size(30.dp).clip(CircleShape).background(Color.White)
                             .border(2.dp, Color(0xFFFF7A00), CircleShape).clickable { showHelp = true },
                         contentAlignment = Alignment.Center,
-                    ) { Text(tr("❓"), fontSize = 13.sp) }
+                    ) { Text("❓", fontSize = 13.sp) }
                     Spacer(Modifier.width(5.dp))
                     Box(
                         Modifier.size(30.dp).clip(CircleShape).background(Color.White)
                             .border(2.dp, CatGold, CircleShape).clickable { showRank = true },
                         contentAlignment = Alignment.Center,
-                    ) { Text(tr("🏆"), fontSize = 14.sp) }
+                    ) { Text("🏆", fontSize = 14.sp) }
                 }
 
                 // ---- baris info ronde
@@ -371,7 +371,8 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                     ) {
                         if (history.isEmpty()) {
                             Spacer(Modifier.height(10.dp))
-                            Text(tr("RESULT\nKOSONG\n\npasang bet\n30 detik\notomatis\nmuncul"),
+                            Text(
+                                tr("RESULT\nKOSONG\n\npasang bet\n30 detik\notomatis\nmuncul"),
                                 color = Color(0xCCFFFFFF), fontSize = 7.sp, textAlign = TextAlign.Center,
                             )
                         } else {
@@ -388,7 +389,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                                         Text(h.mult, color = Color(0xFFD32F2F), fontSize = 7.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
-                                if (i < history.size - 1) Text(tr("↓"), color = Color.White, fontSize = 9.sp)
+                                if (i < history.size - 1) Text("↓", color = Color.White, fontSize = 9.sp)
                             }
                         }
                     }
@@ -410,7 +411,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(tr("🐱"), fontSize = 30.sp)
+                                        Text("🐱", fontSize = 30.sp)
                                         Text(
                                             when {
                                                 !active -> "RESULT"
@@ -519,7 +520,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                         Box(
                             Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Color.White).padding(6.dp),
                         ) {
-                            Text(tr("🪙 ") + fmtCat(coins), color = Color(0xFF333333), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("🪙 " + fmtCat(coins), color = Color(0xFF333333), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.width(5.dp))
                         Box(
@@ -579,7 +580,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                                     )
                                     Text(parts.getOrElse(0) { "" }, color = Color.White, fontSize = 12.sp,
                                         modifier = Modifier.weight(1f))
-                                    Text(tr("🪙 ") + fmtCat(parts.getOrElse(1) { "0" }.toLongOrNull() ?: 0L),
+                                    Text("🪙 " + fmtCat(parts.getOrElse(1) { "0" }.toLongOrNull() ?: 0L),
                                         color = Color(0xFFFFEC8B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
@@ -597,7 +598,8 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                     ) {
                         Text(tr("Cara main Greedy Cat"), color = Color(0xFF0D47A1), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
-                        Text(tr("1. Pilih nominal chip.\n") +
+                        Text(
+                            tr("1. Pilih nominal chip.\n") +
                                 "2. Ketuk makanan untuk memasang, boleh berkali-kali.\n" +
                                 "3. Ronde 30 detik, 3 detik terakhir terkunci.\n" +
                                 "4. Kalau keluar makanan daging, semua taruhan daging menang.\n" +
@@ -625,7 +627,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(tr("🍴"), fontSize = 22.sp)
+                            Text("🍴", fontSize = 22.sp)
                             Spacer(Modifier.width(14.dp))
                             Box(
                                 Modifier.size(76.dp).clip(CircleShape)
@@ -634,7 +636,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                                 contentAlignment = Alignment.Center,
                             ) { Text(winFood!!.icon, fontSize = 36.sp) }
                             Spacer(Modifier.width(14.dp))
-                            Text(tr("🔪"), fontSize = 22.sp)
+                            Text("🔪", fontSize = 22.sp)
                         }
                         Spacer(Modifier.height(10.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -658,7 +660,7 @@ fun GreedyCatScreen(myUid: String, myName: String = "Player", onClose: () -> Uni
                                 Modifier.size(52.dp).clip(CircleShape).background(Color.White)
                                     .border(3.dp, CatGold, CircleShape),
                                 contentAlignment = Alignment.Center,
-                            ) { Text(tr("🐱"), fontSize = 28.sp) }
+                            ) { Text("🐱", fontSize = 28.sp) }
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text(tr("Round ") + roundNum + "'s Result:", color = Color.White, fontSize = 12.sp)
