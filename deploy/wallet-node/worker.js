@@ -1489,6 +1489,136 @@ async function hivePemain(env, uid) {
   };
 }
 
+
+/* ================= GAME REZO (HTML5 buatan sendiri) =================
+   Game hanya menggambar. Hasil putaran, potong coin, dan kemenangan
+   diputuskan di sini supaya tidak bisa diakali dari sisi HP.
+   Pemain membuka game dengan ?code=uid.exp.md5(uid.exp.rezo-game-2026) */
+const GAME_SALT = "rezo-game-2026";
+const GAME_TARUHAN_MIN = 100;
+const GAME_TARUHAN_MAX = 50000000;
+
+// [kode, bobot, bayaran untuk 3/4/5 sama x taruhan]
+const GAME_SIMBOL = [
+  ["zeus", 1, [9.5, 38, 115]],
+  ["mahkota", 2, [6.5, 29, 92]],
+  ["petir", 4, [5, 19, 58]],
+  ["kuil", 6, [4, 14, 38]],
+  ["helm", 8, [3, 9.5, 29]],
+  ["piala", 10, [2.4, 7, 24]],
+  ["cincin", 13, [2, 6, 19]],
+  ["permata", 16, [1.4, 4.8, 14]],
+];
+const GAME_BOBOT = GAME_SIMBOL.reduce((a, s) => a + s[1], 0);
+const GAME_WILD = 1;
+
+/** code bertanda tangan dari app: uid.exp.md5(uid.exp.salt) */
+function gameUid(code) {
+  const p = String(code || "").split(".");
+  if (p.length !== 3) return null;
+  const uid = p[0], exp = Number(p[1]);
+  if (!uid || !Number.isFinite(exp) || exp * 1000 < Date.now()) return null;
+  if (md5hex(uid + "." + p[1] + "." + GAME_SALT) !== p[2]) return null;
+  return uid;
+}
+
+function gameAcak() {
+  const b = new Uint32Array(1);
+  crypto.getRandomValues(b);
+  return b[0] / 4294967296;
+}
+
+function gameSimbol() {
+  let r = gameAcak() * GAME_BOBOT;
+  for (let i = 0; i < GAME_SIMBOL.length; i++) {
+    r -= GAME_SIMBOL[i][1];
+    if (r <= 0) return i;
+  }
+  return GAME_SIMBOL.length - 1;
+}
+
+/** Satu putaran 5x3: tiga baris ditambah dua diagonal. */
+function gamePutaran() {
+  const grid = [];
+  for (let r = 0; r < 3; r++) {
+    const baris = [];
+    for (let c = 0; c < 5; c++) baris.push(gameSimbol());
+    grid.push(baris);
+  }
+  const lines = [
+    grid[0].slice(),
+    grid[1].slice(),
+    grid[2].slice(),
+    [grid[0][0], grid[1][1], grid[2][2], grid[1][3], grid[0][4]],
+    [grid[2][0], grid[1][1], grid[0][2], grid[1][3], grid[2][4]],
+  ];
+  const dapat = [];
+  let kali = 0;
+  lines.forEach((ln, idx) => {
+    const dasar = ln[0];
+    let n = 1;
+    for (let c = 1; c < 5; c++) {
+      if (ln[c] === dasar || ln[c] === GAME_WILD) n++;
+      else break;
+    }
+    if (n < 3) return;
+    const pay = GAME_SIMBOL[dasar][2][n - 3];
+    if (pay > 0) {
+      kali += pay;
+      dapat.push({ line: idx, count: n, pay });
+    }
+  });
+  return { grid, kali, lines: dapat };
+}
+
+async function gameState(env, uid) {
+  const w = await pastikan(env, uid);
+  const pl = await hivePemain(env, uid).catch(() => null);
+  return ok({
+    uid,
+    coins: Number(w.coins),
+    name: (pl && pl.name) || "Player",
+    avatar: (pl && pl.avatar) || "",
+    taruhanMin: GAME_TARUHAN_MIN,
+  });
+}
+
+async function gameSpin(env, uid, p) {
+  const bet = Math.trunc(Number(p.bet ?? 0));
+  if (!Number.isFinite(bet) || bet < GAME_TARUHAN_MIN) return gagal("Taruhan minimal " + GAME_TARUHAN_MIN);
+  if (bet > GAME_TARUHAN_MAX) return gagal("Taruhan terlalu besar");
+  const now = Date.now();
+  const put = gamePutaran();
+  const menang = Math.floor(bet * put.kali);
+  // Satu perintah: potong taruhan, tambah kemenangan, hanya kalau coin cukup.
+  const r = await pipe(env, [
+    {
+      sql: "update wallets set coins = coins - ? + ?, updated_at = ? where uid = ? and coins >= ?",
+      args: [I(bet), I(menang), I(now), T(uid), I(bet)],
+    },
+    { sql: "select changes() as c", args: [] },
+  ]);
+  if (Number(r[1]?.rows?.[0]?.c ?? 0) === 0) {
+    const w0 = await pastikan(env, uid);
+    return gagal("Coin tidak cukup. Saldo " + Number(w0.coins));
+  }
+  const catat = [
+    { sql: "insert into money_tx (uid, kind, amount, created_at) values (?,?,?,?)",
+      args: [T(uid), T("game_bet"), I(-bet), I(now)] },
+  ];
+  if (menang > 0) {
+    catat.push({ sql: "insert into money_tx (uid, kind, amount, created_at) values (?,?,?,?)",
+      args: [T(uid), T("game_win"), I(menang), I(now)] });
+  }
+  await pipe(env, catat).catch(() => {});
+  const w = await pastikan(env, uid);
+  return ok({
+    uid, bet, kali: put.kali, win: menang, grid: put.grid,
+    lines: put.lines, coins: Number(w.coins),
+    simbol: GAME_SIMBOL.map((s) => s[0]),
+  });
+}
+
 async function hivePlay(req, env) {
   const ep = new URL(req.url).pathname.toLowerCase();
   if (ep.includes("version")) {
@@ -1597,6 +1727,16 @@ export default {
     }
     if (url.pathname === "/hivecatalog") {
       try { return await hiveKatalog(); } catch (e) { return json({ ok: 0, e: String(e?.message ?? e) }, 502); }
+    }
+    if (url.pathname.toLowerCase().startsWith("/g/")) {
+      const ep = url.pathname.toLowerCase();
+      const b = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+      const uidGame = gameUid(b.code);
+      if (!uidGame) return gagal("Sesi game tidak sah, buka ulang game dari app");
+      await pastikan(env, uidGame);
+      if (ep.includes("state")) return await gameState(env, uidGame);
+      if (ep.includes("spin")) return await gameSpin(env, uidGame, b);
+      return gagal("Endpoint game tidak dikenal");
     }
     if (url.pathname.toLowerCase().startsWith("/hive/")) {
       return await hivePlay(req, env);
