@@ -3576,8 +3576,10 @@ async function storeDelete(c){
 $("stSlot").onchange = () => {
   const uidSlot = $("stSlot").value === "uid" || $("stSlot").value === "badge";
   $("stUidBox").classList.toggle("hide", !uidSlot);
+  if ($("stCustomWrap")) $("stCustomWrap").style.display = ($("stSlot").value === "uid") ? "block" : "none";
   if (!uidSlot) { stUidPilih = ""; stUidFb = ""; $("stUidCari").value = ""; $("stUidHasil").innerHTML = ""; }
 };
+setTimeout(() => { try { $("stSlot").onchange(); } catch (e) { } }, 200);
 let stUidTunda = null;
 $("stUidCari").oninput = (e) => {
   clearTimeout(stUidTunda);
