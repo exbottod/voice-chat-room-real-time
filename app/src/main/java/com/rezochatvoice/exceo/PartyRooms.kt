@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -219,9 +220,19 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                 (room.roomNo.isNotBlank() && OfficialRooms.ids.contains(room.roomNo)) ||
                 (room.ownerUid.isNotBlank() && OfficialRooms.ids.contains("owner_" + room.ownerUid))
             if (resmi) {
-                // Pita OFFICIAL meniru referensi: emas miring 45 derajat, ujung
-                // pita sedikit keluar dari tepi foto, ada lipatan gelap sebagai
-                // ketebalan dan bayangan supaya tampak 3D.
+                // Pita OFFICIAL: emas miring 45 derajat. Potongan pita mengikuti
+                // bentuk tepi foto (diperbesar 2% supaya sedikit menonjol keluar),
+                // jadi ujungnya rata dengan pinggir kartu dan tidak ada sudut
+                // lancip yang menusuk di tepi.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .scale(1.02f)
+                        .graphicsLayer {
+                            clip = true
+                            shape = RoundedCornerShape(16.dp)
+                        },
+                ) {
                 Box(
                     Modifier
                         .align(Alignment.TopStart)
@@ -275,6 +286,7 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                             )
                         }
                     }
+                }
                 }
             }
         }
