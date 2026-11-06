@@ -64,7 +64,7 @@ private fun SettingRow(label: String, value: String? = null, onClick: () -> Unit
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = Color.White, modifier = Modifier.weight(1f))
+        Text(tr(label), color = Color.White, modifier = Modifier.weight(1f))
         if (value != null) {
             Text(value, color = Color(0xFF9A9A9A), fontSize = 13.sp, maxLines = 1)
             Spacer(Modifier.width(8.dp))

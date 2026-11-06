@@ -1237,7 +1237,7 @@ fun RoomScreen(
 private fun RmEfekBaris(judul: String, ket: String, peringatan: String? = null, on: Boolean, onToggle: (Boolean) -> Unit) {
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(judul, color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
+            Text(tr(judul), color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
             Switch(
                 checked = on,
                 onCheckedChange = onToggle,
@@ -1421,7 +1421,7 @@ private fun RmMsgBox(text: String, color: Color) {
             }
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Text(text, color = color, fontSize = 14.sp)
+        Text(tr(text), color = color, fontSize = 14.sp)
     }
 }
 
@@ -1463,7 +1463,7 @@ private fun RmTool(label: String, onClick: () -> Unit, icon: @Composable () -> U
     Column(Modifier.width(80.dp).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFF1C1C1C)), contentAlignment = Alignment.Center) { icon() }
         Spacer(Modifier.height(6.dp))
-        Text(label, color = Color(0xFFD0D0D0), fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 2)
+        Text(tr(label), color = Color(0xFFD0D0D0), fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 2)
     }
 }
 
@@ -1480,7 +1480,7 @@ private fun RmToolToggle(label: String, on: Boolean, onClick: () -> Unit, icon: 
             Box(Modifier.alpha(if (on) 1f else 0.35f)) { icon() }
         }
         Spacer(Modifier.height(6.dp))
-        Text(label, color = if (on) Color(0xFFD0D0D0) else Color(0xFF8A8A8A), fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 2)
+        Text(tr(label), color = if (on) Color(0xFFD0D0D0) else Color(0xFF8A8A8A), fontSize = 12.sp, textAlign = TextAlign.Center, maxLines = 2)
         Text(
             if (on) "ON" else "OFF",
             color = if (on) Color(0xFF5BD27A) else Color(0xFFE06A6A),
@@ -1498,7 +1498,7 @@ private fun RmAction(label: String, onClick: () -> Unit, icon: @Composable () ->
             contentAlignment = Alignment.Center,
         ) { icon() }
         Spacer(Modifier.height(6.dp))
-        Text(label, color = Color(0xFFD0D0D0), fontSize = 12.sp)
+        Text(tr(label), color = Color(0xFFD0D0D0), fontSize = 12.sp)
     }
 }
 
@@ -1506,7 +1506,7 @@ private fun RmAction(label: String, onClick: () -> Unit, icon: @Composable () ->
 private fun RmStat(value: String, label: String, modifier: Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text(label, color = Color(0xFF9A9A9A), fontSize = 12.sp)
+        Text(tr(label), color = Color(0xFF9A9A9A), fontSize = 12.sp)
     }
 }
 

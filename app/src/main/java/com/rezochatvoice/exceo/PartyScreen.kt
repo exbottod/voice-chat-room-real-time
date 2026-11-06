@@ -214,8 +214,7 @@ private fun TopTabs(
                     .padding(end = 20.dp, top = 8.dp, bottom = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(
-                    label,
+                Text(tr(label),
                     color = if (active) Gold else Color(0xFFBDBDBD),
                     fontSize = if (active) 22.sp else 17.sp,
                     fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
@@ -380,8 +379,7 @@ private fun BannerPager() {
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            title,
+                        Text(tr(title),
                             textAlign = TextAlign.Center,
                             style = TextStyle(
                                 brush = Brush.verticalGradient(listOf(GoldLight, Gold, GoldDark)),
@@ -391,7 +389,7 @@ private fun BannerPager() {
                             ),
                         )
                         Spacer(Modifier.height(6.dp))
-                        Text(subtitle, color = Color(0xFFE0E0E0), fontSize = 13.sp)
+                        Text(tr(subtitle), color = Color(0xFFE0E0E0), fontSize = 13.sp)
                     }
                 }
             }
@@ -439,7 +437,7 @@ private fun RankCard(title: String, color: Color, modifier: Modifier, onClick: (
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(title, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(tr(title), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Spacer(Modifier.weight(1f))
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Podium("2", 34.dp)
@@ -510,7 +508,7 @@ private fun FilterChips(selected: Int, onSelect: (Int) -> Unit) {
                     .padding(horizontal = 24.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, color = if (active) Color.Black else GoldLight, fontWeight = FontWeight.Bold)
+                Text(tr(label), color = if (active) Color.Black else GoldLight, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -566,6 +564,6 @@ private fun EmptyBlock(text: String) {
         Modifier.fillMaxWidth().padding(vertical = 80.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = Color(0xFF8A8A8A), fontSize = 14.sp)
+        Text(tr(text), color = Color(0xFF8A8A8A), fontSize = 14.sp)
     }
 }

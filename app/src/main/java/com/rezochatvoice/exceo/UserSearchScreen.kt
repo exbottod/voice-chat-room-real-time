@@ -127,8 +127,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit, onEnterRoom: (RoomInf
             ) {
                 listOf("Semua", "Cari ID User", "Cari ID Room").forEachIndexed { i, label ->
                     val on = tab == i
-                    Text(
-                        label,
+                    Text(tr(label),
                         color = if (on) Color.Black else GoldLight,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,

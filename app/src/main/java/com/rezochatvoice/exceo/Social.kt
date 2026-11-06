@@ -529,7 +529,7 @@ fun ProfileSheetAction(label: String, icon: String, onClick: () -> Unit) {
     Column(Modifier.clickable(onClick = onClick).padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(icon, fontSize = 28.sp)
         Spacer(Modifier.height(4.dp))
-        Text(label, color = Color(0xFFD0D0D0), fontSize = 12.sp)
+        Text(tr(label), color = Color(0xFFD0D0D0), fontSize = 12.sp)
     }
 }
 
@@ -936,8 +936,7 @@ private fun FollowRow(
 /** Tombol pill kuning seperti pada desain. */
 @Composable
 private fun FollowPill(text: String, busy: Boolean, onClick: () -> Unit) {
-    Text(
-        text,
+    Text(tr(text),
         color = Color.Black,
         fontSize = 13.sp,
         fontWeight = FontWeight.Medium,

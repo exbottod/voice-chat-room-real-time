@@ -262,7 +262,7 @@ private fun BalanceCard(emoji: String, label: String, value: String, modifier: M
     ) {
         Text(emoji, fontSize = 30.sp)
         Text(value, color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
-        Text(label, color = Color(0xFFBDBDBD), fontSize = 13.sp)
+        Text(tr(label), color = Color(0xFFBDBDBD), fontSize = 13.sp)
     }
 }
 
@@ -412,7 +412,7 @@ private fun TopupMethodRow(
         ) {
             icon()
             Spacer(Modifier.width(14.dp))
-            Text(title, color = WalNavy, fontSize = 17.sp, fontWeight = if (sub.isNotEmpty()) FontWeight.ExtraBold else FontWeight.Normal)
+            Text(tr(title), color = WalNavy, fontSize = 17.sp, fontWeight = if (sub.isNotEmpty()) FontWeight.ExtraBold else FontWeight.Normal)
             if (sub.isNotEmpty()) {
                 Spacer(Modifier.width(10.dp))
                 Text(sub, color = WalGrey, fontSize = 15.sp)
@@ -454,7 +454,7 @@ private fun MethodChip(label: String, iconRes: Int, active: Boolean, onClick: ()
             )
         }
         Spacer(Modifier.width(6.dp))
-        Text(label, color = if (active) Color.White else WalNavy, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(tr(label), color = if (active) Color.White else WalNavy, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -488,7 +488,7 @@ private fun PayDot(text: String, color: Color) {
     Box(
         Modifier.size(52.dp).clip(CircleShape).background(color),
         contentAlignment = Alignment.Center,
-    ) { Text(text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+    ) { Text(tr(text), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
 }
 
 @Composable
@@ -1224,8 +1224,7 @@ fun GiftPanel(
                             .clickable { tab = i }
                             .padding(horizontal = 14.dp, vertical = 6.dp),
                     ) {
-                        Text(
-                            label,
+                        Text(tr(label),
                             color = if (tab == i) Color.Black else Color(0xFF8FA3A0),
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,

@@ -1164,7 +1164,7 @@ private fun RocketRoundBtn(label: String, onClick: () -> Unit) {
             .clickable { onClick() },
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = Color(0xFFFFE08A), fontSize = 17.sp, fontWeight = FontWeight.Black)
+        Text(tr(label), color = Color(0xFFFFE08A), fontSize = 17.sp, fontWeight = FontWeight.Black)
     }
 }
 
@@ -1201,7 +1201,7 @@ private fun RocketSheet(title: String, onClose: () -> Unit, body: @Composable Co
                     contentAlignment = Alignment.Center,
                 ) { Text("\u2039", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                 Spacer(Modifier.weight(1f))
-                Text(title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(tr(title), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 Spacer(Modifier.width(30.dp))
             }

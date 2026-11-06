@@ -300,7 +300,7 @@ private fun GcSection(title: String, content: @Composable () -> Unit) {
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
             .background(Color(0xFF5A3C27)).padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
-        Text(title, color = Color(0xFFF0DDBF), fontSize = 15.sp)
+        Text(tr(title), color = Color(0xFFF0DDBF), fontSize = 15.sp)
         Spacer(Modifier.height(10.dp))
         content()
     }
@@ -367,7 +367,7 @@ private fun GameTile(title: String, sub: String, tint: Color, onClick: () -> Uni
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(tr(title), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text(sub, color = Color(0xFFE0E0E0), fontSize = 12.sp)
         }
         Text(tr("Main ›"), color = GoldG, fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -587,7 +587,7 @@ private fun GameScaffold(title: String, balance: Long, onClose: () -> Unit, body
             ) {
                 Text(tr("‹ Kembali"), color = GoldG, fontSize = 15.sp, modifier = Modifier.clickable { onClose() }.padding(6.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(tr(title), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Text(fmtG(balance) + " coin", color = GoldG, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             Column(Modifier.fillMaxSize().padding(14.dp)) {

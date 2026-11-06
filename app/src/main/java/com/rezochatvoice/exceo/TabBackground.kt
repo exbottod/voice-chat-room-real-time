@@ -320,7 +320,7 @@ private fun TabBgEditor(tab: String) {
                     colors = if (active) ButtonDefaults.outlinedButtonColors(
                         containerColor = Gold, contentColor = Color.Black
                     ) else ButtonDefaults.outlinedButtonColors(),
-                ) { Text(label, fontSize = 12.sp) }
+                ) { Text(tr(label), fontSize = 12.sp) }
             }
         }
 

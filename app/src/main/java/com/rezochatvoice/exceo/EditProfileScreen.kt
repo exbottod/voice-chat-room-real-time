@@ -86,7 +86,7 @@ private fun EditRow(
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = Ink, fontSize = 17.sp, modifier = Modifier.weight(1f))
+        Text(tr(label), color = Ink, fontSize = 17.sp, modifier = Modifier.weight(1f))
         content()
         if (chevron) {
             Spacer(Modifier.width(8.dp))
@@ -308,8 +308,7 @@ fun EditProfileScreen(
             text = {
                 Column {
                     listOf("M" to "♂  Pria", "F" to "♀  Wanita").forEach { (code, label) ->
-                        Text(
-                            label,
+                        Text(tr(label),
                             fontSize = 18.sp,
                             color = if (profile.gender == code) Color(0xFF2FC4AE) else Color.Unspecified,
                             modifier = Modifier
@@ -365,7 +364,7 @@ private fun TextEditDialog(
     var text by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = { Text(tr(title)) },
         text = {
             OutlinedTextField(
                 value = text,

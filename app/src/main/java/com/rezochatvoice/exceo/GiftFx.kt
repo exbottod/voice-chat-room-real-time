@@ -579,7 +579,7 @@ fun GiftFxOverlay(roomId: String) {
                 append("${d.from} mengirim ${d.gift} x${d.count}")
                 if (d.combo >= 2) append(" • kombo x${d.combo}")
             }
-            Text(text, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(tr(text), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
     }
 }
@@ -743,8 +743,7 @@ fun GlobalGiftBanner(currentRoomId: String?, onOpenRoom: (RoomInfo) -> Unit) {
                     if (d.combo >= 2) append(" • kombo x${d.combo}")
                     append(" • ${d.roomName} ›")
                 }
-                Text(
-                    text,
+                Text(tr(text),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,

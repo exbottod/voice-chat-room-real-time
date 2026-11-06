@@ -98,8 +98,7 @@ fun CountryPickerScreen(
 
 @Composable
 private fun Judul(teks: String) {
-    Text(
-        teks, color = Color.White.copy(alpha = 0.55f), fontSize = 13.sp,
+    Text(tr(teks), color = Color.White.copy(alpha = 0.55f), fontSize = 13.sp,
         modifier = Modifier.fillMaxWidth().padding(start = 20.dp, top = 14.dp, bottom = 4.dp),
     )
 }

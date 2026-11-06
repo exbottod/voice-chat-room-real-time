@@ -35,7 +35,7 @@ private fun YellowButton(text: String, modifier: Modifier = Modifier, enabled: B
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 36.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(text, color = Color(0xFF4A2F00), fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+    ) { Text(tr(text), color = Color(0xFF4A2F00), fontSize = 20.sp, fontWeight = FontWeight.Bold) }
 }
 
 @Composable
@@ -473,7 +473,7 @@ private fun TextEditDialog(title: String, initial: String, max: Int, onDismiss: 
     var t by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = { Text(tr(title)) },
         text = { OutlinedTextField(t, { if (it.length <= max) t = it }, modifier = Modifier.fillMaxWidth(), supportingText = { Text(tr("${t.length}/$max")) }) },
         confirmButton = { TextButton(onClick = { if (t.isNotBlank()) { onSave(t.trim()); onDismiss() } }) { Text(tr("Simpan")) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Batal")) } },
@@ -548,7 +548,7 @@ private fun HomeTab(
 private fun PerkBox(emoji: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x33FFFFFF)), contentAlignment = Alignment.Center) { Text(emoji, fontSize = 28.sp) }
-        Text(label, color = Color(0xFFD7B9A5), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        Text(tr(label), color = Color(0xFFD7B9A5), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
     }
 }
 

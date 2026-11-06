@@ -42,8 +42,7 @@ import coil.compose.AsyncImage
 
 @Composable
 private fun PageHeader(title: String) {
-    Text(
-        title,
+    Text(tr(title),
         color = Gold,
         fontSize = 24.sp,
         fontWeight = FontWeight.Bold,

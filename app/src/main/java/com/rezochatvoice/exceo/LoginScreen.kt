@@ -682,8 +682,7 @@ private fun TombolPil(
         Box(Modifier.fillMaxSize().padding(start = 18.dp), contentAlignment = Alignment.CenterStart) {
             ikon()
         }
-        Text(
-            teks,
+        Text(tr(teks),
             color = Color(0xFF1F1F1F),
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,

@@ -192,7 +192,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                         ) {
                             Text("🪑", fontSize = 12.sp)
                         }
-                        Text(label, color = Color(0xFF9E86C4), fontSize = 8.sp)
+                        Text(tr(label), color = Color(0xFF9E86C4), fontSize = 8.sp)
                         Text("0", color = Color(0xFFFF79B0), fontSize = 8.sp)
                     }
                 }
@@ -304,7 +304,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                         }
                         Spacer(Modifier.height(6.dp))
                         Text(shield, fontSize = 30.sp)
-                        Text(label, color = Color(0xFFD6C7EE), fontSize = 9.sp)
+                        Text(tr(label), color = Color(0xFFD6C7EE), fontSize = 9.sp)
                     }
                 }
             }

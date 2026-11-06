@@ -235,7 +235,7 @@ private fun GenderChip(label: String, on: Boolean, color: Color, modifier: Modif
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp),
         Alignment.CenterStart,
-    ) { Text(label, color = Color.White, fontSize = 20.sp) }
+    ) { Text(tr(label), color = Color.White, fontSize = 20.sp) }
 }
 
 /** Halaman "Negara kamar": rekomendasi Indonesia, daftar A-Z, ada pencarian. */

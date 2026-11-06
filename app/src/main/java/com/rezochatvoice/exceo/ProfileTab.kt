@@ -92,7 +92,7 @@ private fun StatItem(
     val m = if (onClick != null) modifier.clickable(onClick = onClick) else modifier
     Column(m, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, color = ink, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-        Text(label, color = ink.copy(alpha = 0.7f), fontSize = 12.sp)
+        Text(tr(label), color = ink.copy(alpha = 0.7f), fontSize = 12.sp)
     }
 }
 
@@ -122,7 +122,7 @@ private fun MenuItem(emoji: String, label: String, trailing: String? = null, ico
             }
         }
         Spacer(Modifier.width(12.dp))
-        Text(label, color = Navy, fontSize = 14.sp, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Text(tr(label), color = Navy, fontSize = 14.sp, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         if (trailing != null) {
             Text(trailing, color = Color(0xFF8A93A6), fontSize = 11.sp, maxLines = 1)
             Spacer(Modifier.width(8.dp))

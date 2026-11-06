@@ -313,7 +313,7 @@ private fun LvTopBar(title: String, onBack: () -> Unit) {
             "‹", color = Color.White, fontSize = 38.sp,
             modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 18.dp),
         )
-        Text(title, color = Color.White, fontSize = 22.sp, modifier = Modifier.align(Alignment.Center))
+        Text(tr(title), color = Color.White, fontSize = 22.sp, modifier = Modifier.align(Alignment.Center))
         Box(
             Modifier.align(Alignment.CenterEnd).padding(end = 16.dp).size(30.dp).border(2.dp, Color.White, CircleShape),
             contentAlignment = Alignment.Center,
@@ -330,7 +330,7 @@ private fun GoldPill(text: String, enabled: Boolean = true, modifier: Modifier =
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 11.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(text, color = if (enabled) Color.Black else Color(0xFFBBBBBB), fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) }
+    ) { Text(tr(text), color = if (enabled) Color.Black else Color(0xFFBBBBBB), fontSize = 15.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) }
 }
 
 @Composable
@@ -338,7 +338,7 @@ private fun OrnTitle(text: String, color: Color) {
     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         Text("❦", color = color, fontSize = 22.sp)
         Spacer(Modifier.width(12.dp))
-        Text(text, color = Color.White, fontSize = 22.sp)
+        Text(tr(text), color = Color.White, fontSize = 22.sp)
         Spacer(Modifier.width(12.dp))
         Text("❦", color = color, fontSize = 22.sp)
     }
@@ -487,7 +487,7 @@ fun LevelScreen(user: UserProfile, profile: ProfileData, wallet: Wallet, uid: St
                     }
                     val reached = level >= lo
                     Column(Modifier.width(112.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(label, color = if (reached) Color.White else Color(0xFF8FBDB8), fontSize = 15.sp)
+                        Text(tr(label), color = if (reached) Color.White else Color(0xFF8FBDB8), fontSize = 15.sp)
                         Spacer(Modifier.height(8.dp))
                         Box(Modifier.size(12.dp).clip(CircleShape).background(if (reached) Color(0xFF2FE6D0) else Color(0xFF5E8F8A)))
                         Spacer(Modifier.height(10.dp))
@@ -892,8 +892,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                     contentAlignment = Alignment.Center,
                                 ) { Text(emoji, fontSize = 26.sp) }
                                 Spacer(Modifier.height(4.dp))
-                                Text(
-                                    label, color = if (on) Color(0xFF4A3300) else Color.White, fontSize = 13.sp,
+                                Text(tr(label), color = if (on) Color(0xFF4A3300) else Color.White, fontSize = 13.sp,
                                     textAlign = TextAlign.Center, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
                                 )
                             }
@@ -992,8 +991,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                     contentAlignment = Alignment.Center,
                                 ) { Text(emoji, fontSize = 26.sp) }
                                 Spacer(Modifier.height(4.dp))
-                                Text(
-                                    label, color = if (on) Color(0xFF4A3300) else Color.White, fontSize = 13.sp,
+                                Text(tr(label), color = if (on) Color(0xFF4A3300) else Color.White, fontSize = 13.sp,
                                     textAlign = TextAlign.Center, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
                                 )
                             }

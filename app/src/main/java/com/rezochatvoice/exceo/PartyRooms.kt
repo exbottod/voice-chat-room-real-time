@@ -118,7 +118,7 @@ fun GoldButton(text: String, modifier: Modifier = Modifier, enabled: Boolean = t
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = if (enabled) Color.Black else Color(0xFF8A8A8A), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(tr(text), color = if (enabled) Color.Black else Color(0xFF8A8A8A), fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
 }
 
@@ -129,7 +129,7 @@ fun OutlineButton(text: String, modifier: Modifier = Modifier, onClick: () -> Un
         modifier.fillMaxWidth().height(46.dp).clip(shape).border(1.dp, Gold, shape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(tr(text), color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
 }
 

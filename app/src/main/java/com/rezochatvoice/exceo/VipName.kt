@@ -57,8 +57,7 @@ fun VipNameText(
     textAlign: TextAlign? = null,
 ) {
     if (!vipActive(vip, until)) {
-        Text(
-            text, modifier = modifier, color = color, fontSize = fontSize, fontWeight = fontWeight,
+        Text(tr(text), modifier = modifier, color = color, fontSize = fontSize, fontWeight = fontWeight,
             maxLines = maxLines, overflow = overflow, textAlign = textAlign,
         )
         return

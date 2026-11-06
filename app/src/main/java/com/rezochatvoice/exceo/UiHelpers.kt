@@ -51,7 +51,7 @@ fun GoldTopBar(title: String, onBack: () -> Unit) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = GoldLight)
         }
-        Text(title, color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(tr(title), color = GoldLight, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
 }
 

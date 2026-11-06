@@ -536,7 +536,7 @@ private fun InfoChip(text: String, color: Color) {
     Box(
         Modifier.clip(RoundedCornerShape(50)).background(color.copy(alpha = 0.85f))
             .padding(horizontal = 12.dp, vertical = 4.dp),
-    ) { Text(text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium) }
+    ) { Text(tr(text), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium) }
 }
 
 @Composable
@@ -545,15 +545,14 @@ private fun ProfStat(value: String, label: String, modifier: Modifier, onClick: 
     Column(m, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, color = GoldLight, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         Spacer(Modifier.height(2.dp))
-        Text(label, color = Muted, fontSize = 13.sp)
+        Text(tr(label), color = Muted, fontSize = 13.sp)
     }
 }
 
 @Composable
 private fun ProfTab(text: String, selected: Boolean, onClick: () -> Unit) {
     Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.Start) {
-        Text(
-            text,
+        Text(tr(text),
             color = if (selected) GoldLight else Muted,
             fontSize = if (selected) 24.sp else 20.sp,
             fontWeight = FontWeight.Bold,
@@ -572,7 +571,7 @@ private fun SectionTitle(text: String) {
         Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text, color = GoldLight, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Text(tr(text), color = GoldLight, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
         Text("›", color = Muted, fontSize = 22.sp)
     }
 }
@@ -584,7 +583,7 @@ private fun PlaceholderCard(text: String) {
         Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(90.dp)
             .clip(shape).background(Color(0x22FFFFFF)).border(1.dp, Gold.copy(alpha = 0.25f), shape),
         contentAlignment = Alignment.Center,
-    ) { Text(text, color = Muted, fontSize = 14.sp) }
+    ) { Text(tr(text), color = Muted, fontSize = 14.sp) }
 }
 
 @Composable

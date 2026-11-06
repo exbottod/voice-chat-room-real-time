@@ -75,8 +75,7 @@ fun CrashReportOverlay(text: String, onClose: () -> Unit) {
                 color = Color(0xFFBDBDBD), fontSize = 12.sp,
             )
             Spacer(Modifier.height(10.dp))
-            Text(
-                text,
+            Text(tr(text),
                 color = Color(0xFFE0E0E0),
                 fontSize = 10.sp,
                 modifier = Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()),

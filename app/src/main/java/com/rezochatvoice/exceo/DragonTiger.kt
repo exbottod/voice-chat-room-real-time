@@ -432,7 +432,7 @@ private fun DtLane(
                 .clickable { onClick() },
             contentAlignment = Alignment.Center,
         ) {
-            Text(title, color = Color.White.copy(alpha = 0.55f), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Text(tr(title), color = Color.White.copy(alpha = 0.55f), fontSize = 26.sp, fontWeight = FontWeight.Bold)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 Box(
                     Modifier.padding(bottom = 6.dp).clip(RoundedCornerShape(50))
@@ -452,7 +452,7 @@ private fun CardBox(mod: Modifier, card: Card?, label: String, tint: Color) {
         mod.clip(RoundedCornerShape(12.dp)).background(tint.copy(alpha = 0.35f)).padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(tr(label), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Box(
             Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(10.dp))
@@ -482,7 +482,7 @@ private fun SideButton(text: String, color: Color, selected: Boolean, mod: Modif
             .clickable { onClick() }.padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(tr(text), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 
