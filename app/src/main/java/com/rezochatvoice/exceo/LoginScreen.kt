@@ -94,6 +94,7 @@ fun LoginScreen(
     var showPassword by remember { mutableStateOf(false) }
     var formHp by remember { mutableStateOf(false) }
     var formEmail by remember { mutableStateOf(false) }
+    var pilihBahasa by remember { mutableStateOf(false) }
     var nomor by remember { mutableStateOf("") }
     var kode by remember { mutableStateOf("") }
     var verifId by remember { mutableStateOf<String?>(null) }
@@ -157,7 +158,18 @@ fun LoginScreen(
         ) {
             // ---------- Tautan login email di pojok kanan atas ----------
             if (!formHp && !formEmail) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Pilih bahasa: globe kecil putih di pojok kiri atas.
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable { pilihBahasa = true }
+                            .padding(6.dp),
+                    ) { IkonGlobe() }
                     Text(
                         tr("Login dengan email"),
                         color = HijauAksen,
@@ -183,7 +195,7 @@ fun LoginScreen(
             Spacer(Modifier.height(if (formHp || formEmail) 8.dp else 14.dp))
             Text(
                 tr("Rezo Star"),
-                color = Color.White,
+                color = Color(0xFFFFC21A),
                 fontSize = if (formHp || formEmail) 24.sp else 30.sp,
                 fontWeight = FontWeight.Bold,
                 style = TextStyle(shadow = Shadow(Color(0x66000000), Offset(0f, 3f), 8f)),
@@ -606,7 +618,63 @@ fun LoginScreen(
             }
             Spacer(Modifier.height(6.dp))
         }
+        if (pilihBahasa) DialogBahasa { pilihBahasa = false }
     }
+}
+
+/** Globe kecil putih di pojok kiri atas untuk memilih bahasa aplikasi. */
+@Composable
+private fun IkonGlobe() {
+    androidx.compose.foundation.Canvas(Modifier.size(21.dp)) {
+        val w = androidx.compose.ui.graphics.drawscope.Stroke(width = size.minDimension * 0.09f)
+        val r = size.minDimension / 2f - size.minDimension * 0.05f
+        val c = center
+        drawCircle(Color.White, radius = r, center = c, style = w)
+        // Garis lintang dan garis bujur supaya bentuknya jelas terbaca sebagai globe.
+        drawLine(Color.White, androidx.compose.ui.geometry.Offset(c.x - r, c.y),
+            androidx.compose.ui.geometry.Offset(c.x + r, c.y), strokeWidth = size.minDimension * 0.08f)
+        drawLine(Color.White, androidx.compose.ui.geometry.Offset(c.x - r * 0.35f, c.y - r * 0.92f),
+            androidx.compose.ui.geometry.Offset(c.x - r * 0.35f, c.y + r * 0.92f), strokeWidth = size.minDimension * 0.07f)
+        drawLine(Color.White, androidx.compose.ui.geometry.Offset(c.x + r * 0.35f, c.y - r * 0.92f),
+            androidx.compose.ui.geometry.Offset(c.x + r * 0.35f, c.y + r * 0.92f), strokeWidth = size.minDimension * 0.07f)
+        drawOval(Color.White, topLeft = androidx.compose.ui.geometry.Offset(c.x - r * 0.35f, c.y - r),
+            size = androidx.compose.ui.geometry.Size(r * 0.7f, r * 2f), style = w)
+    }
+}
+
+/** Dialog pilihan bahasa aplikasi. */
+@Composable
+private fun DialogBahasa(tutup: () -> Unit) {
+    val ctx = LocalContext.current
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = tutup,
+        confirmButton = {},
+        dismissButton = {
+            Text(
+                tr("Tutup"), color = HijauAksen, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable { tutup() }.padding(10.dp),
+            )
+        },
+        title = { Text(tr("Pilih bahasa"), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold) },
+        containerColor = Color(0xFF14261F),
+        text = {
+            Column {
+                for (kode in listOf(AppLang.ID, AppLang.EN, AppLang.ZH, AppLang.HI, AppLang.AR)) {
+                    Text(
+                        AppLang.labelWithFlag(kode),
+                        color = if (AppLang.code == kode) Color(0xFFFFC21A) else Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = if (AppLang.code == kode) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { AppLang.set(ctx, kode); tutup() }
+                            .padding(vertical = 10.dp, horizontal = 6.dp),
+                    )
+                }
+            }
+        },
+    )
 }
 
 /** Latar hijau gelap dengan bulatan bokeh dan butiran cahaya, seperti desain. */
@@ -673,19 +741,21 @@ private fun TombolPil(
 ) {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(54.dp)
-            .clip(RoundedCornerShape(30.dp))
-            .background(Color(0xFFF7F7F7))
+            .fillMaxWidth(0.84f)
+            .height(52.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(
+                Brush.horizontalGradient(listOf(Color(0xFFFFD84D), Color(0xFFFFB300))),
+            )
             .clickable(onClick = onClick),
     ) {
-        Box(Modifier.fillMaxSize().padding(start = 18.dp), contentAlignment = Alignment.CenterStart) {
+        Box(Modifier.fillMaxSize().padding(start = 16.dp), contentAlignment = Alignment.CenterStart) {
             ikon()
         }
         Text(tr(teks),
-            color = Color(0xFF1F1F1F),
+            color = Color(0xFF241A00),
             fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             modifier = Modifier.align(Alignment.Center),
         )
     }
