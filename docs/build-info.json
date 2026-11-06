@@ -1,39 +1,73 @@
 {
-  "status": "gagal",
-  "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/CashbackFx.kt:422:21 No parameter with name 'color' found.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/CashbackFx.kt:423:21 No parameter with name 'fontSize' found.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/CashbackFx.kt:424:21 No parameter with name 'maxLines' found.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/CashbackFx.kt:425:18 Syntax error: Expecting ')'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/FamilyScreens.kt:422:125 No parameter with name 'modifier' found.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/FamilyScreens.kt:422:170 Syntax error: Expecting ')'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:543:17 No parameter with name 'color' found.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:543:36 No parameter with name 'fontSize' found.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:543:54 No parameter with name 'textAlign' found.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:543:84 No parameter with name 'maxLines' found.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:544:17 No parameter with name 'modifier' found.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:546:13 Unresolved reference 'Spacer'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:548:46 Syntax error: Expecting ')'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:548:97 Cannot infer type for this parameter. Please specify it exp",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:550:21 Unresolved reference 'item'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:551:25 @Composable invocations can only happen from the context of",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:563:21 Unresolved reference 'item'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:563:28 @Composable invocations can only happen from the context of",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:565:25 Unresolved reference 'item'.",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:566:29 @Composable invocations can only happen from the context of",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:576:21 None of the following candidates is applicable:",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:576:53 Cannot infer type for this parameter. Please specify it exp",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:576:56 Cannot infer type for this parameter. Please specify it exp",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:576:61 @Composable invocations can only happen from the context of",
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/GiftRank.kt:576:77 Overload resolution ambiguity between candidates:"
-  ],
-  "versi": "1.0.905",
-  "ukuran_mb": 0,
-  "sha256": "",
-  "commit": "a174818",
-  "waktu": "2026-11-06T00:46:36Z",
+  "status": "ok",
+  "masalah": [],
+  "versi": "1.0.906",
+  "ukuran_mb": 68.9,
+  "sha256": "42537b4f294ff5dd5d89a988f9fa4948ff24389e92d00947d081b3b4b58f4552",
+  "commit": "4346f29",
+  "waktu": "2026-11-06T00:51:49Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 0,
-  "aset_total": 0,
-  "fitur": []
+  "aset_roket": 30,
+  "aset_total": 118,
+  "fitur": [
+    {
+      "nama": "Banner cashback terpisah",
+      "ada": true
+    },
+    {
+      "nama": "Banner gift biasa",
+      "ada": true
+    },
+    {
+      "nama": "Animasi cashback di avatar",
+      "ada": true
+    },
+    {
+      "nama": "Tombol kombo cashback",
+      "ada": true
+    },
+    {
+      "nama": "Roket level 1-5 di room",
+      "ada": true
+    },
+    {
+      "nama": "Peluncuran roket cadangan",
+      "ada": true
+    },
+    {
+      "nama": "Sambung ulang suara otomatis",
+      "ada": true
+    },
+    {
+      "nama": "Tukar diamond nominal sendiri",
+      "ada": true
+    },
+    {
+      "nama": "Papan peringkat roket",
+      "ada": true
+    }
+  ],
+  "roket_level": [
+    {
+      "level": 1,
+      "ada": true
+    },
+    {
+      "level": 2,
+      "ada": true
+    },
+    {
+      "level": 3,
+      "ada": true
+    },
+    {
+      "level": 4,
+      "ada": true
+    },
+    {
+      "level": 5,
+      "ada": true
+    }
+  ],
+  "catatan": "Fitur baru: Coin Seller, panel stok seller, dan halaman seller di Dompet."
 }
