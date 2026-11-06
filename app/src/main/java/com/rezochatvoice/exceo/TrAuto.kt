@@ -27,13 +27,14 @@ private val FRASA: List<Pair<String, String>> by lazy {
 }
 
 private fun hitungTerjemahan(s: String): String {
+    // 1. Kalimat yang sudah punya terjemahan resmi dipakai apa adanya.
     TR_AUTO_PHRASE[s.lowercase()]?.let { return it }
-    val tanpaNewline = s.replace("\\n", " ")
-    var out = tanpaNewline
-    for ((k, v) in FRASA) {
-        if (out.length >= k.length && out.lowercase().contains(k)) out = gantiFrasa(out, k, v)
-    }
-    return terjemahKata(out)
+    // 2. Teks panjang (isi dialog, pengumuman, tulisan buatan admin/user)
+    //    TIDAK diubah kata per kata supaya kalimatnya tidak berubah makna.
+    val kata = s.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+    if (kata.size > 4 || s.length > 45 || s.contains('\n')) return s
+    // 3. Label pendek: terjemahkan per kata, itu pun hanya kata yang ada di kamus.
+    return terjemahKata(s)
 }
 
 private fun gantiFrasa(s: String, kunci: String, nilai: String): String = try {
