@@ -1340,6 +1340,41 @@ private fun RmAvatar(bmp: ImageBitmap?, fallback: String, size: Dp) {
     }
 }
 
+/**
+ * Gelombang suara di belakang kursi mic. Ukuran dan tebalnya mengikuti
+ * tingkat suara peserta, jadi gerakannya sinkron dengan suara asli.
+ */
+@Composable
+private fun GelombangBicara(level: Float, size: Dp) {
+    val l = level.coerceIn(0f, 1f)
+    androidx.compose.foundation.Canvas(Modifier.size(size * 1.5f)) {
+        val cx = this.size.width / 2f
+        val cy = this.size.height / 2f
+        val dasar = this.size.minDimension * 0.335f
+        // Dua cincin yang melebar sesuai kerasnya suara.
+        for (i in 0..1) {
+            val lebar = dasar + this.size.minDimension * (0.02f + 0.13f * l) + this.size.minDimension * 0.05f * i
+            val alfa = (0.55f - 0.22f * i) * (0.25f + 0.75f * l)
+            drawCircle(
+                color = Color(0xFF3FE08C).copy(alpha = alfa.coerceIn(0f, 1f)),
+                radius = lebar,
+                center = androidx.compose.ui.geometry.Offset(cx, cy),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = this.size.minDimension * (0.035f + 0.02f * l)),
+            )
+        }
+        // Pancaran hijau lembut di belakang foto.
+        drawCircle(
+            brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                listOf(Color(0xFF3FE08C).copy(alpha = 0.30f * l), Color.Transparent),
+                center = androidx.compose.ui.geometry.Offset(cx, cy),
+                radius = dasar * 1.35f,
+            ),
+            radius = dasar * 1.35f,
+            center = androidx.compose.ui.geometry.Offset(cx, cy),
+        )
+    }
+}
+
 @Composable
 private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = false, emote: SeatEmote? = null, points: Long = 0L, onClick: () -> Unit) {
     val bmp = remember(seat?.avatarB64) { ProfileRepo.decodeB64(seat?.avatarB64) }
@@ -1353,8 +1388,16 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
         }
     }
     val seatFrame = if (seat != null) frameAssetOf(seatUser?.frame, seatUser?.vip ?: 0, seatUser?.vipUntil ?: 0L) else null
+    // Gelombang suara: muncul di belakang foto kursi saat orangnya sedang bicara.
+    val lvlMentah = if (seat != null && !seat.muted) (AgoraVoice.levels[seat.uid] ?: 0f) else 0f
+    val lvl by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = lvlMentah.coerceIn(0f, 1f),
+        animationSpec = androidx.compose.animation.core.tween(120),
+        label = "levelSuara",
+    )
     Column(Modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+            if (lvl > 0.012f) GelombangBicara(lvl, size)
             Box(
                 Modifier.size(size).clip(CircleShape)
                 .then(

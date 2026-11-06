@@ -62,6 +62,40 @@ object AgoraVoice {
     @Volatile private var percobaan = 0
 
     var lastStatus by androidx.compose.runtime.mutableStateOf("")
+
+    /**
+     * Tingkat suara tiap peserta (uid -> 0..1), dipakai untuk gelombang suara
+     * di belakang kursi mic supaya terlihat siapa yang sedang bicara.
+     */
+    var levels by androidx.compose.runtime.mutableStateOf<Map<String, Float>>(emptyMap())
+        private set
+
+    private var levelJob: Job? = null
+
+    private fun mulaiPantauLevel() {
+        levelJob?.cancel()
+        levelJob = mainScope.launch {
+            while (joined) {
+                val r = room
+                if (r == null) { delay(300); continue }
+                val m = HashMap<String, Float>()
+                try {
+                    m[r.localParticipant.identity.value] = r.localParticipant.audioLevel
+                    for ((_, p) in r.remoteParticipants) {
+                        m[p.identity.value] = p.audioLevel
+                    }
+                } catch (e: Exception) { }
+                levels = m
+                delay(130)
+            }
+            levels = emptyMap()
+        }
+    }
+
+    private fun hentikanPantauLevel() {
+        levelJob?.cancel(); levelJob = null
+        levels = emptyMap()
+    }
         private set
     @Volatile var onProblem: ((String) -> Unit)? = null
 
@@ -196,6 +230,7 @@ object AgoraVoice {
                                     joined = true
                                     percobaan = 0
                                     lastStatus = "OK tersambung"
+                                    mulaiPantauLevel()
                                     appCtx?.let { c -> mainScope.launch { tuneAudioRoute(c) } }
                                 }
                                 is RoomEvent.Reconnecting -> { lastStatus = "Suara: menyambung ulang…" }
@@ -203,6 +238,7 @@ object AgoraVoice {
                                     joined = true
                                     percobaan = 0
                                     lastStatus = "OK tersambung"
+                                    mulaiPantauLevel()
                                     appCtx?.let { c -> mainScope.launch { tuneAudioRoute(c) } }
                                 }
                                 is RoomEvent.Disconnected -> {
@@ -245,6 +281,7 @@ object AgoraVoice {
 
     private suspend fun closeRoom() {
         eventJob?.cancel(); eventJob = null
+        hentikanPantauLevel()
         val r = room ?: return
         room = null
         try { r.disconnect() } catch (e: Exception) { }
