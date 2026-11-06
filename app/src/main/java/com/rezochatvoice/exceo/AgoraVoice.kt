@@ -254,7 +254,7 @@ object AgoraVoice {
                 try {
                     closeRoom()
                     lastStatus = "Suara: menyambung…"
-                    val r = LiveKit.create(app)
+                    val r = LiveKit.create(app, ROOM_OPSI)
                     room = r
                     eventJob = mainScope.launch {
                         r.events.events.collect { ev ->
@@ -301,7 +301,7 @@ object AgoraVoice {
                             }
                         }
                     }
-                    r.connect(t.url, t.token, ROOM_OPSI)
+                    r.connect(t.url, t.token)
                     joined = true
                     try { tuneAudioRoute(app) } catch (e: Exception) { }
                     lastStatus = "OK tersambung"
