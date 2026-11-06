@@ -131,6 +131,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
 
     when (open) {
         "slot777" -> Slot777HtmlScreen(myUid = myUid, myName = myName, onClose = { open = "" })
+        "zeusrezo" -> ZeusRezoHtmlScreen(myUid = myUid, onClose = { open = "" })
         "greedybaby" -> GreedyBabyHtmlScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
         "fruitsparty" -> FruitsPartyHtmlScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
     "dvt" -> DragonTigerScreen(myUid = myUid, myName = myName, onClose = { open = "" })
@@ -200,6 +201,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                     GcItem("TeenPatti", R.drawable.ic_game_poker, "teenpatti"),
                                     GcItem("Lucky77", R.drawable.ic_game_lucky, "lucky77"),
                                     GcItem("GreedyCat", R.drawable.ic_game_cat, "greedy"),
+                                    GcItem("ZeusRezo", R.drawable.ic_game_slot, "zeusrezo"),
                                     GcItem("Slot777", R.drawable.ic_game_slot, "slot777"),
                                     GcItem("GreedyBaby", R.drawable.ic_game_baby, "greedybaby"),
                                     GcItem("FruitsParty", R.drawable.ic_game_fruits, "fruitsparty"),
