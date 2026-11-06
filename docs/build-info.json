@@ -1,16 +1,73 @@
 {
-  "status": "gagal",
-  "masalah": [
-    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/PartyRooms.kt:233:29 'val' cannot be reassigned.",
-    "* What went wrong:"
-  ],
-  "versi": "1.0.903",
-  "ukuran_mb": 0,
-  "sha256": "",
-  "commit": "4a8bf9c",
-  "waktu": "2026-11-06T00:27:38Z",
+  "status": "ok",
+  "masalah": [],
+  "versi": "1.0.904",
+  "ukuran_mb": 68.9,
+  "sha256": "2d7a0b199a95204629d390ef7e07ea3dbd0896e612d69b0bb21bfe2592a9f79d",
+  "commit": "2eab263",
+  "waktu": "2026-11-06T00:32:58Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 0,
-  "aset_total": 0,
-  "fitur": []
+  "aset_roket": 30,
+  "aset_total": 118,
+  "fitur": [
+    {
+      "nama": "Banner cashback terpisah",
+      "ada": true
+    },
+    {
+      "nama": "Banner gift biasa",
+      "ada": true
+    },
+    {
+      "nama": "Animasi cashback di avatar",
+      "ada": true
+    },
+    {
+      "nama": "Tombol kombo cashback",
+      "ada": true
+    },
+    {
+      "nama": "Roket level 1-5 di room",
+      "ada": true
+    },
+    {
+      "nama": "Peluncuran roket cadangan",
+      "ada": true
+    },
+    {
+      "nama": "Sambung ulang suara otomatis",
+      "ada": true
+    },
+    {
+      "nama": "Tukar diamond nominal sendiri",
+      "ada": true
+    },
+    {
+      "nama": "Papan peringkat roket",
+      "ada": true
+    }
+  ],
+  "roket_level": [
+    {
+      "level": 1,
+      "ada": true
+    },
+    {
+      "level": 2,
+      "ada": true
+    },
+    {
+      "level": 3,
+      "ada": true
+    },
+    {
+      "level": 4,
+      "ada": true
+    },
+    {
+      "level": 5,
+      "ada": true
+    }
+  ],
+  "catatan": "Fitur baru: Coin Seller, panel stok seller, dan halaman seller di Dompet."
 }
