@@ -1274,10 +1274,18 @@ async function panel(env, body) {
     const lama = Number(w0.inv?.[itemId] ?? 0);
     const akhir = Math.max(Date.now(), lama) + hari * 86400000;
     const inv = { ...w0.inv, [itemId]: akhir };
-    await pipe(env, [
+    // Kalau panel mengirim slot (mis. "uid" atau "badge"), item langsung dipakai
+    // oleh akun itu tanpa perlu dibeli dulu: ini dipakai item Unique ID custom.
+    const slotPakai = String(p.equip ?? "").trim();
+    const eqBaru = { ...w0.equip, ...(slotPakai ? { [slotPakai]: itemId } : {}) };
+    const langkah = [
       { sql: "update wallets set inv = ?, updated_at = ? where uid = ?", args: [T(JSON.stringify(inv)), I(Date.now()), T(target)] },
-    ]);
-    return json({ ok: 1, itemId, days: hari });
+    ];
+    if (slotPakai) {
+      langkah.push({ sql: "update wallets set equip = ?, updated_at = ? where uid = ?", args: [T(JSON.stringify(eqBaru)), I(Date.now()), T(target)] });
+    }
+    await pipe(env, langkah);
+    return json({ ok: 1, itemId, days: hari, equip: slotPakai || null });
   }
 
   if (aksi === "ban") {

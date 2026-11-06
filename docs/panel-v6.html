@@ -233,10 +233,10 @@ label{font-size:12px;color:var(--mut)}
     <label>Jenis item</label>
     <select id="stSlot" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"><option value="frame">⭕ Bingkai avatar</option><option value="entry">✨ Efek masuk</option><option value="banner">🚩 Banner efek masuk</option><option value="badge">🎖️ Lencana</option><option value="medal">🏅 Medali (Lencana glory)</option><option value="uid">🆔 Unique ID (gambar pengganti ID)</option></select>
     <div id="stUidBox" class="hide" style="margin-top:6px">
-      <label>Cari ID akun pemakai gambar ID ini (opsional)</label>
+      <label>ID akun pemakai gambar ini (ketik lalu pilih akun)</label>
       <input type="text" id="stUidCari" placeholder="Ketik ID, mis. 1000" inputmode="numeric" autocomplete="off">
       <div id="stUidHasil" style="margin-top:6px"></div>
-      <div class="muted" id="stUidInfo" style="font-size:12px">Kosongkan kalau item boleh dipakai semua akun.</div>
+      <div class="muted" id="stUidInfo" style="font-size:12px">Kalau diisi, item langsung dipasang ke akun itu otomatis.</div>
     </div>
     <label>Nama item</label><input type="text" id="stName" placeholder="Contoh: Bingkai Vietnam">
     <label>Harga (koin)</label><input type="number" id="stPrice" value="1000000" min="0">
@@ -3422,7 +3422,8 @@ function renderStore(){
 
 /** ===== Cari akun lewat sebagian ID untuk item Unique ID =====
  * Admin cukup mengetik beberapa angka (mis. 1000) lalu akun yang cocok muncul. */
-let stUidPilih = "";
+let stUidPilih = "";   // ID angka yang tampil di app (mis. 1000)
+let stUidFb = "";      // UID akun Firebase pemilik ID itu
 let stIdCache = null;
 async function stIdIndex(){
   if (stIdCache) return stIdCache;
@@ -3441,7 +3442,8 @@ async function stUidCariJalan(teks){
   const box = $("stUidHasil");
   const q = String(teks || "").replace(/[^0-9]/g, "");
   stUidPilih = "";
-  $("stUidInfo").textContent = "Kosongkan kalau item boleh dipakai semua akun.";
+  stUidFb = "";
+  $("stUidInfo").textContent = "Kalau diisi, item langsung dipasang ke akun itu otomatis.";
   if (q.length < 2) { box.innerHTML = ""; return; }
   box.innerHTML = '<div class="muted" style="font-size:12px">Mencari…</div>';
   try {
@@ -3464,9 +3466,10 @@ async function stUidCariJalan(teks){
     }).join("");
     box.querySelectorAll(".row-uid").forEach(el => el.onclick = () => {
       stUidPilih = el.getAttribute("data-id");
+      stUidFb = el.getAttribute("data-uid") || "";
       box.querySelectorAll(".row-uid").forEach(e2 => e2.style.background = "");
       el.style.background = "rgba(255,215,110,.14)";
-      $("stUidInfo").textContent = "Dipilih: ID " + stUidPilih + ". Gambar hanya berlaku untuk akun ini.";
+      $("stUidInfo").textContent = "Dipilih: ID " + stUidPilih + ". Gambar langsung dipasang ke akun ini setelah disimpan.";
     });
   } catch (e) {
     box.innerHTML = '<div class="muted" style="font-size:12px">Gagal mencari: ' + (e.message || e) + '</div>';
@@ -3484,7 +3487,8 @@ async function storeSave(c, el, btn){
   const col = db.collection("vipConfig"), docId = "store_" + id, did = "data_store_" + id;
   const base = { store: true, meta: false, id: id, slot: slot, name: name, price: price, days: days, order: order };
   // Item Unique ID boleh dikunci ke satu akun lewat pencarian ID di atas.
-  const targetUid = (!c && slot === "uid" && stUidPilih) ? stUidPilih : "";
+  const pakaiSlot = (slot === "uid" || slot === "badge");
+  const targetUid = (!c && pakaiSlot && stUidFb) ? stUidFb : "";
   if (btn) btn.disabled = true;
   try {
     const b = db.batch();
@@ -3509,7 +3513,17 @@ async function storeSave(c, el, btn){
     }
     logAction({ type: "storeItem", id: id, slot: slot });
     if (c) delete pendingFiles[c.id];
-    toast("Tersimpan ✅");
+    // Unique ID / lencana custom: langsung dikirim dan dipasang ke akun pemilik ID.
+    if (!c && targetUid && pakaiSlot) {
+      try {
+        await walletAdmin({ op: "send_item", uid: targetUid, itemId: "sx_" + id, days: 3650, equip: slot });
+        toast("Tersimpan ✅ dan langsung dipasang ke ID " + stUidPilih);
+      } catch (e) {
+        toast("Item tersimpan, tapi gagal dipasang ke ID " + stUidPilih + ": " + (e.message || e));
+      }
+    } else {
+      toast("Tersimpan ✅");
+    }
     if (!c) {
       el.name.value = ""; el.url.value = ""; el.file.value = "";
       const p = $("stPrev"); stopPrev(p); p.textContent = "Pratinjau";
@@ -3526,9 +3540,9 @@ async function storeDelete(c){
   } catch (e) { toast("Gagal: " + e.message); }
 }
 $("stSlot").onchange = () => {
-  const uidSlot = $("stSlot").value === "uid";
+  const uidSlot = $("stSlot").value === "uid" || $("stSlot").value === "badge";
   $("stUidBox").classList.toggle("hide", !uidSlot);
-  if (!uidSlot) { stUidPilih = ""; $("stUidCari").value = ""; $("stUidHasil").innerHTML = ""; }
+  if (!uidSlot) { stUidPilih = ""; stUidFb = ""; $("stUidCari").value = ""; $("stUidHasil").innerHTML = ""; }
 };
 let stUidTunda = null;
 $("stUidCari").oninput = (e) => {
