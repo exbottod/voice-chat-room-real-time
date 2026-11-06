@@ -1,73 +1,39 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.0.912",
-  "ukuran_mb": 68.9,
-  "sha256": "8e04f34f98fd0d53a743ebe3de45f737cc9f88a9684e1c389ab4822abb36ca82",
-  "commit": "db5efbb",
-  "waktu": "2026-11-06T03:11:43Z",
+  "status": "gagal",
+  "masalah": [
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainScreen.kt:604:29 No parameter with name 'roomId' found.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainScreen.kt:605:29 No parameter with name 'myUid' found.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainScreen.kt:606:29 No parameter with name 'myName' found.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainScreen.kt:607:29 No parameter with name 'myAvatarB64' found.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainScreen.kt:608:29 No parameter with name 'onExit' found.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainScreen.kt:609:29 No parameter with name 'onMinimize' found.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainScreen.kt:609:29 No value passed for parameter 'segarGift'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainScreen.kt:609:29 No value passed for parameter 'by'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/MainScreen.kt:609:29 No value passed for parameter 'remember'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:131:5 'var' on function parameter is prohibited.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:131:5 An explicit type is required on a value parameter.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:131:18 Syntax error: Expecting comma or ')'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:131:19 An explicit type is required on a value parameter.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:131:21 Syntax error: Expecting comma or ')'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:131:22 An explicit type is required on a value parameter.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:131:30 Syntax error: Expecting comma or ')'.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:132:5 Syntax error: Expecting a top level declaration.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:132:11 Syntax error: Expecting a top level declaration.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:132:13 Syntax error: Expecting a top level declaration.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:132:19 Syntax error: Expecting a top level declaration.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:133:5 Syntax error: Expecting a top level declaration.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:133:10 Syntax error: Expecting a top level declaration.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:133:12 Syntax error: Expecting a top level declaration.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:133:18 Syntax error: Expecting a top level declaration.",
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/RoomScreen.kt:134:5 Syntax error: Expecting a top level declaration."
+  ],
+  "versi": "1.0.913",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "31a9022",
+  "waktu": "2026-11-06T03:18:14Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 30,
-  "aset_total": 118,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
-  ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ],
-  "catatan": "Fitur baru: Coin Seller, panel stok seller, dan halaman seller di Dompet."
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
