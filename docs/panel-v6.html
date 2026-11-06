@@ -232,6 +232,12 @@ label{font-size:12px;color:var(--mut)}
     <h2>Tambah item Store</h2>
     <label>Jenis item</label>
     <select id="stSlot" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0f0f0f;color:#fff;font-size:14px;margin:4px 0 10px"><option value="frame">⭕ Bingkai avatar</option><option value="entry">✨ Efek masuk</option><option value="banner">🚩 Banner efek masuk</option><option value="badge">🎖️ Lencana</option><option value="medal">🏅 Medali (Lencana glory)</option><option value="uid">🆔 Unique ID (gambar pengganti ID)</option></select>
+    <div id="stUidBox" class="hide" style="margin-top:6px">
+      <label>Cari ID akun pemakai gambar ID ini (opsional)</label>
+      <input type="text" id="stUidCari" placeholder="Ketik ID, mis. 1000" inputmode="numeric" autocomplete="off">
+      <div id="stUidHasil" style="margin-top:6px"></div>
+      <div class="muted" id="stUidInfo" style="font-size:12px">Kosongkan kalau item boleh dipakai semua akun.</div>
+    </div>
     <label>Nama item</label><input type="text" id="stName" placeholder="Contoh: Bingkai Vietnam">
     <label>Harga (koin)</label><input type="number" id="stPrice" value="1000000" min="0">
     <label>Durasi (hari)</label><input type="number" id="stDays" value="7" min="1">
@@ -3413,6 +3419,59 @@ function renderStore(){
     box.appendChild(card);
   });
 }
+
+/** ===== Cari akun lewat sebagian ID untuk item Unique ID =====
+ * Admin cukup mengetik beberapa angka (mis. 1000) lalu akun yang cocok muncul. */
+let stUidPilih = "";
+let stIdCache = null;
+async function stIdIndex(){
+  if (stIdCache) return stIdCache;
+  const snap = await rtdb.ref("ids/i").get();
+  const out = [];
+  if (snap.exists()) snap.forEach(c => {
+    const v = c.val() || {};
+    const id = String(c.key || "");
+    if (!/^\d+$/.test(id)) return;
+    out.push({ id: id, uid: (typeof v === "object" ? (v.uid || v.u || "") : String(v || "")) });
+  });
+  stIdCache = out;
+  return out;
+}
+async function stUidCariJalan(teks){
+  const box = $("stUidHasil");
+  const q = String(teks || "").replace(/[^0-9]/g, "");
+  stUidPilih = "";
+  $("stUidInfo").textContent = "Kosongkan kalau item boleh dipakai semua akun.";
+  if (q.length < 2) { box.innerHTML = ""; return; }
+  box.innerHTML = '<div class="muted" style="font-size:12px">Mencari…</div>';
+  try {
+    const semua = await stIdIndex();
+    const cocok = semua.filter(x => x.id.startsWith(q)).slice(0, 8);
+    if (!cocok.length) { box.innerHTML = '<div class="muted" style="font-size:12px">ID tidak ditemukan</div>'; return; }
+    const nama = {};
+    await Promise.all(cocok.map(async x => {
+      if (!x.uid) return;
+      try {
+        const sn = await rtdb.ref("pub/" + x.uid).get();
+        if (sn.exists()) { const v = sn.val() || {}; nama[x.id] = { n: v.name || v.nama || "", p: v.photoUrl || v.photo || v.avatar || "" }; }
+      } catch (e) {}
+    }));
+    box.innerHTML = cocok.map(x => {
+      const m = nama[x.id] || {};
+      const foto = m.p ? '<img src="' + m.p + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover">' : '<div style="width:34px;height:34px;border-radius:50%;background:#222"></div>';
+      return '<div class="row-uid" data-id="' + x.id + '" data-uid="' + (x.uid || "") + '" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;cursor:pointer">'
+        + foto + '<div><b>ID ' + x.id + '</b><div class="muted" style="font-size:12px">' + (m.n || (x.uid ? x.uid.slice(0, 10) + "…" : "akun")) + '</div></div></div>';
+    }).join("");
+    box.querySelectorAll(".row-uid").forEach(el => el.onclick = () => {
+      stUidPilih = el.getAttribute("data-id");
+      box.querySelectorAll(".row-uid").forEach(e2 => e2.style.background = "");
+      el.style.background = "rgba(255,215,110,.14)";
+      $("stUidInfo").textContent = "Dipilih: ID " + stUidPilih + ". Gambar hanya berlaku untuk akun ini.";
+    });
+  } catch (e) {
+    box.innerHTML = '<div class="muted" style="font-size:12px">Gagal mencari: ' + (e.message || e) + '</div>';
+  }
+}
 async function storeSave(c, el, btn){
   const name = el.name.value.trim(), price = parseInt(el.price.value, 10), days = parseInt(el.days.value, 10), order = parseInt(el.order.value, 10) || 0;
   if (!name) return toast("Isi nama item");
@@ -3424,6 +3483,8 @@ async function storeSave(c, el, btn){
   const id = c ? c.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const col = db.collection("vipConfig"), docId = "store_" + id, did = "data_store_" + id;
   const base = { store: true, meta: false, id: id, slot: slot, name: name, price: price, days: days, order: order };
+  // Item Unique ID boleh dikunci ke satu akun lewat pencarian ID di atas.
+  const targetUid = (!c && slot === "uid" && stUidPilih) ? stUidPilih : "";
   if (btn) btn.disabled = true;
   try {
     const b = db.batch();
@@ -3442,7 +3503,7 @@ async function storeSave(c, el, btn){
       const e = vipExt(finalUrl);
       if (e && !sl.accept.includes("." + e)) { toast("Format URL harus " + sl.accept.join(" ")); return; }
       // Realtime Database: kuota terpisah, tidak lagi tergantung Firestore.
-      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() }));
+      await rtSet("vipCfg/" + docId, Object.assign(base, { kind: vipKind(finalUrl), url: finalUrl, hasData: false, chunks: 0, updatedAt: Date.now() }, targetUid ? { targetUid: targetUid } : {}));
     } else {
       await rtSet("vipCfg/" + docId, Object.assign(base, { kind: c.kind, url: c.url || "", hasData: !!c.hasData, chunks: c.chunks || 0, updatedAt: c.updatedAt || Date.now() }));
     }
@@ -3464,6 +3525,17 @@ async function storeDelete(c){
     toast("Dihapus ✅");
   } catch (e) { toast("Gagal: " + e.message); }
 }
+$("stSlot").onchange = () => {
+  const uidSlot = $("stSlot").value === "uid";
+  $("stUidBox").classList.toggle("hide", !uidSlot);
+  if (!uidSlot) { stUidPilih = ""; $("stUidCari").value = ""; $("stUidHasil").innerHTML = ""; }
+};
+let stUidTunda = null;
+$("stUidCari").oninput = (e) => {
+  clearTimeout(stUidTunda);
+  const v = e.target.value;
+  stUidTunda = setTimeout(() => stUidCariJalan(v), 320);
+};
 $("stAdd").onclick = () => storeSave(null, { slot: $("stSlot"), name: $("stName"), price: $("stPrice"), days: $("stDays"), order: $("stOrder"), url: $("stUrl"), file: $("stFile") }, $("stAdd"));
 $("stFile").onchange = ev => { const f = ev.target.files[0]; if (f) vipPreviewFile($("stPrev"), f); };
 

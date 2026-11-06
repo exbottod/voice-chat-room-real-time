@@ -31,6 +31,8 @@ data class CatalogItem(
     val days: Long,
     val order: Long,
     val asset: VipAsset,
+    /** Diisi kalau item Unique ID dikunci ke satu akun (ID angka pemilik). */
+    val targetUid: String = "",
 ) {
     fun toStoreItem() = StoreItem("sx_$id", slot, name, "\uD83C\uDF81", price, days, Color(0xFFD4AF37), 0, asset)
 }
@@ -122,6 +124,7 @@ object StoreCatalog {
                     (c.child("days").getValue(Long::class.java) ?: 7L).coerceAtLeast(1L),
                     c.child("order").getValue(Long::class.java) ?: 0L,
                     asset,
+                    c.child("targetUid").getValue(String::class.java) ?: "",
                 )
             }
             apply()
@@ -154,6 +157,7 @@ object StoreCatalog {
                             (d.getLong("days") ?: 7L).coerceAtLeast(1L),
                             d.getLong("order") ?: 0L,
                             asset,
+                            d.getString("targetUid") ?: "",
                         )
                     }
                     fsMap.clear()
@@ -167,8 +171,13 @@ object StoreCatalog {
         }
     }
 
-    fun bySlot(slot: String): List<CatalogItem> =
-        items.values.filter { it.slot == slot }.sortedWith(compareBy<CatalogItem>({ it.order }, { it.name }))
+    /** [uidPemakai] mengisi ID angka akun yang sedang melihat store, sehingga
+     *  item Unique ID yang dikunci ke akun lain tidak ikut tampil. */
+    fun bySlot(slot: String, uidPemakai: String? = null): List<CatalogItem> =
+        items.values
+            .filter { it.slot == slot }
+            .filter { it.targetUid.isBlank() || it.targetUid == uidPemakai }
+            .sortedWith(compareBy<CatalogItem>({ it.order }, { it.name }))
 
     fun find(itemId: String?): CatalogItem? =
         if (itemId != null && itemId.startsWith("sx_")) items[itemId.removePrefix("sx_")] else null
