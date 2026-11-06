@@ -60,7 +60,7 @@ object AppLang {
 fun tr(s: String): String {
     val c = AppLang.code
     if (c == AppLang.ID) return s
-    val en = TR_MAP[s]?.first ?: TR_EXTRA_EN[s] ?: s
+    val en = TR_MAP[s]?.first ?: TR_EXTRA_EN[s] ?: autoEn(s)
     return when (c) {
         AppLang.EN -> en
         AppLang.ZH -> TR_MAP[s]?.second ?: en

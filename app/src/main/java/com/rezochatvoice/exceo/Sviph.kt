@@ -381,7 +381,7 @@ fun SvipBadge(n: Int) {
             .background(Brush.verticalGradient(listOf(Color(0xFFFFE082), Color(0xFFC89118))))
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
-        Text("👑 SVIP$n", color = Color(0xFF3B2800), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+        Text(tr("👑 SVIP$n"), color = Color(0xFF3B2800), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 
@@ -476,11 +476,10 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                 Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    "‹", color = Color.White, fontSize = 34.sp,
+                Text(tr("‹"), color = Color.White, fontSize = 34.sp,
                     modifier = Modifier.clickable(onClick = onBack).padding(horizontal = 8.dp),
                 )
-                Text("SVIP Settings", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(tr("SVIP Settings"), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
             Column(
                 Modifier.weight(1f).verticalScroll(rememberScrollState())
@@ -488,7 +487,7 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
             ) {
                 if (!loaded) {
                     Spacer(Modifier.height(40.dp))
-                    Text("Memuat…", color = Color(0xFF9E9E9E), fontSize = 14.sp)
+                    Text(tr("Memuat…"), color = Color(0xFF9E9E9E), fontSize = 14.sp)
                 }
                 // ===== BELI / PERPANJANG SVIP =====
                 Box(
@@ -497,9 +496,8 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                         .padding(14.dp),
                 ) {
                     Column {
-                        Text("Beli SVIP", color = Color(0xFFF5C542), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Text(
-                            "Level tersimpan di Realtime Database. Aktif 30 hari; beli level yang sama = perpanjang. Semua privilege level itu ke bawah langsung terbuka.",
+                        Text(tr("Beli SVIP"), color = Color(0xFFF5C542), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Level tersimpan di Realtime Database. Aktif 30 hari; beli level yang sama = perpanjang. Semua privilege level itu ke bawah langsung terbuka."),
                             color = Color(0xFF9E9E9E), fontSize = 12.sp,
                         )
                         Spacer(Modifier.height(10.dp))
@@ -514,8 +512,7 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                                         .background(if (on) Color(0xFFF5C542) else Color(0xFF3A3A3A))
                                         .clickable { selSvip = n }.padding(horizontal = 16.dp, vertical = 8.dp),
                                 ) {
-                                    Text(
-                                        "SVIP$n", color = if (on) Color(0xFF3B2800) else Color.White,
+                                    Text(tr("SVIP$n"), color = if (on) Color(0xFF3B2800) else Color.White,
                                         fontSize = 13.sp, fontWeight = FontWeight.Bold,
                                     )
                                 }
@@ -523,7 +520,7 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                         }
                         Spacer(Modifier.height(10.dp))
                         if (wallet != null) {
-                            Text("Saldo: ${fmtNum(wallet!!.coins)} koin", color = Color(0xFFE9D3B0), fontSize = 12.sp)
+                            Text(tr("Saldo: ${fmtNum(wallet!!.coins)} koin"), color = Color(0xFFE9D3B0), fontSize = 12.sp)
                             Spacer(Modifier.height(6.dp))
                         }
                         Text(
@@ -532,10 +529,9 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                         )
                         Spacer(Modifier.height(10.dp))
                         if (buyBusy) {
-                            Text("Memproses…", color = Color(0xFFF5C542), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(tr("Memproses…"), color = Color(0xFFF5C542), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         } else {
-                            Text(
-                                "Beli sekarang", color = Color(0xFF3B2800), fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                            Text(tr("Beli sekarang"), color = Color(0xFF3B2800), fontSize = 15.sp, fontWeight = FontWeight.Bold,
                                 modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFF5C542))
                                     .clickable {
                                         buyBusy = true
@@ -572,8 +568,7 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                                 Text(priv.desc, color = Color(0xFF9E9E9E), fontSize = 13.sp)
                             }
                             if (priv.arrow) {
-                                Text(
-                                    "›", color = Color(0xFF9E9E9E), fontSize = 26.sp,
+                                Text(tr("›"), color = Color(0xFF9E9E9E), fontSize = 26.sp,
                                     modifier = Modifier.clickable(enabled = unlocked) { editAd = true }
                                         .padding(horizontal = 10.dp),
                                 )
@@ -601,15 +596,15 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
         var txt by remember { mutableStateOf(myAd) }
         AlertDialog(
             onDismissRequest = { editAd = false },
-            title = { Text("Personal ADs") },
+            title = { Text(tr("Personal ADs")) },
             text = {
                 Column {
-                    Text("Iklan ini tampil saat orang lain membuka kotak masuk kamu.", fontSize = 13.sp)
+                    Text(tr("Iklan ini tampil saat orang lain membuka kotak masuk kamu."), fontSize = 13.sp)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = txt,
                         onValueChange = { txt = it },
-                        placeholder = { Text("Tulis iklanmu…") },
+                        placeholder = { Text(tr("Tulis iklanmu…")) },
                     )
                 }
             },
@@ -618,9 +613,9 @@ fun SvipSettingsScreen(uid: String, onBack: () -> Unit) {
                     editAd = false
                     myAd = txt
                     AppScope.scope.launch { SvipRepo.setAd(uid, txt) }
-                }) { Text("Simpan") }
+                }) { Text(tr("Simpan")) }
             },
-            dismissButton = { TextButton(onClick = { editAd = false }) { Text("Batal") } },
+            dismissButton = { TextButton(onClick = { editAd = false }) { Text(tr("Batal")) } },
         )
     }
 }
@@ -638,7 +633,7 @@ fun MysteryAvatar(size: Dp) {
     ) {
         Image(
             painter = painterResource(R.drawable.mystery_avatar),
-            contentDescription = "Misterius",
+            contentDescription = tr("Misterius"),
             contentScale = ContentScale.Crop,
             modifier = Modifier.matchParentSize(),
         )
@@ -665,8 +660,7 @@ fun MysteryName(fontSize: TextUnit = 20.sp) {
         Color(0xFFB8860B), Color(0xFFFFF3C4),
         infiniteRepeatable(tween(800), RepeatMode.Reverse), label = "mnc",
     )
-    Text(
-        "Mysterious",
+    Text(tr("Mysterious"),
         fontSize = fontSize,
         fontWeight = FontWeight.ExtraBold,
         color = c,

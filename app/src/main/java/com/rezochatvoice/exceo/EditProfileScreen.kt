@@ -90,7 +90,7 @@ private fun EditRow(
         content()
         if (chevron) {
             Spacer(Modifier.width(8.dp))
-            Text("›", color = Color(0xFFB0B7C6), fontSize = 24.sp)
+            Text(tr("›"), color = Color(0xFFB0B7C6), fontSize = 24.sp)
         }
     }
     Box(Modifier.padding(horizontal = 20.dp).fillMaxWidth().height(1.dp).background(Line))
@@ -137,8 +137,8 @@ fun EditProfileScreen(
             busy = false
             if (b64 != null) {
                 onChange(profile.copy(avatarB64 = b64))
-                toast("Avatar diperbarui")
-            } else toast("Gagal membaca gambar")
+                toast(tr("Avatar diperbarui"))
+            } else toast(tr("Gagal membaca gambar"))
         }
     }
     val bgPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -148,8 +148,8 @@ fun EditProfileScreen(
             busy = false
             if (b64 != null) {
                 onChange(profile.copy(backgroundB64 = b64))
-                toast("Latar belakang diperbarui")
-            } else toast("Gagal membaca gambar")
+                toast(tr("Latar belakang diperbarui"))
+            } else toast(tr("Gagal membaca gambar"))
         }
     }
     val imageOnly = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -187,7 +187,7 @@ fun EditProfileScreen(
                 // User ID
                 EditRow("ID Pengguna", onClick = {
                     clipboard.setText(AnnotatedString(userId))
-                    toast("ID disalin")
+                    toast(tr("ID disalin"))
                 }, chevron = false) {
                     Text(userId, color = Ink, fontSize = 17.sp)
                 }
@@ -195,10 +195,10 @@ fun EditProfileScreen(
                 EditRow("Jenis kelamin", onClick = { dialog = EditDialog.Gender }) {
                     when (profile.gender) {
                         "M" -> Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFF1E88E5)), Alignment.Center) {
-                            Text("♂", color = Color.White, fontSize = 20.sp)
+                            Text(tr("♂"), color = Color.White, fontSize = 20.sp)
                         }
                         "F" -> Box(Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFEC407A)), Alignment.Center) {
-                            Text("♀", color = Color.White, fontSize = 20.sp)
+                            Text(tr("♀"), color = Color.White, fontSize = 20.sp)
                         }
                         else -> Text(tr("Belum diatur"), color = Hint, fontSize = 16.sp)
                     }
@@ -226,10 +226,10 @@ fun EditProfileScreen(
                                     .background(Color(0xAA000000), CircleShape)
                                     .clickable {
                                         onChange(profile.copy(backgroundB64 = null))
-                                        toast("Latar belakang dihapus")
+                                        toast(tr("Latar belakang dihapus"))
                                     },
                                 contentAlignment = Alignment.Center,
-                            ) { Text("✕", color = Color.White, fontSize = 11.sp) }
+                            ) { Text(tr("✕"), color = Color.White, fontSize = 11.sp) }
                         } else {
                             Icon(Icons.Default.Add, "Tambah", tint = Hint, modifier = Modifier.size(32.dp))
                         }
@@ -247,7 +247,7 @@ fun EditProfileScreen(
                 }
                 // Birthday
                 EditRow("Tanggal lahir", onClick = { showDatePicker() }) {
-                    Text("🗓", fontSize = 18.sp)
+                    Text(tr("🗓"), fontSize = 18.sp)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         profile.birthday.ifBlank { "Belum diatur" },
@@ -258,8 +258,7 @@ fun EditProfileScreen(
 
                 // Bio
                 Spacer(Modifier.height(28.dp))
-                Text(
-                    "Perkenalkan diri saya",
+                Text(tr("Perkenalkan diri saya"),
                     color = Ink,
                     fontSize = 17.sp,
                     textAlign = TextAlign.Center,
@@ -372,7 +371,7 @@ private fun TextEditDialog(
                 onValueChange = { if (it.length <= maxLen) text = it },
                 singleLine = singleLine,
                 minLines = if (singleLine) 1 else 4,
-                supportingText = { Text("${text.length}/$maxLen") },
+                supportingText = { Text(tr("${text.length}/$maxLen")) },
                 modifier = Modifier.fillMaxWidth(),
             )
         },

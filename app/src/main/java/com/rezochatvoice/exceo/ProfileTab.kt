@@ -67,7 +67,7 @@ fun AvatarImage(user: UserProfile, profile: ProfileData, size: Dp, modifier: Mod
         bmp != null -> Image(bmp, "Avatar", base, contentScale = ContentScale.Crop)
         !user.photoUrl.isNullOrBlank() -> AsyncImage(
             model = user.photoUrl,
-            contentDescription = "Avatar",
+            contentDescription = tr("Avatar"),
             modifier = base,
             contentScale = ContentScale.Crop,
         )
@@ -127,7 +127,7 @@ private fun MenuItem(emoji: String, label: String, trailing: String? = null, ico
             Text(trailing, color = Color(0xFF8A93A6), fontSize = 11.sp, maxLines = 1)
             Spacer(Modifier.width(8.dp))
         }
-        Text("›", color = Color(0xFFB0B7C6), fontSize = 20.sp)
+        Text(tr("›"), color = Color(0xFFB0B7C6), fontSize = 20.sp)
     }
 }
 
@@ -270,13 +270,13 @@ fun ProfileTab(
                             Row(
                                 modifier = Modifier.clickable {
                                     clipboard.setText(AnnotatedString(userId))
-                                    Toast.makeText(context, "ID disalin", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, tr("ID disalin"), Toast.LENGTH_SHORT).show()
                                 },
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("UID:$userId", color = ink.copy(alpha = 0.75f), fontSize = 13.sp)
+                                Text(tr("UID:$userId"), color = ink.copy(alpha = 0.75f), fontSize = 13.sp)
                                 Spacer(Modifier.width(6.dp))
-                                Text("📋", fontSize = 14.sp)
+                                Text(tr("📋"), fontSize = 14.sp)
                             }
                             Spacer(Modifier.width(10.dp))
                             LevelBadge(level)
@@ -323,19 +323,18 @@ fun ProfileTab(
                     .border(2.dp, Color(0xFFB8860B), goldShape)
                     .clickable { onWalletClick() },
             ) {
-                Text("💰", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
+                Text(tr("💰"), fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
                 Column(
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 18.dp),
                     horizontalAlignment = Alignment.End,
                 ) {
-                    Text(
-                        "Dompet",
+                    Text(tr("Dompet"),
                         color = Color(0xFF7A4A00),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
                         fontStyle = FontStyle.Italic,
                     )
-                    Text("${fmtCompact(coins)} koin", color = Color(0xFF7A4A00), fontSize = 13.sp)
+                    Text(tr("${fmtCompact(coins)} koin"), color = Color(0xFF7A4A00), fontSize = 13.sp)
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -352,10 +351,10 @@ fun ProfileTab(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
-                        Text("VIP", color = Color(0xFFFFD54F), fontSize = 11.sp, maxLines = 1)
+                        Text(tr("VIP"), color = Color(0xFFFFD54F), fontSize = 11.sp, maxLines = 1)
                         Text(if (vipOn) "VIP${wallet.vip}" else "VIP", color = Color(0xFFFFD54F), fontSize = 17.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text("👑", fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text(tr("👑"), fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
                 Box(
                     modifier = Modifier
@@ -369,9 +368,9 @@ fun ProfileTab(
                 ) {
                     Column(Modifier.align(Alignment.CenterStart)) {
                         Text(tr("Level user"), color = Color(0xFFB8F5EC), fontSize = 11.sp, maxLines = 1)
-                        Text("LV.$level", color = Color(0xFFFFE082), fontSize = 17.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
+                        Text(tr("LV.$level"), color = Color(0xFFFFE082), fontSize = 17.sp, maxLines = 1, softWrap = false, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic)
                     }
-                    Text("🛡", fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
+                    Text(tr("🛡"), fontSize = 22.sp, modifier = Modifier.align(Alignment.CenterEnd))
                 }
             }
             // ---------- Menu ----------

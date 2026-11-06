@@ -319,8 +319,7 @@ fun RoomScreen(
         RoyalBackground()
         if (r == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Gold) }
-            Text(
-                "Keluar",
+            Text(tr("Keluar"),
                 color = GoldLight,
                 modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(16.dp).clickable { onExit() },
             )
@@ -431,8 +430,7 @@ fun RoomScreen(
                             r.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp,
                             maxLines = 1, overflow = TextOverflow.Visible, softWrap = false,
                         )
-                        Text(
-                            "ID:" + (ownerUserId ?: "..."),
+                        Text(tr("ID:") + (ownerUserId ?: "..."),
                             color = Color(0xFFBDBDBD), fontSize = 11.sp,
                             maxLines = 1, overflow = TextOverflow.Visible, softWrap = false,
                         )
@@ -469,8 +467,7 @@ fun RoomScreen(
                     )
                 }
                 Spacer(Modifier.width(6.dp))
-                Text(
-                    "👤 ${r.online}",
+                Text(tr("👤 ${r.online}"),
                     color = Color.White,
                     fontSize = 13.sp,
                     modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0x66000000)).padding(horizontal = 12.dp, vertical = 6.dp),
@@ -497,7 +494,7 @@ fun RoomScreen(
                             context.startActivity(Intent.createChooser(send, "Bagikan room"))
                         },
                     contentAlignment = Alignment.Center,
-                ) { Text("🔗", fontSize = 16.sp) }
+                ) { Text(tr("🔗"), fontSize = 16.sp) }
                 Spacer(Modifier.width(8.dp))
                 Box(
                     Modifier.size(40.dp).clip(CircleShape).background(Color(0x66000000)).clickable { panel = P_POWER },
@@ -521,9 +518,9 @@ fun RoomScreen(
                     Modifier.size(16.dp), contentScale = ContentScale.Fit,
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Peringkat room", color = GoldLight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(tr("Peringkat room"), color = GoldLight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                Text("🏆 Top room ›", color = Color(0xFFBDBDBD), fontSize = 11.sp)
+                Text(tr("🏆 Top room ›"), color = Color(0xFFBDBDBD), fontSize = 11.sp)
             }
             Spacer(Modifier.height(6.dp))
 
@@ -642,7 +639,7 @@ fun RoomScreen(
                 RoomEmoteBar(emotes = customEmotes, onPick = { e ->
                         emoteOpen = false
                         if (mySeat == null) {
-                            toast("Naik mic dulu untuk kirim emot")
+                            toast(tr("Naik mic dulu untuk kirim emot"))
                         } else {
                             scope.launch { RoomExtras.sendEmote(r.id, myUid, e)?.let { toast(it) } }
                         }
@@ -666,9 +663,9 @@ fun RoomScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    RmRoundBtn({ typing = true; emoteOpen = false }) { Text("💬", fontSize = 20.sp) }
+                    RmRoundBtn({ typing = true; emoteOpen = false }) { Text(tr("💬"), fontSize = 20.sp) }
                     Spacer(Modifier.width(10.dp))
-                    RmRoundBtn({ emoteOpen = !emoteOpen }) { Text("😊", fontSize = 20.sp) }
+                    RmRoundBtn({ emoteOpen = !emoteOpen }) { Text(tr("😊"), fontSize = 20.sp) }
 
                     Spacer(Modifier.weight(1f))
                     RmRoundBtn({ giftTarget = null; giftOpen = true; emoteOpen = false }) {
@@ -698,7 +695,7 @@ fun RoomScreen(
                 ) {
                     AsyncImage(
                         model = url,
-                        contentDescription = "Gambar",
+                        contentDescription = tr("Gambar"),
                         modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
                         contentScale = ContentScale.Fit,
                     )
@@ -731,7 +728,7 @@ fun RoomScreen(
                                 // turunkan dari mic, mute, kick dari room.
                                 Image(
                                     painterResource(R.drawable.ic_settings),
-                                    contentDescription = "Aksi user",
+                                    contentDescription = tr("Aksi user"),
                                     modifier = Modifier
                                         .size(26.dp)
                                         .clip(CircleShape)
@@ -1031,7 +1028,7 @@ fun RoomScreen(
                             Image(painterResource(R.drawable.ic_settings), null, Modifier.size(24.dp), contentScale = ContentScale.Fit)
                         }
                         RmTool(if (r.locked) "Buka kunci room" else "Kunci room", onClick = { panel = P_LOCK }) {
-                            if (r.locked) Text("🔓", fontSize = 24.sp)
+                            if (r.locked) Text(tr("🔓"), fontSize = 24.sp)
                             else Icon(Icons.Default.Lock, null, tint = GoldLight)
                         }
                     }
@@ -1041,7 +1038,7 @@ fun RoomScreen(
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Satu pintu untuk semua efek: masuk, gift, banner, roket, game.
-                    RmTool(tr("Blok Efek"), onClick = { panel = P_EFEK }) { Text("\u2728", fontSize = 24.sp) }
+                    RmTool(tr("Blok Efek"), onClick = { panel = P_EFEK }) { Text(tr("\u2728"), fontSize = 24.sp) }
                 }
                 Spacer(Modifier.height(14.dp))
                 androidx.compose.foundation.layout.FlowRow(
@@ -1056,12 +1053,12 @@ fun RoomScreen(
                                 panel = P_NONE
                                 scope.launch {
                                     Rtdb.ref("micPoints/" + r.id).removeValue()
-                                    toast("Poin mic dihapus")
+                                    toast(tr("Poin mic dihapus"))
                                 }
                             },
-                        ) { Text("💗", fontSize = 24.sp) }
+                        ) { Text(tr("💗"), fontSize = 24.sp) }
                     }
-                    RmTool("Musik", onClick = { panel = P_MUSIC }) { Text("🎵", fontSize = 24.sp) }
+                    RmTool("Musik", onClick = { panel = P_MUSIC }) { Text(tr("🎵"), fontSize = 24.sp) }
                     RmTool("Game", onClick = { panel = P_NONE; waveOpen = true }) {
                         Image(painterResource(R.drawable.ic_room_game), null, Modifier.size(26.dp), contentScale = ContentScale.Fit)
                     }
@@ -1070,17 +1067,17 @@ fun RoomScreen(
                         onClick = {
                             clearedAt = messages.maxOfOrNull { it.createdAt } ?: System.currentTimeMillis()
                             panel = P_NONE
-                            toast("Chat dibersihkan di layar kamu")
+                            toast(tr("Chat dibersihkan di layar kamu"))
                         },
-                    ) { Text("🧹", fontSize = 24.sp) }
+                    ) { Text(tr("🧹"), fontSize = 24.sp) }
                     if (isOwner) {
-                        RmTool("Hapus chat semua", onClick = { panel = P_CLEAR }) { Text("🗑", fontSize = 24.sp) }
+                        RmTool("Hapus chat semua", onClick = { panel = P_CLEAR }) { Text(tr("🗑"), fontSize = 24.sp) }
                     }
                     if (isOwner) {
-                        RmTool("Daftar hitam", onClick = { panel = P_BLACKLIST }) { Text("🚫", fontSize = 24.sp) }
+                        RmTool("Daftar hitam", onClick = { panel = P_BLACKLIST }) { Text(tr("🚫"), fontSize = 24.sp) }
                     }
                     if (isOwner) {
-                        RmTool("Anggota", onClick = { panel = P_MEMBERS }) { Text("👥", fontSize = 22.sp) }
+                        RmTool("Anggota", onClick = { panel = P_MEMBERS }) { Text(tr("👥"), fontSize = 22.sp) }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -1392,7 +1389,7 @@ private fun RmSeatView(index: Int, seat: Seat?, size: Dp, locked: Boolean = fals
             textAlign = TextAlign.Center,
             modifier = Modifier.width(size + 8.dp),
         )
-        Text("💗 " + fmtCompact(points), color = Color.White, fontSize = 11.sp)
+        Text(tr("💗 ") + fmtCompact(points), color = Color.White, fontSize = 11.sp)
     }
 }
 
@@ -1404,9 +1401,9 @@ private fun IngatSalin(text: String): () -> Unit {
         try {
             val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             cm.setPrimaryClip(android.content.ClipData.newPlainText("REZO", text))
-            android.widget.Toast.makeText(ctx, "Teks disalin", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(ctx, tr("Teks disalin"), android.widget.Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            android.widget.Toast.makeText(ctx, "Gagal menyalin", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(ctx, tr("Gagal menyalin"), android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }
@@ -1589,13 +1586,13 @@ private fun RmMode(r: RoomInfo, onClose: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(60.dp).clip(CircleShape).background(Color(0xFF1C1C1C)).border(2.dp, Gold, CircleShape), contentAlignment = Alignment.Center) {
-                Text("😎", fontSize = 28.sp)
+                Text(tr("😎"), fontSize = 28.sp)
             }
             Text(tr("Obrolan"), color = Color.White, fontSize = 13.sp)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(60.dp).clip(CircleShape).background(Color(0xFF1C1C1C)), contentAlignment = Alignment.Center) {
-                Text("🛋", fontSize = 28.sp)
+                Text(tr("🛋"), fontSize = 28.sp)
             }
             Text(tr("Mode MC acara"), color = Color(0xFF6B6B6B), fontSize = 13.sp)
         }
@@ -1685,7 +1682,7 @@ private fun RmSettings(r: RoomInfo, onClose: () -> Unit) {
                 if (photoBmp != null) {
                     Image(bitmap = photoBmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 } else {
-                    Text("📷", fontSize = 26.sp)
+                    Text(tr("📷"), fontSize = 26.sp)
                 }
             }
             Text(tr("Foto room"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
@@ -1699,7 +1696,7 @@ private fun RmSettings(r: RoomInfo, onClose: () -> Unit) {
                 if (bgBmp != null) {
                     Image(bitmap = bgBmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 } else {
-                    Text("🖼", fontSize = 26.sp)
+                    Text(tr("🖼"), fontSize = 26.sp)
                 }
             }
             Text(tr("Background room"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
@@ -1867,7 +1864,7 @@ fun FloatingRoomBubble(room: RoomInfo, onClick: () -> Unit) {
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                Text("🎙", fontSize = if (layarSempit) 20.sp else 24.sp)
+                Text(tr("🎙"), fontSize = if (layarSempit) 20.sp else 24.sp)
             }
         }
     }

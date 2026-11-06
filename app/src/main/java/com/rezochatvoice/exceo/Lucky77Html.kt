@@ -74,7 +74,7 @@ fun Lucky77HtmlScreen(myUid: String, myName: String = "Player", onClose: () -> U
                     .clickable { onClose() },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("✕", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(tr("✕"), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

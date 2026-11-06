@@ -46,7 +46,7 @@ fun FamilyLogo(b64: String?, size: Dp, modifier: Modifier = Modifier) {
         Image(bmp, null, modifier.size(size).clip(shape), contentScale = ContentScale.Crop)
     } else {
         Box(modifier.size(size).clip(shape).background(Brush.verticalGradient(listOf(Color(0xFF1FA89A), Color(0xFF0E7C86)))), contentAlignment = Alignment.Center) {
-            Text("🏰", fontSize = (size.value * 0.5f).sp)
+            Text(tr("🏰"), fontSize = (size.value * 0.5f).sp)
         }
     }
 }
@@ -65,7 +65,7 @@ fun FamilyTabScreen(myUid: String, myName: String, myAvatar: String?, myId: Stri
     }
 
     when {
-        !loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Memuat...", color = Color(0xFF8A8A8A)) }
+        !loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(tr("Memuat..."), color = Color(0xFF8A8A8A)) }
         fam != null -> FamilyHomeScreen(fam!!, myUid, myName, myAvatar)
         else -> NoFamilyPage(onCreate = { showCreate = true }, onSearch = { showSearch = true })
     }
@@ -80,12 +80,12 @@ fun FamilyTabScreen(myUid: String, myName: String, myAvatar: String?, myId: Stri
 @Composable
 private fun NoFamilyPage(onCreate: () -> Unit, onSearch: () -> Unit) {
     Column(Modifier.fillMaxSize().statusBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Family", color = Gold, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp).align(Alignment.Start))
+        Text(tr("Family"), color = Gold, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp).align(Alignment.Start))
         Spacer(Modifier.height(40.dp))
-        Text("🏰", fontSize = 72.sp)
+        Text(tr("🏰"), fontSize = 72.sp)
         Spacer(Modifier.height(12.dp))
-        Text("Kamu belum bergabung dengan family", color = Color.White, fontSize = 16.sp)
-        Text("Buat family sendiri atau cari family untuk bergabung", color = Color(0xFF8A8A8A), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
+        Text(tr("Kamu belum bergabung dengan family"), color = Color.White, fontSize = 16.sp)
+        Text(tr("Buat family sendiri atau cari family untuk bergabung"), color = Color(0xFF8A8A8A), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
         Spacer(Modifier.height(24.dp))
         YellowButton("Buat Family", onClick = onCreate)
         Spacer(Modifier.height(14.dp))
@@ -93,7 +93,7 @@ private fun NoFamilyPage(onCreate: () -> Unit, onSearch: () -> Unit) {
             onClick = onSearch,
             border = BorderStroke(1.dp, Gold),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldLight),
-        ) { Text("Cari / Gabung Family", modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) }
+        ) { Text(tr("Cari / Gabung Family"), modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) }
     }
 }
 
@@ -119,53 +119,53 @@ fun FamilySettingsScreen(
             busy = true
             val b64 = ProfileRepo.encodeImage(context, uri, 400, square = true, quality = 85)
             busy = false
-            if (b64 != null) logo = b64 else toast("Gagal membaca gambar")
+            if (b64 != null) logo = b64 else toast(tr("Gagal membaca gambar"))
         }
     }
 
     Box(Modifier.fillMaxSize().blockTouches().background(Color(0xFF14100C))) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Box(Modifier.fillMaxWidth().height(56.dp)) {
-                Text("‹", color = Color.White, fontSize = 36.sp, modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 16.dp))
+                Text(tr("‹"), color = Color.White, fontSize = 36.sp, modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 16.dp))
                 Text(if (existing == null) "Buat family" else "Pengaturan family", color = Color.White, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
             }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(Modifier.height(12.dp))
                 FamilyLogo(logo, 150.dp, Modifier.clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
                 Spacer(Modifier.height(8.dp))
-                Text("Unggah Logo family", color = Color.White, modifier = Modifier.clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
+                Text(tr("Unggah Logo family"), color = Color.White, modifier = Modifier.clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
                 Spacer(Modifier.height(16.dp))
                 Column(Modifier.fillMaxWidth()) {
-                    Text("Nama family", color = Color.White, fontSize = 18.sp)
+                    Text(tr("Nama family"), color = Color.White, fontSize = 18.sp)
                     Spacer(Modifier.height(8.dp))
                     FamField(name, 20) { name = it }
-                    Text("*Hanya dapat diubah 1 kali per bulan, harap dipikirkan baik-baik.", color = Color(0xFF9A9A9A), fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
+                    Text(tr("*Hanya dapat diubah 1 kali per bulan, harap dipikirkan baik-baik."), color = Color(0xFF9A9A9A), fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
                     Spacer(Modifier.height(8.dp))
-                    Text("Label family", color = Color.White, fontSize = 18.sp)
+                    Text(tr("Label family"), color = Color.White, fontSize = 18.sp)
                     Spacer(Modifier.height(8.dp))
                     FamField(label, 10) { label = it }
-                    Text("*Hanya dapat diubah 1 kali per bulan, harap dipikirkan baik-baik.", color = Color(0xFF9A9A9A), fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
+                    Text(tr("*Hanya dapat diubah 1 kali per bulan, harap dipikirkan baik-baik."), color = Color(0xFF9A9A9A), fontSize = 13.sp, modifier = Modifier.padding(vertical = 6.dp))
                     Spacer(Modifier.height(10.dp))
-                    Text("Pratinjau", color = Color.White, fontSize = 18.sp)
+                    Text(tr("Pratinjau"), color = Color.White, fontSize = 18.sp)
                     Spacer(Modifier.height(8.dp))
                     FamilyPreviewCard(name.ifBlank { "Nama family" }, label.ifBlank { "Label" }, logo)
                     Spacer(Modifier.height(16.dp))
-                    Text("Menerapkan untuk mengatur", color = Color.White, fontSize = 18.sp)
+                    Text(tr("Menerapkan untuk mengatur"), color = Color.White, fontSize = 18.sp)
                     Row(Modifier.fillMaxWidth().clickable { needApproval = true }, verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(needApproval, { needApproval = true }, colors = RadioButtonDefaults.colors(selectedColor = TealLight, unselectedColor = Color.White))
-                        Text("Persetujuan diperlukan untuk bergabung dengan family", color = Color.White, fontSize = 16.sp)
+                        Text(tr("Persetujuan diperlukan untuk bergabung dengan family"), color = Color.White, fontSize = 16.sp)
                     }
                     Row(Modifier.fillMaxWidth().clickable { needApproval = false }, verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(!needApproval, { needApproval = false }, colors = RadioButtonDefaults.colors(selectedColor = TealLight, unselectedColor = Color.White))
-                        Text("Tidak diperlukan persetujuan, bergabung dengan family secara langsung", color = Color.White, fontSize = 16.sp)
+                        Text(tr("Tidak diperlukan persetujuan, bergabung dengan family secara langsung"), color = Color.White, fontSize = 16.sp)
                     }
                 }
                 Spacer(Modifier.height(20.dp))
                 YellowButton(if (busy) "Menyimpan..." else "Konfirmasi", enabled = !busy) {
                     val n = name.trim()
                     val l = label.trim()
-                    if (n.length < 2) return@YellowButton toast("Nama family minimal 2 karakter")
-                    if (l.length < 2) return@YellowButton toast("Label family minimal 2 karakter")
+                    if (n.length < 2) return@YellowButton toast(tr("Nama family minimal 2 karakter"))
+                    if (l.length < 2) return@YellowButton toast(tr("Label family minimal 2 karakter"))
                     busy = true
                     scope.launch {
                         val err = if (existing == null) FamilyRepo.create(myUid, myName, myAvatar, n, l, logo, needApproval)
@@ -191,7 +191,7 @@ private fun FamField(value: String, max: Int, onChange: (String) -> Unit) {
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        trailingIcon = { Text("${value.length}/$max", color = Color(0xFF9A9A9A), modifier = Modifier.padding(end = 12.dp)) },
+        trailingIcon = { Text(tr("${value.length}/$max"), color = Color(0xFF9A9A9A), modifier = Modifier.padding(end = 12.dp)) },
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = TealLight,
             focusedBorderColor = TealLight, unfocusedBorderColor = Color(0xFF2D2822),
@@ -213,7 +213,7 @@ private fun FamilyPreviewCard(name: String, label: String, logo: String?) {
         Column {
             Text(name, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
-            Text("🛡 $label", color = Color.White, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(50)).background(Teal).padding(horizontal = 10.dp, vertical = 2.dp))
+            Text(tr("🛡 $label"), color = Color.White, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(50)).background(Teal).padding(horizontal = 10.dp, vertical = 2.dp))
         }
     }
 }
@@ -265,21 +265,21 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
             Box(Modifier.fillMaxWidth().height(330.dp).background(Brush.verticalGradient(listOf(Color(0xFF1B5E55), Color(0xFF0E3A35), Color(0xFF07201D))))) {
                 Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp).height(52.dp), verticalAlignment = Alignment.CenterVertically) {
                     Spacer(Modifier.weight(1f))
-                    Text("✉", fontSize = 26.sp, modifier = Modifier.clickable { showInbox = true }.padding(8.dp))
-                    if (isAdmin && requests.isNotEmpty()) Text("${requests.size}", color = Color.White, fontSize = 11.sp, modifier = Modifier.clip(CircleShape).background(Color.Red).padding(horizontal = 6.dp, vertical = 2.dp))
+                    Text(tr("✉"), fontSize = 26.sp, modifier = Modifier.clickable { showInbox = true }.padding(8.dp))
+                    if (isAdmin && requests.isNotEmpty()) Text(tr("${requests.size}"), color = Color.White, fontSize = 11.sp, modifier = Modifier.clip(CircleShape).background(Color.Red).padding(horizontal = 6.dp, vertical = 2.dp))
                     Box {
-                        Text("⋮", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { menu = true }.padding(horizontal = 12.dp, vertical = 4.dp))
+                        Text(tr("⋮"), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { menu = true }.padding(horizontal = 12.dp, vertical = 4.dp))
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Color(0xFF1E1A16)) {
-                            if (isAdmin) DropdownMenuItem(text = { Text("Atur family", color = Color.White) }, onClick = { menu = false; showSettings = true })
-                            DropdownMenuItem(text = { Text("Daftar anggota", color = Color.White) }, onClick = { menu = false; showMembers = true })
-                            DropdownMenuItem(text = { Text("Salin ID family", color = Color.White) }, onClick = {
+                            if (isAdmin) DropdownMenuItem(text = { Text(tr("Atur family"), color = Color.White) }, onClick = { menu = false; showSettings = true })
+                            DropdownMenuItem(text = { Text(tr("Daftar anggota"), color = Color.White) }, onClick = { menu = false; showMembers = true })
+                            DropdownMenuItem(text = { Text(tr("Salin ID family"), color = Color.White) }, onClick = {
                                 menu = false
                                 val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                 cm.setPrimaryClip(android.content.ClipData.newPlainText("family", f.numId))
-                                toast("ID family disalin")
+                                toast(tr("ID family disalin"))
                             })
-                            if (isOwner) DropdownMenuItem(text = { Text("Hapus family", color = Color(0xFFFF6B6B)) }, onClick = { menu = false; showDelete = true })
-                            else DropdownMenuItem(text = { Text("Keluar family", color = Color(0xFFFF6B6B)) }, onClick = { menu = false; showLeave = true })
+                            if (isOwner) DropdownMenuItem(text = { Text(tr("Hapus family"), color = Color(0xFFFF6B6B)) }, onClick = { menu = false; showDelete = true })
+                            else DropdownMenuItem(text = { Text(tr("Keluar family"), color = Color(0xFFFF6B6B)) }, onClick = { menu = false; showLeave = true })
                         }
                     }
                 }
@@ -287,10 +287,10 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
                     FamilyLogo(f.logoB64, 120.dp)
                     Spacer(Modifier.height(10.dp))
                     Text(f.name, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Medium)
-                    Text("ID:${f.numId}", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                    Text(tr("ID:${f.numId}"), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp).clickable(enabled = isAdmin) { editSlogan = true }) {
                         Text(f.slogan.ifBlank { "welcome to family ${f.name}" }, color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        if (isAdmin) Text(" ✎", color = Color.White, fontSize = 16.sp)
+                        if (isAdmin) Text(tr(" ✎"), color = Color.White, fontSize = 16.sp)
                     }
                 }
             }
@@ -301,24 +301,24 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
                     .border(2.dp, Color(0xFF2FB9A8), RoundedCornerShape(12.dp)).padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("🛡", fontSize = 54.sp, modifier = Modifier.clickable { showClass = true })
+                Text(tr("🛡"), fontSize = 54.sp, modifier = Modifier.clickable { showClass = true })
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Total nilai pengalaman family", color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                        Text("Peringkat bulan ini ›", color = Color(0xFFB8D8D3), fontSize = 13.sp, modifier = Modifier.clickable { showRank = true })
+                        Text(tr("Total nilai pengalaman family"), color = Color.White, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                        Text(tr("Peringkat bulan ini ›"), color = Color(0xFFB8D8D3), fontSize = 13.sp, modifier = Modifier.clickable { showRank = true })
                     }
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val pct = (f.exp.toFloat() / nextNeed.toFloat()).coerceIn(0f, 1f)
                         Box(Modifier.weight(1f).height(18.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF2B2B2B))) {
                             Box(Modifier.fillMaxWidth(pct.coerceAtLeast(0.02f)).height(18.dp).background(Brush.horizontalGradient(listOf(Color(0xFFE0A100), Color(0xFFFFD54F)))))
-                            Text("${f.exp}/$nextNeed", color = Color.White, fontSize = 10.sp, modifier = Modifier.align(Alignment.Center), maxLines = 1)
+                            Text(tr("${f.exp}/$nextNeed"), color = Color.White, fontSize = 10.sp, modifier = Modifier.align(Alignment.Center), maxLines = 1)
                         }
-                        Text(" Lv.$level", color = Color(0xFFB8D8D3), fontSize = 13.sp)
+                        Text(tr(" Lv.$level"), color = Color(0xFFB8D8D3), fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(6.dp))
-                    Text("Nilai kontribusi saya:${me?.contribution ?: 0}", color = Color.White, fontSize = 15.sp)
+                    Text(tr("Nilai kontribusi saya:${me?.contribution ?: 0}"), color = Color.White, fontSize = 15.sp)
                 }
             }
             // Tabs
@@ -362,28 +362,28 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
 
     if (showDelete) AlertDialog(
         onDismissRequest = { showDelete = false },
-        title = { Text("Hapus family?") },
-        text = { Text("Family \"${f.name}\" dan semua datanya akan dihapus permanen, seluruh anggota akan dikeluarkan. Tindakan ini tidak bisa dibatalkan.") },
+        title = { Text(tr("Hapus family?")) },
+        text = { Text(tr("Family \"${f.name}\" dan semua datanya akan dihapus permanen, seluruh anggota akan dikeluarkan. Tindakan ini tidak bisa dibatalkan.")) },
         confirmButton = {
             TextButton(onClick = {
                 showDelete = false
                 scope.launch { val e = FamilyRepo.delete(f.id); toast(e ?: "Family dihapus") }
-            }) { Text("Hapus", color = Color(0xFFD9534F)) }
+            }) { Text(tr("Hapus"), color = Color(0xFFD9534F)) }
         },
-        dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Batal") } },
+        dismissButton = { TextButton(onClick = { showDelete = false }) { Text(tr("Batal")) } },
     )
 
     if (showLeave) AlertDialog(
         onDismissRequest = { showLeave = false },
-        title = { Text("Keluar dari family?") },
-        text = { Text("Kontribusimu di family ini akan hilang.") },
+        title = { Text(tr("Keluar dari family?")) },
+        text = { Text(tr("Kontribusimu di family ini akan hilang.")) },
         confirmButton = {
             TextButton(onClick = {
                 showLeave = false
                 scope.launch { val e = FamilyRepo.leave(f.id, myUid); toast(e ?: "Kamu keluar dari family") }
-            }) { Text("Keluar", color = Color(0xFFD9534F)) }
+            }) { Text(tr("Keluar"), color = Color(0xFFD9534F)) }
         },
-        dismissButton = { TextButton(onClick = { showLeave = false }) { Text("Batal") } },
+        dismissButton = { TextButton(onClick = { showLeave = false }) { Text(tr("Batal")) } },
     )
 
     if (editAnn) TextEditDialog("Pengumuman family", f.announcement, 200, onDismiss = { editAnn = false }) { t ->
@@ -398,8 +398,8 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
 
     if (showInvite) AlertDialog(
         onDismissRequest = { showInvite = false },
-        title = { Text("Undang Anggota") },
-        text = { Text("Bagikan ID family ${f.numId} (${f.name}). Teman bisa membuka tab Family lalu Cari / Gabung Family.") },
+        title = { Text(tr("Undang Anggota")) },
+        text = { Text(tr("Bagikan ID family ${f.numId} (${f.name}). Teman bisa membuka tab Family lalu Cari / Gabung Family.")) },
         confirmButton = {
             TextButton(onClick = {
                 showInvite = false
@@ -408,22 +408,22 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
                     putExtra(Intent.EXTRA_TEXT, "Gabung family \"${f.name}\" di aplikasi kami! Cari ID family: ${f.numId}")
                 }
                 context.startActivity(Intent.createChooser(i, "Undang lewat"))
-            }) { Text("Bagikan") }
+            }) { Text(tr("Bagikan")) }
         },
-        dismissButton = { TextButton(onClick = { showInvite = false }) { Text("Tutup") } },
+        dismissButton = { TextButton(onClick = { showInvite = false }) { Text(tr("Tutup")) } },
     )
 
     if (showClass) AlertDialog(
         onDismissRequest = { showClass = false },
-        title = { Text("Kelas Family") },
+        title = { Text(tr("Kelas Family")) },
         text = {
             Column {
                 FAMILY_CLASSES.forEach {
-                    Text("${it.name} ${it.roman}: butuh ${fmtNum(it.need)} EXP${if (it == cls) " ◀ sekarang" else ""}", modifier = Modifier.padding(vertical = 3.dp))
+                    Text(tr("${it.name} ${it.roman}: butuh ${fmtNum(it.need)} EXP${if (it == cls) ") ◀ sekarang" else ""}", modifier = Modifier.padding(vertical = 3.dp))
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { showClass = false }) { Text("Tutup") } },
+        confirmButton = { TextButton(onClick = { showClass = false }) { Text(tr("Tutup")) } },
     )
 
     if (showRank) FamilyRankScreen(myFamilyId = f.id, onBack = { showRank = false })
@@ -431,7 +431,7 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
     if (showInbox) RequestsScreen(
         requests, isAdmin, onBack = { showInbox = false },
         onApprove = { r -> scope.launch { toast(FamilyRepo.approve(f.id, r) ?: "${r.name} diterima") } },
-        onReject = { r -> scope.launch { FamilyRepo.reject(f.id, r.uid); toast("Permintaan ditolak") } },
+        onReject = { r -> scope.launch { FamilyRepo.reject(f.id, r.uid); toast(tr("Permintaan ditolak")) } },
     )
 
     memberAction?.let { m ->
@@ -440,22 +440,19 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
             title = { Text(m.name) },
             text = {
                 Column {
-                    if (isOwner && m.role != "admin") Text(
-                        "Jadikan admin",
+                    if (isOwner && m.role != "admin") Text(tr("Jadikan admin"),
                         Modifier.fillMaxWidth().clickable {
                             memberAction = null
                             scope.launch { toast(FamilyRepo.setRole(f.id, m.uid, "admin") ?: "${m.name} jadi admin") }
                         }.padding(vertical = 10.dp),
                     )
-                    if (isOwner && m.role == "admin") Text(
-                        "Cabut admin",
+                    if (isOwner && m.role == "admin") Text(tr("Cabut admin"),
                         Modifier.fillMaxWidth().clickable {
                             memberAction = null
                             scope.launch { toast(FamilyRepo.setRole(f.id, m.uid, "member") ?: "Admin ${m.name} dicabut") }
                         }.padding(vertical = 10.dp),
                     )
-                    Text(
-                        "Keluarkan dari family",
+                    Text(tr("Keluarkan dari family"),
                         Modifier.fillMaxWidth().clickable {
                             memberAction = null
                             scope.launch { toast(FamilyRepo.kick(f.id, m.uid) ?: "${m.name} dikeluarkan") }
@@ -463,7 +460,7 @@ fun FamilyHomeScreen(f: Family, myUid: String, myName: String, myAvatar: String?
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { memberAction = null }) { Text("Tutup") } },
+            confirmButton = { TextButton(onClick = { memberAction = null }) { Text(tr("Tutup")) } },
         )
     }
 }
@@ -474,9 +471,9 @@ private fun TextEditDialog(title: String, initial: String, max: Int, onDismiss: 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = { OutlinedTextField(t, { if (it.length <= max) t = it }, modifier = Modifier.fillMaxWidth(), supportingText = { Text("${t.length}/$max") }) },
-        confirmButton = { TextButton(onClick = { if (t.isNotBlank()) { onSave(t.trim()); onDismiss() } }) { Text("Simpan") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } },
+        text = { OutlinedTextField(t, { if (it.length <= max) t = it }, modifier = Modifier.fillMaxWidth(), supportingText = { Text(tr("${t.length}/$max")) }) },
+        confirmButton = { TextButton(onClick = { if (t.isNotBlank()) { onSave(t.trim()); onDismiss() } }) { Text(tr("Simpan")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Batal")) } },
     )
 }
 
@@ -490,11 +487,11 @@ private fun HomeTab(
             Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(10.dp))
                 .background(Brush.horizontalGradient(listOf(Color(0xFF8A4B0F), Color(0xFF2A1A0A), Color(0xFF123B5C)))).clickable(onClick = onRank),
             contentAlignment = Alignment.Center,
-        ) { Text("Liga Peringkat Fam", color = Color(0xFFFFD54F), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold) }
+        ) { Text(tr("Liga Peringkat Fam"), color = Color(0xFFFFD54F), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold) }
 
         Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Pengumuman family", color = Color.White, fontSize = 20.sp, modifier = Modifier.weight(1f))
-            if (isAdmin) Text("✎", color = Color(0xFFB8D8D3), fontSize = 22.sp, modifier = Modifier.clickable(onClick = onEditAnn).padding(4.dp))
+            Text(tr("Pengumuman family"), color = Color.White, fontSize = 20.sp, modifier = Modifier.weight(1f))
+            if (isAdmin) Text(tr("✎"), color = Color(0xFFB8D8D3), fontSize = 22.sp, modifier = Modifier.clickable(onClick = onEditAnn).padding(4.dp))
         }
         Text(
             f.announcement.ifBlank { "welcome ${f.name}" },
@@ -502,24 +499,24 @@ private fun HomeTab(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFF1D2B28)).padding(14.dp),
         )
 
-        Text("Kelas Fam", color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+        Text(tr("Kelas Fam"), color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
                 .background(Brush.verticalGradient(listOf(Color(0xFF5A2A1A), Color(0xFF2E1710))))
                 .border(2.dp, Color(0xFF8A5A2E), RoundedCornerShape(10.dp)).clickable(onClick = onClass).padding(12.dp),
         ) {
-            Text("Peringkat saat ini: ${cls.name} ${cls.roman}", color = Color(0xFFFFB74D), fontSize = 15.sp)
+            Text(tr("Peringkat saat ini: ${cls.name} ${cls.roman}"), color = Color(0xFFFFB74D), fontSize = 15.sp)
             Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Text("🛡", fontSize = 56.sp)
+                Text(tr("🛡"), fontSize = 56.sp)
                 PerkBox("💵", cls.perk1); PerkBox("🏅", cls.perk2); PerkBox("⭕", cls.perk3)
             }
             val need = cls.need / 1000
-            Text("Diperlukan untuk naik ke peringkat berikutnya: ${f.exp}/$need", color = Color.White, fontSize = 13.sp)
+            Text(tr("Diperlukan untuk naik ke peringkat berikutnya: ${f.exp}/$need"), color = Color.White, fontSize = 13.sp)
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp).clickable(onClick = onMembers), verticalAlignment = Alignment.CenterVertically) {
-            Text("Member TOP", color = Color.White, fontSize = 18.sp, modifier = Modifier.weight(1f))
-            Text("›", color = Color(0xFFB8D8D3), fontSize = 28.sp)
+            Text(tr("Member TOP"), color = Color.White, fontSize = 18.sp, modifier = Modifier.weight(1f))
+            Text(tr("›"), color = Color(0xFFB8D8D3), fontSize = 28.sp)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val colors = listOf(Color(0xFF7B2FBE), Color(0xFFC62828), Color(0xFF1565C0))
@@ -561,7 +558,7 @@ private fun TasksTab(done: Set<String>, onClaim: (FamilyTask) -> Unit) {
                 Column(Modifier.weight(1f)) {
                     Text(t.title, color = Color.White, fontSize = 16.sp)
                     Text(t.desc, color = Color(0xFF9AB5B0), fontSize = 12.sp)
-                    Text("+${t.reward} EXP", color = Color(0xFFFFD54F), fontSize = 13.sp)
+                    Text(tr("+${t.reward} EXP"), color = Color(0xFFFFD54F), fontSize = 13.sp)
                 }
                 Text(
                     if (isDone) "Selesai" else "Klaim",
@@ -598,7 +595,7 @@ private fun PostList(list: List<FamilyEvent>, empty: String, btn: String, canPos
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(e.byName, color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Text(timeAgo(e.createdAt), color = Color(0xFF9AB5B0), fontSize = 12.sp)
-                    if (canPost) Text(" 🗑 ", modifier = Modifier.clickable { onDelete(e.id) })
+                    if (canPost) Text(tr(" 🗑 "), modifier = Modifier.clickable { onDelete(e.id) })
                 }
                 Text(e.text, color = Color.White, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
             }
@@ -647,7 +644,7 @@ private fun MemberListScreen(
                             color = Color(0xFF9AB5B0), fontSize = 12.sp,
                         )
                     }
-                    if (canManage) Text("Kelola", color = GoldLight, modifier = Modifier.clickable { onManage(m) }.padding(8.dp))
+                    if (canManage) Text(tr("Kelola"), color = GoldLight, modifier = Modifier.clickable { onManage(m) }.padding(8.dp))
                 }
             }
         }
@@ -670,8 +667,8 @@ private fun RequestsScreen(list: List<FamilyRequest>, isAdmin: Boolean, onBack: 
                         Text(r.name, color = Color.White, fontSize = 16.sp)
                         Text(timeAgo(r.createdAt), color = Color(0xFF9AB5B0), fontSize = 12.sp)
                     }
-                    Text("Tolak", color = Color(0xFFFF6B6B), modifier = Modifier.clickable { onReject(r) }.padding(8.dp))
-                    Text("Terima", color = Color(0xFF3D2A00), modifier = Modifier.clip(RoundedCornerShape(50)).background(YellowBtn).clickable { onApprove(r) }.padding(horizontal = 14.dp, vertical = 6.dp))
+                    Text(tr("Tolak"), color = Color(0xFFFF6B6B), modifier = Modifier.clickable { onReject(r) }.padding(8.dp))
+                    Text(tr("Terima"), color = Color(0xFF3D2A00), modifier = Modifier.clip(RoundedCornerShape(50)).background(YellowBtn).clickable { onApprove(r) }.padding(horizontal = 14.dp, vertical = 6.dp))
                 }
             }
         }
@@ -723,7 +720,7 @@ fun FamilyProfileDialog(
             GoldTopBar("Profil Family", onDismiss)
             val fam = f
             if (fam == null) {
-                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Memuat...", color = Color(0xFF8A8A8A)) }
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text(tr("Memuat..."), color = Color(0xFF8A8A8A)) }
             } else {
                 LazyColumn(Modifier.weight(1f).fillMaxSize().padding(horizontal = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     item {
@@ -731,12 +728,12 @@ fun FamilyProfileDialog(
                         FamilyLogo(fam.logoB64, 92.dp)
                         Spacer(Modifier.height(10.dp))
                         Text(fam.name, color = GoldLight, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("ID:${fam.numId} · 🛡 ${fam.label}", color = Color(0xFF9AB5B0), fontSize = 13.sp)
+                        Text(tr("ID:${fam.numId} · 🛡 ${fam.label}"), color = Color(0xFF9AB5B0), fontSize = 13.sp)
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("Lv ${familyLevel(fam.exp)} · ${familyClassOf(fam.exp).roman}", color = Color.White, fontSize = 13.sp)
-                            Text("${fmtNum(fam.exp)} EXP", color = Color(0xFFFFD54F), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            Text("${fam.memberCount} anggota", color = Color.White, fontSize = 13.sp)
+                            Text(tr("Lv ${familyLevel(fam.exp)} · ${familyClassOf(fam.exp).roman}"), color = Color.White, fontSize = 13.sp)
+                            Text(tr("${fmtNum(fam.exp)} EXP"), color = Color(0xFFFFD54F), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text(tr("${fam.memberCount} anggota"), color = Color.White, fontSize = 13.sp)
                         }
                         Spacer(Modifier.height(10.dp))
                         if (myFid.isNullOrBlank()) {
@@ -754,7 +751,7 @@ fun FamilyProfileDialog(
                             Text(if (myFid == fam.id) "Ini family kamu" else "Kamu sudah tergabung di family lain", color = Color(0xFFBDBDBD), fontSize = 12.sp)
                         }
                         Spacer(Modifier.height(14.dp))
-                        Text("Anggota (${members.size})", color = GoldLight, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                        Text(tr("Anggota (${members.size})"), color = GoldLight, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
                         Spacer(Modifier.height(8.dp))
                     }
                     items(members.size) { i ->
@@ -781,8 +778,8 @@ private fun FamilyRankScreen(myFamilyId: String, onBack: () -> Unit, onOpenFamil
     LaunchedEffect(Unit) { list = try { FamilyRepo.topFamilies() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { emptyList() } }
     SubPage("Liga Peringkat Fam", onBack) {
         val l = list
-        if (l == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Memuat...", color = Color(0xFF8A8A8A)) }
-        else if (l.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Belum ada data peringkat", color = Color(0xFF8A8A8A)) }
+        if (l == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(tr("Memuat..."), color = Color(0xFF8A8A8A)) }
+        else if (l.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(tr("Belum ada data peringkat"), color = Color(0xFF8A8A8A)) }
         else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
             items(l.size) { i ->
                 val f = l[i]
@@ -797,9 +794,9 @@ private fun FamilyRankScreen(myFamilyId: String, onBack: () -> Unit, onOpenFamil
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(f.name, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("ID:${f.numId} · ${f.memberCount} anggota", color = Color(0xFF9AB5B0), fontSize = 11.sp, maxLines = 1)
+                        Text(tr("ID:${f.numId} · ${f.memberCount} anggota"), color = Color(0xFF9AB5B0), fontSize = 11.sp, maxLines = 1)
                     }
-                    Text("${fmtNum(f.exp)} EXP", color = Color(0xFFFFD54F), fontSize = 11.sp, maxLines = 1)
+                    Text(tr("${fmtNum(f.exp)} EXP"), color = Color(0xFFFFD54F), fontSize = 11.sp, maxLines = 1)
                 }
             }
         }
@@ -831,7 +828,7 @@ private fun FamilySearchScreen(myUid: String, myName: String, myAvatar: String?,
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     q, { q = it }, singleLine = true, modifier = Modifier.weight(1f),
-                    placeholder = { Text("Nama atau ID family") }, shape = RoundedCornerShape(12.dp),
+                    placeholder = { Text(tr("Nama atau ID family")) }, shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Gold,
                         focusedBorderColor = Gold, unfocusedBorderColor = Color(0xFF2D2822),
@@ -842,7 +839,7 @@ private fun FamilySearchScreen(myUid: String, myName: String, myAvatar: String?,
             }
             Spacer(Modifier.height(8.dp))
             val l = results
-            if (l != null && l.isEmpty()) Text("Family tidak ditemukan", color = Color(0xFF8A8A8A), modifier = Modifier.padding(24.dp))
+            if (l != null && l.isEmpty()) Text(tr("Family tidak ditemukan"), color = Color(0xFF8A8A8A), modifier = Modifier.padding(24.dp))
             LazyColumn(Modifier.fillMaxSize()) {
                 items(l ?: emptyList()) { f ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(10.dp)).background(CardBlack).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -850,7 +847,7 @@ private fun FamilySearchScreen(myUid: String, myName: String, myAvatar: String?,
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(f.name, color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("ID:${f.numId} · ${f.memberCount} anggota · 🛡 ${f.label}", color = Color(0xFF9AB5B0), fontSize = 12.sp)
+                            Text(tr("ID:${f.numId} · ${f.memberCount} anggota · 🛡 ${f.label}"), color = Color(0xFF9AB5B0), fontSize = 12.sp)
                         }
                         Text(
                             if (f.needApproval) "Ajukan" else "Gabung", color = Color(0xFF3D2A00),
@@ -858,8 +855,8 @@ private fun FamilySearchScreen(myUid: String, myName: String, myAvatar: String?,
                                 scope.launch {
                                     val err = FamilyRepo.join(f.id, myUid, myName, myAvatar)
                                     when (err) {
-                                        null -> { toast("Berhasil bergabung"); onBack() }
-                                        "REQUEST_SENT" -> toast("Permintaan dikirim, tunggu persetujuan admin")
+                                        null -> { toast(tr("Berhasil bergabung")); onBack() }
+                                        "REQUEST_SENT" -> toast(tr("Permintaan dikirim, tunggu persetujuan admin"))
                                         else -> toast(err.orEmpty())
                                     }
                                 }

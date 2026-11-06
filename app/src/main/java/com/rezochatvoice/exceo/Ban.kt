@@ -60,12 +60,11 @@ fun BanGate(uid: String, onSignOut: () -> Unit, onBanned: () -> Unit) {
         BackHandler { }
         Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0B)).blockTouches(), contentAlignment = Alignment.Center) {
             Column(Modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text("🚫", fontSize = 56.sp)
+                Text(tr("🚫"), fontSize = 56.sp)
                 Spacer(Modifier.height(12.dp))
-                Text("Akun diblokir", color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(tr("Akun diblokir"), color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "Akun ini diblokir oleh developer." + (if (reason.isNotBlank()) "\nAlasan: $reason" else ""),
+                Text(tr("Akun ini diblokir oleh developer.") + (if (reason.isNotBlank()) "\nAlasan: $reason" else ""),
                     color = Color(0xFFBDBDBD), fontSize = 14.sp, textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(24.dp))

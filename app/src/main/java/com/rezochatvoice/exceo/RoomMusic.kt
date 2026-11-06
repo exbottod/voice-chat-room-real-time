@@ -256,7 +256,7 @@ fun MusicSheet(
 
     fun startPlay() {
         if (!canPlay) {
-            toast("Naik mic dulu untuk memutar musik")
+            toast(tr("Naik mic dulu untuk memutar musik"))
             return
         }
         onUnmute()
@@ -306,13 +306,13 @@ fun MusicSheet(
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("✕", color = Color(0xFF9A9A9A), modifier = Modifier.clickable(onClick = onDismiss).padding(4.dp))
+                Text(tr("✕"), color = Color(0xFF9A9A9A), modifier = Modifier.clickable(onClick = onDismiss).padding(4.dp))
             }
             Spacer(Modifier.height(10.dp))
 
             // Slider progres + persen
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("🔊", fontSize = 18.sp, modifier = Modifier.clickable { volumeOpen = !volumeOpen })
+                Text(tr("🔊"), fontSize = 18.sp, modifier = Modifier.clickable { volumeOpen = !volumeOpen })
                 Spacer(Modifier.width(8.dp))
                 val f = seekDrag ?: (if (dur > 0) pos.toFloat() / dur else 0f)
                 Slider(
@@ -329,11 +329,11 @@ fun MusicSheet(
                     ),
                     modifier = Modifier.weight(1f),
                 )
-                Text("${(f * 100).toInt().coerceIn(0, 100)}%", color = Color(0xFFBDBDBD), fontSize = 12.sp)
+                Text(tr("${(f * 100).toInt().coerceIn(0, 100)}%"), color = Color(0xFFBDBDBD), fontSize = 12.sp)
             }
             if (volumeOpen) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("🔈", fontSize = 16.sp)
+                    Text(tr("🔈"), fontSize = 16.sp)
                     Spacer(Modifier.width(8.dp))
                     Slider(
                         value = MusicEngine.volume / 100f,
@@ -359,8 +359,7 @@ fun MusicSheet(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    "↻",
+                Text(tr("↻"),
                     fontSize = 24.sp,
                     color = if (MusicEngine.looping) MusicGold else Color(0xFF9A9A9A),
                     modifier = Modifier.clickable {
@@ -369,12 +368,11 @@ fun MusicSheet(
                     },
                 )
                 Spacer(Modifier.width(24.dp))
-                Text(
-                    "⏮",
+                Text(tr("⏮"),
                     color = Color.White,
                     fontSize = 26.sp,
                     modifier = Modifier.clickable {
-                        if (MusicEngine.playlist.isEmpty()) toast("Playlist masih kosong") else MusicEngine.prev()
+                        if (MusicEngine.playlist.isEmpty()) toast(tr("Playlist masih kosong")) else MusicEngine.prev()
                     },
                 )
                 Spacer(Modifier.width(24.dp))
@@ -390,22 +388,21 @@ fun MusicSheet(
                     )
                 }
                 Spacer(Modifier.width(24.dp))
-                Text(
-                    "⏭",
+                Text(tr("⏭"),
                     color = Color.White,
                     fontSize = 26.sp,
                     modifier = Modifier.clickable {
-                        if (MusicEngine.playlist.isEmpty()) toast("Playlist masih kosong") else MusicEngine.next()
+                        if (MusicEngine.playlist.isEmpty()) toast(tr("Playlist masih kosong")) else MusicEngine.next()
                     },
                 )
                 Spacer(Modifier.width(24.dp))
-                Text("☰", color = Color.White, fontSize = 24.sp, modifier = Modifier.clickable { showPlaylist = !showPlaylist })
+                Text(tr("☰"), color = Color.White, fontSize = 24.sp, modifier = Modifier.clickable { showPlaylist = !showPlaylist })
             }
 
             // Playlist + tombol tambah musik dari perangkat
             if (showPlaylist) {
                 Spacer(Modifier.height(10.dp))
-                Text("Playlist (${MusicEngine.playlist.size})", color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(tr("Playlist (${MusicEngine.playlist.size})"), color = GoldLight, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 180.dp)) {
                     items(MusicEngine.playlist.size) { i ->
                         val t = MusicEngine.playlist[i]
@@ -413,7 +410,7 @@ fun MusicSheet(
                         Row(
                             Modifier.fillMaxWidth().clickable {
                                 if (!canPlay) {
-                                    toast("Naik mic dulu untuk memutar musik")
+                                    toast(tr("Naik mic dulu untuk memutar musik"))
                                 } else {
                                     onUnmute()
                                     if (MusicEngine.play(i)) {

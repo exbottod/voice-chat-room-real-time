@@ -68,14 +68,12 @@ fun PropsScreen(myUid: String, onBack: () -> Unit, onWalletChanged: () -> Unit =
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "‹", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
+            Text(tr("‹"), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.clickable { onBack() }.padding(end = 12.dp),
             )
-            Text("Props", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            Text(tr("Props"), color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         }
-        Text(
-            "Kartu VIP dari roket. Tekan Pakai untuk mulai menghitung masa aktifnya.",
+        Text(tr("Kartu VIP dari roket. Tekan Pakai untuk mulai menghitung masa aktifnya."),
             color = Color(0xFF9AA4B2), fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp),
         )
         Spacer(Modifier.height(10.dp))
@@ -85,12 +83,11 @@ fun PropsScreen(myUid: String, onBack: () -> Unit, onWalletChanged: () -> Unit =
         }
         if (memuat) {
             Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) {
-                Text("Memuat...", color = Color(0xFF9AA4B2), fontSize = 13.sp)
+                Text(tr("Memuat..."), color = Color(0xFF9AA4B2), fontSize = 13.sp)
             }
         } else if (daftar.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    "Belum ada kartu. Menangkan roket untuk mendapat kartu VIP.",
+                Text(tr("Belum ada kartu. Menangkan roket untuk mendapat kartu VIP."),
                     color = Color(0xFF9AA4B2), fontSize = 13.sp,
                 )
             }
@@ -107,11 +104,11 @@ fun PropsScreen(myUid: String, onBack: () -> Unit, onWalletChanged: () -> Unit =
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("\uD83C\uDFAB", fontSize = 26.sp)
+                        Text(tr("\uD83C\uDFAB"), fontSize = 26.sp)
                         Spacer(Modifier.padding(start = 10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(k.judul, color = Color(0xFFFFD54F), fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Text("Dari roket", color = Color(0xFF9AA4B2), fontSize = 11.sp)
+                            Text(tr("Dari roket"), color = Color(0xFF9AA4B2), fontSize = 11.sp)
                         }
                         Text(
                             if (sibuk == k.id) "..." else "Pakai",

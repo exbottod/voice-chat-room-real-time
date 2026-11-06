@@ -69,7 +69,7 @@ private fun SettingRow(label: String, value: String? = null, onClick: () -> Unit
             Text(value, color = Color(0xFF9A9A9A), fontSize = 13.sp, maxLines = 1)
             Spacer(Modifier.width(8.dp))
         }
-        Text("›", color = GoldLight, fontSize = 20.sp)
+        Text(tr("›"), color = GoldLight, fontSize = 20.sp)
     }
 }
 
@@ -286,7 +286,7 @@ private fun AddEmailDialog(onDone: () -> Unit, onDismiss: () -> Unit) {
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email") },
+                    label = { Text(tr("Email")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     modifier = Modifier.fillMaxWidth(),
@@ -333,7 +333,7 @@ private fun AddEmailDialog(onDone: () -> Unit, onDismiss: () -> Unit) {
                                 val err = FirebaseSession.linkEmailPassword(e, pass)
                                 busy = false
                                 if (err == null) {
-                                    Toast.makeText(context, "Berhasil. Sekarang bisa login dengan email & password", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, tr("Berhasil. Sekarang bisa login dengan email & password"), Toast.LENGTH_LONG).show()
                                     onDone()
                                 } else {
                                     error = FirebaseSession.friendlyError(err)

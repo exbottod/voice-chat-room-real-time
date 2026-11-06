@@ -348,8 +348,7 @@ fun ChatListTab(myUid: String) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        Text(
-            "Pesan", color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+        Text(tr("Pesan"), color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )
         // Pengumuman Resmi: hanya baca, tidak bisa dibalas.
@@ -363,12 +362,11 @@ fun ChatListTab(myUid: String) {
             Box(
                 Modifier.size(52.dp).clip(CircleShape).background(Color(0xFF2A2113)),
                 contentAlignment = Alignment.Center,
-            ) { Text("📢", fontSize = 26.sp) }
+            ) { Text(tr("📢"), fontSize = 26.sp) }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Pengumuman Resmi", color = GoldLight, fontWeight = FontWeight.Bold,
+                    Text(tr("Pengumuman Resmi"), color = GoldLight, fontWeight = FontWeight.Bold,
                         fontSize = 16.sp, maxLines = 1, modifier = Modifier.weight(1f, fill = false),
                     )
                     if (annUnread > 0) {
@@ -563,8 +561,7 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
             }
             // Personal Ads (SVIP1): iklan pribadi pemilik profil tampil di kotak masuk.
             if (other.ad.isNotBlank()) {
-                Text(
-                    "📢 ${other.ad}",
+                Text(tr("📢 ${other.ad}"),
                     color = Color(0xFFFFE082),
                     fontSize = 13.sp,
                     maxLines = 2,
@@ -593,7 +590,7 @@ fun ChatScreen(myUid: String, myName: String, myId: String, other: PublicUser, o
                             if (foto != null) {
                                 AsyncImage(
                                     model = foto,
-                                    contentDescription = "Foto",
+                                    contentDescription = tr("Foto"),
                                     modifier = Modifier
                                         .widthIn(max = 220.dp)
                                         .heightIn(max = 300.dp)

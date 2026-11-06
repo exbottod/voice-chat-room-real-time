@@ -324,7 +324,7 @@ private fun RkAvatarInner(col: String, e: RankEntry, size: Dp, ring: Color) {
 @Composable
 private fun RkCoin(total: Long, size: TextUnit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("🪙", fontSize = size)
+        Text(tr("🪙"), fontSize = size)
         Spacer(Modifier.width(4.dp))
         Text(fmtRank(total), color = GoldLight, fontSize = size, fontWeight = FontWeight.Bold, maxLines = 1)
     }
@@ -339,7 +339,7 @@ private fun RkTopOne(col: String, e: RankEntry, onOpenRoom: (String) -> Unit = {
             .clickable { if (col == GiftRankRepo.COL_ROOM) onOpenRoom(e.id) else actions.openFullProfile(e.id) },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("👑", fontSize = 32.sp)
+        Text(tr("👑"), fontSize = 32.sp)
         RkAvatar(col, e, 84.dp, Gold, 1)
         Spacer(Modifier.height(10.dp))
         Column(
@@ -373,7 +373,7 @@ private fun RkShield(col: String, e: RankEntry, rank: Int, c1: Color, c2: Color,
             Box(
                 Modifier.align(Alignment.BottomEnd).size(24.dp).clip(CircleShape).background(GoldBrush),
                 contentAlignment = Alignment.Center,
-            ) { Text("$rank", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+            ) { Text(tr("$rank"), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
         }
         Spacer(Modifier.height(8.dp))
         if (e.hidden) MysteryName(15.sp) else Text(e.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -397,7 +397,7 @@ private fun RkRow(col: String, e: RankEntry, rank: Int, onOpenRoom: (String) -> 
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("$rank", color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
+        Text(tr("$rank"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(36.dp))
         RkAvatar(col, e, 44.dp, GoldDark, rank)
         Spacer(Modifier.width(12.dp))
         if (e.hidden) { MysteryName(16.sp); Spacer(Modifier.weight(1f)) } else Text(e.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -499,7 +499,7 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (Str
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             // tab atas: Kamar | Sawer | Pesona
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("‹", color = Color.White, fontSize = 32.sp, modifier = Modifier.width(48.dp).clickable(onClick = onBack).padding(horizontal = 14.dp))
+                Text(tr("‹"), color = Color.White, fontSize = 32.sp, modifier = Modifier.width(48.dp).clickable(onClick = onBack).padding(horizontal = 14.dp))
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                     listOf("Kamar", "Sawer", "Pesona").forEachIndexed { i, label ->
                         val on = tab == i
@@ -539,8 +539,7 @@ private fun TopRankContent(onBack: () -> Unit, initialTab: Int, onOpenRoom: (Str
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Text(
-                "${tr("Hitung mundur")}(UTC+7): $countdown",
+            Text(tr("${tr(")Hitung mundur")}(UTC+7): $countdown",
                 color = GoldLight, fontSize = 13.sp, textAlign = TextAlign.Center, maxLines = 1,
                 modifier = Modifier.fillMaxWidth(),
             )

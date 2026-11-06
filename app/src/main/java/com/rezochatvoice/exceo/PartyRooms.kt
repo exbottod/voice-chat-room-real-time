@@ -185,7 +185,7 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
             if (bmp != null) {
                 Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             } else {
-                Text("🎙️", fontSize = 40.sp, modifier = Modifier.align(Alignment.Center))
+                Text(tr("🎙️"), fontSize = 40.sp, modifier = Modifier.align(Alignment.Center))
             }
             Row(
                 modifier = Modifier
@@ -196,7 +196,7 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                     .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("● ${room.online}", color = Color(0xFF4CAF50), fontSize = 12.sp)
+                Text(tr("● ${room.online}"), color = Color(0xFF4CAF50), fontSize = 12.sp)
             }
              if (rank in 1..3) {
                 val rb: Brush = when (rank) {
@@ -204,8 +204,7 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                     2 -> Brush.horizontalGradient(listOf(Color(0xFFE0E0E0), Color(0xFF9E9E9E)))
                     else -> Brush.horizontalGradient(listOf(Color(0xFFE8A064), Color(0xFFA65A2A)))
                 }
-                Text(
-                    "TOP$rank", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
+                Text(tr("TOP$rank"), color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
@@ -267,15 +266,13 @@ fun RoomCardView(room: RoomInfo, rank: Int = 0, onClick: () -> Unit) {
                         contentAlignment = Alignment.Center,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "\u2713",
+                            Text(tr("\u2713"),
                                 color = Color(0xFF3A2A00),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
                             )
                             Spacer(Modifier.width(4.dp))
-                            Text(
-                                "OFFICIAL",
+                            Text(tr("OFFICIAL"),
                                 color = Color(0xFF3A2A00),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -307,7 +304,7 @@ fun CreateRoomDialog(ownerUid: String, ownerName: String, onDismiss: () -> Unit,
             val b64 = ProfileRepo.encodeImage(context, uri, 320, square = true, quality = 85)
             busy = false
             if (b64 != null) photo = b64
-            else Toast.makeText(context, "Gagal membaca gambar", Toast.LENGTH_SHORT).show()
+            else Toast.makeText(context, tr("Gagal membaca gambar"), Toast.LENGTH_SHORT).show()
         }
     }
     Dialog(onDismissRequest = { if (!busy) onDismiss() }) {
@@ -326,7 +323,7 @@ fun CreateRoomDialog(ownerUid: String, ownerName: String, onDismiss: () -> Unit,
                 contentAlignment = Alignment.Center,
             ) {
                 if (bmp != null) Image(bitmap = bmp, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                else Text("📷", fontSize = 30.sp)
+                else Text(tr("📷"), fontSize = 30.sp)
             }
             Spacer(Modifier.height(6.dp))
             Text(tr("Foto room"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
@@ -371,7 +368,7 @@ fun PasswordDialog(room: RoomInfo, onDismiss: () -> Unit, onOk: () -> Unit) {
                 onValueChange = { pw = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                placeholder = { Text("Password") },
+                placeholder = { Text(tr("Password")) },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 shape = RoundedCornerShape(12.dp),
@@ -380,7 +377,7 @@ fun PasswordDialog(room: RoomInfo, onDismiss: () -> Unit, onOk: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             GoldButton(tr("Masuk"), enabled = pw.isNotEmpty()) {
                 if (sha256(pw) == room.lockHash) onOk()
-                else Toast.makeText(context, "Password salah", Toast.LENGTH_SHORT).show()
+                else Toast.makeText(context, tr("Password salah"), Toast.LENGTH_SHORT).show()
             }
         }
     }

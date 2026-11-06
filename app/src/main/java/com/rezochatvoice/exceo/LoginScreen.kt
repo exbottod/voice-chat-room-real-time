@@ -158,8 +158,7 @@ fun LoginScreen(
             // ---------- Tautan login email di pojok kanan atas ----------
             if (!formHp && !formEmail) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Text(
-                        "Login dengan email",
+                    Text(tr("Login dengan email"),
                         color = HijauAksen,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -175,14 +174,13 @@ fun LoginScreen(
             Spacer(Modifier.weight(if (formHp || formEmail) 0.06f else 0.16f))
             Image(
                 painter = painterResource(R.drawable.ic_launcher_logo),
-                contentDescription = "Rezo Star",
+                contentDescription = tr("Rezo Star"),
                 modifier = Modifier
                     .size(if (formHp || formEmail) 76.dp else 104.dp)
                     .clip(RoundedCornerShape(26.dp)),
             )
             Spacer(Modifier.height(if (formHp || formEmail) 8.dp else 14.dp))
-            Text(
-                "Rezo Star",
+            Text(tr("Rezo Star"),
                 color = Color.White,
                 fontSize = if (formHp || formEmail) 24.sp else 30.sp,
                 fontWeight = FontWeight.Bold,
@@ -190,8 +188,7 @@ fun LoginScreen(
             )
             if (!formHp && !formEmail) {
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    "Suara, room, dan teman baru",
+                Text(tr("Suara, room, dan teman baru"),
                     color = HijauMuda.copy(alpha = 0.75f),
                     fontSize = 13.sp,
                 )
@@ -200,8 +197,7 @@ fun LoginScreen(
 
             if (formEmail) {
                 // ---------- Login email & password ----------
-                Text(
-                    "Login dengan email",
+                Text(tr("Login dengan email"),
                     color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(Modifier.height(12.dp))
@@ -210,7 +206,7 @@ fun LoginScreen(
                     onValueChange = { email = it.trim().take(80) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("Email") },
+                    placeholder = { Text(tr("Email")) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     shape = RoundedCornerShape(26.dp),
                     colors = fieldColorsLogin(),
@@ -221,7 +217,7 @@ fun LoginScreen(
                     onValueChange = { password = it.take(40) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("Password") },
+                    placeholder = { Text(tr("Password")) },
                     trailingIcon = {
                         Text(
                             if (showPassword) "Sembunyi" else "Lihat",
@@ -254,20 +250,18 @@ fun LoginScreen(
                             modifier = Modifier.size(22.dp),
                         )
                     } else {
-                        Text("Login", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(tr("Login"), color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }
                 Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(
-                        "Kembali",
+                    Text(tr("Kembali"),
                         color = HijauMuda, fontSize = 13.sp,
                         modifier = Modifier
                             .clickable { formEmail = false }
                             .padding(vertical = 8.dp, horizontal = 4.dp),
                     )
-                    Text(
-                        "Lupa password?",
+                    Text(tr("Lupa password?"),
                         color = HijauAksen, fontSize = 13.sp,
                         modifier = Modifier
                             .clickable { onForgotPassword() }
@@ -328,7 +322,7 @@ fun LoginScreen(
                         onValueChange = { passwordHp = it.take(40) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        placeholder = { Text("Password") },
+                        placeholder = { Text(tr("Password")) },
                         trailingIcon = {
                             Text(
                                 if (lihatPassHp) "Sembunyi" else "Lihat",
@@ -363,12 +357,11 @@ fun LoginScreen(
                                 modifier = Modifier.size(22.dp),
                             )
                         } else {
-                            Text("Login", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(tr("Login"), color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                     Spacer(Modifier.height(6.dp))
-                    Text(
-                        "Bukan nomor ini? Ganti nomor",
+                    Text(tr("Bukan nomor ini? Ganti nomor"),
                         color = HijauMuda, fontSize = 13.sp,
                         modifier = Modifier
                             .clickable { onGantiNomor() }
@@ -376,8 +369,7 @@ fun LoginScreen(
                     )
                 } else if (perluPassword) {
                     // ---------- Tahap Mendaftar: buat password ----------
-                    Text(
-                        "Mendaftar", color = Color.White, fontSize = 18.sp,
+                    Text(tr("Mendaftar"), color = Color.White, fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(Modifier.height(4.dp))
@@ -388,7 +380,7 @@ fun LoginScreen(
                         onValueChange = { passwordHp = it.take(40) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        placeholder = { Text("Buat password (min. 6 karakter)") },
+                        placeholder = { Text(tr("Buat password (min. 6 karakter)")) },
                         trailingIcon = {
                             Text(
                                 if (lihatPassHp) "Sembunyi" else "Lihat",
@@ -424,8 +416,7 @@ fun LoginScreen(
                                 modifier = Modifier.size(22.dp),
                             )
                         } else {
-                            Text(
-                                "LENGKAPI PENDAFTARAN",
+                            Text(tr("LENGKAPI PENDAFTARAN"),
                                 color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp,
                             )
                         }
@@ -440,7 +431,7 @@ fun LoginScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(namaNegara, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                        Text("($kodeDial)", color = HijauMuda, fontSize = 15.sp)
+                        Text(tr("($kodeDial)"), color = HijauMuda, fontSize = 15.sp)
                     }
                     Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
@@ -448,7 +439,7 @@ fun LoginScreen(
                         onValueChange = { nomor = it.filter { c -> c.isDigit() }.take(14) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        placeholder = { Text("Nomor HP, contoh 81234567890") },
+                        placeholder = { Text(tr("Nomor HP, contoh 81234567890")) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         shape = RoundedCornerShape(26.dp),
                         colors = fieldColorsLogin(),
@@ -483,12 +474,11 @@ fun LoginScreen(
                                 modifier = Modifier.size(22.dp),
                             )
                         } else {
-                            Text("Lanjut", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(tr("Lanjut"), color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                 } else {
-                    Text(
-                        "Kode dikirim ke $nomorLengkap",
+                    Text(tr("Kode dikirim ke $nomorLengkap"),
                         color = HijauMuda, fontSize = 13.sp, textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(10.dp))
@@ -497,7 +487,7 @@ fun LoginScreen(
                         onValueChange = { kode = it.filter { c -> c.isDigit() }.take(6) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        placeholder = { Text("Masukkan kode 6 angka") },
+                        placeholder = { Text(tr("Masukkan kode 6 angka")) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = RoundedCornerShape(26.dp),
                         colors = fieldColorsLogin(),
@@ -520,7 +510,7 @@ fun LoginScreen(
                                 modifier = Modifier.size(22.dp),
                             )
                         } else {
-                            Text("Selanjutnya", color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(tr("Selanjutnya"), color = Color(0xFF10231C), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                 }
@@ -572,14 +562,12 @@ fun LoginScreen(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
             ) {
-                Text(
-                    "Setujui Rezo Star ",
+                Text(tr("Setujui Rezo Star "),
                     color = Color(0xFF9FC3B4),
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
                 )
-                Text(
-                    "\u300APersyaratan Pengguna\u300B",
+                Text(tr("\u300APersyaratan Pengguna\u300B"),
                     color = HijauAksen,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -588,8 +576,7 @@ fun LoginScreen(
                         .clickable { lihatSyarat = true }
                         .padding(vertical = 2.dp),
                 )
-                Text(
-                    " dan login",
+                Text(tr(" dan login"),
                     color = Color(0xFF9FC3B4),
                     fontSize = 12.sp,
                 )
@@ -597,8 +584,7 @@ fun LoginScreen(
 
             if (!formHp) {
                 Spacer(Modifier.height(2.dp))
-                Text(
-                    "Belum punya akun? ",
+                Text(tr("Belum punya akun? "),
                     color = Color(0xFF9FC3B4),
                     fontSize = 12.sp,
                     modifier = Modifier.clickable(onClick = onSignUp).padding(6.dp),
@@ -698,7 +684,7 @@ private fun IkonFacebook() {
     // Logo resmi Facebook dari aset desain, bukan digambar manual.
     Image(
         painter = painterResource(R.drawable.ic_fb_logo),
-        contentDescription = "Facebook",
+        contentDescription = tr("Facebook"),
         modifier = Modifier.size(22.dp),
     )
 }

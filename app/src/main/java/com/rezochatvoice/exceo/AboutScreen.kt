@@ -45,8 +45,7 @@ fun AboutScreen(onBack: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Color.White)) {
         // Top bar putih: tombol back + judul di tengah
         Box(Modifier.fillMaxWidth().statusBarsPadding().height(56.dp)) {
-            Text(
-                "‹", color = Color(0xFF222222), fontSize = 38.sp,
+            Text(tr("‹"), color = Color(0xFF222222), fontSize = 38.sp,
                 modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack)
                     .padding(horizontal = 18.dp),
             )
@@ -66,9 +65,9 @@ fun AboutScreen(onBack: () -> Unit) {
                 contentScale = ContentScale.Fit,
             )
             Spacer(Modifier.height(22.dp))
-            Text("Rezo Star", color = Color(0xFF444444), fontSize = 24.sp)
+            Text(tr("Rezo Star"), color = Color(0xFF444444), fontSize = 24.sp)
             Spacer(Modifier.height(6.dp))
-            Text("Version ${appVersionName()}", color = Color(0xFF8A86A0), fontSize = 18.sp)
+            Text(tr("Version ${appVersionName()}"), color = Color(0xFF8A86A0), fontSize = 18.sp)
         }
     }
 }

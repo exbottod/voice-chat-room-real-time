@@ -126,7 +126,7 @@ fun PartyTab(
                             // Room lama yang dulu "dihapus" dari panel dimunculkan lagi
                             // dengan nama, foto, dan pengaturan yang sama.
                             RoomRepo.restoreOwned(mine.id)
-                            Toast.makeText(context, "Room kamu dibuka lagi", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, tr("Room kamu dibuka lagi"), Toast.LENGTH_SHORT).show()
                             onEnterRoom(mine)
                         } else {
                             showCreate = true
@@ -255,7 +255,7 @@ private fun BannerPager() {
                     .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
             )
         } catch (e: Exception) {
-            Toast.makeText(context, "Tidak bisa membuka link", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, tr("Tidak bisa membuka link"), Toast.LENGTH_SHORT).show()
         }
     }
     // Banner dibaca SEKALI per buka tab (hemat kuota listener Firestore).
@@ -482,12 +482,11 @@ private fun PrizeBar(onClick: () -> Unit) {
                 .clip(CircleShape)
                 .background(Brush.verticalGradient(listOf(GoldLight, GoldDark))),
             contentAlignment = Alignment.Center,
-        ) { Text("★", color = Color.Black, fontSize = 16.sp) }
+        ) { Text(tr("★"), color = Color.Black, fontSize = 16.sp) }
         Spacer(Modifier.width(10.dp))
-        Text("0", color = GoldLight, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(tr("0"), color = GoldLight, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
-        Text(
-            "total hadiah undian\nberhadiah  ›",
+        Text(tr("total hadiah undian\nberhadiah  ›"),
             color = Color(0xFFD9D9D9),
             fontSize = 12.sp,
             textAlign = TextAlign.End,
@@ -538,7 +537,7 @@ private fun RoomCard(room: Room, onClick: () -> Unit) {
                     .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("● ${room.online}", color = Color(0xFF4CAF50), fontSize = 12.sp)
+                Text(tr("● ${room.online}"), color = Color(0xFF4CAF50), fontSize = 12.sp)
             }
         }
         Spacer(Modifier.height(6.dp))

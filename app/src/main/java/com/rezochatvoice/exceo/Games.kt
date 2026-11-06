@@ -158,18 +158,18 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                 ) {
                     // hiasan puncak sheet
                     Box(Modifier.fillMaxWidth().padding(top = 4.dp), contentAlignment = Alignment.Center) {
-                        Text("◆", color = Color(0xFFE0553A), fontSize = 12.sp)
+                        Text(tr("◆"), color = Color(0xFFE0553A), fontSize = 12.sp)
                     }
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 8.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("〰", color = Color(0xFFB08A5A), fontSize = 14.sp)
+                        Text(tr("〰"), color = Color(0xFFB08A5A), fontSize = 14.sp)
                         Spacer(Modifier.width(10.dp))
-                        Text("Game Center", color = Color(0xFFF0DDBF), fontSize = 17.sp)
+                        Text(tr("Game Center"), color = Color(0xFFF0DDBF), fontSize = 17.sp)
                         Spacer(Modifier.width(10.dp))
-                        Text("〰", color = Color(0xFFB08A5A), fontSize = 14.sp)
+                        Text(tr("〰"), color = Color(0xFFB08A5A), fontSize = 14.sp)
                     }
                     // Kalau daftar dari server gagal, munculkan tombol muat ulang
                     // supaya game baru dari console Hive tetap bisa ditarik.
@@ -179,8 +179,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                 .clickable { muatUlang++ },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(
-                                "Daftar game belum dari server · ketuk untuk muat ulang",
+                            Text(tr("Daftar game belum dari server · ketuk untuk muat ulang"),
                                 color = Color(0xFFFFC46B), fontSize = 11.sp,
                             )
                         }
@@ -242,8 +241,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                                 .background(Brush.horizontalGradient(listOf(Color(0xFF9EE0E8), Color(0xFFB9A8F0), Color(0xFFA8E6C8)))),
                             contentAlignment = Alignment.CenterStart,
                         ) {
-                            Text(
-                                "Daftar peringkat", color = Color.White.copy(alpha = 0.9f),
+                            Text(tr("Daftar peringkat"), color = Color.White.copy(alpha = 0.9f),
                                 fontSize = 13.sp, modifier = Modifier.padding(start = 12.dp, bottom = 28.dp),
                             )
                             Row(Modifier.padding(start = 90.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -370,7 +368,7 @@ private fun GameTile(title: String, sub: String, tint: Color, onClick: () -> Uni
             Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text(sub, color = Color(0xFFE0E0E0), fontSize = 12.sp)
         }
-        Text("Main ›", color = GoldG, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(tr("Main ›"), color = GoldG, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -532,7 +530,7 @@ fun TeenPattiScreen(myUid: String, onClose: () -> Unit) {
     }
 
     GameScaffold("Teen Patti", balance, onClose) {
-        Text("Kartu kamu", color = GoldG, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(tr("Kartu kamu"), color = GoldG, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (mine.isEmpty()) {
@@ -542,11 +540,11 @@ fun TeenPattiScreen(myUid: String, onClose: () -> Unit) {
             }
         }
         Spacer(Modifier.height(14.dp))
-        Text("Bot", color = Color(0xFFBDBDBD), fontSize = 12.sp)
+        Text(tr("Bot"), color = Color(0xFFBDBDBD), fontSize = 12.sp)
         Spacer(Modifier.height(6.dp))
         bots.forEachIndexed { i, b ->
             Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Bot " + (i + 1) + "  ", color = Color(0xFF9E9E9E), fontSize = 12.sp)
+                Text(tr("Bot ") + (i + 1) + "  ", color = Color(0xFF9E9E9E), fontSize = 12.sp)
                 if (b.isEmpty()) repeat(3) { BackCard(small = true) } else b.forEach { c -> CardChip(c, small = true) }
             }
         }
@@ -585,7 +583,7 @@ private fun GameScaffold(title: String, balance: Long, onClose: () -> Unit, body
                 Modifier.fillMaxWidth().background(Color(0xFF1B1B22)).padding(horizontal = 10.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("‹ Kembali", color = GoldG, fontSize = 15.sp, modifier = Modifier.clickable { onClose() }.padding(6.dp))
+                Text(tr("‹ Kembali"), color = GoldG, fontSize = 15.sp, modifier = Modifier.clickable { onClose() }.padding(6.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Text(fmtG(balance) + " coin", color = GoldG, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -605,7 +603,7 @@ private fun BackCard(small: Boolean = false) {
             .border(1.dp, Color(0xFF44445A), RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        Text("🂠", color = Color(0xFF6A6A80), fontSize = if (small) 16.sp else 24.sp)
+        Text(tr("🂠"), color = Color(0xFF6A6A80), fontSize = if (small) 16.sp else 24.sp)
     }
 }
 

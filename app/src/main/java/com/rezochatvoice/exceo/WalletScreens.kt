@@ -41,7 +41,7 @@ private fun openDana(ctx: android.content.Context) {
         i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         ctx.startActivity(i)
     } catch (e: Exception) {
-        android.widget.Toast.makeText(ctx, "Aplikasi DANA tidak bisa dibuka", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(ctx, tr("Aplikasi DANA tidak bisa dibuka"), android.widget.Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -299,13 +299,13 @@ private fun CoinDot(size: Int = 28) {
             .border(1.5.dp, Color(0xFFFFF1B0), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text("★", color = Color(0xFFFFF6D0), fontSize = (size * 0.5f).sp, fontWeight = FontWeight.Bold)
+        Text(tr("★"), color = Color(0xFFFFF6D0), fontSize = (size * 0.5f).sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 private fun GemDot(size: Int = 22) {
-    Text("💎", fontSize = size.sp)
+    Text(tr("💎"), fontSize = size.sp)
 }
 
 @Composable
@@ -462,7 +462,7 @@ private fun MethodChip(label: String, iconRes: Int, active: Boolean, onClick: ()
 private fun RezoMark(size: Int = 52) {
     Image(
         painter = androidx.compose.ui.res.painterResource(R.drawable.ic_launcher_logo),
-        contentDescription = "REZO",
+        contentDescription = tr("REZO"),
         modifier = Modifier.size(size.dp).clip(RoundedCornerShape(14.dp)),
         contentScale = ContentScale.Crop,
     )
@@ -553,8 +553,7 @@ fun WalletScreen(
                         }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
-                    Text(
-                        "Saldo gagal dimuat: " + galatSaldo + ". Ketuk untuk coba lagi.",
+                    Text(tr("Saldo gagal dimuat: ") + galatSaldo + ". Ketuk untuk coba lagi.",
                         color = Color(0xFF8A1F1F),
                         fontSize = 12.sp,
                     )
@@ -562,8 +561,7 @@ fun WalletScreen(
             }
             // ---- bar judul ----
             Box(Modifier.fillMaxWidth().height(54.dp)) {
-                Text(
-                    "‹",
+                Text(tr("‹"),
                     color = WalNavy,
                     fontSize = 40.sp,
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 14.dp)
@@ -589,7 +587,7 @@ fun WalletScreen(
                     // ===================== KOIN =====================
                     0 -> {
                         WalletBalanceCard(gem = false, balance = wallet.coins, action = tr("Catatan topup")) {
-                            toast("Belum ada catatan topup")
+                            toast(tr("Belum ada catatan topup"))
                         }
                         Spacer(Modifier.height(12.dp))
                         Box(
@@ -602,8 +600,7 @@ fun WalletScreen(
                                 .border(2.dp, Color(0xFFE2B33C), RoundedCornerShape(14.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(
-                                "Manfaat Top Up",
+                            Text(tr("Manfaat Top Up"),
                                 color = Color(0xFFFFD45A),
                                 fontSize = 30.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -624,9 +621,9 @@ fun WalletScreen(
                                     .padding(horizontal = 14.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("📍", fontSize = 16.sp)
+                                Text(tr("📍"), fontSize = 16.sp)
                                 Spacer(Modifier.width(8.dp))
-                                Text("🇮🇩", fontSize = 18.sp)
+                                Text(tr("🇮🇩"), fontSize = 18.sp)
                             }
                         }
                         Spacer(Modifier.height(8.dp))
@@ -646,7 +643,7 @@ fun WalletScreen(
                             TopupMethodRow("LINKAJA", icon = { PayLogo(R.drawable.logo_linkaja) }) { showPacks = true }
                             TopupMethodRow("QRIS", icon = { PayLogo(R.drawable.logo_qris) }) { showPacks = true }
                             TopupMethodRow("PayPal", icon = { PayLogo(R.drawable.logo_paypal) }) {
-                                toast("PayPal belum tersedia untuk topup")
+                                toast(tr("PayPal belum tersedia untuk topup"))
                             }
                         } else {
                             Text(
@@ -702,7 +699,7 @@ fun WalletScreen(
                                                                 ),
                                                             )
                                                         } catch (e: Exception) {
-                                                            toast("Tidak bisa membuka halaman pembayaran")
+                                                            toast(tr("Tidak bisa membuka halaman pembayaran"))
                                                         }
                                                     }
                                                 }
@@ -735,7 +732,7 @@ fun WalletScreen(
                     // ===================== BERLIAN =====================
                     1 -> {
                         WalletBalanceCard(gem = true, balance = wallet.diamonds, action = tr("Catatan Berlian")) {
-                            toast("Belum ada catatan berlian")
+                            toast(tr("Belum ada catatan berlian"))
                         }
                         Spacer(Modifier.height(14.dp))
                         // Tukar jumlah sendiri: pemain mengetik koin yang diinginkan,
@@ -761,7 +758,7 @@ fun WalletScreen(
                                     value = custom,
                                     onValueChange = { t -> custom = t.filter { it.isDigit() }.take(15) },
                                     singleLine = true,
-                                    placeholder = { Text("Jumlah koin", color = WalGrey, fontSize = 14.sp) },
+                                    placeholder = { Text(tr("Jumlah koin"), color = WalGrey, fontSize = 14.sp) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     modifier = Modifier.weight(1f),
                                 )
@@ -809,8 +806,7 @@ fun WalletScreen(
                                 )
                             }
                             if (coinIn > 0L && gemNeed > wallet.diamonds) {
-                                Text(
-                                    "Berlian tidak cukup",
+                                Text(tr("Berlian tidak cukup"),
                                     color = Color(0xFFD0312D), fontSize = 12.sp,
                                     modifier = Modifier.padding(top = 6.dp),
                                 )
@@ -823,7 +819,7 @@ fun WalletScreen(
                                 Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 4.dp)
                                     .clickable(enabled = !busy) {
                                         if (!enough) {
-                                            toast("Berlian tidak cukup")
+                                            toast(tr("Berlian tidak cukup"))
                                         } else {
                                             busy = true
                                             scope.launch {
@@ -860,8 +856,7 @@ fun WalletScreen(
                     // ===================== CASH =====================
                     else -> {
                         Spacer(Modifier.height(80.dp))
-                        Text(
-                            "Fitur Cash belum tersedia",
+                        Text(tr("Fitur Cash belum tersedia"),
                             color = WalGrey,
                             fontSize = 16.sp,
                             textAlign = TextAlign.Center,
@@ -879,10 +874,10 @@ fun WalletScreen(
             val harga = TOPUP_PACKS.firstOrNull { it.first == mCoins }?.second ?: ""
             AlertDialog(
                 onDismissRequest = { manualCoins = null },
-                title = { Text("Topup ${fmtNum(mCoins)} coin") },
+                title = { Text(tr("Topup ${fmtNum(mCoins)} coin")) },
                 text = {
                     Column(Modifier.verticalScroll(rememberScrollState())) {
-                        Text("Topup $harga untuk ${fmtNum(mCoins)} coin", fontSize = 13.sp, color = WalGrey)
+                        Text(tr("Topup $harga untuk ${fmtNum(mCoins)} coin"), fontSize = 13.sp, color = WalGrey)
                         Spacer(Modifier.height(10.dp))
                         // pilihan metode pembayaran
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -899,27 +894,26 @@ fun WalletScreen(
                         Spacer(Modifier.height(12.dp))
                         when (payMethod) {
                             "gopay" -> {
-                                Text("Transfer ke GoPay:")
+                                Text(tr("Transfer ke GoPay:"))
                                 Spacer(Modifier.height(6.dp))
                                 Text(payGopay, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF00A66A))
                             }
                             "qris" -> {
-                                Text("Scan QRIS ini lalu bayar $harga:")
+                                Text(tr("Scan QRIS ini lalu bayar $harga:"))
                                 Spacer(Modifier.height(8.dp))
                                 AsyncImage(
                                     model = payQris,
-                                    contentDescription = "QRIS",
+                                    contentDescription = tr("QRIS"),
                                     modifier = Modifier.fillMaxWidth().height(220.dp),
                                     contentScale = ContentScale.Fit,
                                 )
                             }
                             else -> {
-                                Text("Transfer ke DANA:")
+                                Text(tr("Transfer ke DANA:"))
                                 Spacer(Modifier.height(6.dp))
                                 Text(payDana, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF118EEA))
                                 Spacer(Modifier.height(12.dp))
-                                Text(
-                                    "Tekan tombol ini, aplikasi DANA terbuka sendiri, lalu masukkan nominal $harga.",
+                                Text(tr("Tekan tombol ini, aplikasi DANA terbuka sendiri, lalu masukkan nominal $harga."),
                                     fontSize = 12.sp,
                                     color = WalGrey,
                                 )
@@ -932,14 +926,14 @@ fun WalletScreen(
                                         .padding(vertical = 12.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Text("Buka DANA", color = Color.White, fontWeight = FontWeight.Bold)
+                                    Text(tr("Buka DANA"), color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                                 Spacer(Modifier.height(10.dp))
-                                Text("Atau pindai QR ini dari HP lain:", fontSize = 12.sp, color = WalGrey)
+                                Text(tr("Atau pindai QR ini dari HP lain:"), fontSize = 12.sp, color = WalGrey)
                                 Spacer(Modifier.height(6.dp))
                                 AsyncImage(
                                     model = DANA_QR_IMG,
-                                    contentDescription = "QR DANA",
+                                    contentDescription = tr("QR DANA"),
                                     modifier = Modifier.fillMaxWidth().height(200.dp),
                                     contentScale = ContentScale.Fit,
                                 )
@@ -947,20 +941,20 @@ fun WalletScreen(
                         }
                         if (payName.isNotBlank()) {
                             Spacer(Modifier.height(4.dp))
-                            Text("a.n $payName", fontSize = 14.sp, color = WalGrey)
+                            Text(tr("a.n $payName"), fontSize = 14.sp, color = WalGrey)
                         }
                         Spacer(Modifier.height(12.dp))
-                        Text("Setelah transfer, isi nama pemilik DANA yang mengirim:", fontSize = 13.sp)
+                        Text(tr("Setelah transfer, isi nama pemilik DANA yang mengirim:"), fontSize = 13.sp)
                         Spacer(Modifier.height(6.dp))
                         OutlinedTextField(
                             value = manualPayer,
                             onValueChange = { manualPayer = it.take(40) },
                             singleLine = true,
-                            placeholder = { Text("Nama pengirim") },
+                            placeholder = { Text(tr("Nama pengirim")) },
                             colors = goldFieldColors(),
                         )
                         Spacer(Modifier.height(8.dp))
-                        Text("Coin masuk setelah pembayaran dicek admin.", fontSize = 12.sp, color = WalGrey)
+                        Text(tr("Coin masuk setelah pembayaran dicek admin."), fontSize = 12.sp, color = WalGrey)
                     }
                 },
                 confirmButton = {
@@ -975,15 +969,15 @@ fun WalletScreen(
                                 manualPayer = ""
                                 payUrl = if (metode == "dana") DANA_LINK else null
                                 payOrder = r.order
-                                toast("Pengajuan dikirim. Coin masuk otomatis setelah admin menyetujui.")
+                                toast(tr("Pengajuan dikirim. Coin masuk otomatis setelah admin menyetujui."))
                             } else {
                                 toast(r.error ?: "Gagal mengajukan topup")
                             }
                         }
-                    }) { Text("Saya sudah transfer") }
+                    }) { Text(tr("Saya sudah transfer")) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { manualCoins = null }) { Text("Batal") }
+                    TextButton(onClick = { manualCoins = null }) { Text(tr("Batal")) }
                 },
             )
         }
@@ -1001,7 +995,7 @@ fun WalletScreen(
                         SupaRepo.get(uid).wallet?.let { WalletRepo.emitBackup(uid, it) }
                         payOrder = null
                         payUrl = null
-                        toast("Pembayaran diterima, coin sudah ditambahkan")
+                        toast(tr("Pembayaran diterima, coin sudah ditambahkan"))
                         return@LaunchedEffect
                     }
                     if (st == "expired" || st == "failed" || st == "rejected") {
@@ -1019,11 +1013,11 @@ fun WalletScreen(
                 }
                 payOrder = null
                 payUrl = null
-                toast("Pembayaran belum terdeteksi")
+                toast(tr("Pembayaran belum terdeteksi"))
             }
             AlertDialog(
                 onDismissRequest = { payOrder = null; payUrl = null },
-                title = { Text("Selesaikan pembayaran") },
+                title = { Text(tr("Selesaikan pembayaran")) },
                 text = {
                     Column {
                         Text(
@@ -1050,13 +1044,13 @@ fun WalletScreen(
                                     ),
                                 )
                             } catch (e: Exception) {
-                                toast("Tidak bisa membuka halaman pembayaran")
+                                toast(tr("Tidak bisa membuka halaman pembayaran"))
                             }
                         }
-                    }) { Text("Buka lagi") }
+                    }) { Text(tr("Buka lagi")) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { payOrder = null; payUrl = null }) { Text("Tutup") }
+                    TextButton(onClick = { payOrder = null; payUrl = null }) { Text(tr("Tutup")) }
                 },
             )
         }
@@ -1122,19 +1116,18 @@ private fun GiftCell(g: Gift, selected: Boolean, modifier: Modifier, onClick: ()
                         .border(1.dp, Color(0xFFFFC94D), CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("⚡", fontSize = 10.sp)
+                    Text(tr("⚡"), fontSize = 10.sp)
                 }
             }
         }
         Text(g.name, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${g.price}", color = Color(0xFF8FA3A0), fontSize = 11.sp, maxLines = 1)
+            Text(tr("${g.price}"), color = Color(0xFF8FA3A0), fontSize = 11.sp, maxLines = 1)
             Spacer(Modifier.width(3.dp))
             CoinDot(12.dp)
             if (g.cbRate > 0) {
                 Spacer(Modifier.width(4.dp))
-                Text(
-                    "+${g.cbRate}% CB",
+                Text(tr("+${g.cbRate}% CB"),
                     color = Color(0xFF2BD9C4),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
@@ -1391,9 +1384,9 @@ fun GiftPanel(
                             Modifier.clickable { countMenu = true }.padding(horizontal = 12.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("$count", color = Color.White, fontSize = 14.sp)
+                            Text(tr("$count"), color = Color.White, fontSize = 14.sp)
                             Spacer(Modifier.width(6.dp))
-                            Text("▲", color = Color(0xFFBDBDBD), fontSize = 11.sp)
+                            Text(tr("▲"), color = Color(0xFFBDBDBD), fontSize = 11.sp)
                         }
                         DropdownMenu(expanded = countMenu, onDismissRequest = { countMenu = false }) {
                             listOf(1, 10, 66, 188, 520).forEach { c ->

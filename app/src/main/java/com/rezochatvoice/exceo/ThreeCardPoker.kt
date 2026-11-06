@@ -171,11 +171,11 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text(myName.ifBlank { "Pemain" }, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Text("REZO", color = Color(0xFFB39DDB), fontSize = 9.sp)
+                    Text(tr("REZO"), color = Color(0xFFB39DDB), fontSize = 9.sp)
                 }
-                Text("💗 0", color = Color(0xFFFF79B0), fontSize = 11.sp)
+                Text(tr("💗 0"), color = Color(0xFFFF79B0), fontSize = 11.sp)
                 Spacer(Modifier.width(10.dp))
-                Text("Keluar", color = GoldP, fontSize = 12.sp, modifier = Modifier.clickable { onClose() }.padding(4.dp))
+                Text(tr("Keluar"), color = GoldP, fontSize = 12.sp, modifier = Modifier.clickable { onClose() }.padding(4.dp))
             }
 
             // ---- Kursi pemain di atas meja
@@ -190,10 +190,10 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                                 .border(1.dp, Color(0xFF5E3A8C), CircleShape),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("🪑", fontSize = 12.sp)
+                            Text(tr("🪑"), fontSize = 12.sp)
                         }
                         Text(label, color = Color(0xFF9E86C4), fontSize = 8.sp)
-                        Text("0", color = Color(0xFFFF79B0), fontSize = 8.sp)
+                        Text(tr("0"), color = Color(0xFFFF79B0), fontSize = 8.sp)
                     }
                 }
             }
@@ -201,8 +201,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
             Spacer(Modifier.height(6.dp))
 
             // ---- Judul + hitung mundur
-            Text(
-                "3 CARD POKER",
+            Text(tr("3 CARD POKER"),
                 color = Color.White,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
@@ -229,7 +228,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Last", color = Color(0xFFB39DDB), fontSize = 10.sp)
+                Text(tr("Last"), color = Color(0xFFB39DDB), fontSize = 10.sp)
                 Spacer(Modifier.width(6.dp))
                 history.take(8).forEach { h ->
                     Box(
@@ -245,7 +244,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                     Spacer(Modifier.width(4.dp))
                 }
                 Spacer(Modifier.weight(1f))
-                Text("lainnya ›", color = Color(0xFFB39DDB), fontSize = 10.sp)
+                Text(tr("lainnya ›"), color = Color(0xFFB39DDB), fontSize = 10.sp)
             }
 
             Spacer(Modifier.height(10.dp))
@@ -275,7 +274,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                                     Modifier.size(width = 20.dp, height = 28.dp).clip(RoundedCornerShape(4.dp))
                                         .background(Color(0xFF2B2B6B)).border(1.dp, Color(0xFF5C5CD6), RoundedCornerShape(4.dp)),
                                     contentAlignment = Alignment.Center,
-                                ) { Text("🂠", color = Color(0xFF8E8EF0), fontSize = 12.sp) }
+                                ) { Text(tr("🂠"), color = Color(0xFF8E8EF0), fontSize = 12.sp) }
                             }
                         }
                         Spacer(Modifier.height(6.dp))
@@ -296,9 +295,8 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                                 }
                             }
                         } else {
-                            Text("Pot " + fmtP(pot.getOrElse(idx) { 0L }), color = GoldP, fontSize = 10.sp)
-                            Text(
-                                "Me " + fmtP(stakes[idx]),
+                            Text(tr("Pot ") + fmtP(pot.getOrElse(idx) { 0L }), color = GoldP, fontSize = 10.sp)
+                            Text(tr("Me ") + fmtP(stakes[idx]),
                                 color = Color(0xFFB39DDB), fontSize = 9.sp,
                             )
                         }
@@ -322,7 +320,7 @@ fun ThreeCardPokerScreen(myUid: String, myName: String, myAvatarB64: String, onC
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("🪙 " + fmtP(balance), color = GoldP, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(tr("🪙 ") + fmtP(balance), color = GoldP, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),

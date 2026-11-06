@@ -111,7 +111,7 @@ object Cs {
 fun CsLogo(size: Dp) {
     Image(
         painter = painterResource(R.drawable.ic_launcher_logo),
-        contentDescription = "Customer Service",
+        contentDescription = tr("Customer Service"),
         modifier = Modifier.size(size).clip(CircleShape).background(Color(0xFF111111)),
     )
 }
@@ -124,7 +124,7 @@ fun CsLogo(size: Dp) {
 fun VerifiedBadge(size: Dp = 16.dp) {
     AsyncImage(
         model = "file:///android_asset/badge_cs_verified.gif",
-        contentDescription = "Terverifikasi",
+        contentDescription = tr("Terverifikasi"),
         modifier = Modifier.size(size),
     )
 }
@@ -276,11 +276,11 @@ fun AnnouncementScreen(list: List<AnnRepo.Ann>, onBack: () -> Unit) {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali", tint = GoldLight)
             }
-            Text("Pengumuman Resmi", color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(tr("Pengumuman Resmi"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         if (list.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Belum ada pengumuman.", color = Color(0xFF8A8A8A))
+                Text(tr("Belum ada pengumuman."), color = Color(0xFF8A8A8A))
             }
         } else {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(14.dp)) {
@@ -295,8 +295,7 @@ fun AnnouncementScreen(list: List<AnnRepo.Ann>, onBack: () -> Unit) {
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (a.pinned) {
-                                Text(
-                                    "📌",
+                                Text(tr("📌"),
                                     fontSize = 12.sp,
                                     modifier = Modifier.padding(end = 4.dp),
                                 )

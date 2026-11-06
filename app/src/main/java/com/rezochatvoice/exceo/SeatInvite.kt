@@ -77,7 +77,7 @@ fun SeatInviteDialog(
         },
         text = {
             if (candidates.isEmpty()) {
-                Text("Tidak ada user lain di room ini", color = Color(0xFFBDBDBD))
+                Text(tr("Tidak ada user lain di room ini"), color = Color(0xFFBDBDBD))
             } else {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp)) {
                     items(candidates.size) { i ->
@@ -97,13 +97,13 @@ fun SeatInviteDialog(
                                 Text(u?.name ?: "UID $uid", color = Color.White, fontSize = 15.sp, maxLines = 1)
                                 Text(u?.userId ?: "", color = Color(0xFF9A9A9A), fontSize = 12.sp)
                             }
-                            Text("Undang", color = Gold, fontSize = 13.sp)
+                            Text(tr("Undang"), color = Gold, fontSize = 13.sp)
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Tutup", color = Color(0xFFBDBDBD)) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Tutup"), color = Color(0xFFBDBDBD)) } },
     )
 }
 

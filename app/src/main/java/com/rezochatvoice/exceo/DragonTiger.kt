@@ -234,11 +234,11 @@ fun DragonTigerScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("‹ Kembali", color = Gold2, fontSize = 14.sp, modifier = Modifier.clickable { onClose() }.padding(4.dp))
+                    Text(tr("‹ Kembali"), color = Gold2, fontSize = 14.sp, modifier = Modifier.clickable { onClose() }.padding(4.dp))
                     Spacer(Modifier.weight(1f))
-                    Text("Dragon and Tiger Slot", color = Gold2, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(tr("Dragon and Tiger Slot"), color = Gold2, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.weight(1f))
-                    Text("win: " + fmt(lastWin), color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(tr("win: ") + fmt(lastWin), color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
 
                 // hitung mundur + dua kartu
@@ -249,10 +249,10 @@ fun DragonTigerScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         MiniCard(dragon, Color(0xFF9C1C12))
-                        Text("Naga", color = Color(0xFFFFB199), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Naga"), color = Color(0xFFFFB199), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("hitung mundur", color = Color(0xFFFFE082), fontSize = 10.sp)
+                        Text(tr("hitung mundur"), color = Color(0xFFFFE082), fontSize = 10.sp)
                         Text(
                             if (dragon == null) left.toString() + "s" else "•",
                             color = Gold2, fontSize = 32.sp, fontWeight = FontWeight.Bold,
@@ -260,7 +260,7 @@ fun DragonTigerScreen(
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         MiniCard(tiger, Color(0xFF1B3FA8))
-                        Text("Tiger", color = Color(0xFF9CC2FF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Tiger"), color = Color(0xFF9CC2FF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -269,7 +269,7 @@ fun DragonTigerScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Last", color = Color(0xFFE0E0E0), fontSize = 10.sp)
+                    Text(tr("Last"), color = Color(0xFFE0E0E0), fontSize = 10.sp)
                     Spacer(Modifier.width(6.dp))
                     history.value.forEach { h ->
                         Box(
@@ -291,7 +291,7 @@ fun DragonTigerScreen(
                         }
                     }
                     Spacer(Modifier.weight(1f))
-                    Text("lainnya ›", color = Color(0xFFFFE082), fontSize = 10.sp)
+                    Text(tr("lainnya ›"), color = Color(0xFFFFE082), fontSize = 10.sp)
                 }
 
                 // tiga kolom: Naga / Seri / Tiger
@@ -318,9 +318,9 @@ fun DragonTigerScreen(
                         .background(Brush.verticalGradient(listOf(Color(0x00000000), Color(0xFF3A0808))))
                         .padding(horizontal = 10.dp, vertical = 8.dp),
                 ) {
-                    Text("Saldo koin saya:", color = Color(0xFFFFE082), fontSize = 12.sp)
+                    Text(tr("Saldo koin saya:"), color = Color(0xFFFFE082), fontSize = 12.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🪙 " + balance.toString(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("🪙 ") + balance.toString(), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.weight(1f))
                         Box(
                             Modifier.padding(start = 6.dp).size(46.dp).clip(CircleShape)
@@ -333,7 +333,7 @@ fun DragonTigerScreen(
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("x2", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(tr("x2"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                         chips.forEachIndexed { i, v ->
                             val c = DT_CHIP_COLORS[i % DT_CHIP_COLORS.size]
@@ -369,14 +369,14 @@ fun DragonTigerScreen(
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text("POLA KELUAR", color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("POLA KELUAR"), color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
                         Text(resultTitle, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                         Spacer(Modifier.height(12.dp))
-                        Text("Top pemenang", color = Color(0xFFFFD54F), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Top pemenang"), color = Color(0xFFFFD54F), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(6.dp))
                         if (top3.isEmpty()) {
-                            Text("Belum ada pemenang ronde ini", color = Color(0xFFBDBDBD), fontSize = 12.sp)
+                            Text(tr("Belum ada pemenang ronde ini"), color = Color(0xFFBDBDBD), fontSize = 12.sp)
                         } else {
                             top3.forEachIndexed { i, row ->
                                 Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -386,12 +386,12 @@ fun DragonTigerScreen(
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     Text(row.first, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                    Text("+" + fmt(row.third), color = Color(0xFF69F0AE), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text(tr("+") + fmt(row.third), color = Color(0xFF69F0AE), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
                         Spacer(Modifier.height(10.dp))
-                        Text("Ronde baru dalam 3 detik", color = Color(0xFF9E9E9E), fontSize = 11.sp)
+                        Text(tr("Ronde baru dalam 3 detik"), color = Color(0xFF9E9E9E), fontSize = 11.sp)
                     }
                 }
             }
@@ -408,7 +408,7 @@ private fun MiniCard(card: Card?, back: Color) {
         contentAlignment = Alignment.Center,
     ) {
         if (card == null) {
-            Text("♦", color = Color(0xFFFFE082), fontSize = 22.sp)
+            Text(tr("♦"), color = Color(0xFFFFE082), fontSize = 22.sp)
         } else {
             Text(
                 card.rank + card.suit,
@@ -441,8 +441,8 @@ private fun DtLane(
                 ) { Text(mult, color = Color(0xFFFFE082), fontSize = 12.sp, fontWeight = FontWeight.Bold) }
             }
         }
-        Text("Pot:" + pot, color = Color(0xFFE0E0E0), fontSize = 10.sp)
-        Text("Me:" + mine, color = Color(0xFFE0E0E0), fontSize = 10.sp)
+        Text(tr("Pot:") + pot, color = Color(0xFFE0E0E0), fontSize = 10.sp)
+        Text(tr("Me:") + mine, color = Color(0xFFE0E0E0), fontSize = 10.sp)
     }
 }
 
@@ -460,7 +460,7 @@ private fun CardBox(mod: Modifier, card: Card?, label: String, tint: Color) {
             contentAlignment = Alignment.Center,
         ) {
             if (card == null) {
-                Text("🂠", color = Color(0xFF4A4A55), fontSize = 34.sp)
+                Text(tr("🂠"), color = Color(0xFF4A4A55), fontSize = 34.sp)
             } else {
                 Text(
                     card.rank + card.suit,

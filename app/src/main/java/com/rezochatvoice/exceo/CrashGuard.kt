@@ -68,10 +68,9 @@ fun CrashReportOverlay(text: String, onClose: () -> Unit) {
                 .background(Color(0xFF1B1B1B))
                 .padding(14.dp),
         ) {
-            Text("Aplikasi sempat berhenti", color = Color(0xFFFF8A80), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text(tr("Aplikasi sempat berhenti"), color = Color(0xFFFF8A80), fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            Text(
-                "Kirim tulisan di bawah ini ke pengembang supaya bisa diperbaiki.",
+            Text(tr("Kirim tulisan di bawah ini ke pengembang supaya bisa diperbaiki."),
                 color = Color(0xFFBDBDBD), fontSize = 12.sp,
             )
             Spacer(Modifier.height(10.dp))
@@ -90,7 +89,7 @@ fun CrashReportOverlay(text: String, onClose: () -> Unit) {
                     .clickable { onClose() },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Tutup", color = Color(0xFF231A00), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(tr("Tutup"), color = Color(0xFF231A00), fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
     }

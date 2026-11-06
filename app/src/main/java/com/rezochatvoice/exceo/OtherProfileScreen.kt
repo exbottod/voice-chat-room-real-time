@@ -343,13 +343,13 @@ fun OtherProfileScreen(
                     Row(
                         Modifier.clickable {
                             clipboard.setText(AnnotatedString(shownId))
-                            Toast.makeText(context, "ID disalin", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, tr("ID disalin"), Toast.LENGTH_SHORT).show()
                         },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("UID:${shownId}", color = Muted, fontSize = 16.sp)
+                        Text(tr("UID:${shownId}"), color = Muted, fontSize = 16.sp)
                         Spacer(Modifier.width(8.dp))
-                        Text("📋", fontSize = 14.sp)
+                        Text(tr("📋"), fontSize = 14.sp)
                     }
                     Spacer(Modifier.height(14.dp))
                     if (!hidden) {
@@ -455,8 +455,7 @@ fun OtherProfileScreen(
                             ) {
                                 if (m.text.isNotBlank()) Text(m.text, color = Color.White, fontSize = 15.sp)
                                 Spacer(Modifier.height(6.dp))
-                                Text(
-                                    "${timeAgo(m.createdAt)}  ·  ❤ ${m.likes}  ·  💬 ${m.comments}",
+                                Text(tr("${timeAgo(m.createdAt)}  ·  ❤ ${m.likes}  ·  💬 ${m.comments}"),
                                     color = Muted, fontSize = 12.sp,
                                 )
                             }
@@ -525,7 +524,7 @@ fun OtherProfileScreen(
             ) {
                 Box(Modifier.size(6.dp).clip(CircleShape).background(Color.White))
                 Spacer(Modifier.width(5.dp))
-                Text("LIVE", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(tr("LIVE"), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -573,7 +572,7 @@ private fun SectionTitle(text: String) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text, color = GoldLight, fontSize = 17.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-        Text("›", color = Muted, fontSize = 22.sp)
+        Text(tr("›"), color = Muted, fontSize = 22.sp)
     }
 }
 
@@ -600,11 +599,11 @@ private fun FamCard(fam: String) {
             Modifier.size(56.dp).clip(RoundedCornerShape(14.dp))
                 .background(Brush.horizontalGradient(listOf(Gold, GoldDark))),
             contentAlignment = Alignment.Center,
-        ) { Text("🏰", fontSize = 26.sp) }
+        ) { Text(tr("🏰"), fontSize = 26.sp) }
         Spacer(Modifier.width(12.dp))
         Column {
             Text(fam, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("Bergabung dengan family ini", color = Color(0xFFE0E0E0), fontSize = 13.sp)
+            Text(tr("Bergabung dengan family ini"), color = Color(0xFFE0E0E0), fontSize = 13.sp)
         }
     }
 }

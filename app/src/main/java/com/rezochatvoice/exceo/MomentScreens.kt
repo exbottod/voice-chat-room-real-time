@@ -236,16 +236,16 @@ private fun MomentCard(m: Moment, myUid: String, onComments: (Moment) -> Unit) {
             ) {
                 Text(if (liked) "❤️" else "🤍", fontSize = 20.sp)
                 Spacer(Modifier.width(4.dp))
-                Text("${m.likes}", color = Color(0xFFD0D0D0), fontSize = 14.sp)
+                Text(tr("${m.likes}"), color = Color(0xFFD0D0D0), fontSize = 14.sp)
             }
             Spacer(Modifier.width(16.dp))
             Row(
                 Modifier.clip(RoundedCornerShape(50)).clickable { onComments(m) }.padding(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("💬", fontSize = 20.sp)
+                Text(tr("💬"), fontSize = 20.sp)
                 Spacer(Modifier.width(4.dp))
-                Text("${m.comments}", color = Color(0xFFD0D0D0), fontSize = 14.sp)
+                Text(tr("${m.comments}"), color = Color(0xFFD0D0D0), fontSize = 14.sp)
             }
         }
     }
@@ -299,7 +299,7 @@ fun PostMomentScreen(uid: String, name: String, onBack: () -> Unit) {
             busy = true
             val b64 = ProfileRepo.encodeImage(context, uri, 900, square = false, quality = 70)
             busy = false
-            if (b64 != null) photoB64 = b64 else Toast.makeText(context, "Gagal membaca gambar", Toast.LENGTH_SHORT).show()
+            if (b64 != null) photoB64 = b64 else Toast.makeText(context, tr("Gagal membaca gambar"), Toast.LENGTH_SHORT).show()
         }
     }
     BackHandler(onBack = onBack)
@@ -314,7 +314,7 @@ fun PostMomentScreen(uid: String, name: String, onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 5,
                     placeholder = { Text(tr("Apa yang sedang kamu pikirkan?")) },
-                    supportingText = { Text("${text.length}/300", color = Color(0xFF8A8A8A)) },
+                    supportingText = { Text(tr("${text.length}/300"), color = Color(0xFF8A8A8A)) },
                     colors = goldFieldColors(),
                 )
                 Spacer(Modifier.height(12.dp))
@@ -348,7 +348,7 @@ fun PostMomentScreen(uid: String, name: String, onBack: () -> Unit) {
                         val err = MomentRepo.post(uid, name, text.trim(), photoB64)
                         busy = false
                         if (err == null) {
-                            Toast.makeText(context, "Moment diposting", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, tr("Moment diposting"), Toast.LENGTH_SHORT).show()
                             onBack()
                         } else Toast.makeText(context, err, Toast.LENGTH_LONG).show()
                     }
@@ -391,7 +391,7 @@ fun MomentCommentsPanel(m: Moment, myUid: String, myName: String, onDismiss: () 
                 .imePadding()
                 .padding(16.dp),
         ) {
-            Text("Komentar (${list.size})", color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(tr("Komentar (${list.size})"), color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (list.isEmpty()) item { Text(tr("Belum ada komentar"), color = Color(0xFF8A8A8A)) }
@@ -404,7 +404,7 @@ fun MomentCommentsPanel(m: Moment, myUid: String, myName: String, onDismiss: () 
                             fontSize = 14.sp,
                             modifier = Modifier.clickable { actions.openProfile(c.uid) },
                         )
-                        Text("  ${c.text}", color = Color.White, fontSize = 14.sp)
+                        Text(tr("  ${c.text}"), color = Color.White, fontSize = 14.sp)
                     }
                 }
             }

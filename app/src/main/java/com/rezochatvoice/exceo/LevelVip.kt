@@ -266,7 +266,7 @@ fun VipTagText(n: Int, modifier: Modifier = Modifier) {
             .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(50))
             .padding(horizontal = 8.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center,
-    ) { Text("👑 VIP$n", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold) }
+    ) { Text(tr("👑 VIP$n"), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold) }
 }
 
 /** Lencana di bawah level & nama: VIP otomatis + lencana store yang dipakai. */
@@ -300,8 +300,8 @@ fun VipBanner(u: PublicUser) {
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(if (on) "VIP${u.vip}" else "VIP", color = GoldLight, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-            if (on) Text("👑 s/d ${fmtDate(u.vipUntil)}", color = Color(0xFFE0E0E0), fontSize = 12.sp)
-            else Text("Belum VIP", color = Color(0xFF9A9A9A), fontSize = 12.sp)
+            if (on) Text(tr("👑 s/d ${fmtDate(u.vipUntil)}"), color = Color(0xFFE0E0E0), fontSize = 12.sp)
+            else Text(tr("Belum VIP"), color = Color(0xFF9A9A9A), fontSize = 12.sp)
         }
     }
 }
@@ -309,15 +309,14 @@ fun VipBanner(u: PublicUser) {
 @Composable
 private fun LvTopBar(title: String, onBack: () -> Unit) {
     Box(Modifier.fillMaxWidth().statusBarsPadding().height(56.dp)) {
-        Text(
-            "‹", color = Color.White, fontSize = 38.sp,
+        Text(tr("‹"), color = Color.White, fontSize = 38.sp,
             modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 18.dp),
         )
         Text(title, color = Color.White, fontSize = 22.sp, modifier = Modifier.align(Alignment.Center))
         Box(
             Modifier.align(Alignment.CenterEnd).padding(end = 16.dp).size(30.dp).border(2.dp, Color.White, CircleShape),
             contentAlignment = Alignment.Center,
-        ) { Text("?", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
+        ) { Text(tr("?"), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
     }
 }
 
@@ -336,11 +335,11 @@ private fun GoldPill(text: String, enabled: Boolean = true, modifier: Modifier =
 @Composable
 private fun OrnTitle(text: String, color: Color) {
     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        Text("❦", color = color, fontSize = 22.sp)
+        Text(tr("❦"), color = color, fontSize = 22.sp)
         Spacer(Modifier.width(12.dp))
         Text(text, color = Color.White, fontSize = 22.sp)
         Spacer(Modifier.width(12.dp))
-        Text("❦", color = color, fontSize = 22.sp)
+        Text(tr("❦"), color = color, fontSize = 22.sp)
     }
 }
 
@@ -388,7 +387,7 @@ fun LevelScreen(user: UserProfile, profile: ProfileData, wallet: Wallet, uid: St
                     }
                     Spacer(Modifier.height(14.dp))
                     Box(Modifier.align(Alignment.CenterHorizontally).clip(RoundedCornerShape(50)).background(Color(0x44000000)).padding(horizontal = 14.dp, vertical = 3.dp)) {
-                        Text("${wallet.exp}/$next", color = Color.White, fontSize = 15.sp)
+                        Text(tr("${wallet.exp}/$next"), color = Color.White, fontSize = 15.sp)
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -424,17 +423,16 @@ fun LevelScreen(user: UserProfile, profile: ProfileData, wallet: Wallet, uid: St
                         },
                         color = Color.White, fontSize = 20.sp, modifier = Modifier.weight(1f),
                     )
-                    Text(
-                        "Pergi naikkan level ➜", color = Color(0xFFFFF176), fontSize = 14.sp,
+                    Text(tr("Pergi naikkan level ➜"), color = Color(0xFFFFF176), fontSize = 14.sp,
                         modifier = Modifier.clickable {
-                            Toast.makeText(context, "Kirim gift di room untuk menambah exp (1 koin = 1 exp)", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, tr("Kirim gift di room untuk menambah exp (1 koin = 1 exp)"), Toast.LENGTH_LONG).show()
                         },
                     )
                 }
                 Spacer(Modifier.height(8.dp))
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0x3322D6C0)).padding(10.dp)) {
-                    Text("Tingkat level paket hadiah", color = Color.White, fontSize = 15.sp)
-                    Text("Bisa diambil ketika naik level.", color = Color(0xFFD7FFF8), fontSize = 14.sp)
+                    Text(tr("Tingkat level paket hadiah"), color = Color.White, fontSize = 15.sp)
+                    Text(tr("Bisa diambil ketika naik level."), color = Color(0xFFD7FFF8), fontSize = 14.sp)
                     Spacer(Modifier.height(10.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         val nl = (level + 1).coerceAtMost(MAX_LEVEL)
@@ -497,8 +495,7 @@ fun LevelScreen(user: UserProfile, profile: ProfileData, wallet: Wallet, uid: St
             }
             Spacer(Modifier.height(18.dp))
             OrnTitle("Tingkat level paket hadiah", teal)
-            Text(
-                "1. Setelah mencapai level yang ditentukan, hadiah koin bisa diambil lewat tombol Klaim.\n" +
+            Text(tr("1. Setelah mencapai level yang ditentukan, hadiah koin bisa diambil lewat tombol Klaim.\n") +
                     "2. Exp didapat dari kirim gift di room: 1 koin = 1 exp. VIP aktif mendapat bonus exp.\n" +
                     "3. Level maksimum adalah $MAX_LEVEL.",
                 color = Color.White, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 18.dp),
@@ -539,7 +536,7 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         Modifier.clickable { sel = n }.padding(horizontal = 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text("VIP$n", color = if (n == sel) Color(0xFFFFEB3B) else Color(0x99FFFFFF), fontSize = if (n == sel) 22.sp else 17.sp, fontWeight = if (n == sel) FontWeight.Bold else FontWeight.Normal)
+                        Text(tr("VIP$n"), color = if (n == sel) Color(0xFFFFEB3B) else Color(0x99FFFFFF), fontSize = if (n == sel) 22.sp else 17.sp, fontWeight = if (n == sel) FontWeight.Bold else FontWeight.Normal)
                         Box(Modifier.padding(top = 2.dp).width(34.dp).height(4.dp).clip(RoundedCornerShape(50)).background(if (n == sel) Color(0xFFFFEB3B) else Color.Transparent))
                     }
                 }
@@ -548,8 +545,8 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
             Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(220.dp).background(Brush.radialGradient(listOf(c.copy(alpha = 0.55f), Color.Transparent))))
                 Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(horizontal = 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("🏮", fontSize = 28.sp)
-                    Text("🏮", fontSize = 28.sp)
+                    Text(tr("🏮"), fontSize = 28.sp)
+                    Text(tr("🏮"), fontSize = 28.sp)
                 }
                 // MEDAL VIP: aset terpisah (slot "medal", kotak 1:1) tampil di posisi
                 // mahkota. Gelar VIP (slot "title") tetap dipakai seperti dulu (VipTag).
@@ -560,7 +557,7 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         VipMedia(medalA, Modifier.align(Alignment.TopCenter).offset(y = 22.dp).size(140.dp), loop = true, contentScale = ContentScale.Fit)
                     }
                 } else {
-                    Text("👑", fontSize = 56.sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = 22.dp))
+                    Text(tr("👑"), fontSize = 56.sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = 22.dp))
                 }
             }
             val perks = listOf(
@@ -572,7 +569,7 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 "🕒 Aktif $VIP_DAYS hari, bisa diperpanjang",
             )
             Box(Modifier.align(Alignment.CenterHorizontally).clip(RoundedCornerShape(50)).background(Color(0x55000000)).padding(horizontal = 22.dp, vertical = 8.dp)) {
-                Text("👑 Privileges ${perks.size}", color = Color(0xFFFFE9A8), fontSize = 22.sp)
+                Text(tr("👑 Privileges ${perks.size}"), color = Color(0xFFFFE9A8), fontSize = 22.sp)
             }
             Spacer(Modifier.height(22.dp))
             OrnTitle("Penampilan mewah $own/4", Color(0xFFE6C47A))
@@ -582,9 +579,9 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         .clip(RoundedCornerShape(10.dp)).background(Color(0x66B71C1C))
                         .clickable { VipAssets.start(force = true) }.padding(10.dp),
                 ) {
-                    Text("Aset VIP dari panel developer belum termuat", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(tr("Aset VIP dari panel developer belum termuat"), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text(err, color = Color(0xFFFFCDD2), fontSize = 12.sp)
-                    Text("Ketuk untuk coba lagi. Kalau 'permission denied', publish rules vipConfig.", color = Color(0xFFFFCDD2), fontSize = 12.sp)
+                    Text(tr("Ketuk untuk coba lagi. Kalau 'permission denied', publish rules vipConfig."), color = Color(0xFFFFCDD2), fontSize = 12.sp)
                 }
             }
             // ---- kartu penampilan: gelar, bingkai, gelembung, efek masuk (aset dari panel developer) ----
@@ -594,22 +591,22 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     Box(Modifier.height(120.dp), contentAlignment = Alignment.Center) {
                         key(sel) { VipTag(sel, Modifier.scale(1.6f)) }
                     }
-                    Text("Gelar VIP", color = Color(0xFFE6C47A), fontSize = 17.sp)
+                    Text(tr("Gelar VIP"), color = Color(0xFFE6C47A), fontSize = 17.sp)
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.size(120.dp), contentAlignment = Alignment.Center) {
                         if (VipAssets.get(sel, "frame") == null) {
                             Box(Modifier.size(80.dp).border(6.dp, frameBrush("vipf_$sel"), CircleShape), contentAlignment = Alignment.Center) {
-                                Text("VIP$sel", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+                                Text(tr("VIP$sel"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
                             }
                         } else {
                             Box(Modifier.size(86.dp).clip(CircleShape).background(Color(0xFF4A3030)), contentAlignment = Alignment.Center) {
-                                Text("\uD83D\uDC64", fontSize = 34.sp)
+                                Text(tr("\uD83D\uDC64"), fontSize = 34.sp)
                             }
                             key(sel) { VipFrame(sel, 120.dp) }
                         }
                     }
-                    Text("Bingkai eksklusif", color = Color(0xFFE6C47A), fontSize = 17.sp)
+                    Text(tr("Bingkai eksklusif"), color = Color(0xFFE6C47A), fontSize = 17.sp)
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -630,10 +627,10 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                             if (ba != null) {
                                 key(sel) { VipMedia(ba, Modifier.matchParentSize(), contentScale = ContentScale.FillBounds) }
                             }
-                            Text("Halo!", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                            Text(tr("Halo!"), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                         }
                     }
-                    Text("Gelembung obrolan", color = Color(0xFFE6C47A), fontSize = 17.sp, textAlign = TextAlign.Center)
+                    Text(tr("Gelembung obrolan"), color = Color(0xFFE6C47A), fontSize = 17.sp, textAlign = TextAlign.Center)
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
@@ -644,10 +641,10 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         if (ea != null) {
                             key(sel) { VipMedia(ea, Modifier.fillMaxSize(), loop = true) }
                         } else {
-                            Text("\u2728", fontSize = 40.sp)
+                            Text(tr("\u2728"), fontSize = 40.sp)
                         }
                     }
-                    Text("Efek masuk", color = Color(0xFFE6C47A), fontSize = 17.sp)
+                    Text(tr("Efek masuk"), color = Color(0xFFE6C47A), fontSize = 17.sp)
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -663,9 +660,9 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Harga: ${fmtNum(price)} koin / $VIP_DAYS hari", color = Color(0xFFFFE9A8), fontSize = 16.sp)
-                if (active) Text("VIP${wallet.vip} aktif · Exp +${vipBoostPercent(wallet.vip)}% sedang dipercepat. Berlaku sampai ${fmtDate(wallet.vipUntil)}", color = Color(0xFFE0C9C9), fontSize = 13.sp)
-                else Text("Exp +${vipBoostPercent(sel)}% setelah VIP$sel aktif", color = Color(0xFFE0C9C9), fontSize = 13.sp)
+                Text(tr("Harga: ${fmtNum(price)} koin / $VIP_DAYS hari"), color = Color(0xFFFFE9A8), fontSize = 16.sp)
+                if (active) Text(tr("VIP${wallet.vip} aktif · Exp +${vipBoostPercent(wallet.vip)}% sedang dipercepat. Berlaku sampai ${fmtDate(wallet.vipUntil)}"), color = Color(0xFFE0C9C9), fontSize = 13.sp)
+                else Text(tr("Exp +${vipBoostPercent(sel)}% setelah VIP$sel aktif"), color = Color(0xFFE0C9C9), fontSize = 13.sp)
             }
             Spacer(Modifier.width(10.dp))
             GoldPill(
@@ -682,8 +679,8 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
 
     if (confirm) AlertDialog(
         onDismissRequest = { confirm = false },
-        title = { Text("Beli VIP$sel") },
-        text = { Text("Harga ${fmtNum(price)} koin untuk $VIP_DAYS hari. Lencana, bingkai, gelembung, efek masuk & banner masuk VIP$sel otomatis masuk ke My Item.") },
+        title = { Text(tr("Beli VIP$sel")) },
+        text = { Text(tr("Harga ${fmtNum(price)} koin untuk $VIP_DAYS hari. Lencana, bingkai, gelembung, efek masuk & banner masuk VIP$sel otomatis masuk ke My Item.")) },
         confirmButton = {
             TextButton(onClick = {
                 confirm = false
@@ -697,9 +694,9 @@ fun VipScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     } else Toast.makeText(context, err, Toast.LENGTH_LONG).show()
                     busy = false
                 }
-            }) { Text("Beli") }
+            }) { Text(tr("Beli")) }
         },
-        dismissButton = { TextButton(onClick = { confirm = false }) { Text("Batal") } },
+        dismissButton = { TextButton(onClick = { confirm = false }) { Text(tr("Batal")) } },
     )
 }
 
@@ -716,7 +713,7 @@ private fun LegacyItemPreview(item: StoreItem) {
         when (item.slot) {
             "frame" -> if (frameA != null) {
                 Box(Modifier.size(50.dp).clip(CircleShape).background(Color(0xFF4A3030)), contentAlignment = Alignment.Center) {
-                    Text("\uD83D\uDC64", fontSize = 22.sp)
+                    Text(tr("\uD83D\uDC64"), fontSize = 22.sp)
                 }
                 key(frameA.updatedAt) { VipFrame(item.vip, 70.dp) }
             } else {
@@ -732,7 +729,7 @@ private fun LegacyItemPreview(item: StoreItem) {
             "entry" -> if (entryA != null) {
                 EntryPreview(item, 70.dp)
             } else {
-                Text("\u2728", fontSize = 38.sp)
+                Text(tr("\u2728"), fontSize = 38.sp)
             }
             "title" -> VipTag(item.vip)
             else -> Text(item.emoji, fontSize = 38.sp)
@@ -760,13 +757,13 @@ private fun EntryPreview(item: StoreItem, size: Dp) {
             Box(
                 Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp)).background(Color(0x22FFFFFF)),
                 contentAlignment = Alignment.Center,
-            ) { Text("\u2728", fontSize = (size.value * 0.46f).sp) }
+            ) { Text(tr("\u2728"), fontSize = (size.value * 0.46f).sp) }
             Box(
                 Modifier.align(Alignment.BottomEnd).padding(2.dp)
                     .clip(CircleShape).background(Color(0xCC000000))
                     .clickable(enabled = dyn != null) { main = true }
                     .padding(horizontal = 7.dp, vertical = 3.dp),
-            ) { Text("\u25B6", color = Color.White, fontSize = 9.sp) }
+            ) { Text(tr("\u25B6"), color = Color.White, fontSize = 9.sp) }
         }
     }
 }
@@ -796,7 +793,7 @@ private fun ItemPreview(item: StoreItem, size: Dp = 70.dp) {
                 Box(
                     Modifier.size((size.value * 0.62f).dp).clip(CircleShape).background(Color(0xFF3B5A58)),
                     contentAlignment = Alignment.Center,
-                ) { Text("\uD83D\uDC64", fontSize = (size.value * 0.28f).sp) }
+                ) { Text(tr("\uD83D\uDC64"), fontSize = (size.value * 0.28f).sp) }
                 FrameOverlay(dyn, size)
             }
             "badge" -> key(dyn.updatedAt) { VipMedia(dyn, Modifier.size((size.value * 0.8f).dp), loop = true) }
@@ -861,8 +858,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp)) {
-                Text(
-                    "\u2039", color = Color.White, fontSize = 34.sp,
+                Text(tr("\u2039"), color = Color.White, fontSize = 34.sp,
                     modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 8.dp),
                 )
                 Text(if (tab == 0) "Store" else "Ransel saya", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center))
@@ -907,13 +903,13 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                 .clickable(onClick = onOpenVip).padding(12.dp),
                         ) {
                             Column {
-                                Text("\uD83D\uDC51 VIP1 \u2013 VIP9", color = Color(0xFFFFD54F), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-                                Text("Gelar, bingkai, gelembung, efek masuk & banner masuk eksklusif", color = Color.White, fontSize = 12.sp)
+                                Text(tr("\uD83D\uDC51 VIP1 \u2013 VIP9"), color = Color(0xFFFFD54F), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                                Text(tr("Gelar, bingkai, gelembung, efek masuk & banner masuk eksklusif"), color = Color.White, fontSize = 12.sp)
                             }
                         }
                         Spacer(Modifier.height(10.dp))
                         if (shopItems.isEmpty()) {
-                            Text("Belum ada item di kategori ini.", color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(20.dp))
+                            Text(tr("Belum ada item di kategori ini."), color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(20.dp))
                         }
                         shopItems.chunked(2).forEach { row ->
                             Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -925,8 +921,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                             .clickable { sel = item },
                                     ) {
                                         Box(Modifier.fillMaxWidth().height(150.dp)) {
-                                            Text(
-                                                "${item.days} hari", color = Color.White, fontSize = 15.sp,
+                                            Text(tr("${item.days} hari"), color = Color.White, fontSize = 15.sp,
                                                 modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
                                             )
                                             Box(Modifier.align(Alignment.Center), contentAlignment = Alignment.Center) { ItemPreview(item, 110.dp) }
@@ -935,8 +930,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                             Modifier.fillMaxWidth().background(if (chosen) Color(0xFFFFC107) else Color(0xFF1FC8B5)).padding(vertical = 10.dp),
                                             contentAlignment = Alignment.Center,
                                         ) {
-                                            Text(
-                                                "\uD83E\uDE99 ${fmtShort(item.price)}",
+                                            Text(tr("\uD83E\uDE99 ${fmtShort(item.price)}"),
                                                 color = if (chosen) Color(0xFF3B2A00) else Color.White,
                                                 fontSize = 22.sp, fontWeight = FontWeight.Bold,
                                             )
@@ -953,7 +947,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                     Modifier.fillMaxWidth().background(Color(0x66000000)).navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("\uD83E\uDE99 ${fmtCompact(wallet.coins)}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(tr("\uD83E\uDE99 ${fmtCompact(wallet.coins)}"), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.weight(1f))
                     val cur = sel
                     val owned = cur != null && (wallet.inv[cur.id] ?: 0L) > now
@@ -961,7 +955,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         if (owned) "Perpanjang" else "Membeli", color = Color(0xFF3B2A00), fontSize = 20.sp, fontWeight = FontWeight.Bold,
                         modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFFFD54F))
                             .clickable {
-                                if (cur == null) Toast.makeText(context, "Pilih item dulu", Toast.LENGTH_SHORT).show()
+                                if (cur == null) Toast.makeText(context, tr("Pilih item dulu"), Toast.LENGTH_SHORT).show()
                                 else buying = cur
                             }
                             .padding(horizontal = 34.dp, vertical = 12.dp),
@@ -1000,13 +994,12 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         }
                     }
                     Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 8.dp).navigationBarsPadding()) {
-                        Text("Ransel saya", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Ransel saya"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
                         val shownCat = if (cat == "medal") "frame" else cat
                         val list = mineAll.filter { it.first.slot == shownCat }.sortedBy { it.first.id }
                         if (list.isEmpty()) {
-                            Text(
-                                "Belum ada item di kategori ini.\nBeli di Store atau beli VIP untuk mendapatkan item.",
+                            Text(tr("Belum ada item di kategori ini.\nBeli di Store atau beli VIP untuk mendapatkan item."),
                                 color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
                             )
@@ -1020,8 +1013,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                             .border(if (used) 3.dp else 2.dp, if (used) Color(0xFFFFC107) else Color(0xFF39D3C3), RoundedCornerShape(16.dp)),
                                     ) {
                                         Box(Modifier.fillMaxWidth().height(150.dp)) {
-                                            Text(
-                                                "${daysLeft(exp)} hari tersisa", color = Color.White, fontSize = 13.sp,
+                                            Text(tr("${daysLeft(exp)} hari tersisa"), color = Color.White, fontSize = 13.sp,
                                                 modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
                                             )
                                             // Tombol play: preview penuh (frame, efek masuk, banner, dll).
@@ -1029,7 +1021,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                                                 Modifier.align(Alignment.TopEnd).padding(8.dp).size(26.dp).clip(CircleShape)
                                                     .background(Color(0x66000000)).clickable { previewItem = item },
                                                 contentAlignment = Alignment.Center,
-                                            ) { Text("\u25B6", color = Color.White, fontSize = 12.sp) }
+                                            ) { Text(tr("\u25B6"), color = Color.White, fontSize = 12.sp) }
                                             Box(
                                                 Modifier.align(Alignment.Center).clickable { previewItem = item },
                                                 contentAlignment = Alignment.Center,
@@ -1098,8 +1090,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                     }
                     Spacer(Modifier.height(8.dp))
                 }
-                Text(
-                    "Tutup", color = Color.White, fontSize = 14.sp,
+                Text(tr("Tutup"), color = Color.White, fontSize = 14.sp,
                     modifier = Modifier.clip(RoundedCornerShape(50)).clickable { previewItem = null }.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }
@@ -1110,7 +1101,7 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
         AlertDialog(
             onDismissRequest = { buying = null },
             title = { Text(item.name) },
-            text = { Text("Beli seharga ${fmtNum(item.price)} koin untuk ${item.days} hari? Item masuk ke My Item.") },
+            text = { Text(tr("Beli seharga ${fmtNum(item.price)} koin untuk ${item.days} hari? Item masuk ke My Item.")) },
             confirmButton = {
                 TextButton(onClick = {
                     buying = null
@@ -1119,9 +1110,9 @@ fun StoreScreen(uid: String, wallet: Wallet, onOpenVip: () -> Unit, onBack: () -
                         Toast.makeText(context, err ?: "Berhasil! Cek di Saya", Toast.LENGTH_SHORT).show()
                         if (err == null) PublicSync.push(uid)
                     }
-                }) { Text("Beli") }
+                }) { Text(tr("Beli")) }
             },
-            dismissButton = { TextButton(onClick = { buying = null }) { Text("Batal") } },
+            dismissButton = { TextButton(onClick = { buying = null }) { Text(tr("Batal")) } },
         )
     }
 }

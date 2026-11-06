@@ -253,8 +253,7 @@ fun TabBgPanel(onBack: () -> Unit) {
     ) {
         GoldTopBar("Panel Developer: Background Tab", onBack)
         Spacer(Modifier.height(12.dp))
-        Text(
-            "Atur latar belakang tiap tab home. Pilih Default (kerajaan), Gambar (upload dari perangkat), " +
+        Text(tr("Atur latar belakang tiap tab home. Pilih Default (kerajaan), Gambar (upload dari perangkat), ") +
                 "atau Gradien (2 warna hex, contoh #1A0B2E). Perubahan tampil di semua user.",
             color = Color(0xFFBDBDBD),
             fontSize = 12.sp,
@@ -344,13 +343,13 @@ private fun TabBgEditor(tab: String) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     c1, { c1 = it },
-                    label = { Text("Warna atas", fontSize = 12.sp) },
+                    label = { Text(tr("Warna atas"), fontSize = 12.sp) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                 )
                 OutlinedTextField(
                     c2, { c2 = it },
-                    label = { Text("Warna bawah", fontSize = 12.sp) },
+                    label = { Text(tr("Warna bawah"), fontSize = 12.sp) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                 )
@@ -400,6 +399,6 @@ private fun TabBgEditor(tab: String) {
             enabled = !busy,
             colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Color.Black),
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("SIMPAN") }
+        ) { Text(tr("SIMPAN")) }
     }
 }

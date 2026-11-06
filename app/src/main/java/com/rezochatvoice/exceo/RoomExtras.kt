@@ -212,7 +212,7 @@ fun RoomTypingBar(
             } else {
                 Image(
                     painterResource(R.drawable.ic_chat_image),
-                    contentDescription = "Kirim gambar",
+                    contentDescription = tr("Kirim gambar"),
                     modifier = Modifier.size(22.dp),
                     contentScale = ContentScale.Fit,
                 )
@@ -233,7 +233,7 @@ fun RoomTypingBar(
             colors = goldFieldColors(),
         )
         IconButton(onClick = { submit() }) { Icon(Icons.AutoMirrored.Filled.Send, "Kirim", tint = Gold) }
-        IconButton(onClick = onClose) { Text("✕", color = Color.White, fontSize = 18.sp) }
+        IconButton(onClick = onClose) { Text(tr("✕"), color = Color.White, fontSize = 18.sp) }
     }
 }
 
@@ -304,12 +304,10 @@ fun CashbackBanner(roomId: String) {
                 .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    "\uD83D\uDC8E CASHBACK JP",
+                Text(tr("\uD83D\uDC8E CASHBACK JP"),
                     color = Color(0xFF07301F), fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, fontSize = 13.sp,
                 )
-                Text(
-                    "${d.first}  +${fmtNum(d.second)}",
+                Text(tr("${d.first}  +${fmtNum(d.second)}"),
                     color = Color.White, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                 )

@@ -39,8 +39,7 @@ private const val FamLogoFallback = "https://i.ibb.co.com/XrswkKVX/b685f30b9384c
 /** Teks label family versi lama (emas kecil). */
 @Composable
 fun FamTagText(fam: String, modifier: Modifier = Modifier) {
-    Text(
-        "🫡 $fam",
+    Text(tr("🫡 $fam"),
         color = GoldLight,
         fontSize = 10.sp,
         fontWeight = FontWeight.Bold,
@@ -71,7 +70,7 @@ fun FamTag3D(fam: String, modifier: Modifier = Modifier) {
             .height(20.dp)
             .width(72.dp)
             .clickable {
-                if (famId == null) Toast.makeText(context, "Family tidak ditemukan", Toast.LENGTH_SHORT).show()
+                if (famId == null) Toast.makeText(context, tr("Family tidak ditemukan"), Toast.LENGTH_SHORT).show()
                 else open = true
             },
     ) {

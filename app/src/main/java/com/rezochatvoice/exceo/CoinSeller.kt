@@ -156,13 +156,13 @@ private fun bukaWa(ctx: android.content.Context, s: SellerInfo) {
         if (digit.isBlank()) "" else "https://wa.me/" + digit
     }
     if (alamat.isBlank()) {
-        Toast.makeText(ctx, "Seller belum mengisi WhatsApp", Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, tr("Seller belum mengisi WhatsApp"), Toast.LENGTH_SHORT).show()
         return
     }
     try {
         ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(alamat)))
     } catch (e: Exception) {
-        Toast.makeText(ctx, "WhatsApp tidak bisa dibuka", Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, tr("WhatsApp tidak bisa dibuka"), Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -222,14 +222,12 @@ fun SellerListScreen(
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().height(54.dp)) {
-                Text(
-                    "‹",
+                Text(tr("‹"),
                     color = Color.White,
                     fontSize = 40.sp,
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 14.dp).clickable { onBack() },
                 )
-                Text(
-                    "Coin Seller",
+                Text(tr("Coin Seller"),
                     color = Color.White,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
@@ -238,7 +236,7 @@ fun SellerListScreen(
             }
             if (memuat) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Memuat seller...", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                    Text(tr("Memuat seller..."), color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                 }
                 return@Column
             }
@@ -298,19 +296,17 @@ fun SellerListScreen(
                                         fontSize = 12.sp,
                                     )
                                     Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        "⧉",
+                                    Text(tr("⧉"),
                                         color = Color(0xFF3B7A9E),
                                         fontSize = 13.sp,
                                         modifier = Modifier.clickable {
                                             clipboard.setText(AnnotatedString(s.wa))
-                                            Toast.makeText(ctx, "Nomor disalin", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(ctx, tr("Nomor disalin"), Toast.LENGTH_SHORT).show()
                                         },
                                     )
                                 }
                                 Spacer(Modifier.height(2.dp))
-                                Text(
-                                    "Pesanan 3 hari: " + s.pesanan,
+                                Text(tr("Pesanan 3 hari: ") + s.pesanan,
                                     color = Color(0xFF7A8B99),
                                     fontSize = 11.sp,
                                 )
@@ -320,7 +316,7 @@ fun SellerListScreen(
                                 Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF25D366))
                                     .clickable { bukaWa(ctx, s) },
                                 contentAlignment = Alignment.Center,
-                            ) { Text("✆", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                            ) { Text(tr("✆"), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                         }
                         Spacer(Modifier.height(10.dp))
                         Row(
@@ -330,9 +326,9 @@ fun SellerListScreen(
                                 .padding(horizontal = 10.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("💰", fontSize = 14.sp)
+                            Text(tr("💰"), fontSize = 14.sp)
                             Spacer(Modifier.width(6.dp))
-                            Text("Stok", color = Color(0xFF8A6A17), fontSize = 12.sp)
+                            Text(tr("Stok"), color = Color(0xFF8A6A17), fontSize = 12.sp)
                             Spacer(Modifier.weight(1f))
                             Text(
                                 numRingkas(s.stock) + "+",
@@ -348,13 +344,13 @@ fun SellerListScreen(
                                     .background(Brush.horizontalGradient(listOf(Color(0xFF1F7AA8), Color(0xFF2B9FD0))))
                                     .clickable { onChat(s) },
                                 contentAlignment = Alignment.Center,
-                            ) { Text("Pesan", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+                            ) { Text(tr("Pesan"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
                             Box(
                                 Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(10.dp))
                                     .background(Color(0xFF25D366))
                                     .clickable { bukaWa(ctx, s) },
                                 contentAlignment = Alignment.Center,
-                            ) { Text("WhatsApp", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+                            ) { Text(tr("WhatsApp"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
                         }
                     }
                 }
@@ -399,14 +395,12 @@ fun SellerPanelScreen(
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().height(54.dp)) {
-                Text(
-                    "‹",
+                Text(tr("‹"),
                     color = Color.White,
                     fontSize = 40.sp,
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 14.dp).clickable { onBack() },
                 )
-                Text(
-                    "Panel Seller",
+                Text(tr("Panel Seller"),
                     color = Color.White,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
@@ -415,14 +409,14 @@ fun SellerPanelScreen(
             }
             if (memuat) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Memuat...", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                    Text(tr("Memuat..."), color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                 }
                 return@Column
             }
             val me = info
             if (me == null) {
                 Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text("Akun ini bukan coin seller.", color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
+                    Text(tr("Akun ini bukan coin seller."), color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
                 }
                 return@Column
             }
@@ -437,16 +431,15 @@ fun SellerPanelScreen(
                     ) {
                         Text(me.store.ifBlank { myName }, color = Color(0xFF12324A), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
-                        Text("Stok coin", color = Color(0xFF7A8B99), fontSize = 12.sp)
-                        Text(
-                            "💰 " + String.format("%,d", me.stock),
+                        Text(tr("Stok coin"), color = Color(0xFF7A8B99), fontSize = 12.sp)
+                        Text(tr("💰 ") + String.format("%,d", me.stock),
                             color = Color(0xFF8A6A17),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         if (!me.active) {
                             Spacer(Modifier.height(6.dp))
-                            Text("Status: dinonaktifkan developer", color = Color(0xFFB23B3B), fontSize = 12.sp)
+                            Text(tr("Status: dinonaktifkan developer"), color = Color(0xFFB23B3B), fontSize = 12.sp)
                         }
                     }
                 }
@@ -455,12 +448,12 @@ fun SellerPanelScreen(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                             .background(Color.White).padding(14.dp),
                     ) {
-                        Text("Kirim coin ke user", color = Color(0xFF12324A), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Kirim coin ke user"), color = Color(0xFF12324A), fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
                         OutlinedTextField(
                             value = idTujuan,
                             onValueChange = { idTujuan = it.filter { c -> c.isLetterOrDigit() } },
-                            label = { Text("User ID tujuan") },
+                            label = { Text(tr("User ID tujuan")) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -468,7 +461,7 @@ fun SellerPanelScreen(
                         OutlinedTextField(
                             value = jumlah,
                             onValueChange = { jumlah = it.filter { c -> c.isDigit() } },
-                            label = { Text("Jumlah coin") },
+                            label = { Text(tr("Jumlah coin")) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
@@ -494,7 +487,7 @@ fun SellerPanelScreen(
                                                     galat = ""
                                                     jumlah = ""
                                                     idTujuan = ""
-                                                    Toast.makeText(ctx, "Coin terkirim ke " + idTujuan, Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(ctx, tr("Coin terkirim ke ") + idTujuan, Toast.LENGTH_SHORT).show()
                                                     info = SellerRepo.me()
                                                     riwayat = SellerRepo.hist()
                                                     onWalletChanged()
@@ -523,10 +516,10 @@ fun SellerPanelScreen(
                     }
                 }
                 item {
-                    Text("Riwayat kirim", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(tr("Riwayat kirim"), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
                 if (riwayat.isEmpty()) {
-                    item { Text("Belum ada kiriman.", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp) }
+                    item { Text(tr("Belum ada kiriman."), color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp) }
                 }
                 items(riwayat.size) { i ->
                     val (buyer, coins, at) = riwayat[i]
@@ -535,8 +528,8 @@ fun SellerPanelScreen(
                             .background(Color(0x22FFFFFF)).padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Ke " + buyer, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                        Text("+" + String.format("%,d", coins), color = Color(0xFF7FE3A1), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Ke ") + buyer, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Text(tr("+") + String.format("%,d", coins), color = Color(0xFF7FE3A1), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 item { Spacer(Modifier.height(20.dp)) }

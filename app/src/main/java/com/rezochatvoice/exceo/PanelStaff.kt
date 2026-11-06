@@ -548,7 +548,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
-                Text("Tutup", color = PanelMuted, fontSize = 14.sp, modifier = Modifier.clickable { onClose() })
+                Text(tr("Tutup"), color = PanelMuted, fontSize = 14.sp, modifier = Modifier.clickable { onClose() })
             }
             Text(
                 if (info.isAdmin) "Hak admin: VIP, frame/efek, dan blokir user biasa."
@@ -565,14 +565,12 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
 
             if (info.isManager) {
                 PanelSection("Kirim coin") {
-                    Text(
-                        "Sisa stok coin Anda: ${fmtNum(sisaCoin)}",
+                    Text(tr("Sisa stok coin Anda: ${fmtNum(sisaCoin)}"),
                         color = if (sisaCoin > 0L) PanelGold else Color(0xFFFF9E9E),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                     )
-                    Text(
-                        "Coin diambil dari stok yang dikirim developer. Kalau habis, kirim coin terkunci.",
+                    Text(tr("Coin diambil dari stok yang dikirim developer. Kalau habis, kirim coin terkunci."),
                         color = PanelMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
@@ -659,7 +657,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
 
             PanelSection("Kirim frame dan efek masuk") {
                 if (info.stok.isEmpty()) {
-                    Text("Belum ada item. Developer mengirim item ke panel Anda.", color = PanelMuted, fontSize = 12.sp)
+                    Text(tr("Belum ada item. Developer mengirim item ke panel Anda."), color = PanelMuted, fontSize = 12.sp)
                 } else {
                     Column(Modifier.fillMaxWidth().heightIn(max = 190.dp).verticalScroll(rememberScrollState())) {
                         info.stok.forEach { s ->
@@ -674,13 +672,12 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(if (s.kind == "frame") "\u2B55" else "\u2728", fontSize = 14.sp)
-                                Text(
-                                    " " + s.name.ifBlank { s.id } + " ",
+                                Text(tr(" ") + s.name.ifBlank { s.id } + " ",
                                     color = PanelInk,
                                     fontSize = 12.sp,
                                     modifier = Modifier.weight(1f),
                                 )
-                                Text("${s.days} hari", color = PanelGold, fontSize = 11.sp)
+                                Text(tr("${s.days} hari"), color = PanelGold, fontSize = 11.sp)
                             }
                         }
                     }
@@ -714,8 +711,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                     else jalankan("unban", org.json.JSONObject().put("to", idUser))
                 }
                 if (info.isAdmin) {
-                    Text(
-                        "Admin hanya bisa memblokir user biasa. Staf dan manager tidak bisa diblokir dari sini.",
+                    Text(tr("Admin hanya bisa memblokir user biasa. Staf dan manager tidak bisa diblokir dari sini."),
                         color = PanelMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(top = 6.dp),
@@ -725,8 +721,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
 
             if (info.isManager) {
                 PanelSection("Reset nama user") {
-                    Text(
-                        "Nama akun langsung diganti menjadi \"Unknown\" (berlaku sekarang, tanpa menunggu HP pemilik akun).",
+                    Text(tr("Nama akun langsung diganti menjadi \"Unknown\" (berlaku sekarang, tanpa menunggu HP pemilik akun)."),
                         color = PanelMuted,
                         fontSize = 11.sp,
                     )
@@ -754,8 +749,7 @@ fun PanelStafDialog(info: PanelInfo, onClose: () -> Unit) {
                 }
 
                 PanelSection("Reset foto profil user") {
-                    Text(
-                        "Foto kembali ke ikon bawaan pria atau wanita sesuai akunnya. Nama tidak diubah.",
+                    Text(tr("Foto kembali ke ikon bawaan pria atau wanita sesuai akunnya. Nama tidak diubah."),
                         color = PanelMuted,
                         fontSize = 11.sp,
                     )

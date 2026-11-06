@@ -64,7 +64,7 @@ fun SlotHtmlScreen(myUid: String, myName: String = "Player", onClose: () -> Unit
                     .background(Color(0xCC000000), CircleShape)
                     .clickable { onClose() },
                 contentAlignment = Alignment.Center,
-            ) { Text("✕", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(tr("✕"), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }

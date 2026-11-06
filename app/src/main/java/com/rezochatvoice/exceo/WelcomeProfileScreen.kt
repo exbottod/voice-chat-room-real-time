@@ -108,7 +108,7 @@ fun WelcomeProfileScreen(
             val b64 = ProfileRepo.encodeImage(context, uri, 320, square = true, quality = 85)
             busy = false
             if (b64 != null) data = data.copy(avatarB64 = b64)
-            else Toast.makeText(context, "Gagal membaca gambar", Toast.LENGTH_SHORT).show()
+            else Toast.makeText(context, tr("Gagal membaca gambar"), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -133,26 +133,26 @@ fun WelcomeProfileScreen(
                     .padding(horizontal = 26.dp),
             ) {
                 Spacer(Modifier.height(64.dp))
-                Text("Welcome to APP", color = WInk, fontSize = 34.sp, fontWeight = FontWeight.Medium)
+                Text(tr("Welcome to APP"), color = WInk, fontSize = 34.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(6.dp))
-                Text("Info sempurna untuk cocokkan teman yang akurat~", color = WInk, fontSize = 15.sp)
+                Text(tr("Info sempurna untuk cocokkan teman yang akurat~"), color = WInk, fontSize = 15.sp)
                 Spacer(Modifier.height(30.dp))
 
                 // Avatar
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Avatar", color = WHint, fontSize = 17.sp, modifier = Modifier.weight(1f))
+                    Text(tr("Avatar"), color = WHint, fontSize = 17.sp, modifier = Modifier.weight(1f))
                     Box(Modifier.clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
                         Box(Modifier.border(1.dp, WLine, CircleShape)) { AvatarImage(user, data, 76.dp) }
                         Box(
                             Modifier.align(Alignment.BottomEnd).size(24.dp).clip(CircleShape).background(WYellow),
                             Alignment.Center,
-                        ) { Text("📷", fontSize = 12.sp) }
+                        ) { Text(tr("📷"), fontSize = 12.sp) }
                     }
                 }
                 Spacer(Modifier.height(22.dp))
 
                 // Alias
-                Text("Alias", color = WHint, fontSize = 17.sp)
+                Text(tr("Alias"), color = WHint, fontSize = 17.sp)
                 BasicTextField(
                     value = data.nickname,
                     onValueChange = { if (it.length <= 20) data = data.copy(nickname = it) },
@@ -164,7 +164,7 @@ fun WelcomeProfileScreen(
                 Spacer(Modifier.height(24.dp))
 
                 // Ulang tahun
-                Text("Ulang tahun", color = WHint, fontSize = 17.sp)
+                Text(tr("Ulang tahun"), color = WHint, fontSize = 17.sp)
                 Text(
                     data.birthday,
                     color = WInk,
@@ -175,15 +175,14 @@ fun WelcomeProfileScreen(
                 Spacer(Modifier.height(24.dp))
 
                 // Jenis kelamin
-                Text("Jenis kelamin", color = WHint, fontSize = 17.sp)
+                Text(tr("Jenis kelamin"), color = WHint, fontSize = 17.sp)
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp)) {
                     GenderChip("♂  COWOK", data.gender == "M", WBlue, Modifier.weight(1f)) { data = data.copy(gender = "M") }
                     GenderChip("♀  CEWEK", data.gender == "F", Color(0xFFF48FB1), Modifier.weight(1f)) { data = data.copy(gender = "F") }
                 }
                 Spacer(Modifier.height(10.dp))
-                Text(
-                    "*Setelah pemilihan jenis kelamin, perubahan selanjutnya tidak dapat dilakukan",
+                Text(tr("*Setelah pemilihan jenis kelamin, perubahan selanjutnya tidak dapat dilakukan"),
                     color = WPink, fontSize = 13.sp,
                 )
                 Spacer(Modifier.height(44.dp))
@@ -205,7 +204,7 @@ fun WelcomeProfileScreen(
                             } else step = 1
                         },
                     Alignment.Center,
-                ) { Text("Simpan", color = WInk, fontSize = 19.sp) }
+                ) { Text(tr("Simpan"), color = WInk, fontSize = 19.sp) }
                 Spacer(Modifier.height(40.dp))
             }
         } else {
@@ -249,26 +248,24 @@ private fun CountryStep(selected: String, onBack: () -> Unit, onPick: (String) -
 
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().background(Color.White)) {
         Box(Modifier.fillMaxWidth().height(56.dp)) {
-            Text(
-                "‹", color = WInk, fontSize = 34.sp,
+            Text(tr("‹"), color = WInk, fontSize = 34.sp,
                 modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 18.dp),
             )
-            Text("Negara kamar", color = WInk, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
+            Text(tr("Negara kamar"), color = WInk, fontSize = 20.sp, modifier = Modifier.align(Alignment.Center))
         }
         Box(
             Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(48.dp)
                 .clip(RoundedCornerShape(24.dp)).background(Color(0xFFF0F2F6)),
             Alignment.Center,
         ) {
-            if (q.isEmpty()) Text("🔍 Mencari", color = WHint, fontSize = 16.sp)
+            if (q.isEmpty()) Text(tr("🔍 Mencari"), color = WHint, fontSize = 16.sp)
             BasicTextField(
                 value = q, onValueChange = { q = it }, singleLine = true,
                 textStyle = TextStyle(color = WInk, fontSize = 16.sp, textAlign = TextAlign.Center),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             )
         }
-        Text(
-            "Hati-hati: platform merekomendasikan konten berdasarkan negara dan wilayah Anda, daftar statistik, dll.",
+        Text(tr("Hati-hati: platform merekomendasikan konten berdasarkan negara dan wilayah Anda, daftar statistik, dll."),
             color = Color(0xFFE5484D), fontSize = 14.sp,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         )

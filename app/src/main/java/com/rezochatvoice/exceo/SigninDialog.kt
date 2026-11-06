@@ -56,14 +56,13 @@ private fun DayCell(
                 Modifier.size(17.dp).clip(RoundedCornerShape(4.dp))
                     .background(if (big) SinGold else SinTeal),
                 contentAlignment = Alignment.Center,
-            ) { Text("$day", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
-            if (claimed) Text("✓", color = Color(0xFF9E9E9E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            ) { Text(tr("$day"), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+            if (claimed) Text(tr("✓"), color = Color(0xFF9E9E9E), fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(3.dp))
         // ikon coin + jumlah
-        Text("🪙", fontSize = 15.sp)
-        Text(
-            "x " + fmtShort(reward.coins),
+        Text(tr("🪙"), fontSize = 15.sp)
+        Text(tr("x ") + fmtShort(reward.coins),
             fontSize = 9.sp, color = SinInk, fontWeight = FontWeight.Bold, maxLines = 1,
         )
         // ikon item custom (bingkai hasil upload panel)
@@ -76,7 +75,7 @@ private fun DayCell(
                         Box(
                             Modifier.size(18.dp).clip(CircleShape).background(Color(0xFF3B5A58)),
                             contentAlignment = Alignment.Center,
-                        ) { Text("👤", fontSize = 8.sp) }
+                        ) { Text(tr("👤"), fontSize = 8.sp) }
                         FrameOverlay(a, 30.dp)
                     } else {
                         key(a.updatedAt) { VipMedia(a, Modifier.fillMaxSize(), loop = true) }
@@ -91,7 +90,7 @@ private fun DayCell(
             )
         }
         if (reward.vipTier > 0) {
-            Text("👑 VIP${reward.vipTier}", fontSize = 8.sp, color = Color(0xFF8A5A00), fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(tr("👑 VIP${reward.vipTier}"), fontSize = 8.sp, color = Color(0xFF8A5A00), fontWeight = FontWeight.Bold, maxLines = 1)
         }
     }
 }
@@ -108,8 +107,7 @@ private fun SigninHeader() {
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            "Terima hadiah dengan sign-in",
+        Text(tr("Terima hadiah dengan sign-in"),
             color = Color.White, fontWeight = FontWeight.Black, fontSize = 15.sp,
             textAlign = TextAlign.Center,
         )
@@ -176,11 +174,10 @@ fun SigninDialog(
                         )
                     }
                     Spacer(Modifier.width(6.dp))
-                    Text("🧰", fontSize = 18.sp)
+                    Text(tr("🧰"), fontSize = 18.sp)
                 }
                 Spacer(Modifier.height(3.dp))
-                Text(
-                    "Hari ke-${if (canClaim) next else st.day.coerceAtLeast(1)} dari 7",
+                Text(tr("Hari ke-${if (canClaim) next else st.day.coerceAtLeast(1)} dari 7"),
                     fontSize = 11.sp, color = Color(0xFF6B6250),
                 )
                 Text(
@@ -224,7 +221,7 @@ fun SigninDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
-                Text("🪙", fontSize = 16.sp)
+                Text(tr("🪙"), fontSize = 16.sp)
                 Spacer(Modifier.width(4.dp))
                 Text(fmtFmt(balance), color = SinInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 if (vipTier > 0) {
@@ -233,7 +230,7 @@ fun SigninDialog(
                         Modifier.clip(RoundedCornerShape(6.dp))
                             .background(Brush.horizontalGradient(listOf(SinGold, SinGoldLight)))
                             .padding(horizontal = 6.dp, vertical = 1.dp),
-                    ) { Text("VIP", color = Color(0xFF3B2A00), fontSize = 9.sp, fontWeight = FontWeight.Black) }
+                    ) { Text(tr("VIP"), color = Color(0xFF3B2A00), fontSize = 9.sp, fontWeight = FontWeight.Black) }
                 }
             }
 
@@ -297,8 +294,7 @@ fun SigninDialog(
                 Spacer(Modifier.height(6.dp))
                 Text(msg, fontSize = 12.sp, color = SinTealDark, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             }
-            Text(
-                "Tutup", fontSize = 11.sp, color = Color(0xFF8A8472),
+            Text(tr("Tutup"), fontSize = 11.sp, color = Color(0xFF8A8472),
                 modifier = Modifier.clickable { onClose() }.padding(8.dp),
             )
         }

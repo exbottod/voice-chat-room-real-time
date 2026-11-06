@@ -106,7 +106,7 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
                             enabled = ready,
                             onClick = {
                                 clipboard.setText(AnnotatedString(myUserId))
-                                Toast.makeText(context, "Kode disalin", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, tr("Kode disalin"), Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier.weight(1f),
                             border = BorderStroke(1.dp, Gold),
@@ -121,7 +121,7 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
                         ) { Text(tr("Bagikan link")) }
                     }
                     Spacer(Modifier.height(12.dp))
-                    Text("Teman yang kamu undang: $count", color = Color(0xFFE0E0E0), fontSize = 14.sp)
+                    Text(tr("Teman yang kamu undang: $count"), color = Color(0xFFE0E0E0), fontSize = 14.sp)
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -137,7 +137,7 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
                     Spacer(Modifier.height(10.dp))
                     val inviter = invitedBy
                     if (inviter != null) {
-                        Text("✓ Kamu sudah diundang oleh ID $inviter", color = Color(0xFF7FE3D6), fontSize = 15.sp)
+                        Text(tr("✓ Kamu sudah diundang oleh ID $inviter"), color = Color(0xFF7FE3D6), fontSize = 15.sp)
                     } else {
                         OutlinedTextField(
                             value = code,
@@ -164,7 +164,7 @@ fun InviteScreen(uid: String, myUserId: String, onBack: () -> Unit) {
                                     val err = UserDirectory.redeemInvite(uid, myUserId, code)
                                     busy = false
                                     if (err == null) {
-                                        Toast.makeText(context, "Berhasil! Kamu mendapat 10.000.000 coin", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, tr("Berhasil! Kamu mendapat 10.000.000 coin"), Toast.LENGTH_SHORT).show()
                                         code = ""
                                         refresh()
                                     } else message = err

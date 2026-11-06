@@ -191,7 +191,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit, onEnterRoom: (RoomInf
                         .clickable { onEnterRoom(r) }
                         .padding(16.dp),
                 ) {
-                    Text("ROOM", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(tr("ROOM"), color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val fotoR = rememberRoomPhoto(r)
@@ -204,8 +204,8 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit, onEnterRoom: (RoomInf
                         Spacer(Modifier.width(14.dp))
                         Column {
                             Text(r.name, color = GoldLight, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                            Text("ID Room: ${r.roomNo}", color = Color(0xFFBDBDBD), fontSize = 14.sp)
-                            if (r.ownerName.isNotBlank()) Text("Pemilik: ${r.ownerName}", color = Color(0xFF9E9E9E), fontSize = 12.sp)
+                            Text(tr("ID Room: ${r.roomNo}"), color = Color(0xFFBDBDBD), fontSize = 14.sp)
+                            if (r.ownerName.isNotBlank()) Text(tr("Pemilik: ${r.ownerName}"), color = Color(0xFF9E9E9E), fontSize = 12.sp)
                         }
                     }
                     Spacer(Modifier.height(12.dp))
@@ -247,8 +247,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit, onEnterRoom: (RoomInf
                                 Spacer(Modifier.width(8.dp))
                                 Text(flagEmoji(u.countryCode), fontSize = 18.sp)
                             }
-                            Text(
-                                "ID: ${u.userId}" + if (u.userId == myUserId) "  (kamu)" else "",
+                            Text(tr("ID: ${u.userId}") + if (u.userId == myUserId) "  (kamu)" else "",
                                 color = Color(0xFFBDBDBD),
                                 fontSize = 14.sp,
                             )
@@ -262,7 +261,7 @@ fun UserSearchScreen(myUserId: String, onBack: () -> Unit, onEnterRoom: (RoomInf
                     OutlinedButton(
                         onClick = {
                             clipboard.setText(AnnotatedString(u.userId))
-                            Toast.makeText(context, "ID disalin", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, tr("ID disalin"), Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth(),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Gold),

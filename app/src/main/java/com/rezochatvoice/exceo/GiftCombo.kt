@@ -308,14 +308,12 @@ fun GiftComboBar(myUid: String, myName: String) {
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(gift?.emoji?.ifBlank { "🎁" } ?: "🎁", fontSize = 18.sp)
-                        Text(
-                            "Beri",
+                        Text(tr("Beri"),
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
                         )
-                        Text(
-                            "terus",
+                        Text(tr("terus"),
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
@@ -323,8 +321,7 @@ fun GiftComboBar(myUid: String, myName: String) {
                     }
                 }
             }
-            Text(
-                "✕",
+            Text(tr("✕"),
                 color = Color(0xFFB8C8C5),
                 fontSize = 12.sp,
                 modifier = Modifier

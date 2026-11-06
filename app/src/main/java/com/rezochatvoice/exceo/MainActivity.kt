@@ -209,7 +209,7 @@ fun AppRoot() {
 
     fun signIn() {
         if (BuildConfig.GOOGLE_WEB_CLIENT_ID.startsWith("GANTI")) {
-            toast("Web Client ID belum diisi")
+            toast(tr("Web Client ID belum diisi"))
             return
         }
         loading = true
@@ -237,7 +237,7 @@ fun AppRoot() {
                         toast("Profil belum tersimpan di server: ${it.message}")
                     }
                 } else {
-                    toast("Tipe kredensial tidak dikenal")
+                    toast(tr("Tipe kredensial tidak dikenal"))
                 }
             } catch (e: GetCredentialCancellationException) {
                 Log.w("GoogleLogin", "Login dibatalkan / ditolak", e)
@@ -246,19 +246,19 @@ fun AppRoot() {
                 // menekan batal. Tipe galat dipakai untuk membedakannya.
                 val tipe: String = e.type
                 if (tipe.contains("USER_CANCELED") || tipe.contains("CANCELED")) {
-                    toast("Login Google dibatalkan.")
+                    toast(tr("Login Google dibatalkan."))
                 } else {
                     toast("Google menolak login [${tipe.ifBlank { "tanpa tipe" }}]. Periksa SHA-1, package, dan provider Google di Firebase.")
                 }
             } catch (e: NoCredentialException) {
                 Log.e("GoogleLogin", "Tidak ada akun Google di perangkat", e)
-                toast("Tidak ada akun Google di perangkat. Tambahkan akun Google di Pengaturan lalu coba lagi.")
+                toast(tr("Tidak ada akun Google di perangkat. Tambahkan akun Google di Pengaturan lalu coba lagi."))
             } catch (e: GetCredentialException) {
                 Log.e("GoogleLogin", "Login gagal", e)
                 toast("Login gagal [${e.type}]: ${e.message}")
             } catch (e: GoogleIdTokenParsingException) {
                 Log.e("GoogleLogin", "Token tidak valid", e)
-                toast("Token Google tidak valid")
+                toast(tr("Token Google tidak valid"))
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
                 Log.e("GoogleLogin", "Gagal masuk Firebase", e)
                 toast("Gagal masuk: ${e.message}")
@@ -270,7 +270,7 @@ fun AppRoot() {
 
     fun facebookLogin() {
         if (!FbLogin.terkonfigurasi(context)) {
-            toast("App ID Facebook belum diisi di app. Kirim App ID & Client Token dari Facebook Developer Console.")
+            toast(tr("App ID Facebook belum diisi di app. Kirim App ID & Client Token dari Facebook Developer Console."))
             return
         }
         loading = true
@@ -278,7 +278,7 @@ fun AppRoot() {
             try {
                 val activity = context as? android.app.Activity
                 if (activity == null) {
-                    toast("Facebook hanya bisa dibuka dari layar aplikasi")
+                    toast(tr("Facebook hanya bisa dibuka dari layar aplikasi"))
                     return@launch
                 }
                 val token = FbLogin.mintaToken(activity)
@@ -379,7 +379,7 @@ fun AppRoot() {
     fun verifikasiKodeWa(kode: String) {
         val nomor = nomorKodeHp
         if (nomor.isBlank()) {
-            toast("Nomor hilang, ulangi dari awal")
+            toast(tr("Nomor hilang, ulangi dari awal"))
             return
         }
         loading = true
@@ -430,7 +430,7 @@ fun AppRoot() {
 
     fun lengkapiPendaftaranHp(nomor: String, password: String) {
         if (password.trim().length < 6) {
-            toast("Password minimal 6 karakter")
+            toast(tr("Password minimal 6 karakter"))
             return
         }
         loading = true
@@ -458,7 +458,7 @@ fun AppRoot() {
                         FirebaseSession.buatAkunNomor(nomor.ifBlank { nomorBaruHp }, password.trim())
                     } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
                         loading = false
-                        toast("Nomor ini sudah terdaftar, masuk dengan password")
+                        toast(tr("Nomor ini sudah terdaftar, masuk dengan password"))
                         nomorPasswordHp = nomor.ifBlank { nomorBaruHp }
                         modePasswordHp = true
                         perluPasswordHp = false
@@ -495,14 +495,14 @@ fun AppRoot() {
                 throw e
             } catch (e: Exception) {
                 loading = false
-                toast("Nomor atau password salah")
+                toast(tr("Nomor atau password salah"))
             }
         }
     }
 
     fun emailLogin(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
-            toast("Isi email dan password")
+            toast(tr("Isi email dan password"))
             return
         }
         loading = true
@@ -564,8 +564,8 @@ fun AppRoot() {
             onLengkapiPendaftaran = ::lengkapiPendaftaranHp,
             onLoginNomorPassword = ::loginNomorPassword,
             onEmailLogin = { e, p -> emailLogin(e, p) },
-            onForgotPassword = { toast("Lupa password belum tersedia") },
-            onSignUp = { toast("Pendaftaran belum tersedia") },
+            onForgotPassword = { toast(tr("Lupa password belum tersedia")) },
+            onSignUp = { toast(tr("Pendaftaran belum tersedia")) },
         )
     } else {
         MainScreen(user = current, onSignOutClick = ::signOut)

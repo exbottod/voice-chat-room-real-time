@@ -54,11 +54,10 @@ fun CountryPickerScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali",
+                    imageVector = Icons.Default.ArrowBack, contentDescription = tr("Kembali"),
                     tint = Color.White, modifier = Modifier.size(24.dp).clickable { onKembali() },
                 )
-                Text(
-                    "Pilih kode area ponsel",
+                Text(tr("Pilih kode area ponsel"),
                     color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
                 )
@@ -128,7 +127,7 @@ private fun BasicTextFieldCari(nilai: String, ubah: (String) -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         decorationBox = { inner ->
             if (nilai.isEmpty()) {
-                Text("Mencari", color = Color.White.copy(alpha = 0.45f), fontSize = 15.sp)
+                Text(tr("Mencari"), color = Color.White.copy(alpha = 0.45f), fontSize = 15.sp)
             }
             inner()
         },

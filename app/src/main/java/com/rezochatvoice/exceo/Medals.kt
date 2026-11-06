@@ -175,7 +175,7 @@ private fun MedalSlot(id: String?, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         if (id != null) MedalIcon(id, 46.dp, Modifier.scale(0.8f))
-        else Text("?", color = Gold, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        else Text(tr("?"), color = Gold, fontSize = 26.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -202,10 +202,9 @@ private fun MedalGrid(list: List<MedalEntry>, worn: List<String>, onTap: (MedalE
                         Box(Modifier.alpha(if (e.owned) 1f else 0.45f), contentAlignment = Alignment.Center) {
                             MedalIcon(e.id, 100.dp, Modifier.scale(1.6f))
                         }
-                        if (!e.owned) Text("\uD83D\uDD12", fontSize = 34.sp)
+                        if (!e.owned) Text(tr("\uD83D\uDD12"), fontSize = 34.sp)
                         if (on) {
-                            Text(
-                                "\u2713", color = Gold, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold,
+                            Text(tr("\u2713"), color = Gold, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold,
                                 modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
                             )
                         }
@@ -297,8 +296,7 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
     ) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp)) {
-                Text(
-                    "\u2039", color = Color.White, fontSize = 34.sp,
+                Text(tr("\u2039"), color = Color.White, fontSize = 34.sp,
                     modifier = Modifier.align(Alignment.CenterStart).clickable(onClick = onBack).padding(horizontal = 8.dp),
                 )
                 // Icon lencana glory kustom di header tab page.
@@ -311,7 +309,7 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         Modifier.size(30.dp), contentScale = ContentScale.Fit,
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("MY MEDALS", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(tr("MY MEDALS"), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Column(
@@ -334,8 +332,7 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    "Terpasang ${worn.size}/$MAX_MEDALS \u00B7 ketuk medal untuk memasang / melepas",
+                Text(tr("Terpasang ${worn.size}/$MAX_MEDALS \u00B7 ketuk medal untuk memasang / melepas"),
                     color = Color(0xFFE9D3B0), fontSize = 12.sp, textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -363,16 +360,14 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                 Spacer(Modifier.height(14.dp))
 
                 if (tab != 0) {
-                    Text(
-                        "Segera hadir", color = Color(0xFFE9D3B0), fontSize = 15.sp, textAlign = TextAlign.Center,
+                    Text(tr("Segera hadir"), color = Color(0xFFE9D3B0), fontSize = 15.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
                     )
                 } else {
-                    Text("Medali saya", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(tr("Medali saya"), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
                     if (mine.isEmpty()) {
-                        Text(
-                            "Belum punya medali. Beli medali di Store atau aktifkan VIP. Lencana dipasang di Store \u2192 Saya.",
+                        Text(tr("Belum punya medali. Beli medali di Store atau aktifkan VIP. Lencana dipasang di Store \u2192 Saya."),
                             color = Color(0xFFE9D3B0), fontSize = 13.sp,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                         )
@@ -381,7 +376,7 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                     }
                     if (shop.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
-                        Text("Belum dimiliki", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Belum dimiliki"), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(8.dp))
                         MedalGrid(shop, worn) { tapEntry(it) }
                     }
@@ -395,7 +390,7 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { buying = null },
             title = { Text(ci.name) },
-            text = { Text("Beli seharga ${fmtNum(ci.price)} koin untuk ${ci.days} hari? Setelah dibeli, ketuk lagi untuk memasangnya.") },
+            text = { Text(tr("Beli seharga ${fmtNum(ci.price)} koin untuk ${ci.days} hari? Setelah dibeli, ketuk lagi untuk memasangnya.")) },
             confirmButton = {
                 TextButton(onClick = {
                     buying = null
@@ -404,9 +399,9 @@ fun GloryMedalScreen(uid: String, wallet: Wallet, onBack: () -> Unit) {
                         Toast.makeText(context, err ?: "Berhasil dibeli", Toast.LENGTH_SHORT).show()
                         if (err == null) PublicSync.push(uid)
                     }
-                }) { Text("Beli") }
+                }) { Text(tr("Beli")) }
             },
-            dismissButton = { TextButton(onClick = { buying = null }) { Text("Batal") } },
+            dismissButton = { TextButton(onClick = { buying = null }) { Text(tr("Batal")) } },
         )
     }
 }

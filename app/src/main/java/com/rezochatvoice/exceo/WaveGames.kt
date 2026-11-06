@@ -188,8 +188,7 @@ fun WaveGamesScreen(
                                 .padding(horizontal = 8.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                "‹ Kembali",
+                            Text(tr("‹ Kembali"),
                                 color = Gold,
                                 fontSize = 15.sp,
                                 modifier = Modifier.clickable { playing = null }.padding(6.dp),
@@ -202,8 +201,7 @@ fun WaveGamesScreen(
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.weight(1f),
                             )
-                            Text(
-                                "Browser",
+                            Text(tr("Browser"),
                                 color = Color(0xFF7FD1C1),
                                 fontSize = 13.sp,
                                 modifier = Modifier.clickable {
@@ -237,15 +235,13 @@ fun WaveGamesScreen(
                         Modifier.fillMaxWidth().background(Color(0xFF141414)).padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            "Tutup",
+                        Text(tr("Tutup"),
                             color = Gold,
                             fontSize = 15.sp,
                             modifier = Modifier.clickable { onClose() }.padding(6.dp),
                         )
                         Spacer(Modifier.width(10.dp))
-                        Text(
-                            "🎮 Game",
+                        Text(tr("🎮 Game"),
                             color = Color.White,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
@@ -298,7 +294,7 @@ fun WaveGamesScreen(
                                                 modifier = Modifier.fillMaxSize(),
                                             )
                                         } else {
-                                            Text("🎲", fontSize = 34.sp)
+                                            Text(tr("🎲"), fontSize = 34.sp)
                                         }
                                     }
                                     Spacer(Modifier.height(6.dp))
@@ -443,9 +439,9 @@ private fun WaveGameView(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("Game belum tampil di dalam aplikasi", color = Color.White, fontSize = 15.sp, textAlign = TextAlign.Center)
+                Text(tr("Game belum tampil di dalam aplikasi"), color = Color.White, fontSize = 15.sp, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
-                Text("Pembaca game di HP ini belum selesai memuat.", color = Color(0xFFBDBDBD), fontSize = 12.sp, textAlign = TextAlign.Center)
+                Text(tr("Pembaca game di HP ini belum selesai memuat."), color = Color(0xFFBDBDBD), fontSize = 12.sp, textAlign = TextAlign.Center)
                 if (diag.isNotBlank()) {
                     Spacer(Modifier.height(8.dp))
                     Text(diag, color = Color(0xFF9E9E9E), fontSize = 10.sp, textAlign = TextAlign.Center)
@@ -455,8 +451,7 @@ private fun WaveGameView(
                     Text(logs, color = Color(0xFF7A7A7A), fontSize = 9.sp, textAlign = TextAlign.Center)
                 }
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    "Buka di browser",
+                Text(tr("Buka di browser"),
                     color = Gold,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -471,8 +466,7 @@ private fun WaveGameView(
                     }.padding(10.dp),
                 )
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    "Coba lagi",
+                Text(tr("Coba lagi"),
                     color = Color(0xFF9E9E9E),
                     fontSize = 13.sp,
                     modifier = Modifier.clickable {
@@ -508,8 +502,7 @@ private fun WaveGameView(
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(14.dp))
-                Text(
-                    "Muat ulang",
+                Text(tr("Muat ulang"),
                     color = Gold,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
