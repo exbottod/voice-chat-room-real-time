@@ -60,7 +60,7 @@ object AppLang {
 fun tr(s: String): String {
     val c = AppLang.code
     if (c == AppLang.ID) return s
-    val en = TR_MAP[s]?.first ?: s
+    val en = TR_MAP[s]?.first ?: TR_EXTRA_EN[s] ?: s
     return when (c) {
         AppLang.EN -> en
         AppLang.ZH -> TR_MAP[s]?.second ?: en
@@ -493,3 +493,19 @@ private val TR_AR: Map<String, String> = mapOf(
     "🔒 Mic ini dikunci" to "🔒 هذا الميكروفون مقفل",
     "Background Tab" to "خلفية التبويبات",
 )
+
+
+/**
+ * Kamus tambahan Indonesia -> Inggris. Tiap area layar punya file sendiri
+ * (TrExtra_*.kt) supaya mudah dirawat; semuanya digabung di sini.
+ */
+val TR_EXTRA_EN: Map<String, String> by lazy {
+    val m = HashMap<String, String>()
+    m.putAll(TR_EXTRA_WALLET)
+    m.putAll(TR_EXTRA_SOCIAL)
+    m.putAll(TR_EXTRA_ROOM)
+    m.putAll(TR_EXTRA_GAMES)
+    m.putAll(TR_EXTRA_ADMIN)
+    m.putAll(TR_EXTRA_PROFILE)
+    m
+}
