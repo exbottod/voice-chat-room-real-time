@@ -1,6 +1,54 @@
 {
-  "versi_baru": "1.0.911",
+  "versi_baru": "1.0.912",
   "patch": [
+    {
+      "dari": "1.0.909",
+      "ke": "1.0.912",
+      "arm64": {
+        "file": "patch-1.0.909-to-1.0.912-arm64.bin",
+        "ukuran": 4067886,
+        "sha256": "f7ea8bfaf2ee93e41ae2fa52af0051ea920bfaea07fdd51530339c16bffc60d0",
+        "apk_ukuran": 53859170
+      },
+      "armv7": {
+        "file": "patch-1.0.909-to-1.0.912-armv7.bin",
+        "ukuran": 4085718,
+        "sha256": "5ab00ac866699e5aac45c2f2b147ed1d815a3b75b2c47c8b5c0cd702f1f9e886",
+        "apk_ukuran": 52010315
+      }
+    },
+    {
+      "dari": "1.0.910",
+      "ke": "1.0.912",
+      "arm64": {
+        "file": "patch-1.0.910-to-1.0.912-arm64.bin",
+        "ukuran": 4081028,
+        "sha256": "f7ea8bfaf2ee93e41ae2fa52af0051ea920bfaea07fdd51530339c16bffc60d0",
+        "apk_ukuran": 53859170
+      },
+      "armv7": {
+        "file": "patch-1.0.910-to-1.0.912-armv7.bin",
+        "ukuran": 4080672,
+        "sha256": "5ab00ac866699e5aac45c2f2b147ed1d815a3b75b2c47c8b5c0cd702f1f9e886",
+        "apk_ukuran": 52010315
+      }
+    },
+    {
+      "dari": "1.0.911",
+      "ke": "1.0.912",
+      "arm64": {
+        "file": "patch-1.0.911-to-1.0.912-arm64.bin",
+        "ukuran": 4083949,
+        "sha256": "f7ea8bfaf2ee93e41ae2fa52af0051ea920bfaea07fdd51530339c16bffc60d0",
+        "apk_ukuran": 53859170
+      },
+      "armv7": {
+        "file": "patch-1.0.911-to-1.0.912-armv7.bin",
+        "ukuran": 4080847,
+        "sha256": "5ab00ac866699e5aac45c2f2b147ed1d815a3b75b2c47c8b5c0cd702f1f9e886",
+        "apk_ukuran": 52010315
+      }
+    },
     {
       "dari": "1.0.907",
       "ke": "1.0.911",
@@ -32,67 +80,19 @@
         "sha256": "d1f779fbe538ef172b82145b705a1ef2aefeace7334a1cd96066ded9112b7b39",
         "apk_ukuran": 52005797
       }
-    },
-    {
-      "dari": "1.0.910",
-      "ke": "1.0.911",
-      "arm64": {
-        "file": "patch-1.0.910-to-1.0.911-arm64.bin",
-        "ukuran": 4005942,
-        "sha256": "b71b2bc2f283c219dbdad5bad5e1e29ebf05a1960d3bf2862a6add07d2251d3f",
-        "apk_ukuran": 53854651
-      },
-      "armv7": {
-        "file": "patch-1.0.910-to-1.0.911-armv7.bin",
-        "ukuran": 3992882,
-        "sha256": "d1f779fbe538ef172b82145b705a1ef2aefeace7334a1cd96066ded9112b7b39",
-        "apk_ukuran": 52005797
-      }
-    },
-    {
-      "dari": "1.0.906",
-      "ke": "1.0.910",
-      "arm64": {
-        "file": "patch-1.0.906-to-1.0.910-arm64.bin",
-        "ukuran": 4089811,
-        "sha256": "2c25547b8be45a4ca9b874391e21c3922aa8df8fa2afc30fa4033496100572db",
-        "apk_ukuran": 53854320
-      },
-      "armv7": {
-        "file": "patch-1.0.906-to-1.0.910-armv7.bin",
-        "ukuran": 4090927,
-        "sha256": "f050d86f80cd5252fa8a6b60a42b3c399a7d2906106c4d1c1b63e183f8513553",
-        "apk_ukuran": 52005461
-      }
-    },
-    {
-      "dari": "1.0.907",
-      "ke": "1.0.910",
-      "arm64": {
-        "file": "patch-1.0.907-to-1.0.910-arm64.bin",
-        "ukuran": 4086848,
-        "sha256": "2c25547b8be45a4ca9b874391e21c3922aa8df8fa2afc30fa4033496100572db",
-        "apk_ukuran": 53854320
-      },
-      "armv7": {
-        "file": "patch-1.0.907-to-1.0.910-armv7.bin",
-        "ukuran": 4067446,
-        "sha256": "f050d86f80cd5252fa8a6b60a42b3c399a7d2906106c4d1c1b63e183f8513553",
-        "apk_ukuran": 52005461
-      }
     }
   ],
-  "versi_lama": "1.0.907",
+  "versi_lama": "1.0.909",
   "arm64": {
-    "file": "patch-1.0.907-to-1.0.911-arm64.bin",
-    "ukuran": 4083212,
-    "sha256": "b71b2bc2f283c219dbdad5bad5e1e29ebf05a1960d3bf2862a6add07d2251d3f",
-    "apk_ukuran": 53854651
+    "file": "patch-1.0.909-to-1.0.912-arm64.bin",
+    "ukuran": 4067886,
+    "sha256": "f7ea8bfaf2ee93e41ae2fa52af0051ea920bfaea07fdd51530339c16bffc60d0",
+    "apk_ukuran": 53859170
   },
   "armv7": {
-    "file": "patch-1.0.907-to-1.0.911-armv7.bin",
-    "ukuran": 4074935,
-    "sha256": "d1f779fbe538ef172b82145b705a1ef2aefeace7334a1cd96066ded9112b7b39",
-    "apk_ukuran": 52005797
+    "file": "patch-1.0.909-to-1.0.912-armv7.bin",
+    "ukuran": 4085718,
+    "sha256": "5ab00ac866699e5aac45c2f2b147ed1d815a3b75b2c47c8b5c0cd702f1f9e886",
+    "apk_ukuran": 52010315
   }
 }
