@@ -306,13 +306,30 @@ private object TopupPacks {
         try {
             val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 .collection("vipConfig").document("topupPacks").get().await()
-            val arr = doc.get("packs") as? List<*> ?: return
             val out = ArrayList<Pair<Long, String>>()
-            for (e in arr) {
-                val m = e as? Map<*, *> ?: continue
-                val c = (m["coins"] as? Number)?.toLong() ?: continue
-                val pr = (m["price"] as? String)?.trim().orEmpty()
-                if (c > 0L && pr.isNotBlank()) out.add(c to pr)
+            val arr = doc.get("packs") as? List<*>
+            if (arr != null) {
+                for (e in arr) {
+                    val m = e as? Map<*, *> ?: continue
+                    val c = (m["coins"] as? Number)?.toLong() ?: continue
+                    val pr = (m["price"] as? String)?.trim().orEmpty()
+                    if (c > 0L && pr.isNotBlank()) out.add(c to pr)
+                }
+            }
+            // Cadangan: panel menyimpan juga di Realtime Database bila Firestore menolak izin.
+            if (out.isEmpty()) {
+                try {
+                    val snap = com.google.firebase.database.FirebaseDatabase.getInstance()
+                        .getReference("rocketCfg/topupPacks").get().await()
+                    for (ch in snap.children) {
+                        val c = (ch.child("coins").getValue(Long::class.java)
+                            ?: ch.child("coins").getValue(Double::class.java)?.toLong()) ?: continue
+                        val pr = ch.child("price").getValue(String::class.java)?.trim().orEmpty()
+                        if (c > 0L && pr.isNotBlank()) out.add(c to pr)
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) { }
             }
             if (out.isNotEmpty()) list = out
             loadedAt = System.currentTimeMillis()

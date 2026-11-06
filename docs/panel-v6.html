@@ -3788,11 +3788,22 @@ function tpRender() {
   });
 }
 async function tpLoad() {
+  let arr = null, dari = "";
   try {
     const d = await db.collection("vipConfig").doc("topupPacks").get();
-    const arr = d.exists && Array.isArray(d.data().packs) ? d.data().packs : null;
-    if (arr && arr.length) tpRows = arr.map(x => ({ coins: Number(x.coins) || 0, price: String(x.price || "") }));
-  } catch (e) { $("tpMsg").textContent = "Gagal memuat: " + e.message; }
+    if (d.exists && Array.isArray(d.data().packs) && d.data().packs.length) { arr = d.data().packs; dari = "Firestore"; }
+  } catch (e) { }
+  if (!arr) {
+    try {
+      const s = await rtdb.ref("rocketCfg/topupPacks").get();
+      const v = s.exists() ? s.val() : null;
+      if (Array.isArray(v) && v.length) { arr = v; dari = "Realtime Database"; }
+    } catch (e) { }
+  }
+  if (arr) {
+    tpRows = arr.map(x => ({ coins: Number(x.coins) || 0, price: String(x.price || "") }));
+    $("tpMsg").textContent = "Daftar aktif dari " + dari + ". Ubah lalu tekan Simpan daftar.";
+  }
   tpRender();
 }
 $("tpAdd").onclick = () => { tpRows.push({ coins: 0, price: "" }); tpRender(); };
@@ -3803,12 +3814,25 @@ $("tpSave").onclick = async () => {
     .filter(r => r.coins > 0 && r.price);
   if (!bersih.length) { $("tpMsg").textContent = "Isi minimal satu paket (coin dan harga)."; return; }
   const btn = $("tpSave"); btn.disabled = true;
+  let cara = "", galat = [];
   try {
     await db.collection("vipConfig").doc("topupPacks").set({ packs: bersih, ts: Date.now() });
+    cara = "Firestore";
+  } catch (e) { galat.push("Firestore: " + (e.code || "") + " " + (e.message || "")); }
+  // Jalur cadangan: Realtime Database, dipakai kalau Firestore menolak izin.
+  try {
+    await rtdb.ref("rocketCfg/topupPacks").set(bersih);
+    cara = cara ? cara + " + Realtime Database" : "Realtime Database";
+  } catch (e) { galat.push("RTDB: " + (e.message || "")); }
+  if (cara) {
     tpRows = bersih; tpRender();
-    $("tpMsg").textContent = "Tersimpan ✅ (" + bersih.length + " paket). Aplikasi memuat daftar baru otomatis.";
+    $("tpMsg").textContent = "Tersimpan di " + cara + " ✅ (" + bersih.length + " paket). Aplikasi memuat daftar baru otomatis.";
     toast("Daftar topup tersimpan ✅");
-  } catch (e) { $("tpMsg").textContent = "Gagal: " + e.message; }
+  } else {
+    const u = auth.currentUser || {};
+    $("tpMsg").textContent = "Gagal simpan. " + galat.join(" | ") +
+      " | akun: " + (u.email || "-") + " provider: " + ((u.providerData && u.providerData[0] && u.providerData[0].providerId) || "-");
+  }
   btn.disabled = false;
 };
 
