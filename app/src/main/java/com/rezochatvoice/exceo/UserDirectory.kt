@@ -562,6 +562,14 @@ object UserDirectory {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) { }
+        // ID custom dari item Unique ID (contoh: 1000) dipetakan di uidCustom.
+        try {
+            val alias = kotlinx.coroutines.withTimeoutOrNull(3000L) { Rtdb.ref("uidCustom/$key").get().await() }
+            val uidAlias = alias?.child("uid")?.getValue(String::class.java).orEmpty()
+            if (uidAlias.isNotBlank()) findByUid(uidAlias)?.let { return it.copy(userId = key) }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) { }
         val doc = db().collection("userIds").document(key).get().await()
         if (!doc.exists()) return null
         return PublicUser(

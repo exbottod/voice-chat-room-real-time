@@ -3479,6 +3479,15 @@ async function stUidCariJalan(teks){
       await tampil([{ id: q, uid: uid }]);
       return;
     }
+    // 1b) ID custom yang pernah dibuat lewat item Unique ID.
+    try {
+      const al = await rtdb.ref("uidCustom/" + q).get();
+      if (al.exists()) {
+        const v = al.val() || {};
+        const uid = (typeof v === "object" ? (v.uid || "") : String(v || ""));
+        if (uid) { await tampil([{ id: q, uid: uid }]); return; }
+      }
+    } catch (e) { }
     // 2) Sebagian ID: pindai daftar (dibatasi 6 detik supaya tidak menggantung).
     const pindai = (async () => {
       const semua = await stIdIndex();
@@ -3533,6 +3542,8 @@ async function storeSave(c, el, btn){
     // Unique ID / lencana custom: langsung dikirim dan dipasang ke akun pemilik ID.
     if (!c && targetUid && pakaiSlot) {
       try {
+        // ID custom (mis. 1000) didaftarkan sebagai alias supaya bisa dicari di app.
+        try { await rtSet("uidCustom/" + stUidPilih, { uid: targetUid, itemId: "sx_" + id, at: Date.now() }); } catch (e) { }
         await walletAdmin({ op: "send_item", uid: targetUid, itemId: "sx_" + id, days: 3650, equip: slot });
         toast("Tersimpan ✅ dan langsung dipasang ke ID " + stUidPilih);
       } catch (e) {
