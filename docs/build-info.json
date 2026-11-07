@@ -1,11 +1,11 @@
 {
   "status": "ok",
   "masalah": [],
-  "versi": "1.0.946",
+  "versi": "1.0.947",
   "ukuran_mb": 68.9,
-  "sha256": "62115aba676d4944f92e4de7d44afaf9c909a8de2b390cee7eeac03f324440a1",
-  "commit": "a8b4dc9",
-  "waktu": "2026-11-07T12:10:26Z",
+  "sha256": "c78492bcd0db962c51011bd338e8451669ae7f89be2f52105ae6593d7c7264d5",
+  "commit": "3db55e9",
+  "waktu": "2026-11-07T12:32:06Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
   "aset_roket": 30,
   "aset_total": 118,
@@ -69,5 +69,5 @@
       "ada": true
     }
   ],
-  "catatan": "Fitur baru: Coin Seller, panel stok seller, dan halaman seller di Dompet."
+  "catatan": "Update error game Wave"
 }
