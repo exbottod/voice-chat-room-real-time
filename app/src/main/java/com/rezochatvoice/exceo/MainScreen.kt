@@ -791,6 +791,8 @@ fun MainScreen(user: UserProfile, onSignOutClick: () -> Unit) {
                     onBack = { chatWith = null },
                 )
             }
+            // Muncul saat data internet mati: "Jaringan kurang kuat~"
+            NetworkBanner()
             BanGate(uid = uid, onSignOut = onSignOutClick, onBanned = { if (activeRoom != null) exitRoom() })
             UpdateGate()
         }

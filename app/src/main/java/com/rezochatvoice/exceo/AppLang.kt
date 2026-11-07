@@ -507,6 +507,7 @@ val TR_EXTRA_EN: Map<String, String> by lazy {
     m.putAll(TR_EXTRA_GAMES)
     m.putAll(TR_EXTRA_ADMIN)
     m.putAll(TR_EXTRA_PROFILE)
+    m["Jaringan kurang kuat~"] = "Network is unstable~"
     m
 }
 
