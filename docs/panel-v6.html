@@ -252,6 +252,13 @@ label{font-size:12px;color:var(--mut)}
     <label>atau pilih file dari HP (maks sekitar 5 MB)</label><input type="file" id="stFile" accept=".svga,.gif,.webp,.png,.jpg,.jpeg,.mp4">
     <button class="btn" id="stAdd">Tambah ke Store</button>
   </div>
+  <div class="card">
+    <h2>Bebaskan nomor ID custom</h2>
+    <p class="muted">Dipakai kalau item ID custom sudah dihapus tapi nomornya masih bisa dicari. Nomor yang dibebaskan langsung hilang dari pencarian dan bisa dipakai item baru.</p>
+    <input type="text" id="idBebasNomor" inputmode="numeric" placeholder="Nomor ID, mis. 1000">
+    <button class="btn" id="idBebasBtn">Bebaskan nomor ini</button>
+    <div class="muted" id="idBebasMsg" style="font-size:12px;margin-top:6px"></div>
+  </div>
   <div id="stList"></div>
 </div>
 
@@ -3586,6 +3593,24 @@ async function storeDelete(c){
     toast(nomor ? ("Dihapus ✅ · nomor ID " + nomor + " dibebaskan") : "Dihapus ✅");
   } catch (e) { toast("Gagal: " + e.message); }
 }
+
+$("idBebasBtn").onclick = async () => {
+  const nomor = String($("idBebasNomor").value || "").replace(/[^0-9]/g, "");
+  const msg = $("idBebasMsg");
+  if (!nomor) { msg.textContent = "Isi nomor ID dulu"; return; }
+  $("idBebasBtn").disabled = true;
+  try {
+    const al = await rtdb.ref("uidCustom/" + nomor).get();
+    if (!al.exists()) { msg.textContent = "Nomor " + nomor + " memang tidak terdaftar."; return; }
+    const uidPemakai = (al.val() || {}).uid || "";
+    await rtdb.ref("uidCustom/" + nomor).remove();
+    if (uidPemakai) { try { await rtdb.ref("uidAliasOf/" + uidPemakai).remove(); } catch (e) { } }
+    msg.textContent = "Nomor " + nomor + " sudah dibebaskan. Cari lagi di app, harusnya sudah tidak muncul.";
+    toast("Nomor " + nomor + " dibebaskan ✅");
+  } catch (e) {
+    msg.textContent = "Gagal: " + (e.message || e);
+  } finally { $("idBebasBtn").disabled = false; }
+};
 $("stSlot").onchange = () => {
   const uidSlot = $("stSlot").value === "uid" || $("stSlot").value === "badge";
   $("stUidBox").classList.toggle("hide", !uidSlot);
