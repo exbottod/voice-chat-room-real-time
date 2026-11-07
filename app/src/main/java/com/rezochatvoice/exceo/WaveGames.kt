@@ -60,42 +60,44 @@ import java.net.URLEncoder
  * ditambah oleh Edge Function wallet-api lewat endpoint userInfo / submitFlow.
  * App hanya perlu membuka URL game dengan token login pemain.
  */
-object WaveGames {
-    // App key PRODUKSI akun REZO di WaveGames (organization id 18).
-    // Kunci testing: 9UMGnQcSpE.
-    const val APP_KEY = "lMCHyvvXvH"
-    /** Membungkus WebSocket dan fetch milik game supaya alamat tujuannya ikut tercatat. */
-    private const val JS_DIAG = """
+/** Membungkus WebSocket dan fetch milik game supaya alamat tujuannya ikut tercatat. */
+private const val JS_DIAG = """
 (function(){
   if (window.__rzd) return; window.__rzd = 1;
   function send(t){ try{ if (window.RezoDiag) RezoDiag.ev(String(t)); }catch(e){} }
   try{
-    var OW = window.WebSocket;
-    function NW(u, p){ send('ws:' + u); return (p === undefined) ? new OW(u) : new OW(u, p); }
-    NW.prototype = OW.prototype;
-    NW.CONNECTING = 0; NW.OPEN = 1; NW.CLOSING = 2; NW.CLOSED = 3;
-    window.WebSocket = NW;
+var OW = window.WebSocket;
+function NW(u, p){ send('ws:' + u); return (p === undefined) ? new OW(u) : new OW(u, p); }
+NW.prototype = OW.prototype;
+NW.CONNECTING = 0; NW.OPEN = 1; NW.CLOSING = 2; NW.CLOSED = 3;
+window.WebSocket = NW;
   }catch(e){}
   try{
-    var OF = window.fetch;
-    window.fetch = function(){
-      var u = arguments[0];
-      var p = OF.apply(this, arguments);
-      try{
-        p.catch(function(){ var s = (typeof u === 'string') ? u : ((u && u.url) || ''); send('gagal:' + s); });
-      }catch(e){}
-      return p;
-    };
+var OF = window.fetch;
+window.fetch = function(){
+  var u = arguments[0];
+  var p = OF.apply(this, arguments);
+  try{
+    p.catch(function(){ var s = (typeof u === 'string') ? u : ((u && u.url) || ''); send('gagal:' + s); });
+  }catch(e){}
+  return p;
+};
   }catch(e){}
   try{
-    var OX = window.XMLHttpRequest.prototype.open;
-    window.XMLHttpRequest.prototype.open = function(m, u){
-      try{ var s = String(u || ''); if (s.indexOf('http') === 0 && s.indexOf('127.0.0.1') < 0) this.addEventListener('error', function(){ send('xhr:' + s); }); }catch(e){}
-      return OX.apply(this, arguments);
-    };
+var OX = window.XMLHttpRequest.prototype.open;
+window.XMLHttpRequest.prototype.open = function(m, u){
+  try{ var s = String(u || ''); if (s.indexOf('http') === 0 && s.indexOf('127.0.0.1') < 0) this.addEventListener('error', function(){ send('xhr:' + s); }); }catch(e){}
+  return OX.apply(this, arguments);
+};
   }catch(e){}
 })();
 """
+
+object WaveGames {
+    // App key PRODUKSI akun REZO di WaveGames (organization id 18).
+    // Kunci testing: 9UMGnQcSpE.
+    const val APP_KEY = "lMCHyvvXvH"
+
     private const val CATALOG = "https://my.wavegames.online/admin/game/list?appKey=$APP_KEY"
     private const val FRONT = "https://wavegames.online"
 
