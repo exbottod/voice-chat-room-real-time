@@ -61,8 +61,9 @@ import java.net.URLEncoder
  * App hanya perlu membuka URL game dengan token login pemain.
  */
 object WaveGames {
-    // App key PRODUKSI (bukan testing AM8Nc1KMn6).
-    const val APP_KEY = "NV67iPG0EV"
+    // App key PRODUKSI akun REZO di WaveGames (organization id 18).
+    // Kunci testing: 9UMGnQcSpE.
+    const val APP_KEY = "lMCHyvvXvH"
     private const val CATALOG = "https://my.wavegames.online/admin/game/list?appKey=$APP_KEY"
     private const val FRONT = "https://wavegames.online"
 
