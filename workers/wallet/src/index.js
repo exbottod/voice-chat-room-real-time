@@ -1799,6 +1799,43 @@ const waveJson = (o, status = 200) =>
     headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
   });
 
+let waveLogSiap = null;
+function waveLogPastikan(env) {
+  if (!waveLogSiap) {
+    waveLogSiap = pipe(env, [
+      { sql: `create table if not exists wave_log (
+          id integer primary key autoincrement,
+          waktu integer not null,
+          ep text,
+          kode integer,
+          alasan text,
+          uid text,
+          panjang_token integer,
+          ua text,
+          ip text,
+          isi text
+        )`, args: [] },
+    ]).catch(() => {});
+  }
+  return waveLogSiap;
+}
+
+async function waveLog(env, r) {
+  try {
+    await waveLogPastikan(env);
+    await pipe(env, [
+      {
+        sql: `insert into wave_log (waktu, ep, kode, alasan, uid, panjang_token, ua, ip, isi)
+              values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          T(Date.now()), T(r.ep ?? ""), T(r.kode ?? 0), T(r.alasan ?? ""), T(r.uid ?? ""),
+          T(r.panjang ?? 0), T(String(r.ua ?? "").slice(0, 160)), T(r.ip ?? ""), T(String(r.isi ?? "").slice(0, 300)),
+        ],
+      },
+    ]);
+  } catch (e) {}
+}
+
 async function wavePlay(req, env) {
   const url = new URL(req.url);
   const ep = url.pathname.toLowerCase();
@@ -1816,13 +1853,25 @@ async function wavePlay(req, env) {
   if (req.method === "POST") body = await req.json().catch(() => ({}));
 
   const tok = waveToken(req, url, body);
-  if (!tok) return waveJson({ success: false, message: "Invalid or missing user information in the token." }, 401);
+  let uidLog = "";
+  const balas = async (o, status = 200) => {
+    await waveLog(env, {
+      ep, kode: status, alasan: o?.message ?? "", uid: uidLog,
+      panjang: tok.length,
+      ua: req.headers.get("user-agent"),
+      ip: req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for") ?? "",
+      isi: JSON.stringify({ method: req.method, body, hasil: o?.data ?? null }),
+    });
+    return waveJson(o, status);
+  };
+  if (!tok) return balas({ success: false, message: "Authorization token is required." }, 401);
   const uid = await uidDariToken(tok);
-  if (!uid) return waveJson({ success: false, message: "Invalid or missing user information in the token." }, 233);
+  if (!uid) return balas({ success: false, message: `Invalid or missing user information in the token. (${sesiAlasan ?? ""})` }, 233);
+  uidLog = uid;
 
   if (ep.includes("userinfo")) {
     const pl = await hivePemain(env, uid);
-    return waveJson({
+    return balas({
       success: true,
       message: "User info fetched successfully",
       data: { id: uid, name: pl.name, balance: Number(pl.balance), profilePicture: pl.avatar },
@@ -1832,13 +1881,15 @@ async function wavePlay(req, env) {
   if (ep.includes("submitflow")) {
     const amount = Math.trunc(Number(body.betAmount ?? 0));
     const kind = Math.trunc(Number(body.type ?? 0));
-    const tx = String(body.transactionId ?? "");
-    if (!Number.isFinite(amount) || amount < 0 || (kind !== 1 && kind !== 2) || !tx) {
-      return waveJson({ success: false, message: "Please Provide betAmount and type." }, 422);
+    const tx = String(body.transactionId ?? body.transaction_id ?? body.txnId ?? "").trim()
+      || `${kind}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    if (!Number.isFinite(amount) || amount < 0 || (kind !== 1 && kind !== 2)) {
+      return balas({ success: false, message: "Please Provide betAmount and type." }, 422);
     }
     if (amount === 0) {
       const pl = await hivePemain(env, uid);
-      return waveJson({ success: true, message: "OK", data: { id: uid, balance: Number(pl.balance) } });
+      const info = await hivePemain(env, uid);
+      return balas({ success: true, message: "success", data: { id: uid, balance: Number(pl.balance), name: info.name, profilePicture: info.avatar } });
     }
     const resp = await hiveUang(env, uid, {
       kind,
@@ -1851,16 +1902,16 @@ async function wavePlay(req, env) {
     if (!r || r.ok !== 1) {
       const pl = await hivePemain(env, uid);
       const msg = String(r?.e ?? "").toLowerCase().includes("tidak cukup") ? "Saldo coin tidak cukup" : "Transaksi ditolak";
-      return waveJson({ success: false, message: msg, data: { id: uid, balance: Number(pl.balance) } }, 200);
+      return balas({ success: false, message: msg, data: { id: uid, balance: Number(pl.balance) } }, 200);
     }
-    return waveJson({
+    return balas({
       success: true,
-      message: "Transaction processed",
+      message: "success",
       data: { id: uid, balance: Number(r.w?.coins ?? r.coins ?? 0) },
     });
   }
 
-  return waveJson({ success: false, message: "Endpoint tidak dikenal" }, 404);
+  return balas({ success: false, message: "Endpoint tidak dikenal" }, 404);
 }
 
 async function hivePemain(env, uid) {
@@ -2223,6 +2274,17 @@ export default {
       if (epG.includes("state")) return await gameState(env, uidGame);
       if (epG.includes("spin")) return await gameSpin(env, uidGame, bG);
       return gagal("Endpoint game tidak dikenal");
+    }
+    if (url.pathname.toLowerCase() === "/wavelog") {
+      try {
+        await waveLogPastikan(env);
+        const r = await pipe(env, [
+          { sql: "select waktu, ep, kode, alasan, uid, panjang_token, ua, ip, isi from wave_log order by id desc limit 40", args: [] },
+        ]);
+        return json({ ok: 1, w: r[0].rows });
+      } catch (e) {
+        return json({ ok: 0, e: String(e?.message ?? e) }, 500);
+      }
     }
     if (url.pathname.toLowerCase().startsWith("/wave/")) {
       return await wavePlay(req, env);
