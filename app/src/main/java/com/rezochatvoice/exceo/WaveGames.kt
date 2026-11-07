@@ -322,6 +322,54 @@ fun WaveGamesScreen(
     }
 }
 
+/**
+ * Putar satu game WaveGames langsung (dipakai dari Game Center).
+ * Sesi dibuat di sini, lalu WebView HivePlay-style yang menampilkannya.
+ */
+@Composable
+fun WavePlayScreen(
+    uid: String,
+    game: WaveGames.Game,
+    onClose: () -> Unit,
+) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var urlGame by remember { mutableStateOf<String?>(null) }
+    var err by remember { mutableStateOf("") }
+    LaunchedEffect(game.id) {
+        val u = try { WaveGames.url(game) } catch (e: Exception) { null }
+        if (u == null) {
+            err = "Gagal membuat sesi game, coba lagi"
+        } else {
+            val bad = try { SupaRepo.waveCheck() } catch (e: Exception) { null }
+            if (bad != null) err = bad else urlGame = u
+        }
+    }
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0B))) {
+            val u = urlGame
+            if (u != null) {
+                WaveGameView(Modifier.fillMaxSize(), game, u, onClose)
+            } else {
+                Column(
+                    Modifier.fillMaxSize().padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    if (err.isBlank()) CircularProgressIndicator(color = Gold)
+                    else Text(err, color = Color(0xFFFF6B6B), fontSize = 14.sp, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        tr("Tutup"),
+                        color = Gold,
+                        fontSize = 15.sp,
+                        modifier = Modifier.clickable { onClose() }.padding(8.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun WaveGameView(

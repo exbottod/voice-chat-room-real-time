@@ -58,7 +58,7 @@ import kotlin.random.Random
 /**
  * Saklar global untuk game buatan REZO (Dragon Tiger, Teen Patti, Lucky 77, slot,
  * dan sejenisnya). Kalau dimatikan dari panel dev, Game Center hanya menampilkan
- * game Hive Play. Disimpan di Realtime Database: gameCfg/ownOff.
+ * game pihak ketiga. Disimpan di Realtime Database: gameCfg/ownOff.
  */
 object GameCfg {
     var ownOff by mutableStateOf(false)
@@ -93,18 +93,17 @@ private fun fmtG(n: Long): String {
 fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: String = "", onClose: () -> Unit) {
     var open by remember { mutableStateOf("") }
     var balance by remember { mutableStateOf(0L) }
-    // Daftar game Hive diambil dari server, jadi game baru dari console ikut tampil.
-    var hiveGames by remember { mutableStateOf(HiveGames.fallback) }
+    // Daftar game WaveGames diambil dari katalog, jadi game baru ikut tampil.
+    var waveGames by remember { mutableStateOf<List<WaveGames.Game>>(emptyList()) }
     // true kalau daftar terbaru dari server berhasil diambil.
     var daftarDariServer by remember { mutableStateOf(false) }
     var muatUlang by remember { mutableStateOf(0) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(muatUlang) {
-        HiveGames.init(ctx)
-        val segar = try { HiveGames.listSegar() } catch (e: Exception) { emptyList() }
-        if (segar.isNotEmpty()) hiveGames = segar
-        daftarDariServer = HiveGames.dariServer
+        val segar = try { WaveGames.catalog() } catch (e: Exception) { emptyList() }
+        if (segar.isNotEmpty()) waveGames = segar
+        daftarDariServer = segar.isNotEmpty()
     }
 
     LaunchedEffect(Unit) {
@@ -114,18 +113,13 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
         balance = SupaRepo.get(myUid).wallet?.coins ?: 0L
     }
 
-    val hiveOpen: HiveGames.Game? = if (open.startsWith("hive:")) {
-        val gid = open.removePrefix("hive:").toIntOrNull()
-        HiveGames.find(gid ?: -1)
+    val waveOpen: WaveGames.Game? = if (open.startsWith("wave:")) {
+        val gid = open.removePrefix("wave:").toIntOrNull()
+        waveGames.firstOrNull { it.id == gid }
     } else null
 
-    if (hiveOpen != null) {
-        Dialog(
-            onDismissRequest = { open = "" },
-            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-        ) {
-            HivePlayScreen(uid = myUid, game = hiveOpen, onClose = { open = "" })
-        }
+    if (waveOpen != null) {
+        WavePlayScreen(uid = myUid, game = waveOpen, onClose = { open = "" })
         return
     }
 
@@ -139,7 +133,6 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
         "poker" -> ThreeCardPokerScreen(myUid = myUid, myName = myName, myAvatarB64 = "", onClose = { open = "" })
         "greedy" -> GreedyCatScreen(myUid = myUid, myName = myName.ifBlank { "Player" }, onClose = { open = "" })
         "teenpatti" -> TeenPattiScreen(myUid = myUid, onClose = { open = "" })
-        "hive" -> HiveHubScreen(uid = myUid, onClose = { open = "" })
         else -> Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             // Bottom sheet "Game Center": area atas tembus pandang, sheet coklat di bawah.
             Box(Modifier.fillMaxSize().clickable(
@@ -173,7 +166,7 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                         Text("〰", color = Color(0xFFB08A5A), fontSize = 14.sp)
                     }
                     // Kalau daftar dari server gagal, munculkan tombol muat ulang
-                    // supaya game baru dari console Hive tetap bisa ditarik.
+                    // supaya game baru dari katalog WaveGames tetap bisa ditarik.
                     if (!daftarDariServer) {
                         Box(
                             Modifier.fillMaxWidth().padding(bottom = 6.dp)
@@ -229,11 +222,11 @@ fun GamesHub(myUid: String, roomId: String, myName: String = "", myAvatarB64: St
                             ) { open = it }
                         }
 
-                        // ---- Game Hive Play (ikon asli dari katalog Hive)
-                        GcSection("Game Hive Play") {
+                        // ---- Game WaveGames (katalog resmi Wave)
+                        if (waveGames.isNotEmpty()) GcSection("Game Wave") {
                             GcRows(
-                                hiveGames.map { g ->
-                                    GcItem(g.name, 0, "hive:" + g.id, g.icon)
+                                waveGames.map { g ->
+                                    GcItem(g.name, 0, "wave:" + g.id, g.image)
                                 },
                             ) { open = it }
                         }
