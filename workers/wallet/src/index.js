@@ -1876,6 +1876,14 @@ async function waveLog(env, r) {
   } catch (e) {}
 }
 
+const waveFoto = (a) => {
+  const v = String(a ?? "").trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v) || v.startsWith("data:")) return v;
+  if (v.length > 64 && /^[A-Za-z0-9+/=\s]+$/.test(v)) return "data:image/jpeg;base64," + v.replace(/\s+/g, "");
+  return v;
+};
+
 async function wavePlay(req, env) {
   const url = new URL(req.url);
   const ep = url.pathname.toLowerCase();
@@ -1914,7 +1922,7 @@ async function wavePlay(req, env) {
     return balas({
       success: true,
       message: "User info fetched successfully",
-      data: { id: uid, name: pl.name, balance: Number(pl.balance), profilePicture: pl.avatar },
+      data: { id: uid, name: pl.name, balance: Number(pl.balance), profilePicture: waveFoto(pl.avatar) },
     });
   }
 
@@ -1928,8 +1936,7 @@ async function wavePlay(req, env) {
     }
     if (amount === 0) {
       const pl = await hivePemain(env, uid);
-      const info = await hivePemain(env, uid);
-      return balas({ success: true, message: "success", data: { id: uid, balance: Number(pl.balance), name: info.name, profilePicture: info.avatar } });
+      return balas({ success: true, message: "success", data: { id: uid, balance: Number(pl.balance), name: pl.name, profilePicture: waveFoto(pl.avatar) } });
     }
     const resp = await hiveUang(env, uid, {
       kind,
@@ -1944,10 +1951,16 @@ async function wavePlay(req, env) {
       const msg = String(r?.e ?? "").toLowerCase().includes("tidak cukup") ? "Saldo coin tidak cukup" : "Transaksi ditolak";
       return balas({ success: false, message: msg, data: { id: uid, balance: Number(pl.balance) } }, 200);
     }
+    const plAkhir = await hivePemain(env, uid);
     return balas({
       success: true,
       message: "success",
-      data: { id: uid, balance: Number(r.w?.coins ?? r.coins ?? 0) },
+      data: {
+        id: uid,
+        balance: Number(r.w?.coins ?? r.coins ?? 0),
+        name: plAkhir.name,
+        profilePicture: waveFoto(plAkhir.avatar),
+      },
     });
   }
 
