@@ -214,6 +214,9 @@ object LvRepo {
 
     /** Beli / perpanjang item store (lencana, frame, gelembung, dsb). */
     suspend fun buyItem(uid: String, item: StoreItem): String? {
+        // ID custom yang sudah dibeli akun lain tidak boleh dibeli lagi.
+        val nomor = StoreCatalog.find(item.id)?.customId.orEmpty()
+        if (nomor.isNotBlank() && StoreCatalog.idSudahDipakai(nomor)) return "ID $nomor sudah dibeli akun lain"
         val r = SupaRepo.buyItem(uid, item)
         r.wallet?.let { WalletRepo.emitBackup(uid, it) }
         return r.error

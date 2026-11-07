@@ -45,6 +45,8 @@ object StoreCatalog {
     // UTAMA: katalog store kini dari Realtime Database (vipCfg), Firestore jadi cadangan.
     private var rtdbReg: Reg? = null
     private val fsMap = HashMap<String, CatalogItem>()
+    /** Nomor ID custom yang sudah dipakai pembeli -> itemnya hilang dari Store. */
+    private val idTerpakai = mutableStateMapOf<String, String>()
     private val rtdbMap = HashMap<String, CatalogItem>()
 
     private fun apply() {
@@ -105,6 +107,16 @@ object StoreCatalog {
         reg?.remove()
         rtdbReg?.remove()
         // REALTIME DATABASE (utama): node vipCfg/{store_id}.
+        // ID custom yang sudah dibeli (terdaftar di uidCustom) tidak dijual lagi.
+        try {
+            Rtdb.listen(Rtdb.ref("uidCustom")) { snap ->
+                idTerpakai.clear()
+                for (c in snap.children) {
+                    val nomor = c.key.orEmpty()
+                    if (nomor.isNotBlank()) idTerpakai[nomor] = c.child("uid").getValue(String::class.java).orEmpty()
+                }
+            }
+        } catch (e: Exception) { }
         rtdbReg = Rtdb.listen(Rtdb.ref("vipCfg")) { snap ->
             rtdbMap.clear()
             for (c in snap.children) {
@@ -181,7 +193,13 @@ object StoreCatalog {
         items.values
             .filter { it.slot == slot }
             .filter { it.targetUid.isBlank() || it.targetUid == uidPemakai }
+            // Item ID custom hilang dari Store begitu sudah dibeli akun lain.
+            .filter { it.customId.isBlank() || idTerpakai[it.customId].isNullOrBlank() }
             .sortedWith(compareBy<CatalogItem>({ it.order }, { it.name }))
+
+    /** Nomor ID custom sudah dipakai akun lain? */
+    fun idSudahDipakai(customId: String): Boolean =
+        customId.isNotBlank() && !idTerpakai[customId].isNullOrBlank()
 
     fun find(itemId: String?): CatalogItem? =
         if (itemId != null && itemId.startsWith("sx_")) items[itemId.removePrefix("sx_")] else null
