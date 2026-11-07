@@ -1772,6 +1772,97 @@ function hiveReadCode(code) {
   return uid;
 }
 
+
+/* ================= WAVEGAMES (userInfo / submitFlow) =================
+   WaveGames memanggil Base URL akun REZO (worker ini):
+     GET  /wave/game/userInfo   -> profil + saldo coin pemain
+     POST /wave/game/submitFlow -> potong coin saat bet (type 1), tambah saat menang (type 2)
+   Identitas pemain = token login Firebase yang dikirim app lewat URL game.
+   Token boleh datang dari header Authorization, query ?token=, atau body. */
+function waveToken(req, url, body) {
+  const a = req.headers.get("authorization") || "";
+  if (a.toLowerCase().startsWith("bearer ")) return a.slice(7).trim();
+  for (const k of ["token", "userToken", "user_token", "ut", "t", "authToken"]) {
+    const v = url.searchParams.get(k);
+    if (v && v.trim()) return v.trim();
+  }
+  for (const k of ["token", "userToken", "user_token"]) {
+    const v = body?.[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return "";
+}
+
+const waveJson = (o, status = 200) =>
+  new Response(JSON.stringify(o), {
+    status,
+    headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+  });
+
+async function wavePlay(req, env) {
+  const url = new URL(req.url);
+  const ep = url.pathname.toLowerCase();
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "access-control-allow-origin": "*",
+        "access-control-allow-headers": "authorization, content-type, token",
+        "access-control-allow-methods": "GET, POST, OPTIONS",
+      },
+    });
+  }
+  let body = {};
+  if (req.method === "POST") body = await req.json().catch(() => ({}));
+
+  const tok = waveToken(req, url, body);
+  if (!tok) return waveJson({ success: false, message: "Invalid or missing user information in the token." }, 401);
+  const uid = await uidDariToken(tok);
+  if (!uid) return waveJson({ success: false, message: "Invalid or missing user information in the token." }, 233);
+
+  if (ep.includes("userinfo")) {
+    const pl = await hivePemain(env, uid);
+    return waveJson({
+      success: true,
+      message: "User info fetched successfully",
+      data: { id: uid, name: pl.name, balance: Number(pl.balance), profilePicture: pl.avatar },
+    });
+  }
+
+  if (ep.includes("submitflow")) {
+    const amount = Math.trunc(Number(body.betAmount ?? 0));
+    const kind = Math.trunc(Number(body.type ?? 0));
+    const tx = String(body.transactionId ?? "");
+    if (!Number.isFinite(amount) || amount < 0 || (kind !== 1 && kind !== 2) || !tx) {
+      return waveJson({ success: false, message: "Please Provide betAmount and type." }, 422);
+    }
+    if (amount === 0) {
+      const pl = await hivePemain(env, uid);
+      return waveJson({ success: true, message: "OK", data: { id: uid, balance: Number(pl.balance) } });
+    }
+    const resp = await hiveUang(env, uid, {
+      kind,
+      amount,
+      orderId: `wave_${tx}`,
+      roundId: String(body.roundId ?? body.round ?? ""),
+      game: `wave:${String(body.gameName ?? body.gameId ?? "")}`,
+    });
+    const r = await resp.json().catch(() => null);
+    if (!r || r.ok !== 1) {
+      const pl = await hivePemain(env, uid);
+      const msg = String(r?.e ?? "").toLowerCase().includes("tidak cukup") ? "Saldo coin tidak cukup" : "Transaksi ditolak";
+      return waveJson({ success: false, message: msg, data: { id: uid, balance: Number(pl.balance) } }, 200);
+    }
+    return waveJson({
+      success: true,
+      message: "Transaction processed",
+      data: { id: uid, balance: Number(r.w?.coins ?? r.coins ?? 0) },
+    });
+  }
+
+  return waveJson({ success: false, message: "Endpoint tidak dikenal" }, 404);
+}
+
 async function hivePemain(env, uid) {
   const r = await pipe(env, [
     { sql: "select name, avatar from wave_players where uid = ?", args: [T(uid)] },
@@ -2132,6 +2223,9 @@ export default {
       if (epG.includes("state")) return await gameState(env, uidGame);
       if (epG.includes("spin")) return await gameSpin(env, uidGame, bG);
       return gagal("Endpoint game tidak dikenal");
+    }
+    if (url.pathname.toLowerCase().startsWith("/wave/")) {
+      return await wavePlay(req, env);
     }
     if (url.pathname.toLowerCase().startsWith("/hive/")) {
       return await hivePlay(req, env);
