@@ -3567,11 +3567,23 @@ async function storeSave(c, el, btn){
   finally { if (btn) btn.disabled = false; }
 }
 async function storeDelete(c){
-  if (!confirm("Hapus item \"" + (c.name || "") + "\" dari Store?")) return;
+  if (!confirm("Hapus item \"" + (c.name || "") + "\" dari Store?\n\nItem hilang dari Store dan dari My Item semua akun. Kalau ini item ID custom, nomornya juga dibebaskan supaya bisa dipakai item lain.")) return;
   const col = db.collection("vipConfig");
   try {
+    // Nomor ID custom milik item ini dilepas supaya tidak menggantung.
+    const nomor = String(c.customId || "").replace(/[^0-9]/g, "");
+    if (nomor) {
+      try {
+        const al = await rtdb.ref("uidCustom/" + nomor).get();
+        if (al.exists()) {
+          const uidPemakai = (al.val() || {}).uid || "";
+          await rtdb.ref("uidCustom/" + nomor).remove();
+          if (uidPemakai) { try { await rtdb.ref("uidAliasOf/" + uidPemakai).remove(); } catch (e) { } }
+        }
+      } catch (e) { }
+    }
     await rtDel("vipCfg/store_" + c.id);
-    toast("Dihapus ✅");
+    toast(nomor ? ("Dihapus ✅ · nomor ID " + nomor + " dibebaskan") : "Dihapus ✅");
   } catch (e) { toast("Gagal: " + e.message); }
 }
 $("stSlot").onchange = () => {
