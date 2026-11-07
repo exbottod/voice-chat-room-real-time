@@ -1,73 +1,16 @@
 {
-  "status": "ok",
-  "masalah": [],
-  "versi": "1.0.944",
-  "ukuran_mb": 68.9,
-  "sha256": "0a4b5cf13d6a741a29b2b5840bc2d9c0be5f9a883a485bb265441be06307fcbe",
-  "commit": "618e39b",
-  "waktu": "2026-11-07T08:18:58Z",
+  "status": "gagal",
+  "masalah": [
+    "e: file:///home/runner/work/voice-chat-room-real-time/voice-chat-room-real-time/app/src/main/java/com/rezochatvoice/exceo/WaveGames.kt:523:51 Unresolved reference 'JS_DIAG'.",
+    "* What went wrong:"
+  ],
+  "versi": "1.0.945",
+  "ukuran_mb": 0,
+  "sha256": "",
+  "commit": "9ed7966",
+  "waktu": "2026-11-07T12:07:28Z",
   "workflow": "https://github.com/exbottod/voice-chat-room-real-time/actions",
-  "aset_roket": 30,
-  "aset_total": 118,
-  "fitur": [
-    {
-      "nama": "Banner cashback terpisah",
-      "ada": true
-    },
-    {
-      "nama": "Banner gift biasa",
-      "ada": true
-    },
-    {
-      "nama": "Animasi cashback di avatar",
-      "ada": true
-    },
-    {
-      "nama": "Tombol kombo cashback",
-      "ada": true
-    },
-    {
-      "nama": "Roket level 1-5 di room",
-      "ada": true
-    },
-    {
-      "nama": "Peluncuran roket cadangan",
-      "ada": true
-    },
-    {
-      "nama": "Sambung ulang suara otomatis",
-      "ada": true
-    },
-    {
-      "nama": "Tukar diamond nominal sendiri",
-      "ada": true
-    },
-    {
-      "nama": "Papan peringkat roket",
-      "ada": true
-    }
-  ],
-  "roket_level": [
-    {
-      "level": 1,
-      "ada": true
-    },
-    {
-      "level": 2,
-      "ada": true
-    },
-    {
-      "level": 3,
-      "ada": true
-    },
-    {
-      "level": 4,
-      "ada": true
-    },
-    {
-      "level": 5,
-      "ada": true
-    }
-  ],
-  "catatan": "Fitur baru: Coin Seller, panel stok seller, dan halaman seller di Dompet."
+  "aset_roket": 0,
+  "aset_total": 0,
+  "fitur": []
 }
