@@ -1793,6 +1793,46 @@ function waveToken(req, url, body) {
   return "";
 }
 
+let waveTokSiap = null;
+function waveTokPastikan(env) {
+  if (!waveTokSiap) {
+    waveTokSiap = pipe(env, [
+      { sql: `create table if not exists wave_tokens (
+          token text primary key,
+          uid text not null,
+          exp integer not null,
+          created integer not null
+        )`, args: [] },
+    ]).catch(() => {});
+  }
+  return waveTokSiap;
+}
+
+async function waveTokenBaru(env, uid, ttlDetik) {
+  await waveTokPastikan(env);
+  const tok = "wg" + crypto.randomUUID().replace(/-/g, "").slice(0, 30);
+  const exp = Date.now() + ttlDetik * 1000;
+  await pipe(env, [
+    { sql: "insert into wave_tokens (token, uid, exp, created) values (?, ?, ?, ?)",
+      args: [T(tok), T(uid), T(exp), T(Date.now())] },
+  ]);
+  return { token: tok, exp };
+}
+
+// Terima dua bentuk token: JWT Firebase (dipakai app) atau token pendek milik kita.
+async function waveUidDariToken(env, tok) {
+  if (!tok) return null;
+  if (tok.split(".").length === 3) return await uidDariToken(tok);
+  await waveTokPastikan(env);
+  const r = await pipe(env, [
+    { sql: "select uid, exp from wave_tokens where token = ?", args: [T(tok)] },
+  ]);
+  const row = r[0].rows[0];
+  if (!row) return null;
+  if (Number(row.exp) < Date.now()) return null;
+  return String(row.uid);
+}
+
 const waveJson = (o, status = 200) =>
   new Response(JSON.stringify(o), {
     status,
@@ -1865,8 +1905,8 @@ async function wavePlay(req, env) {
     return waveJson(o, status);
   };
   if (!tok) return balas({ success: false, message: "Authorization token is required." }, 401);
-  const uid = await uidDariToken(tok);
-  if (!uid) return balas({ success: false, message: `Invalid or missing user information in the token. (${sesiAlasan ?? ""})` }, 233);
+  const uid = await waveUidDariToken(env, tok);
+  if (!uid) return balas({ success: false, message: "Invalid or missing user information in the token." }, 233);
   uidLog = uid;
 
   if (ep.includes("userinfo")) {
@@ -2285,6 +2325,26 @@ export default {
       } catch (e) {
         return json({ ok: 0, e: String(e?.message ?? e) }, 500);
       }
+    }
+    if (url.pathname.toLowerCase() === "/wave/token") {
+      const bTok = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+      const t = String(bTok.t ?? url.searchParams.get("t") ?? "");
+      const k = String(bTok.k ?? url.searchParams.get("k") ?? "");
+      const adminKey = String(env.WAVE_KEY ?? "rezo-wave-2026-admin");
+      // 1) app minta token pendek dengan JWT Firebase-nya
+      if (t) {
+        const uidApp = await uidDariToken(t);
+        if (!uidApp) return json({ ok: 0, e: "Sesi tidak sah" }, 401);
+        const tk = await waveTokenBaru(env, uidApp, 3 * 3600);
+        return json({ ok: 1, w: tk });
+      }
+      // 2) pembuatan token uji (khusus admin)
+      if (k === adminKey && bTok.uid) {
+        const hari = Math.max(1, Math.min(90, Number(bTok.hari ?? 30)));
+        const tk = await waveTokenBaru(env, String(bTok.uid), hari * 86400);
+        return json({ ok: 1, w: tk });
+      }
+      return json({ ok: 0, e: "Permintaan token tidak sah" }, 400);
     }
     if (url.pathname.toLowerCase().startsWith("/wave/")) {
       return await wavePlay(req, env);
