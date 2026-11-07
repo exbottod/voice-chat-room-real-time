@@ -84,7 +84,7 @@ object UserCache {
                     .put("gender", u.gender).put("exp", u.exp).put("vip", u.vip)
                     .put("vipUntil", u.vipUntil).put("frame", u.frame)
                     .put("bubble", u.bubble).put("badge", u.badge).put("fam", u.fam).put("medals", u.medals)
-                    .put("svip", u.svip).put("ad", u.ad)
+                    .put("svip", u.svip).put("ad", u.ad).put("uidItem", u.uidItem)
                     // FIX avatar hilang saat kuota habis: foto ikut disimpan di cache disk.
                     .put("avatarB64", u.avatarB64 ?: "").toString(),
             ).apply()
@@ -113,6 +113,7 @@ object UserCache {
             medals = o.optString("medals"),
             svip = o.optString("svip"),
             ad = o.optString("ad"),
+            uidItem = o.optString("uidItem"),
         )
     } catch (e: Exception) {
         null
@@ -147,6 +148,7 @@ object UserCache {
                 svipLv = (s.child("svipLv").value as? Number)?.toInt() ?: b.svipLv,
                 svipUntil = (s.child("svipUntil").value as? Number)?.toLong() ?: b.svipUntil,
                 ad = s.child("ad").getValue(String::class.java) ?: b.ad,
+                uidItem = if (s.hasChild("uidItem")) s.child("uidItem").getValue(String::class.java) ?: "" else b.uidItem,
                 // FIX avatar: foto profil ikut dibaca dari RTDB pub (field "av")
                 // supaya avatar tetap tampil saat kuota Firestore habis.
                 avatarB64 = s.child("av").getValue(String::class.java)?.takeIf { it.isNotBlank() } ?: b.avatarB64,

@@ -347,7 +347,13 @@ fun OtherProfileScreen(
                         },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(tr("UID:${shownId}"), color = Muted, fontSize = 16.sp)
+                        val asetIdUnik = StoreCatalog.find(u.uidItem)?.asset
+                        if (asetIdUnik != null) {
+                            // ID custom: gambar menggantikan angka ID, nomornya tetap bisa disalin.
+                            UidUnikId(asetIdUnik, 22.dp)
+                        } else {
+                            Text(tr("UID:${shownId}"), color = Muted, fontSize = 16.sp)
+                        }
                         Spacer(Modifier.width(8.dp))
                         Text("📋", fontSize = 14.sp)
                     }
