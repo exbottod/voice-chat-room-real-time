@@ -490,7 +490,7 @@ private fun WaveGameView(
                 }
                 fit
             },
-            onRelease = { it.destroy() },
+            onRelease = { web?.destroy() },
         )
         if (blank && err.isEmpty()) {
             Column(
