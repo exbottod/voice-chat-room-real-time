@@ -87,7 +87,10 @@ window.fetch = function(){
   var u = arguments[0];
   var p = OF.apply(this, arguments);
   try{
-    p.catch(function(){ var s = (typeof u === 'string') ? u : ((u && u.url) || ''); send('gagal:' + s); });
+    p.catch(function(){
+      var s = (typeof u === 'string') ? u : ((u && u.url) || '');
+      if (s && s.indexOf('127.0.0.1') < 0 && s.indexOf('localhost') < 0) send('gagal:' + s);
+    });
   }catch(e){}
   return p;
 };
@@ -507,6 +510,9 @@ private fun WaveGameView(
                             fun ev(t: String) {
                                 val teks = t.take(110)
                                 if (teks.isBlank()) return
+                                // Kegagalan telemetri internal game (127.0.0.1) bukan gangguan.
+                                if (teks.contains("127.0.0.1") || teks.contains("localhost")) return
+                                if (teks.startsWith("res:")) return
                                 wv.post {
                                     if (logs.length < 500) logs = (logs + teks + " | ").take(500)
                                 }
@@ -650,7 +656,7 @@ private fun WaveGameView(
                     .equals("developerex100@gmail.com", ignoreCase = true)
             } catch (e: Exception) { false }
         }
-        if (akunDev && logs.isNotBlank()) {
+        if (akunDev && logs.isNotBlank() && (blank || err.isNotEmpty())) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 Text(
                     logs,
