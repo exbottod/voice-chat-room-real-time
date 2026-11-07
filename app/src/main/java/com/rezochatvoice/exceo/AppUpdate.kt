@@ -427,7 +427,7 @@ fun UpdateGate() {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("\u2B07", color = Color(0xFFFFC21A), fontSize = 22.sp)
                 Spacer(Modifier.width(12.dp))
-                Text(tr("Pembaruan Tersedia"), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(tr("Update Terbaru Game Wave"), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(14.dp))
             Text(
