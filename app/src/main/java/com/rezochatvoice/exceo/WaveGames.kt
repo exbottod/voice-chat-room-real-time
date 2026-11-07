@@ -345,14 +345,56 @@ private fun WaveGameView(
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { c ->
-                WebView(c).apply {
+                val wv = WebView(c)
+                val density = c.resources.displayMetrics.density
+                // Sama seperti HivePlay: halaman game dilukis pada lebar desain 720 CSS px,
+                // lalu seluruh halaman diperkecil supaya utuh di layar dan pas di tengah.
+                val desainCss = 720f
+                var aspek = 9f / 16f // lebar / tinggi
+                var sesuaikan: () -> Unit = {}
+                val fit = android.widget.FrameLayout(c).apply {
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                    addView(
+                        wv,
+                        android.widget.FrameLayout.LayoutParams(
+                            (desainCss * density).toInt(),
+                            (desainCss / aspek * density).toInt(),
+                            android.view.Gravity.CENTER,
+                        ),
+                    )
+                    fun applyFit() {
+                        if (width <= 0 || height <= 0) return
+                        val lp = wv.layoutParams as android.widget.FrameLayout.LayoutParams
+                        val wPx = (desainCss * density).toInt().coerceAtLeast(1)
+                        val hPx = (desainCss / aspek * density).toInt().coerceAtLeast(1)
+                        if (lp.width != wPx || lp.height != hPx) {
+                            lp.width = wPx
+                            lp.height = hPx
+                            lp.gravity = android.view.Gravity.CENTER
+                            wv.layoutParams = lp
+                        }
+                        val sc = minOf(width.toFloat() / wPx, height.toFloat() / hPx)
+                        wv.scaleX = sc
+                        wv.scaleY = sc
+                    }
+                    addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyFit() }
+                    post { applyFit() }
+                    sesuaikan = { applyFit() }
+                }
+                wv.apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
                     settings.mediaPlaybackRequiresUserGesture = false
-                    settings.loadWithOverviewMode = true
                     settings.useWideViewPort = true
-                    settings.allowFileAccess = false
+                    settings.loadWithOverviewMode = true
+                    settings.setSupportZoom(false)
+                    settings.builtInZoomControls = false
+                    settings.displayZoomControls = false
+                    // Game WaveGames memuat aset dari beberapa domain; file access
+                    // dan mixed content harus terbuka seperti di HivePlay.
+                    settings.allowFileAccess = true
+                    settings.allowContentAccess = true
                     settings.javaScriptCanOpenWindowsAutomatically = true
                     settings.setSupportMultipleWindows(false)
                     settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
@@ -360,12 +402,10 @@ private fun WaveGameView(
                     // Sebagian penyedia game menolak UA bawaan WebView. Pakai UA Chrome mobile bersih.
                     settings.userAgentString = "Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 " +
                         "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-                    android.webkit.WebView.setWebContentsDebuggingEnabled(true)
-                    // Sebagian HP (vivo/Android 9) gagal menggambar canvas/WebGL dengan layer hardware.
-                    // Pakai software layer untuk WebView ini.
-                    setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+                    // Layer software membuat canvas/WebGL game jadi putih atau hitam kosong.
+                    // HivePlay memakai hardware dan berhasil, jadi WaveGames ikut hardware.
+                    setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
                     setBackgroundColor(android.graphics.Color.parseColor("#0B0B0B"))
-                    settings.offscreenPreRaster = false
                     android.webkit.CookieManager.getInstance().setAcceptCookie(true)
                     android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                     webChromeClient = object : WebChromeClient() {
@@ -388,6 +428,20 @@ private fun WaveGameView(
                         }
                         override fun onPageFinished(v: WebView?, u: String?) {
                             prog = 100
+                            // Sesuaikan bentuk halaman: tinggi asli halaman menentukan skala.
+                            fun ukur(v2: WebView?) {
+                                v2?.evaluateJavascript(
+                                    "(function(){try{var h=Math.max(document.documentElement?document.documentElement.scrollHeight:0, document.body?document.body.scrollHeight:0);return ''+h}catch(e){return '0'}})()",
+                                ) { out ->
+                                    val h = out.trim().removeSurrounding("\"").toFloatOrNull() ?: 0f
+                                    if (h > 200f && h < 6000f) {
+                                        aspek = (desainCss / h).coerceIn(0.35f, 2.6f)
+                                        sesuaikan()
+                                    }
+                                }
+                            }
+                            v?.postDelayed({ ukur(v) }, 900)
+                            v?.postDelayed({ ukur(v) }, 3000)
                         }
                         override fun onReceivedError(
                             v: WebView?,
@@ -418,13 +472,13 @@ private fun WaveGameView(
                             val raw = out.trim().removeSurrounding("\"")
                             val n = raw.substringAfter(':').toIntOrNull() ?: 0
                             val objs = raw.substringBefore(':').toIntOrNull() ?: 0
-                            if (n < 40 && objs == 0) blank = true
                             if (n < 40) {
                                 blank = true
                                 evaluateJavascript("(document.body ? document.body.innerText.slice(0,200) : 'tanpa body')") { t ->
                                     diag = t.trim().removeSurrounding("\"")
                                 }
                             }
+                            if (objs == 0 && n < 40) blank = true
                         }
                     }, 6500)
                     postDelayed({
@@ -434,6 +488,7 @@ private fun WaveGameView(
                         }
                     }, 15000)
                 }
+                fit
             },
             onRelease = { it.destroy() },
         )
