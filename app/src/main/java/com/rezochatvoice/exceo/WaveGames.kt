@@ -67,7 +67,16 @@ private const val JS_DIAG = """
   function send(t){ try{ if (window.RezoDiag) RezoDiag.ev(String(t)); }catch(e){} }
   try{
 var OW = window.WebSocket;
-function NW(u, p){ send('ws:' + u); return (p === undefined) ? new OW(u) : new OW(u, p); }
+function NW(u, p){
+  var short = String(u).split('?')[0];
+  var w = (p === undefined) ? new OW(u) : new OW(u, p);
+  try{
+    w.addEventListener('open', function(){ send('ws-open:' + short); });
+    w.addEventListener('error', function(){ send('ws-error:' + short); });
+    w.addEventListener('close', function(e){ send('ws-close:' + e.code + ':' + (e.reason||'') + ':' + short); });
+  }catch(x){}
+  return w;
+}
 NW.prototype = OW.prototype;
 NW.CONNECTING = 0; NW.OPEN = 1; NW.CLOSING = 2; NW.CLOSED = 3;
 window.WebSocket = NW;
@@ -635,7 +644,13 @@ private fun WaveGameView(
                 )
             }
         }
-        if (logs.isNotBlank()) {
+        val akunDev = remember {
+            try {
+                com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email
+                    .equals("developerex100@gmail.com", ignoreCase = true)
+            } catch (e: Exception) { false }
+        }
+        if (akunDev && logs.isNotBlank()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 Text(
                     logs,
