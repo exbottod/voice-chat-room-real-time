@@ -25,6 +25,8 @@ import coil.compose.AsyncImage
 import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.NumberFormat
@@ -326,6 +328,7 @@ object FollowRepo {
     }
 
     suspend fun follow(me: String, target: String) {
+        lupakanCounts()
         // Can't be followed (SVIP3): user yang mengaktifkan tidak bisa diikuti.
         val pub = try {
             UserDirectory.findByUid(target)
@@ -352,6 +355,7 @@ object FollowRepo {
     }
 
     suspend fun unfollow(me: String, target: String) {
+        lupakanCounts()
         try {
             kotlinx.coroutines.withTimeoutOrNull(4000L) {
                 Rtdb.ref("follows/$me/$target").removeValue().await()
@@ -367,16 +371,25 @@ object FollowRepo {
      *  Tanpa orderBy di server: kombinasi where + orderBy minta composite index
      *  (belum dibuat), query malah gagal dan daftar tampak kosong.
      *  Urutkan createdAt di perangkat saja, hasilnya sama. */
+    /** Realtime Database dan data lama Firestore diambil BERSAMAAN.
+     *  Dulu berurutan, sehingga tab Saya menunggu dua kali lipat. */
+    private suspend fun gabung(path: String, uid: String, byFollower: Boolean): MutableMap<String, Long> =
+        coroutineScope {
+            val baru = async { rtdbMap(path) }
+            val lama = async { legacyMap(uid, byFollower) }
+            val m = baru.await()
+            lama.await().forEach { (k, v) -> if (!m.containsKey(k)) m[k] = v }
+            m
+        }
+
     suspend fun listFollowing(uid: String, limit: Long = 30): List<String> {
-        val m = rtdbMap("follows/$uid")
-        legacyMap(uid, byFollower = true).forEach { (k, v) -> if (!m.containsKey(k)) m[k] = v }
+        val m = gabung("follows/$uid", uid, true)
         return m.entries.sortedByDescending { it.value }.take(limit.toInt()).map { it.key }
     }
 
     /** Daftar uid pengikut / fans (terbaru dulukan). Limit default 30 untuk hemat kuota. */
     suspend fun listFans(uid: String, limit: Long = 30): List<String> {
-        val m = rtdbMap("followers/$uid")
-        legacyMap(uid, byFollower = false).forEach { (k, v) -> if (!m.containsKey(k)) m[k] = v }
+        val m = gabung("followers/$uid", uid, false)
         return m.entries.sortedByDescending { it.value }.take(limit.toInt()).map { it.key }
     }
 
@@ -384,8 +397,37 @@ object FollowRepo {
     suspend fun fansCount(uid: String): Long = listFans(uid, 500).size.toLong()
 
     /** Pair(mengikuti, fans) */
-    suspend fun counts(uid: String): Pair<Long, Long> =
-        listFollowing(uid, 500).size.toLong() to listFans(uid, 500).size.toLong()
+    // Hasil hitungan disimpan sebentar. Tab Saya jadi langsung tampil saat
+    // dibuka ulang, tanpa menunggu server lagi.
+    private val cacheCounts = HashMap<String, Pair<Long, Long>>()
+    private val cacheAt = HashMap<String, Long>()
+    private const val CACHE_MS = 120_000L
+
+    fun lupakanCounts(uid: String? = null) {
+        synchronized(cacheCounts) {
+            if (uid == null) { cacheCounts.clear(); cacheAt.clear() } else {
+                cacheCounts.remove(uid); cacheAt.remove(uid)
+            }
+        }
+    }
+
+    suspend fun counts(uid: String): Pair<Long, Long> {
+        val now = System.currentTimeMillis()
+        synchronized(cacheCounts) {
+            val lama = cacheCounts[uid]
+            if (lama != null && now - (cacheAt[uid] ?: 0L) < CACHE_MS) return lama
+        }
+        val hasil = coroutineScope {
+            val a = async { listFollowing(uid, 500).size.toLong() }
+            val b = async { listFans(uid, 500).size.toLong() }
+            a.await() to b.await()
+        }
+        synchronized(cacheCounts) {
+            cacheCounts[uid] = hasil
+            cacheAt[uid] = System.currentTimeMillis()
+        }
+        return hasil
+    }
 }
 
 @Composable
