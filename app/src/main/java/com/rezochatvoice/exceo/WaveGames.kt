@@ -64,6 +64,38 @@ object WaveGames {
     // App key PRODUKSI akun REZO di WaveGames (organization id 18).
     // Kunci testing: 9UMGnQcSpE.
     const val APP_KEY = "lMCHyvvXvH"
+    /** Membungkus WebSocket dan fetch milik game supaya alamat tujuannya ikut tercatat. */
+    private const val JS_DIAG = """
+(function(){
+  if (window.__rzd) return; window.__rzd = 1;
+  function send(t){ try{ if (window.RezoDiag) RezoDiag.ev(String(t)); }catch(e){} }
+  try{
+    var OW = window.WebSocket;
+    function NW(u, p){ send('ws:' + u); return (p === undefined) ? new OW(u) : new OW(u, p); }
+    NW.prototype = OW.prototype;
+    NW.CONNECTING = 0; NW.OPEN = 1; NW.CLOSING = 2; NW.CLOSED = 3;
+    window.WebSocket = NW;
+  }catch(e){}
+  try{
+    var OF = window.fetch;
+    window.fetch = function(){
+      var u = arguments[0];
+      var p = OF.apply(this, arguments);
+      try{
+        p.catch(function(){ var s = (typeof u === 'string') ? u : ((u && u.url) || ''); send('gagal:' + s); });
+      }catch(e){}
+      return p;
+    };
+  }catch(e){}
+  try{
+    var OX = window.XMLHttpRequest.prototype.open;
+    window.XMLHttpRequest.prototype.open = function(m, u){
+      try{ var s = String(u || ''); if (s.indexOf('http') === 0 && s.indexOf('127.0.0.1') < 0) this.addEventListener('error', function(){ send('xhr:' + s); }); }catch(e){}
+      return OX.apply(this, arguments);
+    };
+  }catch(e){}
+})();
+"""
     private const val CATALOG = "https://my.wavegames.online/admin/game/list?appKey=$APP_KEY"
     private const val FRONT = "https://wavegames.online"
 
@@ -457,6 +489,20 @@ private fun WaveGameView(
                     setBackgroundColor(android.graphics.Color.parseColor("#0B0B0B"))
                     android.webkit.CookieManager.getInstance().setAcceptCookie(true)
                     android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                    // Diagnosa: catat alamat socket dan permintaan yang gagal dari dalam game.
+                    addJavascriptInterface(
+                        object {
+                            @android.webkit.JavascriptInterface
+                            fun ev(t: String) {
+                                val teks = t.take(110)
+                                if (teks.isBlank()) return
+                                wv.post {
+                                    if (logs.length < 500) logs = (logs + teks + " | ").take(500)
+                                }
+                            }
+                        },
+                        "RezoDiag",
+                    )
                     webChromeClient = object : WebChromeClient() {
                         override fun onConsoleMessage(m: android.webkit.ConsoleMessage?): Boolean {
                             val txt = m?.message().orEmpty()
@@ -474,6 +520,7 @@ private fun WaveGameView(
                         override fun onPageStarted(v: WebView?, u: String?, f: android.graphics.Bitmap?) {
                             err = ""
                             prog = 0
+                            v?.evaluateJavascript(JS_DIAG, null)
                         }
                         override fun onPageFinished(v: WebView?, u: String?) {
                             prog = 100

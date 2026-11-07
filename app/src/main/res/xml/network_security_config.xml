@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SDK game pihak ketiga (WaveGames) memakai jembatan lokal http://127.0.0.1.
+  Android 9 ke atas memblokir http secara bawaan sehingga muncul
+  "net::ERR_CLEARTEXT_NOT_PERMITTED" dan ronde game berhenti di "Waiting".
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
