@@ -1876,12 +1876,14 @@ async function waveLog(env, r) {
   } catch (e) {}
 }
 
-const waveFoto = (a) => {
+// Foto profil HARUS berupa URL pendek. Game menaruh profilePicture di query
+// socket, jadi base64 raksasa (puluhan ribu karakter) membuat URL ditolak server
+// dan socket langsung putus (kode 1006) -> ronde tidak pernah mulai.
+const waveFoto = (uid, a) => {
   const v = String(a ?? "").trim();
   if (!v) return "";
-  if (/^https?:\/\//i.test(v) || v.startsWith("data:")) return v;
-  if (v.length > 64 && /^[A-Za-z0-9+/=\s]+$/.test(v)) return "data:image/jpeg;base64," + v.replace(/\s+/g, "");
-  return v;
+  if (/^https?:\/\//i.test(v)) return v;
+  return `https://43-156-99-4.sslip.io/avatar/${encodeURIComponent(String(uid))}`;
 };
 
 async function wavePlay(req, env) {
@@ -1922,7 +1924,7 @@ async function wavePlay(req, env) {
     return balas({
       success: true,
       message: "User info fetched successfully",
-      data: { id: uid, name: pl.name, balance: Number(pl.balance), profilePicture: waveFoto(pl.avatar) },
+      data: { id: uid, name: pl.name, balance: Number(pl.balance), profilePicture: waveFoto(uid, pl.avatar) },
     });
   }
 
@@ -1936,7 +1938,7 @@ async function wavePlay(req, env) {
     }
     if (amount === 0) {
       const pl = await hivePemain(env, uid);
-      return balas({ success: true, message: "success", data: { id: uid, balance: Number(pl.balance), name: pl.name, profilePicture: waveFoto(pl.avatar) } });
+      return balas({ success: true, message: "success", data: { id: uid, balance: Number(pl.balance), name: pl.name, profilePicture: waveFoto(uid, pl.avatar) } });
     }
     const resp = await hiveUang(env, uid, {
       kind,
@@ -1959,7 +1961,7 @@ async function wavePlay(req, env) {
         id: uid,
         balance: Number(r.w?.coins ?? r.coins ?? 0),
         name: plAkhir.name,
-        profilePicture: waveFoto(plAkhir.avatar),
+        profilePicture: waveFoto(uid, plAkhir.avatar),
       },
     });
   }
@@ -2337,6 +2339,30 @@ export default {
         return json({ ok: 1, w: r[0].rows });
       } catch (e) {
         return json({ ok: 0, e: String(e?.message ?? e) }, 500);
+      }
+    }
+    if (url.pathname.toLowerCase().startsWith("/avatar/")) {
+      const uidAv = decodeURIComponent(url.pathname.slice("/avatar/".length));
+      try {
+        const rAv = await pipe(env, [
+          { sql: "select avatar from wave_players where uid = ?", args: [T(uidAv)] },
+        ]);
+        let av = String(rAv[0].rows[0]?.avatar ?? "").trim();
+        if (!av) return new Response("", { status: 404 });
+        if (/^https?:\/\//i.test(av)) return Response.redirect(av, 302);
+        av = av.replace(/^data:image\/[a-z]+;base64,/i, "").replace(/\s+/g, "");
+        const bin = Uint8Array.from(atob(av), (c) => c.charCodeAt(0));
+        const jenis = bin[0] === 0x89 ? "image/png" : bin[0] === 0x47 ? "image/gif" : "image/jpeg";
+        return new Response(bin, {
+          status: 200,
+          headers: {
+            "Content-Type": jenis,
+            "Cache-Control": "public, max-age=86400",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      } catch (e) {
+        return new Response("", { status: 404 });
       }
     }
     if (url.pathname.toLowerCase() === "/wave/token") {
